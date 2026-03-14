@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
-import { OPTIONS, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
+import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 
@@ -11,6 +11,7 @@ function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",c
 
 function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
   const [data,setData]=useState([]);
+  const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
   const [vw,setVw]=useState("list");
   const [eid,setEid]=useState(null);
@@ -36,7 +37,7 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
     setData(rows||[]);setLoading(false);setSelected(new Set());setSb(null);
   },[scope]);
 
-  useEffect(()=>{load();},[load]);
+  useEffect(()=>{load();fetchOptions().then(o=>setOPTIONS(o));},[load]);
   useEffect(()=>{if(pendingForm&&!loading){setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
 
   const highlightFields=(fields)=>{setHighlighted(new Set(fields));setTimeout(()=>setHighlighted(new Set()),3000);};
