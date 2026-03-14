@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
 const tabs = [
-  { name: "Audit", href: "/audit" },
   { name: "Dashboard", href: "/dashboard" },
+  { name: "Audit", href: "/audit" },
   { name: "Reports", href: "/reports" },
   { name: "Chat", href: "/chat" },
   { name: "Settings", href: "/settings" },
@@ -40,9 +40,12 @@ export default function Nav() {
   return (
     <div className="bg-surface border-b border-main px-5 py-2.5 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-5">
-        <div className="mr-2">
-          <p className="text-[9px] text-accent font-bold tracking-[0.15em] uppercase leading-none">SB — BB</p>
-          <p className="text-[11px] font-semibold text-main leading-tight">Category Landscape</p>
+        <div className="mr-1 flex items-center gap-2">
+          {/* Logo: replace src with /logo.svg once uploaded to public/ */}
+          <div className="flex flex-col">
+            <p className="text-[9px] font-bold tracking-[0.12em] uppercase leading-none" style={{color:"var(--text)"}}>Knots & Dots</p>
+            <p className="text-[9px] text-accent tracking-[0.08em] uppercase leading-tight">SB — BB Category Landscape</p>
+          </div>
         </div>
         <div className="flex gap-0.5">
           {tabs.map(t => (
