@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --border: #e2e5e9;
+  --text: #111827;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+}
+
+.dark {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232733;
+  --border: #2e3240;
+  --text: #e5e7eb;
+  --text2: #9ca3af;
+  --text3: #6b7280;
+  --accent: #3b82f6;
+  --accent-soft: #1e2a4a;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+select, input, textarea, button { font-family: inherit; }
+
+.bg-surface { background: var(--surface); }
+.bg-surface2 { background: var(--surface2); }
+.border-main { border-color: var(--border); }
+.text-main { color: var(--text); }
+.text-muted { color: var(--text2); }
+.text-hint { color: var(--text3); }
+.bg-accent { background: var(--accent); }
+.bg-accent-soft { background: var(--accent-soft); }
+.text-accent { color: var(--accent); }

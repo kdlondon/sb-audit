@@ -1,0 +1,150 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase";
+import AuthGuard from "@/components/AuthGuard";
+import Nav from "@/components/Nav";
+import Markdown from "react-markdown";
+
+function ChatContent() {
+  const [scope, setScope] = useState("local");
+  const [localData, setLocalData] = useState([]);
+  const [globalData, setGlobalData] = useState([]);
+  const [messages, setMessages] = useState([{
+    role: "assistant",
+    content: "Hi! I have access to your competitive audit database. Ask me anything — dominant portraits, journey moment ownership, tone patterns, white space, creative territories, whatever you need."
+  }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(null);
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const [{ data: local }, { data: global }] = await Promise.all([
+        supabase.from("audit_entries").select("*"),
+        supabase.from("audit_global").select("*"),
+      ]);
+      setLocalData(local || []);
+      setGlobalData(global || []);
+      setDataLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const data = scope === "local" ? localData : scope === "global" ? globalData : [...localData, ...globalData];
+
+  const copyMsg = (idx, content) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setLoading(true);
+
+    const dataStr = data.map(e =>
+      `[${e.competitor || e.brand}] ${e.description || ""} | Type:${e.type || ""} | Portrait:${e.portrait || ""} | Phase:${e.journey_phase || ""} | Role:${e.bank_role || ""} | Tone:${e.tone_of_voice || ""} | Lang:${e.language_register || ""} | Pain:${e.pain_point_type || ""} | Archetype:${e.brand_archetype || ""} | Territory:${e.primary_territory || ""} | Insight:${e.insight || ""} | Transcript:${(e.transcript || "").slice(0, 80)}`
+    ).join("\n");
+
+    const history = messages.filter((_, i) => i > 0).slice(-6).map(m => ({ role: m.role, content: m.content }));
+    const scopeLabel = scope === "local" ? "local Canadian market" : scope === "global" ? "global creative benchmarks" : "both local and global";
+
+    try {
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          max_tokens: 2000,
+          system: `You are a brand strategy analyst for Scotiabank Business Banking. You have ${data.length} communication pieces from the ${scopeLabel} audit.\n\nDataset:\n${dataStr}\n\nAnswer precisely. Be strategic and conclusive. Reference specific brands and counts. Use markdown formatting for headers and lists when helpful.`,
+          messages: [...history, { role: "user", content: userMsg }],
+        }),
+      });
+      const result = await response.json();
+      if (result.error) setMessages(prev => [...prev, { role: "assistant", content: "Error: " + result.error }]);
+      else setMessages(prev => [...prev, { role: "assistant", content: result.content?.map(c => c.text || "").join("") || "No response." }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", content: "Error: " + err.message }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+      <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-bold text-main">Chat with your data</h2>
+          <p className="text-xs text-muted">{dataLoaded ? `${data.length} entries (${scope})` : "Loading..."}</p>
+        </div>
+        <div className="flex bg-surface2 rounded-lg p-0.5">
+          {[["local","Local"],["global","Global"],["combined","Both"]].map(([k,l]) => (
+            <button key={k} onClick={() => setScope(k)}
+              className={`px-3 py-1 rounded-md text-xs font-medium ${scope === k ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto px-5 py-4 max-w-3xl w-full mx-auto">
+        {messages.map((m, i) => (
+          <div key={i} className={`mb-4 ${m.role === "user" ? "text-right" : ""}`}>
+            <div className={`inline-block max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
+              m.role === "user"
+                ? "bg-accent text-white rounded-br-sm"
+                : "bg-surface border border-main text-main rounded-bl-sm"
+            }`}>
+              {m.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <Markdown>{m.content}</Markdown>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap">{m.content}</div>
+              )}
+            </div>
+            {m.role === "assistant" && i > 0 && (
+              <div className="mt-1">
+                <button onClick={() => copyMsg(i, m.content)}
+                  className="text-[10px] text-hint hover:text-muted">
+                  {copiedIdx === i ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {loading && (
+          <div className="mb-4">
+            <div className="inline-block bg-surface border border-main px-4 py-2.5 rounded-xl rounded-bl-sm text-sm text-hint">Thinking...</div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <div className="border-t border-main bg-surface px-5 py-3 max-w-3xl w-full mx-auto">
+        <div className="flex gap-2">
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+            placeholder="Ask about your audit data..."
+            className="flex-1 px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+          <button onClick={send} disabled={loading || !input.trim()}
+            className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">Send</button>
+        </div>
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {["Which competitor talks to Builders?", "What tone dominates fintechs?", "Who owns the first cash flow crisis?", "Where is the white space?"].map(q => (
+            <button key={q} onClick={() => setInput(q)}
+              className="text-[11px] text-accent bg-accent-soft px-2 py-1 rounded-full hover:opacity-80">{q}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPage() {
+  const [scope, setScope] = useState("local");
+  return <AuthGuard><Nav scope={scope} onScopeChange={setScope} /><ChatContent /></AuthGuard>;
+}
