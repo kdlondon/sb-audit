@@ -78,7 +78,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     delete e.created_at;
     return e;
   };
-  };
 
   const save=async()=>{
     const e=prepareSaveData(cur);
