@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { OPTIONS, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -9,7 +9,7 @@ function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
-function AuditContent({scope,onScopeChange}){
+function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
   const [data,setData]=useState([]);
   const [cur,setCur]=useState({});
   const [vw,setVw]=useState("list");
@@ -27,6 +27,7 @@ function AuditContent({scope,onScopeChange}){
   const [showAddMenu,setShowAddMenu]=useState(false);
   const [dragOver,setDragOver]=useState(false);
   const [materialType,setMaterialType]=useState("none");
+  const [highlighted,setHighlighted]=useState(new Set());
   const supabase=createClient();
 
   const load=useCallback(async()=>{
@@ -37,9 +38,34 @@ function AuditContent({scope,onScopeChange}){
 
   useEffect(()=>{load();},[load]);
 
+  // Handle pending form open from +Add dropdown
+  useEffect(()=>{
+    if(pendingForm&&!loading){
+      setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());
+      clearPendingForm();
+    }
+  },[pendingForm,loading,clearPendingForm]);
+
+  const highlightFields=(fields)=>{
+    setHighlighted(new Set(fields));
+    setTimeout(()=>setHighlighted(new Set()),3000);
+  };
+
+  const autoFill=(updates)=>{
+    const filledKeys=[];
+    setCur(prev=>{
+      const u={...prev};
+      Object.entries(updates).forEach(([k,v])=>{
+        if(!u[k]&&v){u[k]=v;filledKeys.push(k);}
+      });
+      return u;
+    });
+    if(filledKeys.length>0)highlightFields(filledKeys);
+  };
+
   const clearForm=()=>{
     if(!confirm("Clear all form data? You will need to re-enter everything."))return;
-    setCur({});setMaterialType("none");setSec(0);
+    setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());
   };
 
   const save=async()=>{
@@ -63,91 +89,59 @@ function AuditContent({scope,onScopeChange}){
     document.body.appendChild(a);a.click();document.body.removeChild(a);
   };
 
+  // YouTube metadata + transcript
   const fetchYTMeta=async(url)=>{
     setYtLoading(true);
     try{
       const res=await fetch("/api/youtube",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
       const meta=await res.json();
       if(!meta.error){
-        setCur(prev=>({...prev,
-          description:prev.description||meta.title||"",
-          image_url:prev.image_url||meta.thumbnail||"",
-          synopsis:prev.synopsis||(meta.description?meta.description.slice(0,300):""),
-          year:prev.year||meta.year||"",
-          ...(scope==="global"?{brand:prev.brand||meta.channel||""}:{}),
-        }));
+        const updates={};
+        if(meta.title)updates.description=meta.title;
+        if(meta.thumbnail)updates.image_url=meta.thumbnail;
+        if(meta.description)updates.synopsis=meta.description.slice(0,300);
+        if(meta.year)updates.year=meta.year;
+        if(meta.transcript)updates.transcript=meta.transcript;
+        if(scope==="global"&&meta.channel)updates.brand=meta.channel;
+        autoFill(updates);
       }
     }catch{}
     setYtLoading(false);
   };
 
-  const setVideoUrl=(url)=>{
-    setCur(prev=>({...prev,url,image_url:""}));
-    setMaterialType("video");
-    if(ytId(url))fetchYTMeta(url);
-  };
-
-  const setWebUrl=(url)=>{
-    setCur(prev=>({...prev,url,image_url:""}));
-    setMaterialType("web");
-  };
-
-  const setImageUrl=(url)=>{
-    setCur(prev=>({...prev,image_url:url,url:""}));
-    setMaterialType("image");
-  };
+  const setVideoUrl=(url)=>{setCur(prev=>({...prev,url,image_url:prev.image_url||""}));setMaterialType("video");if(ytId(url))fetchYTMeta(url);};
+  const setWebUrl=(url)=>{setCur(prev=>({...prev,url}));setMaterialType("web");};
+  const setImageFromUrl=(url)=>{setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");};
 
   const uploadImage=async(file)=>{
-    if(!file)return;
-    setUploading(true);
-    const ext=file.name.split(".").pop();
-    const path=`${Date.now()}.${ext}`;
+    if(!file)return;setUploading(true);
+    const ext=file.name.split(".").pop();const path=`${Date.now()}.${ext}`;
     const{error}=await supabase.storage.from("media").upload(path,file);
-    if(!error){
-      const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);
-      setCur(prev=>({...prev,image_url:publicUrl,url:""}));
-      setMaterialType("image");
-    }
+    if(!error){const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);setCur(prev=>({...prev,image_url:publicUrl,url:""}));setMaterialType("image");}
     setUploading(false);
   };
 
   const handleDrop=(e)=>{e.preventDefault();setDragOver(false);const file=e.dataTransfer.files?.[0];if(file&&file.type.startsWith("image/"))uploadImage(file);};
 
+  // AI analysis
   const analyzeImage=async()=>{
-    const imgUrl=cur.image_url;if(!imgUrl)return;
-    setAnalyzing(true);
+    const imgUrl=cur.image_url;if(!imgUrl)return;setAnalyzing(true);
     try{
       const context=cur.competitor?`Brand: ${cur.competitor}`:cur.brand?`Brand: ${cur.brand}`:"";
       const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imgUrl,context})});
       const result=await res.json();
-      if(result.success&&result.analysis){
-        const a=result.analysis;
-        setCur(prev=>{
-          const u={...prev};
-          const fill=(k,v)=>{if(!u[k]&&v)u[k]=v;};
-          fill("description",a.description);fill("synopsis",a.synopsis);fill("main_slogan",a.main_slogan);
-          fill("insight",a.insight);fill("idea",a.idea);fill("tone_of_voice",a.tone_of_voice);
-          fill("execution_style",a.execution_style);fill("brand_archetype",a.brand_archetype);
-          fill("bank_role",a.bank_role);fill("language_register",a.language_register);
-          fill("pain_point_type",a.pain_point_type);fill("representation",a.representation);
-          fill("transcript",a.transcript);fill("analyst_comment",a.analyst_comment);
-          return u;
-        });
-      }
+      if(result.success&&result.analysis){autoFill(result.analysis);}
     }catch{}
     setAnalyzing(false);
   };
 
-  // Determine material type from existing data when editing
-  const openForm=(entry,editScope)=>{
-    const e=entry||{};
-    setCur({...e});
-    setEid(entry?entry.id:null);
+  const openForm=(entry)=>{
+    const e=entry||{};setCur({...e});setEid(entry?entry.id:null);
     if(ytId(e.url))setMaterialType("video");
     else if(e.image_url)setMaterialType("image");
     else if(e.url)setMaterialType("web");
     else setMaterialType("none");
-    setSec(0);setVw("form");setSb(null);
+    setSec(0);setVw("form");setSb(null);setHighlighted(new Set());
   };
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
@@ -156,12 +150,13 @@ function AuditContent({scope,onScopeChange}){
   const getOpts=(f)=>OPTIONS[f.optKey||f.key]||[];
   const sections=getFieldsForScope(scope);
 
+  const fieldStyle=(key)=>highlighted.has(key)?{background:"var(--accent-soft)",borderColor:"var(--accent)",transition:"background 0.3s"}:{};
+
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
   // ── FORM ──
   if(vw==="form"){
-    const y=ytId(cur.url);
-    const imgUrl=cur.image_url;
+    const y=ytId(cur.url);const imgUrl=cur.image_url;
 
     return(
       <div className="min-h-screen" style={{background:"var(--bg)"}}>
@@ -170,31 +165,26 @@ function AuditContent({scope,onScopeChange}){
             <h2 className="text-lg font-bold text-main">{eid?"Edit entry":"New entry"}</h2>
             <span className="text-xs text-hint bg-accent-soft px-2 py-0.5 rounded font-medium">{scope==="local"?"Local":"Global"}</span>
             {ytLoading&&<span className="text-xs text-accent animate-pulse">Fetching YouTube data...</span>}
+            {analyzing&&<span className="text-xs text-accent animate-pulse">AI analyzing image...</span>}
           </div>
           <div className="flex gap-2">
-            <button onClick={clearForm} className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Clear form</button>
+            <button onClick={clearForm} className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Clear</button>
             <button onClick={()=>{setVw("list");setEid(null);setCur({});setMaterialType("none");}} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
             <button onClick={save} className="px-4 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">Save</button>
           </div>
         </div>
         <div className="flex" style={{height:"calc(100vh - 52px)"}}>
-          {/* Left: Material */}
+          {/* Left */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Material type selector */}
             <div className="bg-surface border-b border-main px-4 py-3">
               {materialType==="none"?(
                 <div>
                   <p className="text-sm font-medium text-main mb-2">Choose material type</p>
                   <div className="flex gap-2">
-                    <button onClick={()=>setMaterialType("video")} className="flex-1 py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">
-                      Video URL
-                    </button>
-                    <button onClick={()=>setMaterialType("web")} className="flex-1 py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">
-                      Website URL
-                    </button>
-                    <button onClick={()=>setMaterialType("image")} className="flex-1 py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">
-                      Image
-                    </button>
+                    {[["video","Video URL"],["web","Website URL"],["image","Image"]].map(([k,l])=>(
+                      <button key={k} onClick={()=>setMaterialType(k)}
+                        className="flex-1 py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>
+                    ))}
                   </div>
                 </div>
               ):(
@@ -202,12 +192,11 @@ function AuditContent({scope,onScopeChange}){
                   <div className="flex items-center gap-2">
                     <div className="flex bg-surface2 rounded-lg p-0.5">
                       {[["video","Video"],["web","Website"],["image","Image"]].map(([k,l])=>(
-                        <button key={k} onClick={()=>{setMaterialType(k);setCur(prev=>({...prev,url:"",image_url:""}));}}
+                        <button key={k} onClick={()=>{setMaterialType(k);if(k!=="image")setCur(prev=>({...prev,url:""}));if(k!=="video"&&k!=="web")setCur(prev=>({...prev,image_url:""}));}}
                           className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>
                       ))}
                     </div>
                   </div>
-
                   {materialType==="video"&&(
                     <div>
                       <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube)</label>
@@ -215,7 +204,6 @@ function AuditContent({scope,onScopeChange}){
                         className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
                     </div>
                   )}
-
                   {materialType==="web"&&(
                     <div>
                       <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label>
@@ -223,23 +211,21 @@ function AuditContent({scope,onScopeChange}){
                         className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
                     </div>
                   )}
-
                   {materialType==="image"&&(
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL</label>
-                        <input value={cur.image_url||""} onChange={e=>setImageUrl(e.target.value)} placeholder="https://...image.jpg"
+                        <input value={cur.image_url||""} onChange={e=>setImageFromUrl(e.target.value)} placeholder="https://...image.jpg"
                           className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
                       </div>
                       <div className="flex items-end">
                         <label className="px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">
-                          {uploading?"Uploading...":"Upload file"}
+                          {uploading?"...":"Upload"}
                           <input type="file" accept="image/*" onChange={e=>uploadImage(e.target.files?.[0])} className="hidden" />
                         </label>
                       </div>
                     </div>
                   )}
-
                   {materialType==="image"&&imgUrl&&isImgUrl(imgUrl)&&(
                     <button onClick={analyzeImage} disabled={analyzing}
                       className="text-xs bg-accent-soft text-accent border border-[var(--accent)] px-3 py-1 rounded-lg font-medium hover:opacity-80 disabled:opacity-50">
@@ -249,32 +235,24 @@ function AuditContent({scope,onScopeChange}){
                 </div>
               )}
             </div>
-
-            {/* Preview */}
             <div onDrop={handleDrop} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}
               className={`flex-1 flex items-center justify-center overflow-auto p-4 transition ${dragOver?"ring-2 ring-[var(--accent)] ring-inset":""}`}
               style={{background:dragOver?"var(--accent-soft)":"var(--surface2)"}}>
               {materialType==="video"&&y?(
-                <iframe width="100%" height="100%" style={{maxHeight:500,maxWidth:800}}
-                  src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
-              ):materialType==="video"&&cur.url?(
-                <div className="text-center text-hint"><p className="text-sm">Paste a valid YouTube URL to preview</p></div>
+                <iframe width="100%" height="100%" style={{maxHeight:500,maxWidth:800}} src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
               ):materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?(
                 <img src={imgUrl} className="max-w-full max-h-full rounded-lg" alt="" />
               ):materialType==="web"&&cur.url?(
                 <div className="w-full h-full flex flex-col">
-                  <iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1"
-                    sandbox="allow-scripts allow-same-origin"
-                    onError={e=>{e.target.style.display="none";}} />
+                  <iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" />
                   <div className="mt-2 text-center">
                     <a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a>
-                    <p className="text-[10px] text-hint mt-1">Some websites block embedding. Use "Open in new tab" if the preview doesn't load.</p>
+                    <p className="text-[10px] text-hint mt-0.5">Some sites block embedding</p>
                   </div>
                 </div>
               ):(
                 <div className="text-center text-hint">
                   <p className="text-lg mb-2">{dragOver?"Drop image here":materialType==="none"?"Choose a material type above":"Enter a URL or drop an image"}</p>
-                  <p className="text-sm">{materialType==="image"?"Paste URL, upload, or drag & drop":"YouTube, website, or image"}</p>
                 </div>
               )}
             </div>
@@ -292,7 +270,7 @@ function AuditContent({scope,onScopeChange}){
                   {sec===si&&(
                     <div className="py-2 space-y-2">
                       {s.fields.filter(f=>f.key!=="url"&&f.key!=="image_url").map(f=>(
-                        <div key={f.key}>
+                        <div key={f.key} style={fieldStyle(f.key)} className="rounded px-1 -mx-1 transition-all duration-500">
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
                           {f.type==="select"?(
                             <div>
@@ -329,18 +307,7 @@ function AuditContent({scope,onScopeChange}){
   }
 
   // ── LIST ──
-  const cols=[
-    {key:"_select",label:"",nosort:true},
-    {key:scope==="local"?"competitor":"brand",label:"Brand"},
-    {key:"category",label:"Cat."},
-    {key:"description",label:"Description"},
-    {key:"year",label:"Year"},
-    {key:"type",label:"Type"},
-    {key:"portrait",label:"Portrait"},
-    {key:"journey_phase",label:"Phase"},
-    {key:"rating",label:"★"},
-  ];
-
+  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Year"},{key:"type",label:"Type"},{key:"portrait",label:"Portrait"},{key:"journey_phase",label:"Phase"},{key:"rating",label:"★"}];
   const filterKeys=scope==="local"
     ?[["competitor","Competitor"],["category","Category"],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["client_lifecycle","Lifecycle",OPTIONS.clientLifecycle],["brand_archetype","Archetype",OPTIONS.brandArchetype]]
     :[["category","Category"],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["category_proximity","Proximity",OPTIONS.categoryProximity],["brand_archetype","Archetype",OPTIONS.brandArchetype]];
@@ -359,9 +326,9 @@ function AuditContent({scope,onScopeChange}){
               <button onClick={()=>setShowAddMenu(!showAddMenu)} className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
               {showAddMenu&&(
                 <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg z-20 overflow-hidden w-[160px]">
-                  <button onClick={()=>{if(scope!=="local")onScopeChange("local");setTimeout(()=>openForm(null),50);setShowAddMenu(false);}}
+                  <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onScopeChange("local");}}
                     className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
-                  <button onClick={()=>{if(scope!=="global")onScopeChange("global");setTimeout(()=>openForm(null),50);setShowAddMenu(false);}}
+                  <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onScopeChange("global");}}
                     className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
                 </div>
               )}
@@ -382,13 +349,10 @@ function AuditContent({scope,onScopeChange}){
         <div className="px-5 pb-5 overflow-x-auto">
           <table className="w-full border-collapse text-xs mt-1">
             <thead><tr className="border-b-2 border-main">
-              {cols.map((c,i)=>(
-                <th key={i} onClick={()=>!c.nosort&&handleSort(c.key)}
-                  className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>
-                  {c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />
-                    :<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):""}</span>}
-                </th>
-              ))}<th></th>
+              {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>
+                {c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />
+                  :<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):""}</span>}
+              </th>))}<th></th>
             </tr></thead>
             <tbody>{fd.map(e=>(
               <tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer" onClick={()=>setSb(e)}>
@@ -442,5 +406,29 @@ function AuditContent({scope,onScopeChange}){
 
 export default function AuditPage(){
   const[scope,setScope]=useState("local");
-  return <AuthGuard><Nav scope={scope} onScopeChange={setScope}/><AuditContent scope={scope} onScopeChange={setScope} key={scope}/></AuthGuard>;
+  const[pendingForm,setPendingForm]=useState(false);
+
+  const handleScopeChange=(newScope)=>{
+    if(newScope!==scope){
+      setScope(newScope);
+      setPendingForm(true);
+    }
+  };
+
+  const handleAddLocal=()=>{
+    if(scope==="local")setPendingForm(true);
+    else{setScope("local");setPendingForm(true);}
+  };
+
+  const handleAddGlobal=()=>{
+    if(scope==="global")setPendingForm(true);
+    else{setScope("global");setPendingForm(true);}
+  };
+
+  return(
+    <AuthGuard>
+      <Nav scope={scope} onScopeChange={setScope}/>
+      <AuditContent scope={scope} onScopeChange={handleScopeChange} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/>
+    </AuthGuard>
+  );
 }
