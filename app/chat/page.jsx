@@ -35,14 +35,13 @@ function ChatContent() {
       `[${e.competitor}] ${e.description || ""} | Type:${e.type||""} | Portrait:${e.portrait||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Role:${e.bank_role||""} | Tone:${e.tone_of_voice||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | CTA:${e.cta||""} | Archetype:${e.brand_archetype||""} | Channel:${e.channel||""} | Diff:${e.diff_claim||""} | Transcript:${(e.transcript||"").slice(0,80)}`
     ).join("\n");
 
-    const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+    const history = messages.filter(m => m.role !== "assistant" || messages.indexOf(m) > 0).slice(-6).map(m => ({ role: m.role, content: m.content }));
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
           max_tokens: 2000,
           system: `You are a brand strategy analyst working on the Scotiabank Business Banking competitive audit. You have access to ${data.length} communication pieces from Canadian business banking competitors.
 
@@ -54,8 +53,12 @@ Answer questions precisely using this data. Be strategic and conclusive. When ci
         }),
       });
       const result = await response.json();
-      const text = result.content?.map(c => c.text || "").join("") || "Sorry, I couldn't process that.";
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      if (result.error) {
+        setMessages(prev => [...prev, { role: "assistant", content: "Error: " + result.error }]);
+      } else {
+        const text = result.content?.map(c => c.text || "").join("") || "Sorry, I couldn't process that.";
+        setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: "assistant", content: "Error: " + err.message }]);
     }
