@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 const tabs = [
   { name: "Audit", href: "/audit" },
+  { name: "Dashboard", href: "/dashboard" },
   { name: "Reports", href: "/reports" },
   { name: "Chat", href: "/chat" },
   { name: "Settings", href: "/settings" },
