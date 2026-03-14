@@ -59,17 +59,20 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
   // Merge "Other" custom values into main fields before saving
   const prepareSaveData=(rawCur)=>{
     const e={...rawCur};
-    // For every field, if value is "Other" and there's a _other field, use the _other value
     const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
+    const validKeys=new Set(allFields.map(f=>f.key));
+    // Add common keys that aren't in form sections
+    ["id","created_by","created_at","transcript","analyst_comment","url","image_url","xtype"].forEach(k=>validKeys.add(k));
+    // For scope-specific keys
+    if(scope==="local"){validKeys.add("competitor");validKeys.delete("brand");validKeys.delete("country");validKeys.delete("category_proximity");validKeys.delete("company_type");}
+    if(scope==="global"){validKeys.add("brand");validKeys.add("country");validKeys.add("category_proximity");validKeys.add("company_type");validKeys.add("competitor");}
+    // Merge "Other" values
     allFields.forEach(f=>{
-      if(f.type==="select"&&e[f.key]==="Other"&&e[f.key+"_other"]){
-        e[f.key]=e[f.key+"_other"];
-      }
-      // Clean up _other fields — they're not DB columns
-      delete e[f.key+"_other"];
+      if(f.type==="select"&&e[f.key]==="Other"&&e[f.key+"_other"]){e[f.key]=e[f.key+"_other"];}
     });
-    // Remove any remaining _other keys
+    // Remove _other and invalid keys
     Object.keys(e).forEach(k=>{if(k.endsWith("_other"))delete e[k];});
+    Object.keys(e).forEach(k=>{if(!validKeys.has(k))delete e[k];});
     delete e.created_at;
     return e;
   };
