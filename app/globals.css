@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f7f8fa;
+  color: #111827;
+}
+
+select, input, textarea, button {
+  font-family: inherit;
+}
