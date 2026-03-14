@@ -63,14 +63,21 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const prepareSaveData=(rawCur)=>{
     const allowed=new Set(scope==="global"?GLOBAL_COLUMNS:LOCAL_COLUMNS);
     const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
-    // Merge "Other" values
+    const merged={...rawCur};
+    // Merge "Other" values — for EVERY select field, if value is "Other" and _other has text, use the text
     allFields.forEach(f=>{
-      if(f.type==="select"&&rawCur[f.key]==="Other"&&rawCur[f.key+"_other"]){rawCur[f.key]=rawCur[f.key+"_other"];}
+      if(f.type==="select"&&merged[f.key]==="Other"&&merged[f.key+"_other"]){
+        merged[f.key]=merged[f.key+"_other"];
+      }
     });
+    // Build clean object with only allowed columns
     const e={};
-    Object.keys(rawCur).forEach(k=>{if(allowed.has(k))e[k]=rawCur[k];});
+    Object.keys(merged).forEach(k=>{
+      if(allowed.has(k)&&!k.endsWith("_other"))e[k]=merged[k];
+    });
     delete e.created_at;
     return e;
+  };
   };
 
   const save=async()=>{
