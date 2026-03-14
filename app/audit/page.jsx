@@ -57,22 +57,18 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
   const clearForm=()=>{if(!confirm("Clear all form data?"))return;setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());};
 
   // Merge "Other" custom values into main fields before saving
+  const LOCAL_COLUMNS=["id","created_by","competitor","category","description","year","type","xtype","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
+  const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity","company_type"];
+
   const prepareSaveData=(rawCur)=>{
-    const e={...rawCur};
+    const allowed=new Set(scope==="global"?GLOBAL_COLUMNS:LOCAL_COLUMNS);
     const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
-    const validKeys=new Set(allFields.map(f=>f.key));
-    // Add common keys that aren't in form sections
-    ["id","created_by","created_at","transcript","analyst_comment","url","image_url","xtype"].forEach(k=>validKeys.add(k));
-    // For scope-specific keys
-    if(scope==="local"){validKeys.add("competitor");validKeys.delete("brand");validKeys.delete("country");validKeys.delete("category_proximity");validKeys.delete("company_type");}
-    if(scope==="global"){validKeys.add("brand");validKeys.add("country");validKeys.add("category_proximity");validKeys.add("company_type");validKeys.add("competitor");}
     // Merge "Other" values
     allFields.forEach(f=>{
-      if(f.type==="select"&&e[f.key]==="Other"&&e[f.key+"_other"]){e[f.key]=e[f.key+"_other"];}
+      if(f.type==="select"&&rawCur[f.key]==="Other"&&rawCur[f.key+"_other"]){rawCur[f.key]=rawCur[f.key+"_other"];}
     });
-    // Remove _other and invalid keys
-    Object.keys(e).forEach(k=>{if(k.endsWith("_other"))delete e[k];});
-    Object.keys(e).forEach(k=>{if(!validKeys.has(k))delete e[k];});
+    const e={};
+    Object.keys(rawCur).forEach(k=>{if(allowed.has(k))e[k]=rawCur[k];});
     delete e.created_at;
     return e;
   };
