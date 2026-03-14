@@ -55,30 +55,22 @@ function ReportsContent() {
 
     const sectionNames = sections.map(id => REPORT_SECTIONS.find(s => s.id === id)?.label).filter(Boolean).join(", ");
 
-    const prompt = `You are a brand strategist analyzing competitive communications in Canadian business banking for Scotiabank.
-
-Here is the audit data for ${filtered.length} communication pieces:
-${dataStr}
-
-Generate a strategic report covering these sections: ${sectionNames}
-
-${customInstructions ? `Additional instructions: ${customInstructions}` : ""}
-
-Format the report in Markdown with clear headers for each section. Be conclusive and strategic — lead with insights, support with evidence from the data. Use the language of brand strategy, not research summaries. Be specific about which competitors do what.`;
-
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
           max_tokens: 4000,
-          messages: [{ role: "user", content: prompt }],
+          system: "You are a brand strategist analyzing competitive communications in Canadian business banking for Scotiabank. Be conclusive and strategic — lead with insights, support with evidence. Use the language of brand strategy, not research summaries. Be specific about which competitors do what.",
+          messages: [{
+            role: "user",
+            content: `Here is audit data for ${filtered.length} communication pieces:\n${dataStr}\n\nGenerate a strategic report covering: ${sectionNames}\n\n${customInstructions ? `Additional instructions: ${customInstructions}` : ""}\n\nFormat in Markdown with clear headers for each section.`
+          }],
         }),
       });
       const result = await response.json();
-      const text = result.content?.map(c => c.text || "").join("") || "Error generating report.";
-      setReport(text);
+      if (result.error) { setReport("Error: " + result.error); }
+      else { setReport(result.content?.map(c => c.text || "").join("") || "No content generated."); }
     } catch (err) {
       setReport("Error: " + err.message);
     }
