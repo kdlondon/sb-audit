@@ -18,7 +18,7 @@ function Toast({message,link,onClose}){
   </div>);
 }
 
-function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
+function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm}){
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
@@ -219,7 +219,10 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center sticky top-[45px] z-30">
           <div className="flex items-center gap-3">
-            <h2 className="text-base font-bold text-main">{scope==="local"?"Local audit":"Global benchmarks"}</h2>
+            <div className="flex bg-surface2 rounded-lg p-0.5">
+              <button onClick={()=>onScopeChange("local")} className={`px-3 py-1 rounded-md text-sm font-medium transition ${scope==="local"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Local audit</button>
+              <button onClick={()=>onScopeChange("global")} className={`px-3 py-1 rounded-md text-sm font-medium transition ${scope==="global"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Global benchmarks</button>
+            </div>
             <span className="text-xs text-hint">{fd.length} of {data.length}</span>
           </div>
           <div className="flex gap-2 items-center">
@@ -238,8 +241,8 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
             <div className="relative">
               <button onClick={()=>setShowAddMenu(!showAddMenu)} className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
               {showAddMenu&&(<div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg z-20 overflow-hidden w-[160px]">
-                <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onScopeChange("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
-                <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onScopeChange("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
+                <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onAddWithScope("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
+                <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onAddWithScope("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
               </div>)}
             </div>
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
@@ -320,6 +323,7 @@ function AuditContent({scope,onScopeChange,pendingForm,clearPendingForm}){
 export default function AuditPage(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
-  const handleScopeChange=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}};
-  return(<AuthGuard><Nav scope={scope} onScopeChange={setScope}/><AuditContent scope={scope} onScopeChange={handleScopeChange} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/></AuthGuard>);
+  const handleScopeChange=(s)=>{setScope(s);};
+  const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
+  return(<AuthGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/></AuthGuard>);
 }
