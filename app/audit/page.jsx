@@ -11,12 +11,16 @@ function ytId(u) {
   return m ? m[1] : null;
 }
 
+function isImage(u) {
+  if (!u) return false;
+  return /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u);
+}
+
 function Tag({ v }) {
   return <span style={{ background: COMPETITOR_COLORS[v] || "#888", color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{v}</span>;
 }
 
-function AuditContent() {
-  const [scope, setScope] = useState("local");
+function AuditContent({ scope }) {
   const [data, setData] = useState([]);
   const [cur, setCur] = useState({});
   const [vw, setVw] = useState("list");
@@ -33,13 +37,14 @@ function AuditContent() {
   const load = useCallback(async () => {
     setLoading(true);
     const table = getTableName(scope);
-    const { data: rows } = await supabase.from(table).select("*").order("created_at", { ascending: true });
+    const { data: rows, error } = await supabase.from(table).select("*").order("created_at", { ascending: true });
     setData(rows || []);
     setLoading(false);
     setSelected(new Set());
+    setSb(null);
   }, [scope]);
 
-  useEffect(() => { load(); setSb(null); setVw("list"); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     const e = { ...cur };
@@ -86,11 +91,6 @@ function AuditContent() {
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selected.size === fd.length) setSelected(new Set());
-    else setSelected(new Set(fd.map(e => e.id)));
-  };
-
   const doExport = () => {
     const sections = getFieldsForScope(scope);
     const ks = sections.flatMap(s => s.fields.map(f => f.key));
@@ -100,28 +100,20 @@ function AuditContent() {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `audit_${scope}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = url; a.download = `audit_${scope}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
   const fetchYTMeta = async (url) => {
     try {
       const res = await fetch("/api/youtube", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
       const meta = await res.json();
       if (meta.title) {
-        setCur(prev => ({
-          ...prev,
-          description: prev.description || meta.title,
-          main_slogan: prev.main_slogan || "",
-        }));
+        setCur(prev => ({ ...prev, description: prev.description || meta.title }));
       }
     } catch {}
   };
@@ -129,6 +121,10 @@ function AuditContent() {
   const handleUrlChange = (url) => {
     setCur(prev => ({ ...prev, url }));
     if (ytId(url)) fetchYTMeta(url);
+  };
+
+  const handleImageUrlChange = (url) => {
+    setCur(prev => ({ ...prev, image_url: url }));
   };
 
   let fd = data.filter(e => Object.entries(fl).every(([k, v]) => !v || (e[k] || "").includes(v)));
@@ -150,38 +146,62 @@ function AuditContent() {
 
   if (loading) return <div className="p-10 text-center text-hint">Loading entries...</div>;
 
-  // ENTRY FORM — split screen
+  // ── FORM VIEW (split screen) ──
   if (vw === "form") {
     const y = ytId(cur.url);
-    const hasMedia = y || cur.image_url || cur.url;
+    const imgUrl = cur.image_url;
 
     return (
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-main">{eid ? "Edit entry" : "New entry"}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-main">{eid ? "Edit entry" : "New entry"}</h2>
+            <span className="text-xs text-hint bg-accent-soft px-2 py-0.5 rounded font-medium">{scope === "local" ? "Local" : "Global"}</span>
+          </div>
           <div className="flex gap-2">
             <button onClick={() => { setVw("list"); setEid(null); setCur({}); }} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
             <button onClick={save} className="px-4 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">Save</button>
           </div>
         </div>
         <div className="flex" style={{ height: "calc(100vh - 52px)" }}>
-          {/* Left: Material preview */}
-          <div className="flex-1 p-4 overflow-auto bg-surface2 flex items-center justify-center">
-            {y ? (
-              <iframe width="100%" height="100%" style={{ maxHeight: 500, maxWidth: 800 }}
-                src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
-            ) : cur.image_url ? (
-              <img src={cur.image_url} className="max-w-full max-h-full rounded-lg" />
-            ) : cur.url ? (
-              <iframe src={cur.url} width="100%" height="100%" className="rounded-lg border border-main"
-                sandbox="allow-scripts allow-same-origin" style={{ maxWidth: 900 }}
-                onError={(e) => e.target.style.display = "none"} />
-            ) : (
-              <div className="text-center text-hint">
-                <p className="text-lg mb-2">Paste a URL above to preview</p>
-                <p className="text-sm">YouTube, website, or image URL</p>
+          {/* Left: Preview + URL inputs */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* URL input bar */}
+            <div className="bg-surface border-b border-main px-4 py-2 flex gap-2">
+              <div className="flex-1">
+                <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">URL (YouTube, website, social)</label>
+                <input value={cur.url || ""} onChange={e => handleUrlChange(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
               </div>
-            )}
+              <div className="w-[200px]">
+                <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL</label>
+                <input value={cur.image_url || ""} onChange={e => handleImageUrlChange(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+              </div>
+            </div>
+
+            {/* Preview area */}
+            <div className="flex-1 bg-surface2 flex items-center justify-center overflow-auto p-4">
+              {y ? (
+                <iframe width="100%" height="100%" style={{ maxHeight: 500, maxWidth: 800 }}
+                  src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
+              ) : imgUrl && isImage(imgUrl) ? (
+                <img src={imgUrl} className="max-w-full max-h-full rounded-lg" alt="Preview" />
+              ) : cur.url ? (
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  <iframe src={cur.url} width="100%" height="100%" className="rounded-lg border border-main flex-1"
+                    sandbox="allow-scripts allow-same-origin" style={{ maxWidth: 900 }} />
+                  <a href={cur.url} target="_blank" className="mt-2 text-xs text-accent hover:underline">Open in new tab</a>
+                </div>
+              ) : (
+                <div className="text-center text-hint">
+                  <p className="text-lg mb-2">Paste a URL above to preview</p>
+                  <p className="text-sm">YouTube, website, or image URL</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right: Form sidebar */}
@@ -197,7 +217,7 @@ function AuditContent() {
                   </div>
                   {sec === si && (
                     <div className="py-2 space-y-2">
-                      {s.fields.map(f => (
+                      {s.fields.filter(f => f.key !== "url" && f.key !== "image_url").map(f => (
                         <div key={f.key}>
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
                           {f.type === "select" ? (
@@ -216,8 +236,7 @@ function AuditContent() {
                             <textarea value={cur[f.key] || ""} onChange={e => setCur({ ...cur, [f.key]: e.target.value })}
                               rows={2} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
                           ) : (
-                            <input value={cur[f.key] || ""} 
-                              onChange={e => f.key === "url" ? handleUrlChange(e.target.value) : setCur({ ...cur, [f.key]: e.target.value })}
+                            <input value={cur[f.key] || ""} onChange={e => setCur({ ...cur, [f.key]: e.target.value })}
                               className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
                           )}
                         </div>
@@ -238,10 +257,10 @@ function AuditContent() {
     );
   }
 
-  // LIST VIEW
+  // ── LIST VIEW ──
   const cols = [
     { key: "_select", label: "", nosort: true },
-    { key: scope === "local" ? "competitor" : "brand", label: scope === "local" ? "Brand" : "Brand" },
+    { key: scope === "local" ? "competitor" : "brand", label: "Brand" },
     { key: "category", label: "Cat." },
     { key: "description", label: "Description" },
     { key: "year", label: "Year" },
@@ -258,7 +277,6 @@ function AuditContent() {
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <div style={{ marginRight: sb ? 380 : 0, transition: "margin 0.15s" }}>
-        {/* Toolbar */}
         <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-base font-bold text-main">{scope === "local" ? "Local audit" : "Global benchmarks"}</h2>
@@ -277,7 +295,6 @@ function AuditContent() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="bg-surface border-b border-main px-5 py-2 flex gap-2 flex-wrap items-center">
           <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
           {filterKeys.map(([k, l, opts]) => (
@@ -292,16 +309,16 @@ function AuditContent() {
           )}
         </div>
 
-        {/* Table */}
         <div className="px-5 pb-5 overflow-x-auto">
           <table className="w-full border-collapse text-xs mt-1">
             <thead>
               <tr className="border-b-2 border-main">
                 {cols.map((c, i) => (
                   <th key={i} onClick={() => !c.nosort && handleSort(c.key)}
-                    className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort ? "cursor-pointer hover:text-main" : ""}`}>
+                    className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort ? "cursor-pointer hover:text-main select-none" : ""}`}>
                     {c.key === "_select" ? (
-                      <input type="checkbox" checked={selected.size === fd.length && fd.length > 0} onChange={toggleSelectAll} />
+                      <input type="checkbox" checked={selected.size === fd.length && fd.length > 0}
+                        onChange={() => selected.size === fd.length ? setSelected(new Set()) : setSelected(new Set(fd.map(e => e.id)))} />
                     ) : (
                       <span>{c.label} {sortCol === c.key ? (sortDir === "asc" ? "↑" : "↓") : ""}</span>
                     )}
@@ -312,8 +329,7 @@ function AuditContent() {
             </thead>
             <tbody>
               {fd.map(e => (
-                <tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer"
-                  onClick={() => setSb(e)}>
+                <tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer" onClick={() => setSb(e)}>
                   <td className="px-2 py-1.5" onClick={ev => ev.stopPropagation()}>
                     <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} />
                   </td>
@@ -337,31 +353,16 @@ function AuditContent() {
         </div>
       </div>
 
-      {/* Sidebar preview — sticky */}
+      {/* Sidebar preview — fixed */}
       {sb && (
         <div className="fixed top-0 right-0 w-[380px] h-screen bg-surface border-l border-main overflow-auto z-50" style={{ boxShadow: "-2px 0 12px rgba(0,0,0,0.05)" }}>
           <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10">
             <b className="text-sm text-main">{sb.description || sb.competitor || sb.brand}</b>
             <span onClick={() => setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span>
           </div>
-
-          {/* Media preview */}
-          {ytId(sb.url) && (
-            <div className="px-3 pt-2">
-              <iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`}
-                frameBorder="0" allowFullScreen className="rounded-md" />
-            </div>
-          )}
-          {sb.image_url && !ytId(sb.url) && (
-            <div className="px-3 pt-2"><img src={sb.image_url} className="w-full rounded-md" /></div>
-          )}
-          {sb.url && !ytId(sb.url) && (
-            <div className="px-3 pt-1">
-              <a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a>
-            </div>
-          )}
-
-          {/* Tags and data */}
+          {ytId(sb.url) && <div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
+          {sb.image_url && !ytId(sb.url) && <div className="px-3 pt-2"><img src={sb.image_url} className="w-full rounded-md" /></div>}
+          {sb.url && !ytId(sb.url) && <div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
           <div className="p-3">
             <div className="flex gap-1 flex-wrap mb-2">
               {sb.competitor && <Tag v={sb.competitor} />}
@@ -370,22 +371,14 @@ function AuditContent() {
               {sb.year && <span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}
               {sb.rating && <span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}
             </div>
-            {[
-              ["Type", sb.type], ["Portrait", sb.portrait], ["Phase", sb.journey_phase],
-              ["Lifecycle", sb.client_lifecycle], ["Door", sb.entry_door], ["Role", sb.bank_role],
-              ["Archetype", sb.brand_archetype], ["Tone", sb.tone_of_voice], ["Language", sb.language_register],
-              ["Territory", sb.primary_territory], ["Execution", sb.execution_style],
-              ["VP", sb.main_vp], ["Slogan", sb.main_slogan],
-            ].filter(([, v]) => v && v !== "" && !v.startsWith("Not ") && !v.startsWith("None")).map(([l, v]) => (
+            {[["Type",sb.type],["Portrait",sb.portrait],["Phase",sb.journey_phase],["Lifecycle",sb.client_lifecycle],["Door",sb.entry_door],["Role",sb.bank_role],["Archetype",sb.brand_archetype],["Tone",sb.tone_of_voice],["Language",sb.language_register],["Territory",sb.primary_territory],["Execution",sb.execution_style],["VP",sb.main_vp],["Slogan",sb.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(
               <div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>
             ))}
           </div>
-
           {sb.synopsis && <div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.synopsis}</div></div>}
           {sb.insight && <div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.insight}</div></div>}
           {sb.transcript && <div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Transcript</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded max-h-[150px] overflow-auto whitespace-pre-wrap text-main">{sb.transcript}</div></div>}
           {sb.analyst_comment && <div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst comment</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.analyst_comment}</div></div>}
-
           <div className="p-3 border-t border-main sticky bottom-0 bg-surface">
             <button onClick={() => { setCur({ ...sb }); setEid(sb.id); setVw("form"); setSec(0); setSb(null); }}
               className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">Edit</button>
@@ -401,7 +394,7 @@ export default function AuditPage() {
   return (
     <AuthGuard>
       <Nav scope={scope} onScopeChange={setScope} />
-      <AuditContent key={scope} />
+      <AuditContent scope={scope} key={scope} />
     </AuthGuard>
   );
 }
