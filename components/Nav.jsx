@@ -40,13 +40,7 @@ export default function Nav() {
   return (
     <div className="bg-surface border-b border-main px-5 py-2.5 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-5">
-        <div className="mr-1 flex items-center gap-2">
-          {/* Logo: replace src with /logo.svg once uploaded to public/ */}
-          <div className="flex flex-col">
-            <p className="text-[9px] font-bold tracking-[0.12em] uppercase leading-none" style={{color:"var(--text)"}}>Knots & Dots</p>
-            <p className="text-[9px] text-accent tracking-[0.08em] uppercase leading-tight">SB — BB Category Landscape</p>
-          </div>
-        </div>
+        <img src="/knots-dots-logo.png" alt="Knots & Dots" height={28} style={{height:28,width:"auto"}} className="mr-1" />
         <div className="flex gap-0.5">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
