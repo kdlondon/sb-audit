@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { OPTIONS, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -7,9 +7,10 @@ import Nav from "@/components/Nav";
 
 function ytId(u) { if (!u) return null; const m = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return m ? m[1] : null; }
 function isImage(u) { return u && /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u); }
+function isSupabaseImg(u) { return u && u.includes("supabase.co/storage"); }
 function Tag({ v }) { return <span style={{ background: COMPETITOR_COLORS[v] || "#888", color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{v}</span>; }
 
-function AuditContent({ scope }) {
+function AuditContent({ scope, onScopeChange }) {
   const [data, setData] = useState([]);
   const [cur, setCur] = useState({});
   const [vw, setVw] = useState("list");
@@ -24,7 +25,10 @@ function AuditContent({ scope }) {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [ytLoading, setYtLoading] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const supabase = createClient();
+  const dropRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,55 +48,47 @@ function AuditContent({ scope }) {
   };
 
   const del = async (id) => { await supabase.from(getTableName(scope)).delete().eq("id", id); if (sb?.id === id) setSb(null); load(); };
-
-  const bulkDelete = async () => {
-    if (selected.size === 0 || !confirm(`Delete ${selected.size} entries?`)) return;
-    const table = getTableName(scope);
-    for (const id of selected) { await supabase.from(table).delete().eq("id", id); }
-    if (sb && selected.has(sb.id)) setSb(null); load();
-  };
-
+  const bulkDelete = async () => { if (selected.size === 0 || !confirm(`Delete ${selected.size} entries?`)) return; const table = getTableName(scope); for (const id of selected) { await supabase.from(table).delete().eq("id", id); } if (sb && selected.has(sb.id)) setSb(null); load(); };
   const toggleSelect = (id) => { setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
   const doExport = () => {
     const ks = getFieldsForScope(scope).flatMap(s => s.fields.map(f => f.key));
-    const h = ks.join(",");
     const rows = data.map(e => ks.map(k => '"' + (e[k] || "").replace(/"/g, '""').replace(/\n/g, " ") + '"').join(","));
-    const blob = new Blob([[h, ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([[ks.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `audit_${scope}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-  // YouTube metadata extraction
+  // YouTube metadata
   const fetchYTMeta = async (url) => {
     setYtLoading(true);
     try {
       const res = await fetch("/api/youtube", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
       const meta = await res.json();
       if (!meta.error) {
-        setCur(prev => ({
-          ...prev,
-          description: prev.description || meta.title || "",
-          image_url: prev.image_url || meta.thumbnail || "",
-          synopsis: prev.synopsis || (meta.description ? meta.description.slice(0, 300) : ""),
-          year: prev.year || meta.year || "",
-          ...(scope === "global" ? { brand: prev.brand || meta.channel || "" } : {}),
-        }));
+        setCur(prev => {
+          const updated = { ...prev };
+          if (!updated.description && meta.title) updated.description = meta.title;
+          if (!updated.image_url && meta.thumbnail) updated.image_url = meta.thumbnail;
+          if (!updated.synopsis && meta.description) updated.synopsis = meta.description.slice(0, 300);
+          if (!updated.year && meta.year) updated.year = meta.year;
+          if (scope === "global" && !updated.brand && meta.channel) updated.brand = meta.channel;
+          return updated;
+        });
       }
-    } catch {} 
+    } catch {}
     setYtLoading(false);
   };
 
   const handleUrlChange = (url) => { setCur(prev => ({ ...prev, url })); if (ytId(url)) fetchYTMeta(url); };
 
-  // Image upload to Supabase Storage
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
+  // Image upload
+  const uploadImage = async (file) => {
     if (!file) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
     const path = `${Date.now()}.${ext}`;
-    const { data: uploadData, error } = await supabase.storage.from("media").upload(path, file);
+    const { error } = await supabase.storage.from("media").upload(path, file);
     if (!error) {
       const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(path);
       setCur(prev => ({ ...prev, image_url: publicUrl }));
@@ -100,7 +96,12 @@ function AuditContent({ scope }) {
     setUploading(false);
   };
 
-  // AI image analysis
+  // Drag and drop
+  const handleDrop = (e) => { e.preventDefault(); setDragOver(false); const file = e.dataTransfer.files?.[0]; if (file && file.type.startsWith("image/")) uploadImage(file); };
+  const handleDragOver = (e) => { e.preventDefault(); setDragOver(true); };
+  const handleDragLeave = () => { setDragOver(false); };
+
+  // AI analysis
   const analyzeImage = async () => {
     const imgUrl = cur.image_url;
     if (!imgUrl) return;
@@ -112,23 +113,22 @@ function AuditContent({ scope }) {
       if (result.success && result.analysis) {
         const a = result.analysis;
         setCur(prev => {
-          const updated = { ...prev };
-          // Only fill empty fields
-          if (!updated.description && a.description) updated.description = a.description;
-          if (!updated.synopsis && a.synopsis) updated.synopsis = a.synopsis;
-          if (!updated.main_slogan && a.main_slogan) updated.main_slogan = a.main_slogan;
-          if (!updated.insight && a.insight) updated.insight = a.insight;
-          if (!updated.idea && a.idea) updated.idea = a.idea;
-          if (!updated.tone_of_voice && a.tone_of_voice) updated.tone_of_voice = a.tone_of_voice;
-          if (!updated.execution_style && a.execution_style) updated.execution_style = a.execution_style;
-          if (!updated.brand_archetype && a.brand_archetype) updated.brand_archetype = a.brand_archetype;
-          if (!updated.bank_role && a.bank_role) updated.bank_role = a.bank_role;
-          if (!updated.language_register && a.language_register) updated.language_register = a.language_register;
-          if (!updated.pain_point_type && a.pain_point_type) updated.pain_point_type = a.pain_point_type;
-          if (!updated.representation && a.representation) updated.representation = a.representation;
-          if (!updated.transcript && a.transcript) updated.transcript = a.transcript;
-          if (!updated.analyst_comment && a.analyst_comment) updated.analyst_comment = a.analyst_comment;
-          return updated;
+          const u = { ...prev };
+          if (!u.description && a.description) u.description = a.description;
+          if (!u.synopsis && a.synopsis) u.synopsis = a.synopsis;
+          if (!u.main_slogan && a.main_slogan) u.main_slogan = a.main_slogan;
+          if (!u.insight && a.insight) u.insight = a.insight;
+          if (!u.idea && a.idea) u.idea = a.idea;
+          if (!u.tone_of_voice && a.tone_of_voice) u.tone_of_voice = a.tone_of_voice;
+          if (!u.execution_style && a.execution_style) u.execution_style = a.execution_style;
+          if (!u.brand_archetype && a.brand_archetype) u.brand_archetype = a.brand_archetype;
+          if (!u.bank_role && a.bank_role) u.bank_role = a.bank_role;
+          if (!u.language_register && a.language_register) u.language_register = a.language_register;
+          if (!u.pain_point_type && a.pain_point_type) u.pain_point_type = a.pain_point_type;
+          if (!u.representation && a.representation) u.representation = a.representation;
+          if (!u.transcript && a.transcript) u.transcript = a.transcript;
+          if (!u.analyst_comment && a.analyst_comment) u.analyst_comment = a.analyst_comment;
+          return u;
         });
       }
     } catch {}
@@ -143,11 +143,11 @@ function AuditContent({ scope }) {
 
   if (loading) return <div className="p-10 text-center text-hint">Loading...</div>;
 
-  // ── FORM VIEW ──
+  // ── FORM ──
   if (vw === "form") {
     const y = ytId(cur.url);
     const imgUrl = cur.image_url;
-    const hasPreview = y || (imgUrl && isImage(imgUrl)) || cur.url;
+    const showImg = imgUrl && (isImage(imgUrl) || isSupabaseImg(imgUrl));
 
     return (
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -155,7 +155,7 @@ function AuditContent({ scope }) {
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-main">{eid ? "Edit entry" : "New entry"}</h2>
             <span className="text-xs text-hint bg-accent-soft px-2 py-0.5 rounded font-medium">{scope === "local" ? "Local" : "Global"}</span>
-            {ytLoading && <span className="text-xs text-accent">Fetching metadata...</span>}
+            {ytLoading && <span className="text-xs text-accent animate-pulse">Fetching YouTube data...</span>}
           </div>
           <div className="flex gap-2">
             <button onClick={() => { setVw("list"); setEid(null); setCur({}); }} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
@@ -163,52 +163,55 @@ function AuditContent({ scope }) {
           </div>
         </div>
         <div className="flex" style={{ height: "calc(100vh - 52px)" }}>
-          {/* Left: Preview */}
+          {/* Left */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="bg-surface border-b border-main px-4 py-2 space-y-2">
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">URL (YouTube, website, social)</label>
-                  <input value={cur.url || ""} onChange={e => handleUrlChange(e.target.value)}
-                    placeholder="https://..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
+                  <input value={cur.url || ""} onChange={e => handleUrlChange(e.target.value)} placeholder="https://..."
+                    className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
                 </div>
-                <div className="w-[240px]">
+                <div className="w-[260px]">
                   <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL or upload</label>
                   <div className="flex gap-1">
-                    <input value={cur.image_url || ""} onChange={e => setCur({ ...cur, image_url: e.target.value })}
-                      placeholder="https://...image.jpg" className="flex-1 px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
-                    <label className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft flex items-center">
+                    <input value={cur.image_url || ""} onChange={e => setCur({ ...cur, image_url: e.target.value })} placeholder="https://...image.jpg"
+                      className="flex-1 px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
+                    <label className="px-2.5 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft flex items-center" title="Upload image">
                       {uploading ? "..." : "↑"}
-                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      <input type="file" accept="image/*" onChange={e => uploadImage(e.target.files?.[0])} className="hidden" />
                     </label>
                   </div>
                 </div>
               </div>
-              {/* AI Analyze button */}
               {(imgUrl || y) && (
                 <button onClick={analyzeImage} disabled={analyzing}
                   className="text-xs bg-accent-soft text-accent border border-[var(--accent)] px-3 py-1 rounded-lg font-medium hover:opacity-80 disabled:opacity-50">
-                  {analyzing ? "Analyzing with AI..." : "✦ Analyze with AI"}
+                  {analyzing ? "Analyzing..." : "✦ Analyze image with AI"}
                 </button>
               )}
             </div>
 
-            <div className="flex-1 bg-surface2 flex items-center justify-center overflow-auto p-4">
+            {/* Preview with drag-drop */}
+            <div ref={dropRef}
+              onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+              className={`flex-1 flex items-center justify-center overflow-auto p-4 transition ${dragOver ? "ring-2 ring-[var(--accent)] ring-inset" : ""}`}
+              style={{ background: dragOver ? "var(--accent-soft)" : "var(--surface2)" }}>
               {y ? (
                 <iframe width="100%" height="100%" style={{ maxHeight: 500, maxWidth: 800 }}
                   src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
-              ) : imgUrl && isImage(imgUrl) ? (
+              ) : showImg ? (
                 <img src={imgUrl} className="max-w-full max-h-full rounded-lg" alt="" />
               ) : cur.url ? (
-                <div className="w-full h-full flex flex-col items-center justify-center">
-                  <iframe src={cur.url} width="100%" height="100%" className="rounded-lg border border-main flex-1"
-                    sandbox="allow-scripts allow-same-origin" style={{ maxWidth: 900 }} />
-                  <a href={cur.url} target="_blank" className="mt-2 text-xs text-accent hover:underline">Open in new tab</a>
+                <div className="w-full h-full flex flex-col">
+                  <iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1"
+                    sandbox="allow-scripts allow-same-origin" />
+                  <a href={cur.url} target="_blank" rel="noopener" className="mt-2 text-xs text-accent hover:underline text-center">Open in new tab ↗</a>
                 </div>
               ) : (
                 <div className="text-center text-hint">
-                  <p className="text-lg mb-2">Paste a URL or upload an image</p>
-                  <p className="text-sm">YouTube, website, image URL, or file upload</p>
+                  <p className="text-lg mb-2">{dragOver ? "Drop image here" : "Paste a URL or drop an image"}</p>
+                  <p className="text-sm">YouTube, website, image URL, or drag & drop</p>
                 </div>
               )}
             </div>
@@ -262,7 +265,7 @@ function AuditContent({ scope }) {
     );
   }
 
-  // ── LIST VIEW ──
+  // ── LIST ──
   const cols = [
     { key: "_select", label: "", nosort: true },
     { key: scope === "local" ? "competitor" : "brand", label: "Brand" },
@@ -287,9 +290,24 @@ function AuditContent({ scope }) {
             <h2 className="text-base font-bold text-main">{scope === "local" ? "Local audit" : "Global benchmarks"}</h2>
             <span className="text-xs text-hint">{fd.length} of {data.length}</span>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center relative">
             {selected.size > 0 && <button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
-            <button onClick={() => { setCur({}); setEid(null); setVw("form"); setSec(0); }} className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold">+ Add</button>
+            <div className="relative">
+              <button onClick={() => setShowAddMenu(!showAddMenu)}
+                className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
+              {showAddMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg z-20 overflow-hidden w-[160px]">
+                  <button onClick={() => { onScopeChange("local"); setCur({}); setEid(null); setVw("form"); setSec(0); setShowAddMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">
+                    Local entry
+                  </button>
+                  <button onClick={() => { onScopeChange("global"); setCur({}); setEid(null); setVw("form"); setSec(0); setShowAddMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">
+                    Global entry
+                  </button>
+                </div>
+              )}
+            </div>
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
           </div>
         </div>
@@ -341,7 +359,7 @@ function AuditContent({ scope }) {
           </div>
           {ytId(sb.url) && <div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
           {sb.image_url && !ytId(sb.url) && <div className="px-3 pt-2"><img src={sb.image_url} className="w-full rounded-md" /></div>}
-          {sb.url && !ytId(sb.url) && <div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
+          {sb.url && !ytId(sb.url) && !sb.image_url && <div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
           <div className="p-3">
             <div className="flex gap-1 flex-wrap mb-2">
               {sb.competitor && <Tag v={sb.competitor} />}{sb.brand && <span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}
@@ -368,5 +386,5 @@ function AuditContent({ scope }) {
 
 export default function AuditPage() {
   const [scope, setScope] = useState("local");
-  return <AuthGuard><Nav scope={scope} onScopeChange={setScope} /><AuditContent scope={scope} key={scope} /></AuthGuard>;
+  return <AuthGuard><Nav scope={scope} onScopeChange={setScope} /><AuditContent scope={scope} onScopeChange={setScope} key={scope} /></AuthGuard>;
 }
