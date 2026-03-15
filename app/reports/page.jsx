@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -392,4 +394,4 @@ function ReportsContent(){
   );
 }
 
-export default function ReportsPage(){return <AuthGuard><Nav/><ReportsContent/></AuthGuard>;}
+export default function ReportsPage(){return <AuthGuard><ProjectGuard><Nav/><ReportsContent/></ProjectGuard></AuthGuard>;}
