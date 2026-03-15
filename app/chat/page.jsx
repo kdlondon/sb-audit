@@ -82,11 +82,15 @@ function ChatContent() {
 
   const renderChatContent = (rawContent) => {
     if (!rawContent) return null;
-    const withLinks = rawContent.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    const withoutTableCites = rawContent
+      .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
+      .replace(/^(.*\|.*)$/gm, (row) => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
+    const withLinks = withoutTableCites.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
       let label = entry
         ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
-        : id.replace(/\s*\(ID:[^)]*\)/g, "").trim().slice(0, 50);
+        : "source";
+      label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
       return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
     });
     const segments = withLinks.split(/(__CITE_START__[^_]+__CITE_MID__[^_]+__CITE_END__)/);
@@ -143,11 +147,12 @@ ${dataStr}
 
 CITATION RULES — ABSOLUTELY MANDATORY:
 - Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
-- Write the piece name naturally, then immediately add [ENTRY:xxxxxxxxxxxxxxx] after it.
+- Write a SHORT HUMAN-READABLE name for the piece, then add [ENTRY:id] right after it.
 - Example: "CIBC's AI adoption guide [ENTRY:1773496163636] directly addresses Builder psychology"
-- The [ENTRY:id] token is INVISIBLE to the reader — it becomes a clickable link.
-- NEVER write the ID visibly in your prose e.g. "(ID: 123456)" or "ID: 123456".
-- NEVER use short invented IDs like e28, e15 — ONLY the exact numeric ID from [ID:xxx].
+- NEVER put the numeric ID in your prose. NEVER write "(ID: 883404)" or the raw description with ID.
+- Use short descriptive names: "their Instagram post", "the How I made it series" — not raw DB descriptions.
+- The [ENTRY:id] token is invisible to the reader. Never write it anywhere except as [ENTRY:123456].
+- NEVER use short invented IDs like e28, e15 — ONLY the exact numeric ID from [ID:xxx] in the data.
 
 Answer precisely. Be strategic and conclusive. Reference specific brands, counts, and patterns. Compare local vs global when relevant. Use markdown formatting.`,
           messages: [...history, { role: "user", content: userMsg }],
