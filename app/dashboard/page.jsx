@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase";
 import { COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, ScatterChart, Scatter, ZAxis, CartesianGrid } from "recharts";
 
 const COLORS=["#2563eb","#7c3aed","#059669","#dc2626","#0ea5e9","#d97706","#14b8a6","#ec4899","#6366f1","#84cc16","#f97316","#06b6d4"];
@@ -176,4 +178,4 @@ function DashboardContent(){
   );
 }
 
-export default function DashboardPage(){return <AuthGuard><Nav/><DashboardContent/></AuthGuard>;}
+export default function DashboardPage(){return <AuthGuard><ProjectGuard><Nav/><DashboardContent/></ProjectGuard></AuthGuard>;}
