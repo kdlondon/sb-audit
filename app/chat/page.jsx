@@ -7,6 +7,38 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import Markdown from "react-markdown";
 
+function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
+
+function EntryViewerPanel({entry, onClose}) {
+  if (!entry) return null;
+  const e = entry;
+  return (
+    <div className="fixed top-0 right-0 w-[390px] h-screen bg-surface border-l border-main z-50 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
+      <div className="p-3 border-b border-main flex justify-between items-center flex-shrink-0">
+        <b className="text-sm text-main truncate">{e.description||e.competitor||e.brand}</b>
+        <span onClick={onClose} className="cursor-pointer text-lg text-hint hover:text-main ml-2">×</span>
+      </div>
+      <div className="flex-1 overflow-auto">
+        {ytId(e.url)&&<div className="px-3 pt-2"><iframe width="100%" height="180" src={`https://www.youtube.com/embed/${ytId(e.url)}`} frameBorder="0" allowFullScreen className="rounded-md"/></div>}
+        {e.image_url&&!ytId(e.url)&&<div className="px-3 pt-2"><img src={e.image_url} className="w-full rounded-md"/></div>}
+        <div className="p-3">
+          <div className="flex gap-1 flex-wrap mb-2">
+            {e.competitor&&<span style={{background:"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{e.competitor}</span>}
+            {e.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{e.brand}</span>}
+            {e.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{e.year}</span>}
+          </div>
+          {[["Portrait",e.portrait],["Phase",e.journey_phase],["Door",e.entry_door],["Archetype",e.brand_archetype],["Tone",e.tone_of_voice],["Territory",e.primary_territory],["Slogan",e.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(
+            <div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>
+          ))}
+        </div>
+        {e.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.synopsis}</div></div>}
+        {e.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.insight}</div></div>}
+        {e.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.analyst_comment}</div></div>}
+      </div>
+    </div>
+  );
+}
+
 function ChatContent() {
   const { projectId } = useProject();
   const [data, setData] = useState([]);
@@ -40,6 +72,36 @@ function ChatContent() {
 
   const copyMsg = (idx, content) => { navigator.clipboard.writeText(content); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
 
+  const [viewerEntry, setViewerEntry] = useState(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+
+  const handleCiteClick = (entry) => {
+    setViewerEntry(entry);
+    setViewerOpen(true);
+  };
+
+  const renderChatContent = (content) => {
+    if (!content) return null;
+    const parts = [];
+    const regex = /\[ENTRY:([^\]]+)\]/g;
+    let last = 0, match, key = 0;
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > last) parts.push(<Markdown key={key++}>{content.slice(last, match.index)}</Markdown>);
+      const id = match[1];
+      const entry = data.find(e => e.id === id);
+      const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 40) : id;
+      parts.push(
+        <button key={key++} onClick={() => handleCiteClick(entry || { id, description: id })}
+          style={{display:"inline-flex",alignItems:"center",gap:3,background:"var(--accent-soft)",border:"1px solid var(--accent)",color:"var(--accent)",borderRadius:4,padding:"1px 7px",fontSize:10,fontWeight:600,cursor:"pointer",verticalAlign:"middle",margin:"0 2px",lineHeight:1.9,whiteSpace:"nowrap"}}>
+          ↗ {label}
+        </button>
+      );
+      last = match.index + match[0].length;
+    }
+    if (last < content.length) parts.push(<Markdown key={key++}>{content.slice(last)}</Markdown>);
+    return <>{parts}</>;
+  };
+
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
@@ -51,7 +113,7 @@ function ChatContent() {
     const globalEntries = data.filter(e => e._scope === "global");
 
     const formatEntry = (e) =>
-      `[${e._scope.toUpperCase()}] ${e.competitor || e.brand || "?"} | ${e.description || ""} | Type:${e.type || ""} | Portrait:${e.portrait || ""} | Phase:${e.journey_phase || ""} | Role:${e.bank_role || ""} | Tone:${e.tone_of_voice || ""} | Lang:${e.language_register || ""} | Archetype:${e.brand_archetype || ""} | Territory:${e.primary_territory || ""} | Insight:${(e.insight || "").slice(0, 60)} | Transcript:${(e.transcript || "").slice(0, 60)}`;
+      `[ID:${e.id}] [${e._scope.toUpperCase()}] ${e.competitor || e.brand || "?"} | ${e.description || ""} | Type:${e.type || ""} | Portrait:${e.portrait || ""} | Phase:${e.journey_phase || ""} | Role:${e.bank_role || ""} | Tone:${e.tone_of_voice || ""} | Lang:${e.language_register || ""} | Archetype:${e.brand_archetype || ""} | Territory:${e.primary_territory || ""} | Insight:${(e.insight || "").slice(0, 60)} | Transcript:${(e.transcript || "").slice(0, 60)}`;
 
     const dataStr = data.map(formatEntry).join("\n");
     const history = messages.filter((_, i) => i > 0).slice(-6).map(m => ({ role: m.role, content: m.content }));
@@ -69,6 +131,13 @@ function ChatContent() {
 
 Full dataset:
 ${dataStr}
+
+CITATION RULES — CRITICAL:
+- Every entry in the dataset has an ID shown as [ID:xxx] at the start of its row.
+- Whenever you reference a specific piece by name or description, you MUST cite it inline using: [ENTRY:id]
+- Example: "CIBC's AI adoption guide [ENTRY:1234567890] directly addresses Builder psychology"
+- Never reference a specific piece without its citation.
+- Citations make entries clickable for the user — always include them.
 
 Answer precisely. Be strategic and conclusive. Reference specific brands, counts, and patterns. Compare local vs global when relevant. Use markdown formatting.`,
           messages: [...history, { role: "user", content: userMsg }],
@@ -131,6 +200,9 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
           ))}
         </div>
       </div>
+      {viewerOpen && viewerEntry && (
+        <EntryViewerPanel entry={viewerEntry} onClose={() => { setViewerOpen(false); setViewerEntry(null); }} />
+      )}
     </div>
   );
 }
