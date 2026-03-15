@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
 import Markdown from "react-markdown";
 
 function ChatContent() {
@@ -133,5 +135,5 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
 }
 
 export default function ChatPage() {
-  return <AuthGuard><Nav /><ChatContent /></AuthGuard>;
+  return <AuthGuard><ProjectGuard><Nav /><ChatContent /></ProjectGuard></AuthGuard>;
 }
