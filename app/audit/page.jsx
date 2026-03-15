@@ -206,16 +206,74 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const uploadImage=async(file)=>{if(!file)return;setUploading(true);const ext=file.name.split(".").pop();const path=`${Date.now()}.${ext}`;const{error}=await supabase.storage.from("media").upload(path,file);if(!error){const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);setCur(prev=>({...prev,image_url:publicUrl,url:""}));setMaterialType("image");}setUploading(false);};
   const handleDrop=(e)=>{e.preventDefault();setDragOver(false);const file=e.dataTransfer.files?.[0];if(file&&file.type.startsWith("image/"))uploadImage(file);};
 
+  const resizeImageToBase64=async(url,maxW=1024)=>{
+    try{
+      const img=new Image();img.crossOrigin="anonymous";
+      await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});
+      const scale=Math.min(1,maxW/img.width);
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+      const b64=canvas.toDataURL("image/jpeg",0.85).split(",")[1];
+      return b64;
+    }catch{return null;}
+  };
+
   const analyzeWithAI=async()=>{
     const imgUrl=cur.image_url;const transcript=cur.transcript;const notes=cur.analyst_comment;
-    if(!imgUrl&&!transcript)return;setAnalyzing(true);
+    if(!imgUrl&&!transcript){setToast({message:"Add an image or transcript first"});return;}
+    setAnalyzing(true);
     try{
-      let context=[];if(cur.competitor)context.push(`Brand: ${cur.competitor}`);if(cur.brand)context.push(`Brand: ${cur.brand}`);if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);if(notes)context.push(`Analyst observations: ${notes}`);
+      let context=[];
+      if(cur.competitor)context.push(`Brand: ${cur.competitor}`);
+      if(cur.brand)context.push(`Brand: ${cur.brand}`);
+      if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);
+      if(notes)context.push(`Analyst observations: ${notes}`);
+
+      // Compress primary image to base64
+      let imageBase64=null;
+      if(imgUrl){
+        setToast({message:"Compressing image..."});
+        imageBase64=await resizeImageToBase64(imgUrl,1200);
+      }
+
+      // Compress extra images
       const extraImgs=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
-      const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imgUrl||"",extraImageUrls:extraImgs,context:context.join("\n")})});
+      const extraBase64=[];
+      for(const u of extraImgs.slice(0,3)){
+        const b64=await resizeImageToBase64(u,800);
+        if(b64)extraBase64.push(b64);
+      }
+
+      const res=await fetch("/api/analyze",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          imageUrl:imageBase64?null:imgUrl,
+          imageBase64,
+          extraImageUrls:extraBase64.length>0?null:extraImgs,
+          extraImageBase64:extraBase64,
+          context:context.join("\n")
+        })
+      });
+      if(!res.ok){
+        const err=await res.text();
+        setToast({message:"Analysis error: "+res.status+" — "+err.slice(0,80)});
+        setAnalyzing(false);return;
+      }
       const result=await res.json();
-      if(result.success&&result.analysis){autoFill(result.analysis);}
-    }catch{}setAnalyzing(false);
+      if(result.error){setToast({message:"AI error: "+result.error});setAnalyzing(false);return;}
+      if(result.success&&result.analysis){
+        autoFill(result.analysis);
+        setToast({message:"✓ AI analysis complete"});
+      }else{
+        setToast({message:"Analysis returned no data"});
+      }
+    }catch(err){
+      setToast({message:"Error: "+err.message});
+    }
+    setAnalyzing(false);
   };
 
   const openForm=(entry)=>{const e=entry||{};setCur({...e});setEid(entry?entry.id:null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);setVw("form");setSb(null);setHighlighted(new Set());};
