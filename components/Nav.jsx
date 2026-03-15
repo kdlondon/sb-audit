@@ -10,6 +10,7 @@ const allTabs = [
   { name: "Audit", href: "/audit", module: "audit" },
   { name: "Reports", href: "/reports", module: "reports" },
   { name: "Chat", href: "/chat", module: "chat" },
+  { name: "Showcase", href: "/showcase", module: "showcase" },
   { name: "Settings", href: "/settings", module: "settings" },
   { name: "Users", href: "/users", module: "users" },
 ];
