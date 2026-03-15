@@ -139,7 +139,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const autoFill=(updates)=>{const fk=[];setCur(prev=>{const u={...prev};Object.entries(updates).forEach(([k,v])=>{if(!u[k]&&v){u[k]=v;fk.push(k);}});return u;});if(fk.length>0)highlightFields(fk);};
   const clearForm=()=>{if(!confirm("Clear all form data?"))return;setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());};
 
-  const LOCAL_COLUMNS=["id","created_by","updated_at","competitor","category","description","year","type","xtype","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
+  const LOCAL_COLUMNS=["id","created_by","updated_at","competitor","category","description","year","type","xtype","url","image_url","image_urls","funnel","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
   const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity","company_type"];
 
   const prepareSaveData=(rawCur)=>{
@@ -209,8 +209,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const analyzeWithAI=async()=>{
     const imgUrl=cur.image_url;const transcript=cur.transcript;const notes=cur.analyst_comment;
     if(!imgUrl&&!transcript)return;setAnalyzing(true);
-    try{let context=[];if(cur.competitor)context.push(`Brand: ${cur.competitor}`);if(cur.brand)context.push(`Brand: ${cur.brand}`);if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);if(notes)context.push(`Analyst observations: ${notes}`);
-      const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imgUrl||"",context:context.join("\n")})});const result=await res.json();
+    try{
+      let context=[];if(cur.competitor)context.push(`Brand: ${cur.competitor}`);if(cur.brand)context.push(`Brand: ${cur.brand}`);if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);if(notes)context.push(`Analyst observations: ${notes}`);
+      const extraImgs=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
+      const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imgUrl||"",extraImageUrls:extraImgs,context:context.join("\n")})});
+      const result=await res.json();
       if(result.success&&result.analysis){autoFill(result.analysis);}
     }catch{}setAnalyzing(false);
   };
@@ -225,6 +228,31 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const handleSort=(col)=>{setSortPreset("");if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortCol(col);setSortDir("asc");}};
   const getOpts=(f)=>OPTIONS[f.optKey||f.key]||[];
+  const getImages=(e)=>{
+    const extra=e.image_urls?JSON.parse(e.image_urls||"[]"):[];
+    return [e.image_url,...extra].filter(Boolean);
+  };
+  const addExtraImage=(url)=>{
+    const existing=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
+    if(!existing.includes(url))setCur(prev=>({...prev,image_urls:JSON.stringify([...existing,url])}));
+  };
+  const removeExtraImage=(idx)=>{
+    const existing=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
+    existing.splice(idx,1);
+    setCur(prev=>({...prev,image_urls:JSON.stringify(existing)}));
+  };
+  const uploadExtraImage=async(file)=>{
+    if(!file)return;
+    setUploading(true);
+    const ext=file.name.split(".").pop();
+    const path=`${Date.now()}_extra.${ext}`;
+    const{error}=await supabase.storage.from("media").upload(path,file);
+    if(!error){
+      const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);
+      addExtraImage(publicUrl);
+    }
+    setUploading(false);
+  };
   const sections=getFieldsForScope(scope);
   const fieldStyle=(key)=>highlighted.has(key)?{background:"var(--accent-soft)",borderColor:"var(--accent)",transition:"background 0.3s"}:{};
 
@@ -269,6 +297,28 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">Paste from YouTube or type what you see</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder="Paste the video transcript, ad copy, or any text content here..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
+                {/* EXTRA IMAGES */}
+                {cur.image_url&&(
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] text-muted uppercase font-semibold">Additional screenshots</label>
+                      <span className="text-[9px] text-hint">Upload stills or extra images for AI analysis</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap mb-2">
+                      {(cur.image_urls?JSON.parse(cur.image_urls||"[]"):[]).map((url,i)=>(
+                        <div key={i} className="relative group">
+                          <img src={url} className="w-16 h-16 object-cover rounded border border-main"/>
+                          <button onClick={()=>removeExtraImage(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button>
+                        </div>
+                      ))}
+                      <label className="w-16 h-16 border-2 border-dashed border-main rounded flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent)] hover:bg-accent-soft transition">
+                        <span className="text-xl text-hint">+</span>
+                        <span className="text-[9px] text-hint">Add</span>
+                        <input type="file" accept="image/*" onChange={e=>uploadExtraImage(e.target.files?.[0])} className="hidden"/>
+                      </label>
+                    </div>
+                  </div>
+                )}
                 {(cur.image_url||cur.transcript||cur.analyst_comment)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
               </div>
             </div>
@@ -399,8 +449,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
               return(<div key={e.id} onClick={()=>setSb(e)} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group">
-                <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden">
+                <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden relative">
                   {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="text-hint text-xs">No preview</div>}
+                  {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
                 <div className="p-2.5">
                   <div className="flex gap-1 mb-1">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
@@ -430,7 +481,16 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       {sb&&(<div className="fixed top-0 right-0 w-[380px] h-screen bg-surface border-l border-main overflow-auto z-50" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
-        {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2"><img src={sb.image_url} className="w-full rounded-md" /></div>}
+        {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2">
+          <img src={sb.image_url} className="w-full rounded-md" />
+          {sb.image_urls&&JSON.parse(sb.image_urls||"[]").length>0&&(
+            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              {JSON.parse(sb.image_urls||"[]").map((url,i)=>(
+                <img key={i} src={url} className="w-16 h-16 object-cover rounded border border-main cursor-pointer hover:opacity-80" onClick={()=>window.open(url,"_blank")}/>
+              ))}
+            </div>
+          )}
+        </div>}
         {sb.url&&!ytId(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
         <div className="p-3">
           <div className="flex gap-1 flex-wrap mb-2">{sb.competitor&&<Tag v={sb.competitor}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
