@@ -539,47 +539,47 @@ function ReportsContent(){
 
   const renderContent = (rawContent) => {
     if (!rawContent) return null;
-    // Replace [ENTRY:id] with a special marker that survives markdown rendering
-    // We use a data attribute approach via dangerouslySetInnerHTML after markdown
-    // Step 1: remove citations that appear on their own line between table rows
-    // Step 2: remove citations inside table rows
-    const withoutTableCites = rawContent
-      // Remove [ENTRY:x] on standalone lines that are surrounded by table rows
+
+    // 1. Strip citations from table rows (they break table rendering)
+    const cleaned = rawContent
       .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
-      // Remove [ENTRY:x] inside table rows (lines containing |)
-      .replace(/^(.*\|.*)$/gm, (row) => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
-    const withLinks = withoutTableCites.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+      .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
+
+    // 2. Convert [ENTRY:id] to markdown links [label](cite:id) — inline, no line breaks
+    const withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = allData.find(e => e.id === id);
       let label = entry
-        ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
+        ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)
         : "source";
-      // Strip any leaked ID patterns from label
       label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
-      return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
+      // Escape brackets in label for markdown safety
+      label = label.replace(/[\[\]]/g, "");
+      return `[${label}](cite:${id})`;
     });
 
-    // Split on cite markers and render as React tree
-    const segments = withLinks.split(/(__CITE_START__[^_]+__CITE_MID__[^_]+__CITE_END__)/);
     const proseClass = "prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]";
 
+    // 3. Single Markdown pass — citations become <a> tags handled by custom component
     return (
-      <div>
-        {segments.map((seg, i) => {
-          const citeMatch = seg.match(/^__CITE_START__([^_]+)__CITE_MID__(.+)__CITE_END__$/);
-          if (citeMatch) {
-            const id = citeMatch[1];
-            const label = citeMatch[2];
-            const entry = allData.find(e => e.id === id);
-            return (
-              <span key={i}
-                onClick={() => handleCiteClick(entry || {id, description: label})}
-                style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px",fontSize:"inherit"}}
-              >{label}</span>
-            );
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        className={proseClass}
+        components={{
+          a: ({href, children}) => {
+            if (href?.startsWith("cite:")) {
+              const id = href.replace("cite:", "");
+              const entry = allData.find(e => e.id === id);
+              return (
+                <span
+                  onClick={() => handleCiteClick(entry || {id, description: String(children)})}
+                  style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
+                >{children}</span>
+              );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
           }
-          return seg ? <Markdown key={i} remarkPlugins={[remarkGfm]} className={proseClass}>{seg}</Markdown> : null;
-        })}
-      </div>
+        }}
+      >{withCiteLinks}</Markdown>
     );
   };
 
