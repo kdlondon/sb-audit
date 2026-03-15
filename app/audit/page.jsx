@@ -123,6 +123,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
   const addBtnRef=useRef(null);
+  const fmtDate=(d)=>{if(!d)return"—";const dt=new Date(d);return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short"})+" "+dt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});};
   const supabase=createClient();
 
   const load=useCallback(async()=>{
@@ -138,7 +139,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const autoFill=(updates)=>{const fk=[];setCur(prev=>{const u={...prev};Object.entries(updates).forEach(([k,v])=>{if(!u[k]&&v){u[k]=v;fk.push(k);}});return u;});if(fk.length>0)highlightFields(fk);};
   const clearForm=()=>{if(!confirm("Clear all form data?"))return;setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());};
 
-  const LOCAL_COLUMNS=["id","created_by","competitor","category","description","year","type","xtype","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
+  const LOCAL_COLUMNS=["id","created_by","updated_at","competitor","category","description","year","type","xtype","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
   const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity","company_type"];
 
   const prepareSaveData=(rawCur)=>{
@@ -164,6 +165,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     const table=getTableName(scope);
     let savedId=eid;
     if(eid){
+      e.updated_at=new Date().toISOString();
       const{error}=await supabase.from(table).update(e).eq("id",eid);
       if(error){setToast({message:"Error saving: "+error.message});return;}
     }else{
@@ -171,6 +173,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const{data:{session}}=await supabase.auth.getSession();
       e.created_by=session?.user?.email||"";
       e.project_id=projectId;
+      e.updated_at=new Date().toISOString();
       const{error}=await supabase.from(table).insert(e);
       if(error){setToast({message:"Error saving: "+error.message});return;}
     }
@@ -320,7 +323,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   }
 
   // ── LIST ──
-  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Year"},{key:"type",label:"Type"},{key:"portrait",label:"Portrait"},{key:"journey_phase",label:"Phase"},{key:"rating",label:"★"}];
+  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Year"},{key:"type",label:"Type"},{key:"portrait",label:"Portrait"},{key:"journey_phase",label:"Phase"},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
   const filterKeys=scope==="local"?[["competitor","Competitor"],["category","Category"],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["client_lifecycle","Lifecycle",OPTIONS.clientLifecycle],["brand_archetype","Archetype",OPTIONS.brandArchetype]]:[["category","Category"],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["category_proximity","Proximity",OPTIONS.categoryProximity],["brand_archetype","Archetype",OPTIONS.brandArchetype]];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
@@ -339,7 +342,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
           <div className="flex gap-2 items-center">
             {selected.size>0&&<button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
-            <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
+            <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("created_at");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="rating">Best rated</option>
@@ -385,6 +388,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 <td className="px-2 py-1.5 text-main">{e.portrait||"—"}</td>
                 <td className="px-2 py-1.5 text-main">{e.journey_phase||"—"}</td>
                 <td className="px-2 py-1.5 text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</td>
+                <td className="px-2 py-1.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
+                <td className="px-2 py-1.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
                 <td className="px-2 py-1" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
               </tr>))}</tbody>
             </table>
@@ -429,6 +434,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         {sb.url&&!ytId(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
         <div className="p-3">
           <div className="flex gap-1 flex-wrap mb-2">{sb.competitor&&<Tag v={sb.competitor}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
+          <div className="flex gap-3 mt-1 flex-wrap">{sb.created_by&&<span className="text-[10px] text-hint">Added by <span className="text-main font-medium">{sb.created_by}</span></span>}{sb.created_at&&<span className="text-[10px] text-hint">Created <span className="text-main">{fmtDate(sb.created_at)}</span></span>}{sb.updated_at&&<span className="text-[10px] text-hint">Updated <span className="text-main">{fmtDate(sb.updated_at)}</span></span>}</div>
           {[["Type",sb.type],["Portrait",sb.portrait],["Phase",sb.journey_phase],["Lifecycle",sb.client_lifecycle],["Door",sb.entry_door],["Role",sb.bank_role],["Archetype",sb.brand_archetype],["Tone",sb.tone_of_voice],["Language",sb.language_register],["Territory",sb.primary_territory],["Execution",sb.execution_style],["VP",sb.main_vp],["Slogan",sb.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>))}
         </div>
         {sb.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.synopsis}</div></div>}
