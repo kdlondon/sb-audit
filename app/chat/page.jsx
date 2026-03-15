@@ -8,6 +8,7 @@ import { useProject } from "@/lib/project-context";
 import Markdown from "react-markdown";
 
 function ChatContent() {
+  const { projectId } = useProject();
   const [data, setData] = useState([]);
   const [messages, setMessages] = useState([{
     role: "assistant",
@@ -33,7 +34,7 @@ function ChatContent() {
       setData(all);
       setDataLoaded(true);
     })();
-  }, []);
+  }, [projectId]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
