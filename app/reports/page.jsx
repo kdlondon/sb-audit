@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
+// ── TEMPLATES ─────────────────────────────────────────────────────────────────
 const TEMPLATES=[
   {id:"competitor_snapshot",label:"Competitor Snapshot",scope:"local",badge:"Local",description:"Deep dive on one brand — all framework dimensions",singleBrand:true,sections:[
     {id:"positioning",label:"Brand positioning",desc:"Territories, archetype, VP, insight, idea"},
@@ -20,6 +21,7 @@ const TEMPLATES=[
     {id:"comms",label:"Communication audit",desc:"Bank role, pain points, language register, R2B"},
     {id:"execution",label:"Execution",desc:"Channels, CTA, tone, representation, size"},
     {id:"campaign",label:"Campaign map",desc:"Pieces organised by funnel stage and year"},
+    {id:"consistency",label:"Brand consistency",desc:"Tone, territory, VP and archetype coherence across all pieces"},
     {id:"strategic_read",label:"K&D strategic read",desc:"Editorial synthesis and white space signal"},
   ]},
   {id:"category_landscape",label:"Category Landscape",scope:"local",badge:"Local",description:"Full category — patterns, white spaces, positioning map",singleBrand:false,sections:[
@@ -60,16 +62,166 @@ const TEMPLATES=[
   ]},
 ];
 
+// ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPTS={
-  competitor_snapshot:"You are a world-class brand strategist analyzing Canadian business banking competitive communications for Scotiabank. Write a deep competitor snapshot. Write with authority. Reference specific campaigns and pieces. Use ## for sections, ### for subsections, **bold** for key findings. Use markdown tables where useful. Be conclusive and opinionated.",
-  category_landscape:"You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank. Identify dominant patterns, structural tensions, and what the category is collectively doing and not doing. Use ## for sections, **bold** for key findings, markdown tables for cross-brand comparisons. Be conclusive.",
-  opportunity:"You are a world-class brand strategist identifying strategic white spaces for Scotiabank in Canadian business banking. These are the competitor entries — your job is to find what they are NOT doing and articulate it as actionable strategic opportunity. Be specific, opinionated, and direct. End with 3–5 named opportunity territories, each with: the gap, the portrait it serves, the entry door, the journey phase, and a one-line territory hypothesis.",
-  creative_intelligence:"You are a world-class creative strategist analyzing global financial brand communications to extract inspiration for Scotiabank business banking. Identify what global brands are doing emotionally and creatively that Canadian business banking brands are not. For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context.",
-  innovation:"You are a world-class brand strategist identifying communication innovation and convention breaks in global financial brands. Focus on what breaks category norms. Identify emerging signals before they become mainstream. This is an early-warning strategic signal report — be specific about which brands are doing what differently and why it matters for a brand repositioning in business banking.",
+  competitor_snapshot:`You are a world-class brand strategist analyzing Canadian business banking competitive communications for Scotiabank. Write a deep competitor snapshot.
+
+CITATION RULES — CRITICAL:
+- Every time you reference a specific piece of communication, you MUST cite it using this exact format: [ENTRY:entry_id] where entry_id is the ID provided in the data.
+- Citations must appear inline immediately after the claim, e.g. "Their 2024 awareness campaign leads with fear reduction [ENTRY:1234567890]"
+- Never make a specific claim about a piece without citing it.
+- At the end of the report, include a ## Sources section listing all cited entries as: [ENTRY:id] — Brand, Description, Year
+
+BRAND CONSISTENCY SECTION — when generating this section, evaluate:
+1. Tone consistency — does the emotional register stay coherent across channels and funnel stages?
+2. Territory consistency — does the creative territory hold or fragment across pieces?
+3. Value proposition evolution — how has the VP shifted or stayed stable over time?
+4. Archetype coherence — does the brand archetype hold across all touchpoints?
+5. Moment integrity — are there pieces that break the brand's own pattern? Which ones and why?
+Rate each dimension: Strong / Partial / Fragmented, with specific cited evidence.
+
+Write with authority. Use ## for sections, ### for subsections, **bold** for key findings. Use markdown tables where useful. Be conclusive and opinionated.`,
+
+  category_landscape:`You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank.
+
+CITATION RULES — CRITICAL:
+- When referencing a specific piece as evidence, cite it as [ENTRY:entry_id]
+- Citations appear inline: "TD's warmth-led approach peaks in their 2024 testimonial series [ENTRY:1234567890]"
+- Include a ## Sources section at the end listing all cited entries.
+
+Use ## for sections, **bold** for key findings, markdown tables for cross-brand comparisons. Be conclusive.`,
+
+  opportunity:`You are a world-class brand strategist identifying strategic white spaces for Scotiabank in Canadian business banking.
+
+CITATION RULES — CRITICAL:
+- When pointing to specific evidence of a gap or a pattern, cite the entry as [ENTRY:entry_id]
+- Include a ## Sources section at the end.
+
+Be specific, opinionated, and direct. End with 3–5 named opportunity territories.`,
+
+  creative_intelligence:`You are a world-class creative strategist analyzing global financial brand communications to extract inspiration for Scotiabank business banking.
+
+CITATION RULES — CRITICAL:
+- Cite specific global pieces as [ENTRY:entry_id] when referencing them as examples.
+- Include a ## Sources section at the end.
+
+For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context.`,
+
+  innovation:`You are a world-class brand strategist identifying communication innovation and convention breaks in global financial brands.
+
+CITATION RULES — CRITICAL:
+- Cite specific pieces as [ENTRY:entry_id] when naming convention breakers or emerging signals.
+- Include a ## Sources section at the end.
+
+Focus on what breaks category norms. Identify emerging signals before they become mainstream.`,
 };
 
 const BADGE={local:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",global:"bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"};
 
+// ── CITATION RENDERER ─────────────────────────────────────────────────────────
+// Replaces [ENTRY:id] tokens in markdown with clickable citation chips
+function renderWithCitations(content, allData, onCiteClick) {
+  if (!content) return content;
+  return content.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    const entry = allData.find(e => e.id === id);
+    const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 35) : id;
+    return `<cite-entry data-id="${id}" data-label="${label.replace(/"/g, '&quot;')}"></cite-entry>`;
+  });
+}
+
+// Custom markdown component that handles citation chips
+function ReportContent({ content, allData, onCiteClick, reportRef }) {
+  useEffect(() => {
+    if (!reportRef.current) return;
+    const chips = reportRef.current.querySelectorAll("cite-entry");
+    chips.forEach(chip => {
+      const id = chip.getAttribute("data-id");
+      const label = chip.getAttribute("data-label");
+      chip.innerHTML = `<button class="cite-chip" data-id="${id}" style="display:inline-flex;align-items:center;gap:3px;background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:0 6px;font-size:10px;font-weight:600;cursor:pointer;vertical-align:middle;margin:0 2px;line-height:1.8;">↗ ${label}</button>`;
+      chip.querySelector("button").addEventListener("click", () => {
+        const entry = allData.find(e => e.id === id);
+        if (entry) onCiteClick(entry);
+      });
+    });
+  }, [content, allData]);
+
+  // Pre-process citations out of the raw markdown before rendering
+  const processed = content ? content.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    const entry = allData.find(e => e.id === id);
+    const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 35) : id;
+    return `<cite-chip id="${id}">${label}</cite-chip>`;
+  }) : "";
+
+  return (
+    <div ref={reportRef}>
+      <article
+        className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]"
+        dangerouslySetInnerHTML={{ __html: renderMarkdownWithCitations(content, allData, onCiteClick) }}
+      />
+    </div>
+  );
+}
+
+// Simple markdown-to-html + citations (uses react-markdown indirectly via a wrapper)
+function CitationMarkdown({ content, allData, onCiteClick, containerRef }) {
+  const divRef = useRef(null);
+  const combinedRef = (el) => { divRef.current = el; if (containerRef) containerRef.current = el; };
+
+  useEffect(() => {
+    if (!divRef.current) return;
+    divRef.current.querySelectorAll(".cite-chip-btn").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-id");
+        const entry = allData.find(e => e.id === id);
+        if (entry) onCiteClick(entry);
+      };
+    });
+  });
+
+  // Split content on [ENTRY:id] tokens and build mixed React tree
+  const parts = [];
+  const regex = /\[ENTRY:([^\]]+)\]/g;
+  let last = 0, match;
+  const segments = [];
+  while ((match = regex.exec(content || "")) !== null) {
+    segments.push({ text: content.slice(last, match.index), id: match[1] });
+    last = match.index + match[0].length;
+  }
+  segments.push({ text: content ? content.slice(last) : "", id: null });
+
+  return (
+    <div ref={combinedRef}>
+      {segments.map((seg, i) => (
+        <span key={i}>
+          {seg.text && (
+            <Markdown remarkPlugins={[remarkGfm]}
+              components={{
+                // keep default rendering
+              }}
+            >{seg.text}</Markdown>
+          )}
+          {seg.id && (() => {
+            const entry = allData.find(e => e.id === seg.id);
+            const label = entry ? (entry.description || entry.competitor || entry.brand || seg.id).slice(0, 40) : seg.id;
+            return (
+              <button
+                key={`cite-${i}`}
+                data-id={seg.id}
+                className="cite-chip-btn"
+                onClick={() => { const e = allData.find(x => x.id === seg.id); if (e) onCiteClick(e); }}
+                style={{display:"inline-flex",alignItems:"center",gap:3,background:"var(--accent-soft)",border:"1px solid var(--accent)",color:"var(--accent)",borderRadius:4,padding:"0 6px",fontSize:10,fontWeight:600,cursor:"pointer",verticalAlign:"middle",margin:"0 2px",lineHeight:1.8}}
+              >
+                ↗ {label}
+              </button>
+            );
+          })()}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ── ENTRY VIEWER ──────────────────────────────────────────────────────────────
 function EntryViewer({entry,onClose}){
   if(!entry)return null;const e=entry;
   return(<div className="h-full flex flex-col">
@@ -83,11 +235,14 @@ function EntryViewer({entry,onClose}){
       </div>
       {e.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.synopsis}</div></div>}
       {e.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.insight}</div></div>}
+      {e.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.analyst_comment}</div></div>}
     </div>
   </div>);
 }
 
+// ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
+  const{projectId}=useProject();
   const[view,setView]=useState("generate");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
   const[localData,setLocalData]=useState([]);
@@ -115,17 +270,17 @@ function ReportsContent(){
 
   useEffect(()=>{(async()=>{
     const[{data:local},{data:global},{data:reports}]=await Promise.all([
-      supabase.from("audit_entries").select("*"),
-      supabase.from("audit_global").select("*"),
-      supabase.from("saved_reports").select("*").order("created_at",{ascending:false}),
+      supabase.from("audit_entries").select("*").eq("project_id",projectId),
+      supabase.from("audit_global").select("*").eq("project_id",projectId),
+      supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false}),
     ]);
     const ld=local||[];const gd=global||[];
     setLocalData(ld);setGlobalData(gd);setSavedReports(reports||[]);
     const years=[...new Set([...ld,...gd].map(e=>e.year).filter(Boolean))].sort();
     setAllYears(years);
     if(years.length>0){setYearFrom(years[0]);setYearTo(years[years.length-1]);}
-    const opts=await fetchOptions();setOPTIONS(opts);setLoading(false);
-  })();},[]);
+    const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);
+  })();},[projectId]);
 
   useEffect(()=>{
     if(!selectedTemplate)return;
@@ -154,6 +309,11 @@ function ReportsContent(){
   const downloadMD=()=>{const content=report||viewingReport?.content||"";const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="report.md";document.body.appendChild(a);a.click();document.body.removeChild(a);};
   const downloadPDF=async()=>{if(!reportRef.current)return;const html2pdf=(await import("html2pdf.js")).default;html2pdf(reportRef.current,{margin:[15,15,25,15],filename:"report.pdf",image:{type:"jpeg",quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["avoid-all","css","legacy"]}});};
 
+  const handleCiteClick=(entry)=>{
+    setViewerEntry(entry);
+    setViewerOpen(true);
+  };
+
   const saveReport=async()=>{
     if(!report)return;setSaving(true);
     const{data:{session}}=await supabase.auth.getSession();
@@ -168,15 +328,16 @@ function ReportsContent(){
       year_from:yearFrom,year_to:yearTo,
       content:report,
       created_by:session?.user?.email||"",
+      project_id:projectId,
     });
-    const{data:reports}=await supabase.from("saved_reports").select("*").order("created_at",{ascending:false});
+    const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setSavedReports(reports||[]);setSaving(false);
   };
 
   const deleteReport=async(id)=>{
     if(!confirm("Delete this report?"))return;
     await supabase.from("saved_reports").delete().eq("id",id);
-    const{data:reports}=await supabase.from("saved_reports").select("*").order("created_at",{ascending:false});
+    const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
     if(viewingReport?.id===id)setViewingReport(null);
   };
@@ -188,11 +349,14 @@ function ReportsContent(){
     setGenerating(true);setReport("");setViewingReport(null);
     const timeRange=yearFrom&&yearTo?` (${yearFrom}–${yearTo})`:"";
     const sectionNames=sections.map(id=>selectedTemplate.sections.find(s=>s.id===id)?.label).filter(Boolean).join(", ");
-    const dataStr=filteredData.map(e=>`[${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
+
+    // Build data string with IDs for citations
+    const dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
+
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
-    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
+    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT: Use [ENTRY:id] citations inline whenever referencing a specific piece. The ID is provided as [ID:xxx] at the start of each entry row.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
-      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:6000,system,messages:[{role:"user",content:userMsg}]})});
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:8000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
       if(result.error)setReport("Error: "+result.error);
       else setReport(result.content?.map(c=>c.text||"").join("")||"No content.");
@@ -202,7 +366,31 @@ function ReportsContent(){
 
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
   const activeContent=viewingReport?.content||report;
+
   const Signature=()=>(<div className="mt-10 pt-6 border-t border-main text-center"><img src="/knots-dots-logo.png" alt="Knots & Dots" style={{height:24,margin:"0 auto 8px"}}/><p className="text-[10px] text-hint">Generated by Knots & Dots — Category Landscape Platform</p><p className="text-[9px] text-hint mt-0.5">{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p></div>);
+
+  // Split report content on [ENTRY:id] and render with clickable chips
+  const renderContent=(content)=>{
+    if(!content)return null;
+    const parts=[];
+    const regex=/\[ENTRY:([^\]]+)\]/g;
+    let last=0,match,key=0;
+    while((match=regex.exec(content))!==null){
+      if(match.index>last)parts.push(<Markdown key={key++} remarkPlugins={[remarkGfm]} className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]">{content.slice(last,match.index)}</Markdown>);
+      const id=match[1];
+      const entry=allData.find(e=>e.id===id);
+      const label=entry?(entry.description||entry.competitor||entry.brand||id).slice(0,40):id;
+      parts.push(
+        <button key={key++} onClick={()=>handleCiteClick(entry||{id,description:id})}
+          style={{display:"inline-flex",alignItems:"center",gap:3,background:"var(--accent-soft)",border:"1px solid var(--accent)",color:"var(--accent)",borderRadius:4,padding:"1px 7px",fontSize:10,fontWeight:600,cursor:"pointer",verticalAlign:"middle",margin:"0 2px",lineHeight:1.9,whiteSpace:"nowrap"}}>
+          ↗ {label}
+        </button>
+      );
+      last=match.index+match[0].length;
+    }
+    if(last<content.length)parts.push(<Markdown key={key++} remarkPlugins={[remarkGfm]} className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]">{content.slice(last)}</Markdown>);
+    return parts;
+  };
 
   return(
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
@@ -216,7 +404,7 @@ function ReportsContent(){
             <button onClick={()=>setView("archive")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
           </div>
         </div>
-        {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide search":"Search entries"}</button>}
+        {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
       </div>
 
       {/* ARCHIVE */}
@@ -264,9 +452,7 @@ function ReportsContent(){
                 </div>
               </div>
               <div className="px-8 py-6" ref={reportRef}>
-                <article className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]">
-                  <Markdown remarkPlugins={[remarkGfm]}>{activeContent}</Markdown>
-                </article>
+                <div className="report-body">{renderContent(activeContent)}</div>
                 <Signature/>
               </div>
             </div>
@@ -275,7 +461,6 @@ function ReportsContent(){
           {/* CONFIGURATOR */}
           {!activeContent&&(
             <>
-              {/* STEP 1 — PICK TEMPLATE */}
               {!selectedTemplate?(
                 <div>
                   <p className="text-xs text-hint mb-3">Select a report type to get started</p>
@@ -293,7 +478,6 @@ function ReportsContent(){
                 </div>
               ):(
                 <>
-                  {/* BACK */}
                   <button onClick={()=>{setSelectedTemplate(null);setReport("");setCompetitors([]);}} className="text-xs text-muted hover:text-main mb-4 flex items-center gap-1">
                     ← Change report type
                     <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded font-semibold ${BADGE[selectedTemplate.scope]}`}>{selectedTemplate.label}</span>
@@ -378,16 +562,22 @@ function ReportsContent(){
       {viewerOpen&&(
         <div className="fixed top-0 right-0 w-[390px] h-screen bg-surface border-l border-main z-50 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
           <div className="p-3 border-b border-main flex-shrink-0">
-            <div className="flex justify-between items-center mb-2"><span className="text-xs font-semibold text-main">Search entries</span><span onClick={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}} className="cursor-pointer text-hint hover:text-main text-sm">×</span></div>
-            <input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setViewerEntry(null);}} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
-          </div>
-          {viewerEntry?<EntryViewer entry={viewerEntry} onClose={()=>setViewerEntry(null)}/>:(
-            <div className="flex-1 overflow-auto">
-              {searchQuery.length<=1?<div className="p-4 text-center text-hint text-sm">Type to search {allData.length} entries</div>
-              :searchResults.length===0?<div className="p-4 text-center text-hint text-sm">No entries found</div>
-              :<div className="p-2">{searchResults.map(e=>(<button key={e.id} onClick={()=>setViewerEntry(e)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft transition mb-1"><div className="flex gap-1.5 items-center mb-0.5">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div><p className="text-xs font-medium text-main truncate">{e.description||"—"}</p></button>))}</div>}
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-semibold text-main">{viewerEntry?"Entry detail":"Search entries"}</span>
+              <span onClick={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}} className="cursor-pointer text-hint hover:text-main text-sm">×</span>
             </div>
-          )}
+            {!viewerEntry&&<input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setViewerEntry(null);}} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>}
+          </div>
+          {viewerEntry
+            ?<><EntryViewer entry={viewerEntry} onClose={()=>setViewerEntry(null)}/></>
+            :(
+              <div className="flex-1 overflow-auto">
+                {searchQuery.length<=1?<div className="p-4 text-center text-hint text-sm">Type to search {allData.length} entries</div>
+                :searchResults.length===0?<div className="p-4 text-center text-hint text-sm">No entries found</div>
+                :<div className="p-2">{searchResults.map(e=>(<button key={e.id} onClick={()=>setViewerEntry(e)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft transition mb-1"><div className="flex gap-1.5 items-center mb-0.5">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div><p className="text-xs font-medium text-main truncate">{e.description||"—"}</p></button>))}</div>}
+              </div>
+            )
+          }
         </div>
       )}
     </div>
