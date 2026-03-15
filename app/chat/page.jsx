@@ -82,9 +82,22 @@ function ChatContent() {
 
   const renderChatContent = (rawContent) => {
     if (!rawContent) return null;
-    const cleaned = rawContent
-      .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
+
+    // Strip citations from table rows
+    let cleaned = rawContent
       .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
+
+    // Key fix: when [ENTRY:id] is on its own line (possibly after a bullet),
+    // pull it inline with the previous line instead of leaving it as a separate paragraph
+    cleaned = cleaned.replace(/([^\n]+)\n(\[ENTRY:[^\]]+\])\n/g, "$1 $2
+");
+    cleaned = cleaned.replace(/([^\n]+)\n(\[ENTRY:[^\]]+\])$/g, "$1 $2");
+    // Also handle multiple citations stacked on their own lines
+    cleaned = cleaned.replace(/\n(\[ENTRY:[^\]]+\])\n/g, " $1
+");
+    cleaned = cleaned.replace(/\n(\[ENTRY:[^\]]+\])$/g, " $1");
+
+    // Convert [ENTRY:id] to markdown link — all inline now
     const withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
       let label = entry
@@ -93,6 +106,7 @@ function ChatContent() {
       label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().replace(/[\[\]]/g, "").slice(0, 50);
       return `[${label}](cite:${id})`;
     });
+
     return (
       <Markdown
         components={{
