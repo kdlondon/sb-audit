@@ -354,7 +354,12 @@ function ReportsContent(){
     const dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
 
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
-    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE: Every entry starts with [ID:xxxxxxxxxxxxxxx]. Use that EXACT full ID when citing: [ENTRY:xxxxxxxxxxxxxxx]. NEVER shorten or invent IDs. Place citation immediately after the piece name inline.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
+    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
+- Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
+- Format: write the piece name naturally in your text, then immediately after add [ENTRY:xxxxxxxxxxxxxxx]
+- Example: "Their AI adoption guide [ENTRY:1773496163636] positions CIBC as..."
+- The [ENTRY:id] token is INVISIBLE to the reader — it becomes a clickable link. Do NOT write the ID anywhere else in your text.
+- NEVER write "(ID: 123456)" or "ID: 123456" in your prose. Only use [ENTRY:id] tokens.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:8000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
@@ -375,7 +380,10 @@ function ReportsContent(){
     // We use a data attribute approach via dangerouslySetInnerHTML after markdown
     const withLinks = rawContent.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = allData.find(e => e.id === id);
-      const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 50) : id;
+      // Clean the label: use DB entry description, or strip any "(ID: ...)" from raw text
+      let label = entry
+        ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
+        : id.replace(/\s*\(ID:[^)]*\)/g, "").trim().slice(0, 50);
       return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
     });
 
@@ -421,7 +429,7 @@ function ReportsContent(){
 
       {/* ARCHIVE */}
       {view==="archive"&&!viewingReport&&(
-        <div className="p-5 max-w-4xl">
+        <div className="px-5 py-5 max-w-3xl mx-auto w-full">
           {savedReports.length===0
             ?<div className="text-center text-hint py-20">No saved reports yet.</div>
             :<div className="space-y-2">{savedReports.map(r=>(
@@ -446,7 +454,7 @@ function ReportsContent(){
 
       {/* GENERATE / VIEW */}
       {(view==="generate"||viewingReport)&&(
-        <div className="p-5 max-w-4xl" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
+        <div className="px-5 py-5 max-w-3xl mx-auto w-full" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
 
           {/* REPORT CONTENT */}
           {activeContent&&(
