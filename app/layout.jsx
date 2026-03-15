@@ -1,13 +1,18 @@
 import "./globals.css";
 import { ProjectProvider } from "@/lib/project-context";
+import { RoleProvider } from "@/lib/role-context";
 export const metadata = {
-  title: "SB — Business Banking Category Landscape",
-  description: "Scotiabank Business Banking — Category Landscape Tool",
+  title: "Groundwork — Competitive Intelligence Platform",
+  description: "Groundwork — Competitive Intelligence Platform by Knots & Dots",
 };
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body><ProjectProvider>{children}</ProjectProvider></body>
+      <body>
+        <RoleProvider>
+          <ProjectProvider>{children}</ProjectProvider>
+        </RoleProvider>
+      </body>
     </html>
   );
 }

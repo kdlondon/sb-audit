@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
+import { useRole } from "@/lib/role-context";
 import AuthGuard from "@/components/AuthGuard";
 
 export default function ProjectsPage() {
@@ -18,15 +19,31 @@ export default function ProjectsPage() {
   const [editDesc, setEditDesc] = useState("");
   const router = useRouter();
   const { selectProject } = useProject();
+  const { role, userId } = useRole();
   const supabase = createClient();
 
   const load = async () => {
-    const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
-    setProjects(data || []);
+    if (role === "full_admin") {
+      // Full admins see all projects
+      const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+      setProjects(data || []);
+    } else {
+      // Analysts and Clients only see assigned projects
+      const { data: access } = await supabase.from("project_access").select("project_id").eq("user_id", userId);
+      const projectIds = (access || []).map(a => a.project_id);
+      if (projectIds.length > 0) {
+        const { data } = await supabase.from("projects").select("*").in("id", projectIds).order("created_at", { ascending: false });
+        setProjects(data || []);
+      } else {
+        setProjects([]);
+      }
+    }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (role && userId) load();
+  }, [role, userId]);
 
   const createProject = async () => {
     if (!newName.trim()) return;
@@ -40,6 +57,12 @@ export default function ProjectsPage() {
     if (defaults && defaults.length > 0) {
       await supabase.from("dropdown_options").insert(defaults.map(d => ({ ...d, project_id: id })));
     }
+    // Auto-grant access to creator
+    await supabase.from("project_access").insert({
+      user_id: session.user.id,
+      email: session.user.email,
+      project_id: id,
+    });
     selectProject(id, newName.trim());
     router.push("/dashboard");
   };
@@ -61,11 +84,12 @@ export default function ProjectsPage() {
   };
 
   const deleteProject = async (p) => {
-    if (!confirm(`⚠️ Delete "${p.name}"?\n\nThis will permanently delete the project and ALL its data — audit entries, global benchmarks, reports and settings.\n\nThis cannot be undone.`)) return;
+    if (!confirm(`Delete "${p.name}"?\n\nThis will permanently delete the project and ALL its data — audit entries, global benchmarks, reports and settings.\n\nThis cannot be undone.`)) return;
     await supabase.from("audit_entries").delete().eq("project_id", p.id);
     await supabase.from("audit_global").delete().eq("project_id", p.id);
     await supabase.from("saved_reports").delete().eq("project_id", p.id);
     await supabase.from("dropdown_options").delete().eq("project_id", p.id);
+    await supabase.from("project_access").delete().eq("project_id", p.id);
     await supabase.from("projects").delete().eq("id", p.id);
     load();
   };
@@ -88,6 +112,8 @@ export default function ProjectsPage() {
     router.replace("/login");
   };
 
+  const isAdmin = role === "full_admin";
+
   if (loading) return <AuthGuard><div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading projects...</p></div></AuthGuard>;
 
   return (
@@ -98,7 +124,7 @@ export default function ProjectsPage() {
           <div className="flex items-center gap-3">
             <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 28 }} />
             <div>
-              <p className="text-sm font-semibold text-main">Category Landscape Platform</p>
+              <p className="text-sm font-semibold text-main">Groundwork</p>
               <p className="text-[10px] text-muted">Select a project to continue</p>
             </div>
           </div>
@@ -108,14 +134,16 @@ export default function ProjectsPage() {
         <div className="max-w-3xl mx-auto p-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-main">Projects</h1>
-            <button onClick={() => setCreating(!creating)}
-              className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
-              {creating ? "Cancel" : "+ New project"}
-            </button>
+            {isAdmin && (
+              <button onClick={() => setCreating(!creating)}
+                className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
+                {creating ? "Cancel" : "+ New project"}
+              </button>
+            )}
           </div>
 
-          {/* CREATE FORM */}
-          {creating && (
+          {/* CREATE FORM — admin only */}
+          {creating && isAdmin && (
             <div className="bg-surface border border-main rounded-xl p-5 mb-6">
               <h3 className="text-sm font-semibold text-main mb-3">Create new project</h3>
               <div className="space-y-3">
@@ -147,8 +175,8 @@ export default function ProjectsPage() {
             {projects.map(p => (
               <div key={p.id} className="bg-surface border border-main rounded-xl overflow-hidden hover:border-[var(--accent)] transition group">
 
-                {/* EDIT MODE */}
-                {editingId === p.id ? (
+                {/* EDIT MODE — admin only */}
+                {editingId === p.id && isAdmin ? (
                   <div className="p-5" onClick={e => e.stopPropagation()}>
                     <p className="text-[10px] text-muted uppercase font-semibold mb-3">Editing project</p>
                     <div className="space-y-2">
@@ -197,18 +225,22 @@ export default function ProjectsPage() {
                         className="px-3 py-1 bg-accent text-white rounded-lg text-xs font-semibold hover:opacity-90">
                         Open
                       </button>
-                      <button onClick={(e) => startEdit(p, e)}
-                        className="px-3 py-1 border border-main rounded-lg text-xs text-muted hover:bg-surface hover:text-main transition">
-                        Edit
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); archiveProject(p); }}
-                        className="px-3 py-1 border border-main rounded-lg text-xs text-muted hover:bg-surface hover:text-main transition">
-                        {p.name.startsWith("[Archived] ") ? "Unarchive" : "Archive"}
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteProject(p); }}
-                        className="px-3 py-1 border border-red-200 rounded-lg text-xs text-red-400 hover:bg-red-50 hover:text-red-600 transition ml-auto">
-                        Delete
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button onClick={(e) => startEdit(p, e)}
+                            className="px-3 py-1 border border-main rounded-lg text-xs text-muted hover:bg-surface hover:text-main transition">
+                            Edit
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); archiveProject(p); }}
+                            className="px-3 py-1 border border-main rounded-lg text-xs text-muted hover:bg-surface hover:text-main transition">
+                            {p.name.startsWith("[Archived] ") ? "Unarchive" : "Archive"}
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteProject(p); }}
+                            className="px-3 py-1 border border-red-200 rounded-lg text-xs text-red-400 hover:bg-red-50 hover:text-red-600 transition ml-auto">
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -218,8 +250,8 @@ export default function ProjectsPage() {
 
           {projects.length === 0 && !creating && (
             <div className="text-center py-20 text-hint">
-              <p className="text-lg mb-2">No projects yet</p>
-              <p className="text-sm">Create your first project to get started</p>
+              <p className="text-lg mb-2">No projects available</p>
+              <p className="text-sm">{isAdmin ? "Create your first project to get started" : "No projects have been assigned to you yet"}</p>
             </div>
           )}
         </div>

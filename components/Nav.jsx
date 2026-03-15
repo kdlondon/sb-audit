@@ -2,37 +2,53 @@
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
+import { useRole, canAccess } from "@/lib/role-context";
 import { useEffect, useState } from "react";
-const tabs = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Audit", href: "/audit" },
-  { name: "Reports", href: "/reports" },
-  { name: "Chat", href: "/chat" },
-  { name: "Settings", href: "/settings" },
+
+const allTabs = [
+  { name: "Dashboard", href: "/dashboard", module: "dashboard" },
+  { name: "Audit", href: "/audit", module: "audit" },
+  { name: "Reports", href: "/reports", module: "reports" },
+  { name: "Chat", href: "/chat", module: "chat" },
+  { name: "Settings", href: "/settings", module: "settings" },
+  { name: "Users", href: "/users", module: "users" },
 ];
+
 const SunIcon = () => (<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="3"/><line x1="8" y1="1" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="1" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="15" y2="8"/><line x1="3.05" y1="3.05" x2="4.46" y2="4.46"/><line x1="11.54" y1="11.54" x2="12.95" y2="12.95"/><line x1="3.05" y1="12.95" x2="4.46" y2="11.54"/><line x1="11.54" y1="4.46" x2="12.95" y2="3.05"/></svg>);
 const MoonIcon = () => (<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M14 8.5A6.5 6.5 0 0 1 7.5 2 5.5 5.5 0 1 0 14 8.5Z"/></svg>);
+
+const ROLE_LABELS = { full_admin: "Admin", analyst: "Analyst", client: "Client" };
+
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { projectName, clearProject } = useProject();
+  const { role, userEmail } = useRole();
   const [dark, setDark] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem("sb-dark");
     if (saved === "true") { setDark(true); document.documentElement.classList.add("dark"); }
   }, []);
+
   const toggleDark = () => {
     const next = !dark; setDark(next);
     localStorage.setItem("sb-dark", String(next));
     document.documentElement.classList.toggle("dark", next);
   };
+
   const switchProject = () => { clearProject(); router.push("/projects"); };
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     clearProject();
     router.replace("/login");
   };
+
+  // Filter tabs based on user role
+  const tabs = allTabs.filter(t => role && canAccess(role, t.module));
+
   return (
     <div className="bg-surface border-b border-main px-5 py-2.5 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-4">
@@ -49,6 +65,11 @@ export default function Nav() {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {role && (
+          <span className="text-[10px] text-hint px-2 py-0.5 rounded-full bg-surface2 border border-main">
+            {ROLE_LABELS[role] || role}
+          </span>
+        )}
         <button onClick={toggleDark} className="text-muted hover:text-main p-1 rounded-md hover:bg-surface2 transition" title={dark ? "Light mode" : "Dark mode"}>
           {dark ? <SunIcon /> : <MoonIcon />}
         </button>
