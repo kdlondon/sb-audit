@@ -1,7 +1,7 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 
 export async function POST(request) {
-  const { imageUrl, context } = await request.json();
+  const { imageUrl, extraImageUrls = [], context } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -25,6 +25,7 @@ Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks)
   "company_type": "MUST be: Bank | Fintech | Neobank | Credit Union | Non-financial | Other",
   "category_proximity": "MUST be: Banking | Financial Services | Insurance | Tech | Telco | Retail | Other",
   "type": "MUST be: Video | Print | Digital | Social | OOH | Website | Blog | Podcast | Event | Direct Mail | In-branch | Other",
+  "funnel": "MUST be one or more of: Awareness | Consideration | Conversion | Retention | Advocacy — comma separated if multiple",
   "tone_of_voice": "MUST be: Authoritative | Empathetic | Aspirational | Peer-level | Institutional | Playful | Urgent | Other",
   "execution_style": "MUST be: Testimonial | Documentary | Manifesto | Product demo | Humor | Slice of life | Animation | Data-driven | Other",
   "brand_archetype": "MUST be: Innocent | Explorer | Sage | Hero | Outlaw | Magician | Regular Guy | Lover | Jester | Caregiver | Creator | Ruler | Not identifiable | Other",
@@ -57,17 +58,45 @@ Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks)
 CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrait, entry door, journey phase, and richness — do not guess generically.`;
 
   try {
-    const messages = [{ role: "user", content: [] }];
-    if (imageUrl) messages[0].content.push({ type: "image", source: { type: "url", url: imageUrl } });
-    messages[0].content.push({ type: "text", text: prompt });
+    const messageContent = [];
+
+    // Add primary image
+    if (imageUrl) {
+      // If it's a Supabase storage URL or any http URL, use url type
+      // If it somehow fails, we still have context
+      messageContent.push({ type: "image", source: { type: "url", url: imageUrl } });
+    }
+
+    // Add extra images (up to 4 additional)
+    const extras = (extraImageUrls || []).slice(0, 4);
+    for (const url of extras) {
+      if (url) messageContent.push({ type: "image", source: { type: "url", url } });
+    }
+
+    messageContent.push({ type: "text", text: prompt });
+
+    const messages = [{ role: "user", content: messageContent }];
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 3000, messages }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        messages
+      }),
     });
 
     const data = await response.json();
+
+    if (data.error) {
+      return Response.json({ error: data.error.message || "API error" }, { status: 500 });
+    }
+
     const text = data.content?.map(c => c.text || "").join("") || "";
 
     try {
