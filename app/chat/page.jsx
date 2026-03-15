@@ -104,15 +104,16 @@ function ChatContent() {
         ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)
         : "source";
       label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().replace(/[\[\]]/g, "").slice(0, 50);
-      return `[${label}](cite:${id})`;
+      return `[${label}](__cite__${id})`;
     });
 
     return (
       <Markdown
+        urlTransform={(url) => url}
         components={{
           a: ({href, children}) => {
-            if (href?.startsWith("cite:")) {
-              const id = href.replace("cite:", "");
+            if (href?.startsWith("__cite__")) {
+              const id = href.replace("__cite__", "");
               const entry = data.find(e => e.id === id);
               return (
                 <span
