@@ -275,18 +275,35 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const uploadImage=async(file)=>{if(!file)return;setUploading(true);const ext=file.name.split(".").pop();const path=`${Date.now()}.${ext}`;const{error}=await supabase.storage.from("media").upload(path,file);if(!error){const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);setCur(prev=>({...prev,image_url:publicUrl,url:""}));setMaterialType("image");}setUploading(false);};
   const handleDrop=(e)=>{e.preventDefault();setDragOver(false);const file=e.dataTransfer.files?.[0];if(file&&file.type.startsWith("image/"))uploadImage(file);};
 
-  const resizeImageToBase64=async(url,maxW=1024)=>{
+  const resizeImageToBase64=async(url,maxW=800,quality=0.75)=>{
     try{
       const img=new Image();img.crossOrigin="anonymous";
-      await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});
-      const scale=Math.min(1,maxW/img.width);
+      await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url+"?t="+Date.now();});
+      // Calculate size — keep aspect ratio, max 800px on longest side
+      const longest=Math.max(img.width,img.height);
+      const scale=Math.min(1,maxW/longest);
       const canvas=document.createElement("canvas");
       canvas.width=Math.round(img.width*scale);
       canvas.height=Math.round(img.height*scale);
       canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-      const b64=canvas.toDataURL("image/jpeg",0.85).split(",")[1];
+      let b64=canvas.toDataURL("image/jpeg",quality).split(",")[1];
+      // If still too large (~3.5MB base64 = ~2.6MB binary), compress more aggressively
+      if(b64.length>3500000){
+        b64=canvas.toDataURL("image/jpeg",0.5).split(",")[1];
+      }
+      if(b64.length>3500000){
+        // Last resort: shrink canvas further
+        const canvas2=document.createElement("canvas");
+        canvas2.width=Math.round(canvas.width*0.6);
+        canvas2.height=Math.round(canvas.height*0.6);
+        canvas2.getContext("2d").drawImage(canvas,0,0,canvas2.width,canvas2.height);
+        b64=canvas2.toDataURL("image/jpeg",0.5).split(",")[1];
+      }
       return b64;
-    }catch{return null;}
+    }catch(err){
+      console.warn("Image resize failed:",err);
+      return null;
+    }
   };
 
   const analyzeWithAI=async()=>{
@@ -304,14 +321,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       let imageBase64=null;
       if(imgUrl){
         setToast({message:"Compressing image..."});
-        imageBase64=await resizeImageToBase64(imgUrl,1200);
+        imageBase64=await resizeImageToBase64(imgUrl,800,0.75);
       }
 
       // Compress extra images
       const extraImgs=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
       const extraBase64=[];
       for(const u of extraImgs.slice(0,3)){
-        const b64=await resizeImageToBase64(u,800);
+        const b64=await resizeImageToBase64(u,600,0.65);
         if(b64)extraBase64.push(b64);
       }
 
