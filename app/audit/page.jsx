@@ -347,10 +347,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </div>
             <div className="relative">
               <button onClick={()=>setShowAddMenu(!showAddMenu)} className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
-              {showAddMenu&&(<div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg z-50 overflow-hidden w-[160px]">
-                <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onAddWithScope("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
-                <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onAddWithScope("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
-              </div>)}
+              {showAddMenu&&(
+                <>
+                  <div className="fixed inset-0" style={{zIndex:9998}} onClick={()=>setShowAddMenu(false)}/>
+                  <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden w-[160px]" style={{zIndex:9999}}>
+                    <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onAddWithScope("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
+                    <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onAddWithScope("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
+                  </div>
+                </>
+              )}
             </div>
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
           </div>
