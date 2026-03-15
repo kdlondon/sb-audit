@@ -36,7 +36,8 @@ const CT=({active,payload})=>{if(!active||!payload?.[0])return null;const d=payl
 function DashboardContent(){
   const[localData,setLocalData]=useState([]);const[globalData,setGlobalData]=useState([]);const[loading,setLoading]=useState(true);const[scope,setScope]=useState("all");
 
-  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*"),supabase.from("audit_global").select("*")]);setLocalData(local||[]);setGlobalData(global||[]);setLoading(false);})();},[]);
+  const{projectId}=useProject();
+  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);setLoading(false);})();},[projectId]);
 
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
