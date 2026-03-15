@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -120,6 +121,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [listMode,setListMode]=useState("list");
   const [toast,setToast]=useState(null);
   const [sortPreset,setSortPreset]=useState("newest");
+  const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
+  const addBtnRef=useRef(null);
   const supabase=createClient();
 
   const load=useCallback(async()=>{
@@ -346,16 +349,16 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               <button onClick={()=>setListMode("grid")} className={`p-1 rounded ${listMode==="grid"?"bg-surface shadow-sm text-accent":"text-muted"}`}><GridIcon/></button>
             </div>
             <div className="relative">
-              <button onClick={()=>setShowAddMenu(!showAddMenu)} className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
-              {showAddMenu&&(
-                <>
-                  <div className="fixed inset-0" style={{zIndex:9998}} onClick={()=>setShowAddMenu(false)}/>
-                  <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden w-[160px]" style={{zIndex:9999}}>
-                    <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onAddWithScope("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
-                    <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onAddWithScope("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
-                  </div>
-                </>
-              )}
+              <button
+                ref={addBtnRef}
+                onClick={()=>{
+                  if(!showAddMenu){
+                    const r=addBtnRef.current?.getBoundingClientRect();
+                    setAddMenuPos({top:(r?.bottom||0)+window.scrollY+4,right:window.innerWidth-(r?.right||0)});
+                  }
+                  setShowAddMenu(!showAddMenu);
+                }}
+                className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
             </div>
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
           </div>
@@ -407,6 +410,17 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
         )}
       </div>
+
+      {showAddMenu&&typeof window!=="undefined"&&createPortal(
+        <>
+          <div className="fixed inset-0" style={{zIndex:9998}} onClick={()=>setShowAddMenu(false)}/>
+          <div className="fixed bg-surface border border-main rounded-lg shadow-xl overflow-hidden w-[160px]" style={{zIndex:9999,top:addMenuPos.top,right:addMenuPos.right}}>
+            <button onClick={()=>{setShowAddMenu(false);if(scope==="local")openForm(null);else onAddWithScope("local");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft border-b border-main">Local entry</button>
+            <button onClick={()=>{setShowAddMenu(false);if(scope==="global")openForm(null);else onAddWithScope("global");}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft">Global entry</button>
+          </div>
+        </>,
+        document.body
+      )}
 
       {sb&&(<div className="fixed top-0 right-0 w-[380px] h-screen bg-surface border-l border-main overflow-auto z-50" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
