@@ -1,7 +1,7 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 
 export async function POST(request) {
-  const { imageUrl, extraImageUrls = [], context } = await request.json();
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -60,17 +60,22 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
   try {
     const messageContent = [];
 
-    // Add primary image
-    if (imageUrl) {
-      // If it's a Supabase storage URL or any http URL, use url type
-      // If it somehow fails, we still have context
+    // Add primary image — prefer base64 (compressed), fall back to URL
+    if (imageBase64) {
+      messageContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } });
+    } else if (imageUrl) {
       messageContent.push({ type: "image", source: { type: "url", url: imageUrl } });
     }
 
-    // Add extra images (up to 4 additional)
-    const extras = (extraImageUrls || []).slice(0, 4);
-    for (const url of extras) {
-      if (url) messageContent.push({ type: "image", source: { type: "url", url } });
+    // Add extra images — prefer base64, fall back to URLs
+    if (extraImageBase64 && extraImageBase64.length > 0) {
+      for (const b64 of extraImageBase64.slice(0, 3)) {
+        if (b64) messageContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } });
+      }
+    } else {
+      for (const url of (extraImageUrls || []).slice(0, 3)) {
+        if (url) messageContent.push({ type: "image", source: { type: "url", url } });
+      }
     }
 
     messageContent.push({ type: "text", text: prompt });
