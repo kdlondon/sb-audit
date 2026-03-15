@@ -429,7 +429,7 @@ function ReportsContent(){
 
       {/* ARCHIVE */}
       {view==="archive"&&!viewingReport&&(
-        <div className="px-5 py-5 max-w-3xl mx-auto w-full">
+        <div className="px-5 py-5 w-full flex justify-center"><div className="w-full max-w-3xl">
           {savedReports.length===0
             ?<div className="text-center text-hint py-20">No saved reports yet.</div>
             :<div className="space-y-2">{savedReports.map(r=>(
@@ -449,12 +449,12 @@ function ReportsContent(){
               </div>
             ))}</div>
           }
-        </div>
+        </div></div>
       )}
 
       {/* GENERATE / VIEW */}
       {(view==="generate"||viewingReport)&&(
-        <div className="px-5 py-5 max-w-3xl mx-auto w-full" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
+        <div className="px-5 py-5 w-full flex justify-center"><div className="w-full max-w-3xl" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
 
           {/* REPORT CONTENT */}
           {activeContent&&(
@@ -568,7 +568,7 @@ function ReportsContent(){
               )}
             </>
           )}
-        </div>
+        </div></div>
       )}
 
       {/* FAB */}
