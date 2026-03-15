@@ -20,6 +20,83 @@ function Toast({message,link,onClose}){
   </div>);
 }
 
+// ── MULTI-SELECT FIELDS ───────────────────────────────────────────────────────
+const MULTI_SELECT_FIELDS = new Set([
+  "portrait","entry_door","journey_phase","client_lifecycle",
+  "moment_acquisition","moment_deepening","moment_unexpected",
+  "business_size","industry_shown","channel","brand_archetype"
+]);
+
+// ── DESCRIPTIONS ──────────────────────────────────────────────────────────────
+const PORTRAIT_DESCRIPTIONS = {
+  "Dreamer": "Just starting out. Business exists as a vision more than a reality. Driven by the desire to escape dependence and build something of their own. Every decision feels existential.",
+  "Builder": "Business is identity. Measures success by impact on people — employees, community, customers. In the messy middle of scaling. Lonely at the top but won't show it.",
+  "Sovereign": "Business is a vehicle for lifestyle design. Values freedom and autonomy above growth. Not interested in empire-building — interested in a life well-designed on their own terms.",
+  "Architect": "Operates the business like a system. Strategic, analytical, exit-aware. Measures richness by capability and optionality. Treats the bank as a tool, not a partner.",
+};
+
+const ARCHETYPE_DESCRIPTIONS = {
+  "Innocent": "Optimistic, pure, simple. Promises happiness and goodness. Avoids complexity and darkness.",
+  "Explorer": "Independent, adventurous, ambitious. Helps people discover new possibilities and break free from constraints.",
+  "Sage": "Knowledgeable, trusted, analytical. Guides through expertise and truth. The brand people turn to for answers.",
+  "Hero": "Courageous, determined, bold. Helps people overcome challenges and prove their worth.",
+  "Outlaw": "Rebellious, disruptive, provocative. Challenges conventions and speaks for the underdog.",
+  "Magician": "Transformative, visionary, inspiring. Turns dreams into reality. Makes the impossible feel possible.",
+  "Regular Guy": "Authentic, unpretentious, relatable. Connects through shared values and everyday reality.",
+  "Lover": "Passionate, intimate, sensual. Creates deep emotional connections and a sense of belonging.",
+  "Jester": "Playful, irreverent, fun. Brings joy and lightness. Doesn't take itself too seriously.",
+  "Caregiver": "Nurturing, protective, generous. Puts others first. Makes people feel safe and supported.",
+  "Creator": "Imaginative, inventive, expressive. Builds things of enduring value. Celebrates originality.",
+  "Ruler": "Authoritative, responsible, organised. Provides structure and leadership. Commands respect.",
+};
+
+// ── MULTI-SELECT CHIP COMPONENT ───────────────────────────────────────────────
+function MultiSelect({ fieldKey, value, opts, onChange }) {
+  // value is a comma-separated string e.g. "Builder, Dreamer"
+  const selected = value ? value.split(",").map(v => v.trim()).filter(Boolean) : [];
+
+  const toggle = (opt) => {
+    const next = selected.includes(opt)
+      ? selected.filter(v => v !== opt)
+      : [...selected, opt];
+    onChange(next.join(", "));
+  };
+
+  const desc = fieldKey === "portrait"
+    ? selected.map(s => PORTRAIT_DESCRIPTIONS[s]).filter(Boolean)
+    : fieldKey === "brand_archetype"
+    ? selected.map(s => ARCHETYPE_DESCRIPTIONS[s]).filter(Boolean)
+    : [];
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1 mt-0.5">
+        {opts.map(opt => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => toggle(opt)}
+            className={`px-2 py-0.5 rounded text-xs font-medium border transition ${
+              selected.includes(opt)
+                ? "bg-accent-soft border-[var(--accent)] text-accent"
+                : "bg-surface border-main text-muted hover:border-[var(--accent)] hover:text-main"
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+      {desc.length > 0 && (
+        <div className="mt-1.5 space-y-1">
+          {desc.map((d, i) => (
+            <p key={i} className="text-[10px] text-hint leading-relaxed bg-surface2 px-2 py-1 rounded italic">{d}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId}){
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
@@ -58,7 +135,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const autoFill=(updates)=>{const fk=[];setCur(prev=>{const u={...prev};Object.entries(updates).forEach(([k,v])=>{if(!u[k]&&v){u[k]=v;fk.push(k);}});return u;});if(fk.length>0)highlightFields(fk);};
   const clearForm=()=>{if(!confirm("Clear all form data?"))return;setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());};
 
-  // Merge "Other" custom values into main fields before saving
   const LOCAL_COLUMNS=["id","created_by","competitor","category","description","year","type","xtype","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
   const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity","company_type"];
 
@@ -66,13 +142,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     const allowed=new Set(scope==="global"?GLOBAL_COLUMNS:LOCAL_COLUMNS);
     const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
     const merged={...rawCur};
-    // Merge "Other" values — for EVERY select field, if value is "Other" and _other has text, use the text
     allFields.forEach(f=>{
       if(f.type==="select"&&merged[f.key]==="Other"&&merged[f.key+"_other"]){
         merged[f.key]=merged[f.key+"_other"];
       }
     });
-    // Build clean object with only allowed columns
     const e={};
     Object.keys(merged).forEach(k=>{
       if(allowed.has(k)&&!k.endsWith("_other"))e[k]=merged[k];
@@ -137,7 +211,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const openForm=(entry)=>{const e=entry||{};setCur({...e});setEid(entry?entry.id:null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);setVw("form");setSb(null);setHighlighted(new Set());};
 
-  // Sort
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
   else if(sortPreset==="oldest")fd=[...fd].sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
@@ -194,19 +267,46 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               </div>
             </div>
           </div>
+
+          {/* FORM FIELDS PANEL */}
           <div className="w-[380px] border-l border-main bg-surface overflow-auto">
             <div className="p-3">
-              {sections.map((s,si)=>(<div key={si} className="mb-1">
-                <div onClick={()=>setSec(sec===si?-1:si)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${sec===si?"bg-accent-soft text-accent border border-[var(--accent)]":"bg-surface2 border border-main text-main"}`}><span>{s.title}</span><span className="text-hint">{sec===si?"−":"+"}</span></div>
-                {sec===si&&(<div className="py-2 space-y-2">
-                  {s.fields.filter(f=>f.key!=="url"&&f.key!=="image_url"&&f.key!=="transcript"&&f.key!=="analyst_comment").map(f=>(<div key={f.key} style={fieldStyle(f.key)} className="rounded px-1 -mx-1 transition-all duration-500">
-                    <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
-                    {f.type==="select"?(<div><select value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main"><option value="">—</option>{getOpts(f).map(o=><option key={o} value={o}>{o}</option>)}</select>{cur[f.key]==="Other"&&<input value={cur[f.key+"_other"]||""} onChange={e=>setCur({...cur,[f.key+"_other"]:e.target.value})} placeholder="Specify..." className="w-full mt-1 px-2 py-1 border border-[var(--accent)] rounded text-xs bg-accent-soft text-main" />}</div>)
-                    :f.type==="textarea"?<textarea value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} rows={2} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
-                    :<input value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />}
-                  </div>))}
-                </div>)}
-              </div>))}
+              {sections.map((s,si)=>(
+                <div key={si} className="mb-1">
+                  <div onClick={()=>setSec(sec===si?-1:si)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${sec===si?"bg-accent-soft text-accent border border-[var(--accent)]":"bg-surface2 border border-main text-main"}`}>
+                    <span>{s.title}</span><span className="text-hint">{sec===si?"−":"+"}</span>
+                  </div>
+                  {sec===si&&(
+                    <div className="py-2 space-y-3">
+                      {s.fields.filter(f=>f.key!=="url"&&f.key!=="image_url"&&f.key!=="transcript"&&f.key!=="analyst_comment").map(f=>(
+                        <div key={f.key} style={fieldStyle(f.key)} className="rounded px-1 -mx-1 transition-all duration-500">
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
+                          {f.type==="select" && MULTI_SELECT_FIELDS.has(f.key) ? (
+                            <MultiSelect
+                              fieldKey={f.key}
+                              value={cur[f.key]||""}
+                              opts={getOpts(f)}
+                              onChange={v=>setCur({...cur,[f.key]:v})}
+                            />
+                          ) : f.type==="select" ? (
+                            <div>
+                              <select value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                <option value="">—</option>
+                                {getOpts(f).map(o=><option key={o} value={o}>{o}</option>)}
+                              </select>
+                              {cur[f.key]==="Other"&&<input value={cur[f.key+"_other"]||""} onChange={e=>setCur({...cur,[f.key+"_other"]:e.target.value})} placeholder="Specify..." className="w-full mt-1 px-2 py-1 border border-[var(--accent)] rounded text-xs bg-accent-soft text-main" />}
+                            </div>
+                          ) : f.type==="textarea" ? (
+                            <textarea value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} rows={2} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
+                          ) : (
+                            <input value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
             <div className="p-3 border-t border-main"><button onClick={save} className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">{eid?"Save changes":"Save entry"}</button></div>
           </div>
@@ -236,13 +336,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
           <div className="flex gap-2 items-center">
             {selected.size>0&&<button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
-            {/* Sort */}
             <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="rating">Best rated</option>
             </select>
-            {/* View toggle */}
             <div className="flex bg-surface2 rounded p-0.5">
               <button onClick={()=>setListMode("list")} className={`p-1 rounded ${listMode==="list"?"bg-surface shadow-sm text-accent":"text-muted"}`}><ListIcon/></button>
               <button onClick={()=>setListMode("grid")} className={`p-1 rounded ${listMode==="grid"?"bg-surface shadow-sm text-accent":"text-muted"}`}><GridIcon/></button>
@@ -263,7 +361,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           {Object.values(fl).some(Boolean)&&<span onClick={()=>setFl({})} className="text-accent text-xs cursor-pointer">Clear</span>}
         </div>
 
-        {/* LIST VIEW */}
         {listMode==="list"?(
           <div className="px-5 pb-5 overflow-x-auto">
             <table className="w-full border-collapse text-xs mt-1">
@@ -285,7 +382,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </table>
           </div>
         ):(
-          /* GALLERY VIEW */
           <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
@@ -307,7 +403,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         )}
       </div>
 
-      {/* Sidebar */}
       {sb&&(<div className="fixed top-0 right-0 w-[380px] h-screen bg-surface border-l border-main overflow-auto z-50" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
