@@ -8,6 +8,7 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 
 function SettingsContent() {
+  const { projectId } = useProject();
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -16,7 +17,7 @@ function SettingsContent() {
   const supabase = createClient();
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("dropdown_options").select("*").order("sort_order", { ascending: true });
+    const { data } = await supabase.from("dropdown_options").select("*").eq("project_id", projectId).order("sort_order", { ascending: true });
     if (data) {
       const grouped = {};
       data.forEach(row => {
@@ -38,7 +39,7 @@ function SettingsContent() {
     setSaving(true);
     const currentItems = options[activeCategory] || [];
     const maxOrder = currentItems.length > 0 ? Math.max(...currentItems.map(i => i.sort_order)) : -1;
-    await supabase.from("dropdown_options").insert({
+    await supabase.from("dropdown_options").insert({ project_id: projectId,
       category: activeCategory,
       value: newValue.trim(),
       sort_order: maxOrder + 1,
