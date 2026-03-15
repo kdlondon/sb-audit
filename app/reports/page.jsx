@@ -554,7 +554,7 @@ function ReportsContent(){
       label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
       // Escape brackets in label for markdown safety
       label = label.replace(/[\[\]]/g, "");
-      return `[${label}](cite:${id})`;
+      return `[${label}](__cite__${id})`;
     });
 
     const proseClass = "prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]";
@@ -563,11 +563,12 @@ function ReportsContent(){
     return (
       <Markdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={(url) => url}
         className={proseClass}
         components={{
           a: ({href, children}) => {
-            if (href?.startsWith("cite:")) {
-              const id = href.replace("cite:", "");
+            if (href?.startsWith("__cite__")) {
+              const id = href.replace("__cite__", "");
               const entry = allData.find(e => e.id === id);
               return (
                 <span
