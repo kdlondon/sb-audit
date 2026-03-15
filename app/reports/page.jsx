@@ -356,10 +356,12 @@ function ReportsContent(){
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
     const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
 - Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
-- Format: write the piece name naturally in your text, then immediately after add [ENTRY:xxxxxxxxxxxxxxx]
+- Write a SHORT HUMAN-READABLE name for the piece in your prose, then add [ENTRY:id] right after.
 - Example: "Their AI adoption guide [ENTRY:1773496163636] positions CIBC as..."
-- The [ENTRY:id] token is INVISIBLE to the reader — it becomes a clickable link. Do NOT write the ID anywhere else in your text.
-- NEVER write "(ID: 123456)" or "ID: 123456" in your prose. Only use [ENTRY:id] tokens.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
+- NEVER put the numeric ID in your prose text. NEVER write "(ID: 883404)" or "Meta Ad Library creative (ID: 883404)".
+- Use short descriptive names like "their Instagram campaign", "the women entrepreneur series", "How I made it" — NOT the raw description field which may contain technical IDs.
+- The [ENTRY:id] token is invisible to the reader. It only appears in your output as [ENTRY:123456], nowhere else.
+- Do NOT place citations inside markdown table rows (| col | col |) — only use them in prose paragraphs and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:8000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
@@ -378,12 +380,20 @@ function ReportsContent(){
     if (!rawContent) return null;
     // Replace [ENTRY:id] with a special marker that survives markdown rendering
     // We use a data attribute approach via dangerouslySetInnerHTML after markdown
-    const withLinks = rawContent.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    // Step 1: remove citations that appear on their own line between table rows
+    // Step 2: remove citations inside table rows
+    const withoutTableCites = rawContent
+      // Remove [ENTRY:x] on standalone lines that are surrounded by table rows
+      .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
+      // Remove [ENTRY:x] inside table rows (lines containing |)
+      .replace(/^(.*\|.*)$/gm, (row) => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
+    const withLinks = withoutTableCites.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = allData.find(e => e.id === id);
-      // Clean the label: use DB entry description, or strip any "(ID: ...)" from raw text
       let label = entry
         ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
-        : id.replace(/\s*\(ID:[^)]*\)/g, "").trim().slice(0, 50);
+        : "source";
+      // Strip any leaked ID patterns from label
+      label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
       return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
     });
 
