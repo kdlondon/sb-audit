@@ -87,15 +87,8 @@ function ChatContent() {
     let cleaned = rawContent
       .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
 
-    // Key fix: when [ENTRY:id] is on its own line (possibly after a bullet),
-    // pull it inline with the previous line instead of leaving it as a separate paragraph
-    cleaned = cleaned.replace(/([^\n]+)\n(\[ENTRY:[^\]]+\])\n/g, "$1 $2
-");
-    cleaned = cleaned.replace(/([^\n]+)\n(\[ENTRY:[^\]]+\])$/g, "$1 $2");
-    // Also handle multiple citations stacked on their own lines
-    cleaned = cleaned.replace(/\n(\[ENTRY:[^\]]+\])\n/g, " $1
-");
-    cleaned = cleaned.replace(/\n(\[ENTRY:[^\]]+\])$/g, " $1");
+    // Pull [ENTRY:id] tokens that are on their own line back inline
+    cleaned = cleaned.replace(/([^\n]+)\n(\[ENTRY:[^\]]+\])/g, (m, prev, cite) => prev + " " + cite);
 
     // Convert [ENTRY:id] to markdown link — all inline now
     const withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
