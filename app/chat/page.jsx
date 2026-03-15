@@ -80,35 +80,32 @@ function ChatContent() {
     setViewerOpen(true);
   };
 
-  const renderChatContent = (content) => {
-    if (!content) return null;
-    const processed = content.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+  const renderChatContent = (rawContent) => {
+    if (!rawContent) return null;
+    const withLinks = rawContent.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
       const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 50) : id;
-      return `[${label}](cite:${id})`;
+      return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
     });
+    const segments = withLinks.split(/(__CITE_START__[^_]+__CITE_MID__[^_]+__CITE_END__)/);
     return (
-      <Markdown
-        components={{
-          a: ({href, children}) => {
-            if (href && href.startsWith("cite:")) {
-              const id = href.replace("cite:", "");
-              const entry = data.find(e => e.id === id);
-              return (
-                <span
-                  onClick={() => handleCiteClick(entry || {id, description: String(children)})}
-                  style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
-                >
-                  {children}
-                </span>
-              );
-            }
-            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+      <div>
+        {segments.map((seg, i) => {
+          const citeMatch = seg.match(/^__CITE_START__([^_]+)__CITE_MID__(.+)__CITE_END__$/);
+          if (citeMatch) {
+            const id = citeMatch[1];
+            const label = citeMatch[2];
+            const entry = data.find(e => e.id === id);
+            return (
+              <span key={i}
+                onClick={() => handleCiteClick(entry || {id, description: label})}
+                style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px",fontSize:"inherit"}}
+              >{label}</span>
+            );
           }
-        }}
-      >
-        {processed}
-      </Markdown>
+          return seg ? <Markdown key={i}>{seg}</Markdown> : null;
+        })}
+      </div>
     );
   };
 
