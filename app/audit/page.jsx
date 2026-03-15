@@ -225,7 +225,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   return(
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
-        <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center sticky top-[45px] z-30">
+        <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center sticky top-[45px] z-40">
           <div className="flex items-center gap-3">
             <div className="flex bg-surface2 rounded-lg p-0.5">
               <button onClick={()=>onScopeChange("local")} className={`px-3 py-1 rounded-md text-sm font-medium transition ${scope==="local"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Local audit</button>
@@ -256,7 +256,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
           </div>
         </div>
-        <div className="bg-surface border-b border-main px-5 py-2 flex gap-2 flex-wrap items-center sticky top-[89px] z-20">
+        <div className="bg-surface border-b border-main px-5 py-2 flex gap-2 flex-wrap items-center sticky top-[89px] z-40">
           <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
           {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
           {Object.values(fl).some(Boolean)&&<span onClick={()=>setFl({})} className="text-accent text-xs cursor-pointer">Clear</span>}
