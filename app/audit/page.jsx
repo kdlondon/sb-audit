@@ -21,6 +21,75 @@ function Toast({message,link,onClose}){
   </div>);
 }
 
+
+// ── COUNTRIES LIST ────────────────────────────────────────────────────────────
+const COUNTRIES = [
+  "Afghanistan","Albania","Algeria","Angola","Argentina","Armenia","Australia",
+  "Austria","Azerbaijan","Bahrain","Bangladesh","Belarus","Belgium","Bolivia",
+  "Bosnia and Herzegovina","Brazil","Bulgaria","Cambodia","Cameroon","Canada",
+  "Chile","China","Colombia","Congo","Costa Rica","Croatia","Cuba","Czech Republic",
+  "Denmark","Dominican Republic","Ecuador","Egypt","El Salvador","Estonia",
+  "Ethiopia","Finland","France","Georgia","Germany","Ghana","Greece","Guatemala",
+  "Honduras","Hong Kong","Hungary","India","Indonesia","Iran","Iraq","Ireland",
+  "Israel","Italy","Ivory Coast","Jamaica","Japan","Jordan","Kazakhstan","Kenya",
+  "Kuwait","Latvia","Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Mexico",
+  "Moldova","Morocco","Mozambique","Myanmar","Netherlands","New Zealand","Nigeria",
+  "Norway","Pakistan","Panama","Paraguay","Peru","Philippines","Poland","Portugal",
+  "Qatar","Romania","Russia","Saudi Arabia","Senegal","Serbia","Singapore",
+  "Slovakia","South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland",
+  "Taiwan","Tanzania","Thailand","Tunisia","Turkey","Ukraine","United Arab Emirates",
+  "United Kingdom","United States","Uruguay","Uzbekistan","Venezuela","Vietnam",
+  "Zimbabwe"
+];
+
+function CountryInput({ value, onChange }) {
+  const [query, setQuery] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => { setQuery(value || ""); }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = query.length > 0
+    ? COUNTRIES.filter(c => c.toLowerCase().startsWith(query.toLowerCase())).slice(0, 8)
+    : [];
+
+  const select = (country) => {
+    setQuery(country);
+    onChange(country);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <input
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => { setFocused(true); if (query.length > 0) setOpen(true); }}
+        onBlur={() => setFocused(false)}
+        placeholder="Type to search..."
+        className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main"
+        style={focused ? {borderColor:"var(--accent)",outline:"none"} : {}}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute left-0 right-0 bg-surface border border-main rounded-lg shadow-lg overflow-hidden" style={{top:"100%",marginTop:2,zIndex:9999}}>
+          {filtered.map(c => (
+            <button key={c} onMouseDown={() => select(c)}
+              className="w-full text-left px-3 py-1.5 text-sm text-main hover:bg-accent-soft transition"
+            >{c}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MULTI-SELECT FIELDS ───────────────────────────────────────────────────────
 const MULTI_SELECT_FIELDS = new Set([
   "portrait","entry_door","journey_phase","client_lifecycle",
@@ -395,7 +464,12 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                       {s.fields.filter(f=>f.key!=="url"&&f.key!=="image_url"&&f.key!=="transcript"&&f.key!=="analyst_comment").map(f=>(
                         <div key={f.key} style={fieldStyle(f.key)} className="rounded px-1 -mx-1 transition-all duration-500">
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
-                          {f.type==="select" && MULTI_SELECT_FIELDS.has(f.key) ? (
+                          {f.key==="country" ? (
+                            <CountryInput
+                              value={cur[f.key]||""}
+                              onChange={v=>setCur({...cur,[f.key]:v})}
+                            />
+                          ) : f.type==="select" && MULTI_SELECT_FIELDS.has(f.key) ? (
                             <MultiSelect
                               fieldKey={f.key}
                               value={cur[f.key]||""}
