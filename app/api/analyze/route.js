@@ -9,6 +9,8 @@ export async function POST(request) {
 
 You are classifying a competitive communication piece for the Scotiabank Business Banking category audit.
 
+LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language (Spanish, French, English, etc.). Regardless of the language of the source material, ALL your output fields must be written in English. Translate any copy, slogans, insights, synopses, and pain points into English. Never output text in Spanish, French, or any other language.
+
 ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
 
 Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks) with these fields. For dropdown fields, pick EXACTLY one of the provided options.
