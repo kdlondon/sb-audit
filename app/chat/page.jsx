@@ -23,8 +23,8 @@ function ChatContent() {
     (async () => {
       const supabase = createClient();
       const [{ data: local }, { data: global }] = await Promise.all([
-        supabase.from("audit_entries").select("*"),
-        supabase.from("audit_global").select("*"),
+        supabase.from("audit_entries").select("*").eq("project_id",projectId),
+        supabase.from("audit_global").select("*").eq("project_id",projectId),
       ]);
       const all = [
         ...(local || []).map(e => ({ ...e, _scope: "local" })),
