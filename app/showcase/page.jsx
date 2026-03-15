@@ -125,7 +125,12 @@ export default function ShowcasePage() {
       globalQuery = globalQuery.in("country", selectedCountries);
     }
 
-    const [localRes, globalRes] = await Promise.all([localQuery, globalQuery]);
+    // If country filter is set, skip local entries (they have no country field)
+    const skipLocal = selectedCountries.length > 0;
+    const [localRes, globalRes] = await Promise.all([
+      skipLocal ? Promise.resolve({ data: [] }) : localQuery,
+      globalQuery,
+    ]);
     const entries = [...(localRes.data || []), ...(globalRes.data || [])];
 
     if (entries.length === 0) {
@@ -745,8 +750,8 @@ function SlideRenderer({ slide }) {
             </div>
           </div>
           {slide.image_url && (
-            <div className="w-72 h-72 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-              <img src={slide.image_url} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display = "none"} />
+            <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black/20">
+              <img src={slide.image_url} alt="" className="w-full h-auto object-contain max-h-[70vh]" onError={e => e.target.style.display = "none"} />
             </div>
           )}
         </div>
@@ -759,8 +764,8 @@ function SlideRenderer({ slide }) {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">{slide.title}</h2>
           <div className="flex gap-10 items-start">
             {slide.image_url && (
-              <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-                <img src={slide.image_url} alt="" className="w-full object-cover" onError={e => e.target.style.display = "none"} />
+              <div className="w-80 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black/20">
+                <img src={slide.image_url} alt="" className="w-full h-auto object-contain max-h-[70vh]" onError={e => e.target.style.display = "none"} />
               </div>
             )}
             <div className="flex-1">
@@ -811,8 +816,8 @@ function SlideRenderer({ slide }) {
               {slide.items.map((item, i) => (
                 <div key={i} className="bg-white/5 rounded-xl p-5 border border-white/10">
                   {item.image_url && (
-                    <div className="w-full h-32 rounded-lg overflow-hidden mb-3">
-                      <img src={item.image_url} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display = "none"} />
+                    <div className="w-full rounded-lg overflow-hidden mb-3 bg-black/20">
+                      <img src={item.image_url} alt="" className="w-full h-auto object-contain max-h-48" onError={e => e.target.style.display = "none"} />
                     </div>
                   )}
                   <h4 className="text-white font-semibold text-lg mb-2">{item.brand}</h4>
