@@ -82,24 +82,34 @@ function ChatContent() {
 
   const renderChatContent = (content) => {
     if (!content) return null;
-    const parts = [];
-    const regex = /\[ENTRY:([^\]]+)\]/g;
-    let last = 0, match, key = 0;
-    while ((match = regex.exec(content)) !== null) {
-      if (match.index > last) parts.push(<Markdown key={key++}>{content.slice(last, match.index)}</Markdown>);
-      const id = match[1];
+    const processed = content.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
-      const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 40) : id;
-      parts.push(
-        <button key={key++} onClick={() => handleCiteClick(entry || { id, description: id })}
-          style={{display:"inline-flex",alignItems:"center",gap:3,background:"var(--accent-soft)",border:"1px solid var(--accent)",color:"var(--accent)",borderRadius:4,padding:"1px 7px",fontSize:10,fontWeight:600,cursor:"pointer",verticalAlign:"middle",margin:"0 2px",lineHeight:1.9,whiteSpace:"nowrap"}}>
-          ↗ {label}
-        </button>
-      );
-      last = match.index + match[0].length;
-    }
-    if (last < content.length) parts.push(<Markdown key={key++}>{content.slice(last)}</Markdown>);
-    return <>{parts}</>;
+      const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 50) : id;
+      return `[${label}](cite:${id})`;
+    });
+    return (
+      <Markdown
+        components={{
+          a: ({href, children}) => {
+            if (href && href.startsWith("cite:")) {
+              const id = href.replace("cite:", "");
+              const entry = data.find(e => e.id === id);
+              return (
+                <span
+                  onClick={() => handleCiteClick(entry || {id, description: String(children)})}
+                  style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
+                >
+                  {children}
+                </span>
+              );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+          }
+        }}
+      >
+        {processed}
+      </Markdown>
+    );
   };
 
   const send = async () => {
