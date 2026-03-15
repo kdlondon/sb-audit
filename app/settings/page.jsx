@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase";
 import { CATEGORY_LABELS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
 
 function SettingsContent() {
   const [options, setOptions] = useState({});
@@ -153,5 +155,5 @@ function SettingsContent() {
 }
 
 export default function SettingsPage() {
-  return <AuthGuard><Nav /><SettingsContent /></AuthGuard>;
+  return <AuthGuard><ProjectGuard><Nav /><SettingsContent /></ProjectGuard></AuthGuard>;
 }
