@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
@@ -331,5 +333,5 @@ export default function AuditPage(){
   const[pendingForm,setPendingForm]=useState(false);
   const handleScopeChange=(s)=>{setScope(s);};
   const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
-  return(<AuthGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/></ProjectGuard></AuthGuard>);
 }
