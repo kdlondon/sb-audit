@@ -84,7 +84,9 @@ function ChatContent() {
     if (!rawContent) return null;
     const withLinks = rawContent.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
-      const label = entry ? (entry.description || entry.competitor || entry.brand || id).slice(0, 50) : id;
+      let label = entry
+        ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
+        : id.replace(/\s*\(ID:[^)]*\)/g, "").trim().slice(0, 50);
       return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
     });
     const segments = withLinks.split(/(__CITE_START__[^_]+__CITE_MID__[^_]+__CITE_END__)/);
@@ -140,13 +142,12 @@ Full dataset:
 ${dataStr}
 
 CITATION RULES — ABSOLUTELY MANDATORY:
-- Every entry in the dataset starts with [ID:xxxxxxxxxxxxxxx] — that is its EXACT real ID.
-- You MUST use these EXACT IDs when citing. NEVER shorten, change or invent IDs.
-- Format: [ENTRY:xxxxxxxxxxxxxxx] — use the full exact ID as shown in [ID:xxx].
-- Example: if an entry starts with [ID:1773496163636], cite it as [ENTRY:1773496163636]
-- Place the citation IMMEDIATELY after the piece name, inline in the sentence.
+- Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
+- Write the piece name naturally, then immediately add [ENTRY:xxxxxxxxxxxxxxx] after it.
 - Example: "CIBC's AI adoption guide [ENTRY:1773496163636] directly addresses Builder psychology"
-- NEVER use short IDs like e28, e15 — ONLY use the exact ID from [ID:xxx] in the data.
+- The [ENTRY:id] token is INVISIBLE to the reader — it becomes a clickable link.
+- NEVER write the ID visibly in your prose e.g. "(ID: 123456)" or "ID: 123456".
+- NEVER use short invented IDs like e28, e15 — ONLY the exact numeric ID from [ID:xxx].
 
 Answer precisely. Be strategic and conclusive. Reference specific brands, counts, and patterns. Compare local vs global when relevant. Use markdown formatting.`,
           messages: [...history, { role: "user", content: userMsg }],
