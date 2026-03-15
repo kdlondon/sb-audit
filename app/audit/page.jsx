@@ -20,7 +20,7 @@ function Toast({message,link,onClose}){
   </div>);
 }
 
-function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm}){
+function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId}){
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
@@ -47,11 +47,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const load=useCallback(async()=>{
     setLoading(true);
-    const{data:rows}=await supabase.from(getTableName(scope)).select("*").order("created_at",{ascending:false});
+    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setData(rows||[]);setLoading(false);setSelected(new Set());setSb(null);
   },[scope]);
 
-  useEffect(()=>{load();fetchOptions().then(o=>setOPTIONS(o));},[load]);
+  useEffect(()=>{load();fetchOptions(projectId).then(o=>setOPTIONS(o));},[load]);
   useEffect(()=>{if(pendingForm&&!loading){setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
 
   const highlightFields=(fields)=>{setHighlighted(new Set(fields));setTimeout(()=>setHighlighted(new Set()),3000);};
@@ -93,6 +93,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       e.id=String(Date.now());savedId=e.id;
       const{data:{session}}=await supabase.auth.getSession();
       e.created_by=session?.user?.email||"";
+      e.project_id=projectId;
       const{error}=await supabase.from(table).insert(e);
       if(error){setToast({message:"Error saving: "+error.message});return;}
     }
@@ -331,7 +332,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 export default function AuditPage(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
+  const{projectId}=useProject();
   const handleScopeChange=(s)=>{setScope(s);};
   const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
-  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} key={scope}/></ProjectGuard></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} key={scope}/></ProjectGuard></AuthGuard>);
 }
