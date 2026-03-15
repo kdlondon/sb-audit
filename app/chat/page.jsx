@@ -139,12 +139,14 @@ function ChatContent() {
 Full dataset:
 ${dataStr}
 
-CITATION RULES — CRITICAL:
-- Every entry in the dataset has an ID shown as [ID:xxx] at the start of its row.
-- Whenever you reference a specific piece by name or description, you MUST cite it inline using: [ENTRY:id]
-- Example: "CIBC's AI adoption guide [ENTRY:1234567890] directly addresses Builder psychology"
-- Never reference a specific piece without its citation.
-- Citations make entries clickable for the user — always include them.
+CITATION RULES — ABSOLUTELY MANDATORY:
+- Every entry in the dataset starts with [ID:xxxxxxxxxxxxxxx] — that is its EXACT real ID.
+- You MUST use these EXACT IDs when citing. NEVER shorten, change or invent IDs.
+- Format: [ENTRY:xxxxxxxxxxxxxxx] — use the full exact ID as shown in [ID:xxx].
+- Example: if an entry starts with [ID:1773496163636], cite it as [ENTRY:1773496163636]
+- Place the citation IMMEDIATELY after the piece name, inline in the sentence.
+- Example: "CIBC's AI adoption guide [ENTRY:1773496163636] directly addresses Builder psychology"
+- NEVER use short IDs like e28, e15 — ONLY use the exact ID from [ID:xxx] in the data.
 
 Answer precisely. Be strategic and conclusive. Reference specific brands, counts, and patterns. Compare local vs global when relevant. Use markdown formatting.`,
           messages: [...history, { role: "user", content: userMsg }],
@@ -173,7 +175,7 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
               m.role === "user" ? "bg-accent text-white rounded-br-sm" : "bg-surface border border-main text-main rounded-bl-sm"
             }`}>
               {m.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert"><Markdown>{m.content}</Markdown></div>
+                <div className="prose prose-sm max-w-none dark:prose-invert">{renderChatContent(m.content)}</div>
               ) : (
                 <div className="whitespace-pre-wrap">{m.content}</div>
               )}
