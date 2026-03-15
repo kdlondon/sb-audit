@@ -82,36 +82,35 @@ function ChatContent() {
 
   const renderChatContent = (rawContent) => {
     if (!rawContent) return null;
-    const withoutTableCites = rawContent
+    const cleaned = rawContent
       .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
-      .replace(/^(.*\|.*)$/gm, (row) => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
-    const withLinks = withoutTableCites.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+      .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
+    const withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = data.find(e => e.id === id);
       let label = entry
-        ? (entry.description || entry.competitor || entry.brand || "entry").slice(0, 50)
+        ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)
         : "source";
-      label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
-      return `__CITE_START__${id}__CITE_MID__${label}__CITE_END__`;
+      label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().replace(/[\[\]]/g, "").slice(0, 50);
+      return `[${label}](cite:${id})`;
     });
-    const segments = withLinks.split(/(__CITE_START__[^_]+__CITE_MID__[^_]+__CITE_END__)/);
     return (
-      <div>
-        {segments.map((seg, i) => {
-          const citeMatch = seg.match(/^__CITE_START__([^_]+)__CITE_MID__(.+)__CITE_END__$/);
-          if (citeMatch) {
-            const id = citeMatch[1];
-            const label = citeMatch[2];
-            const entry = data.find(e => e.id === id);
-            return (
-              <span key={i}
-                onClick={() => handleCiteClick(entry || {id, description: label})}
-                style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px",fontSize:"inherit"}}
-              >{label}</span>
-            );
+      <Markdown
+        components={{
+          a: ({href, children}) => {
+            if (href?.startsWith("cite:")) {
+              const id = href.replace("cite:", "");
+              const entry = data.find(e => e.id === id);
+              return (
+                <span
+                  onClick={() => handleCiteClick(entry || {id, description: String(children)})}
+                  style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
+                >{children}</span>
+              );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
           }
-          return seg ? <Markdown key={i}>{seg}</Markdown> : null;
-        })}
-      </div>
+        }}
+      >{withCiteLinks}</Markdown>
     );
   };
 
