@@ -25,7 +25,7 @@ function Toast({message,link,onClose}){
 const MULTI_SELECT_FIELDS = new Set([
   "portrait","entry_door","journey_phase","client_lifecycle",
   "moment_acquisition","moment_deepening","moment_unexpected",
-  "business_size","industry_shown","channel","brand_archetype"
+  "business_size","industry_shown","channel","brand_archetype","funnel"
 ]);
 
 // ── DESCRIPTIONS ──────────────────────────────────────────────────────────────
