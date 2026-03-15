@@ -268,8 +268,10 @@ const JOURNEY_VIEWS = [
   },
 ];
 
-function CampaignMap({ entries, onEntryClick }) {
-  const [activeView, setActiveView] = useState("funnel");
+function CampaignMap({ entries, onEntryClick, activeView: extActiveView, setActiveView: extSetActiveView }) {
+  const [internalView, setInternalView] = useState("funnel");
+  const activeView = extActiveView || internalView;
+  const setActiveView = extSetActiveView || setInternalView;
   const [expandedStage, setExpandedStage] = useState(null);
 
   const view = JOURNEY_VIEWS.find(v => v.id === activeView);
@@ -405,6 +407,8 @@ function EntryViewer({entry,onClose}){
 function ReportsContent(){
   const{projectId}=useProject();
   const[view,setView]=useState("generate");
+  const[journeyBrand,setJourneyBrand]=useState("");
+  const[journeyView,setJourneyView]=useState("funnel");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
   const[localData,setLocalData]=useState([]);
   const[globalData,setGlobalData]=useState([]);
@@ -593,11 +597,42 @@ function ReportsContent(){
           <h2 className="text-lg font-bold text-main">Reports</h2>
           <div className="flex bg-surface2 rounded-lg p-0.5">
             <button onClick={()=>{setView("generate");setViewingReport(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
+            <button onClick={()=>setView("journey")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Journey Map</button>
             <button onClick={()=>setView("archive")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
           </div>
         </div>
         {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
       </div>
+
+      {/* JOURNEY MAP VIEW */}
+      {view==="journey"&&(
+        <div className="px-5 py-5 w-full flex justify-center">
+          <div className="w-full max-w-5xl">
+            {/* Brand selector */}
+            <div className="mb-5">
+              <p className="text-xs text-hint mb-2">Select a brand to explore its journey map</p>
+              <div className="flex gap-2 flex-wrap">
+                {[...new Set(localData.map(e=>e.competitor).filter(Boolean))].sort().map(c=>(
+                  <button key={c} onClick={()=>setJourneyBrand(c)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${journeyBrand===c?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}
+                  >{c}</button>
+                ))}
+              </div>
+            </div>
+            {journeyBrand&&(
+              <CampaignMap
+                entries={localData.filter(e=>e.competitor===journeyBrand)}
+                onEntryClick={handleCiteClick}
+                activeView={journeyView}
+                setActiveView={setJourneyView}
+              />
+            )}
+            {!journeyBrand&&(
+              <div className="text-center py-20 text-hint text-sm">Select a brand above to see its journey map</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ARCHIVE */}
       {view==="archive"&&!viewingReport&&(
@@ -645,14 +680,7 @@ function ReportsContent(){
               </div>
               <div className="px-8 py-6" ref={reportRef}>
                 <div>{renderContent(activeContent)}</div>
-                {/* CAMPAIGN MAP — visual section for competitor snapshot */}
-                {(viewingReport?.template_type==="competitor_snapshot"||(selectedTemplate?.id==="competitor_snapshot"&&report))&&
-                 (viewingReport?.sections?.includes("campaign")||sections.includes("campaign"))&&(
-                  <CampaignMap
-                    entries={filteredData.length>0?filteredData:localData.filter(e=>competitors[0]&&(e.competitor===competitors[0]||(viewingReport?.competitors?.split(",")[0]&&e.competitor===viewingReport.competitors.split(",")[0])))}
-                    onEntryClick={handleCiteClick}
-                  />
-                )}
+
                 <Signature/>
               </div>
             </div>
