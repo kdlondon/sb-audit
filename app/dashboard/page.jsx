@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -7,6 +7,16 @@ import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, ScatterChart, Scatter, ZAxis, CartesianGrid } from "recharts";
+
+/* ─── PNG DOWNLOAD HELPER ─── */
+async function downloadChartAsPNG(element, filename) {
+  const html2canvas = (await import("html2canvas")).default;
+  const canvas = await html2canvas(element, { scale: 3, backgroundColor: "#ffffff", useCORS: true });
+  const link = document.createElement("a");
+  link.download = `${filename}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
 
 const COLORS=["#2563eb","#7c3aed","#059669","#dc2626","#0ea5e9","#d97706","#14b8a6","#ec4899","#6366f1","#84cc16","#f97316","#06b6d4"];
 const PORTRAIT_COLORS={Dreamer:"#7c3aed",Builder:"#059669",Sovereign:"#d97706",Architect:"#2563eb"};
@@ -18,10 +28,14 @@ function count(arr,key){const c={};arr.forEach(e=>{const v=e[key];if(v&&!v.start
 function heatmapData(arr,rowKey,colKey){const rows=new Set();const cols=new Set();const grid={};arr.forEach(e=>{const r=e[rowKey];const c=e[colKey];if(!r||!c||r.startsWith("Not ")||r.startsWith("None")||c.startsWith("Not ")||c.startsWith("None"))return;rows.add(r);cols.add(c);const k=`${r}__${c}`;grid[k]=(grid[k]||0)+1;});return{rows:[...rows],cols:[...cols],grid};}
 
 function Heatmap({data,rowKey,colKey,title,subtitle}){
+  const ref=useRef(null);
+  const download=()=>{if(ref.current)downloadChartAsPNG(ref.current,title.replace(/\s+/g,"-").toLowerCase());};
   const{rows,cols,grid}=heatmapData(data,rowKey,colKey);if(rows.length===0)return null;const max=Math.max(...Object.values(grid),1);
-  return(<div className="bg-surface border border-main rounded-lg p-5">
-    <h3 className="text-sm font-semibold text-main mb-1">{title}</h3>
-    {subtitle&&<p className="text-xs text-muted mb-3">{subtitle}</p>}
+  return(<div ref={ref} className="bg-surface border border-main rounded-lg p-5 relative group">
+    <div className="flex justify-between items-start mb-1">
+      <div><h3 className="text-sm font-semibold text-main">{title}</h3>{subtitle&&<p className="text-xs text-muted mt-0.5">{subtitle}</p>}</div>
+      <button onClick={download} className="opacity-0 group-hover:opacity-100 transition text-[9px] text-muted hover:text-main px-2 py-1 rounded border border-main hover:bg-surface2" title="Download as PNG">PNG ↓</button>
+    </div>
     <div className="overflow-x-auto"><table className="text-xs border-collapse w-full"><thead><tr><th className="px-3 py-2 text-left text-muted font-medium"></th>{cols.map(c=><th key={c} className="px-3 py-2 text-center text-muted font-medium" style={{minWidth:70,fontSize:10}}>{c}</th>)}</tr></thead>
     <tbody>{rows.map(r=>(<tr key={r}><td className="px-3 py-2 text-main font-medium whitespace-nowrap" style={{fontSize:11}}>{r}</td>{cols.map(c=>{const v=grid[`${r}__${c}`]||0;const i=v/max;return(<td key={c} className="px-3 py-2 text-center" style={{background:v>0?`rgba(37,99,235,${0.1+i*0.6})`:"transparent",color:i>0.5?"#fff":"var(--text2)",borderRadius:4,fontSize:11,fontWeight:v>0?600:400}}>{v||"·"}</td>);})}</tr>))}</tbody></table></div>
   </div>);
@@ -29,7 +43,41 @@ function Heatmap({data,rowKey,colKey,title,subtitle}){
 
 function StatCard({label,value,sub}){return(<div className="bg-surface border border-main rounded-lg p-4"><p className="text-[10px] text-muted uppercase font-semibold tracking-wide">{label}</p><p className="text-2xl font-bold text-main mt-1">{value}</p>{sub&&<p className="text-xs text-hint mt-0.5">{sub}</p>}</div>);}
 
-function ChartCard({title,subtitle,children,height}){return(<div className="bg-surface border border-main rounded-lg p-5"><h3 className="text-sm font-semibold text-main mb-1">{title}</h3>{subtitle&&<p className="text-xs text-muted mb-3">{subtitle}</p>}<ResponsiveContainer width="100%" height={height||280}>{children}</ResponsiveContainer></div>);}
+function ChartCard({title,subtitle,children,height}){
+  const ref=useRef(null);
+  const download=()=>{if(ref.current)downloadChartAsPNG(ref.current,title.replace(/\s+/g,"-").toLowerCase());};
+  return(<div ref={ref} className="bg-surface border border-main rounded-lg p-5 relative group">
+    <div className="flex justify-between items-start mb-1">
+      <div><h3 className="text-sm font-semibold text-main">{title}</h3>{subtitle&&<p className="text-xs text-muted mt-0.5">{subtitle}</p>}</div>
+      <button onClick={download} className="opacity-0 group-hover:opacity-100 transition text-[9px] text-muted hover:text-main px-2 py-1 rounded border border-main hover:bg-surface2" title="Download as PNG">PNG ↓</button>
+    </div>
+    <div className="mt-3"><ResponsiveContainer width="100%" height={height||280}>{children}</ResponsiveContainer></div>
+  </div>);
+}
+
+function DownloadableCard({title,children}){
+  const ref=useRef(null);
+  const download=()=>{if(ref.current)downloadChartAsPNG(ref.current,title.replace(/\s+/g,"-").toLowerCase());};
+  return(<div ref={ref} className="bg-surface border border-main rounded-lg p-5 relative group">
+    <div className="flex justify-between items-start mb-1">
+      <h3 className="text-sm font-semibold text-main">{title}</h3>
+      <button onClick={download} className="opacity-0 group-hover:opacity-100 transition text-[9px] text-muted hover:text-main px-2 py-1 rounded border border-main hover:bg-surface2">PNG ↓</button>
+    </div>
+    {children}
+  </div>);
+}
+
+function PieCard({title,data}){
+  const ref=useRef(null);
+  const download=()=>{if(ref.current)downloadChartAsPNG(ref.current,title.replace(/\s+/g,"-").toLowerCase());};
+  return(<div ref={ref} className="bg-surface border border-main rounded-lg p-5 relative group">
+    <div className="flex justify-between items-start mb-3">
+      <h3 className="text-sm font-semibold text-main">{title}</h3>
+      <button onClick={download} className="opacity-0 group-hover:opacity-100 transition text-[9px] text-muted hover:text-main px-2 py-1 rounded border border-main hover:bg-surface2">PNG ↓</button>
+    </div>
+    <ResponsiveContainer width="100%" height={200}><PieChart><Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75}>{data.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}</Pie><Legend wrapperStyle={{fontSize:11}}/><Tooltip/></PieChart></ResponsiveContainer>
+  </div>);
+}
 
 const CT=({active,payload})=>{if(!active||!payload?.[0])return null;const d=payload[0].payload;return <div className="bg-surface border border-main rounded-lg px-3 py-2 shadow-lg text-xs"><p className="font-semibold text-main">{d.name}</p><p className="text-muted">{d.value} entries</p></div>;};
 
@@ -138,14 +186,13 @@ function DashboardContent(){
 
         {/* Category + Language + Execution */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-surface border border-main rounded-lg p-5"><h3 className="text-sm font-semibold text-main mb-3">Category split</h3><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={categoryCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75}>{categoryCounts.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}</Pie><Legend wrapperStyle={{fontSize:11}}/><Tooltip/></PieChart></ResponsiveContainer></div>
-          <div className="bg-surface border border-main rounded-lg p-5"><h3 className="text-sm font-semibold text-main mb-3">Language register</h3><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={languageCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75}>{languageCounts.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}</Pie><Legend wrapperStyle={{fontSize:11}}/><Tooltip/></PieChart></ResponsiveContainer></div>
-          <div className="bg-surface border border-main rounded-lg p-5"><h3 className="text-sm font-semibold text-main mb-3">Execution style</h3><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={executionCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75}>{executionCounts.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}</Pie><Legend wrapperStyle={{fontSize:11}}/><Tooltip/></PieChart></ResponsiveContainer></div>
+          <PieCard title="Category split" data={categoryCounts}/>
+          <PieCard title="Language register" data={languageCounts}/>
+          <PieCard title="Execution style" data={executionCounts}/>
         </div>
 
         {/* Positioning matrix */}
-        <div className="bg-surface border border-main rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-main mb-1">Positioning matrix</h3>
+        <DownloadableCard title="Positioning matrix">
           <p className="text-xs text-muted mb-3">X: Owner language ↔ Banking language · Y: Aspiration ↔ Product-focused · Size: entries</p>
           <ResponsiveContainer width="100%" height={380}>
             <ScatterChart margin={{top:20,right:20,bottom:20,left:20}}>
@@ -158,7 +205,7 @@ function DashboardContent(){
             </ScatterChart>
           </ResponsiveContainer>
           <div className="flex flex-wrap gap-2 mt-2 justify-center">{positionData.map((d,i)=>(<span key={d.name} className="text-[10px] flex items-center gap-1"><span style={{width:8,height:8,borderRadius:"50%",background:COMPETITOR_COLORS[d.name]||COLORS[i%COLORS.length],display:"inline-block"}}/>{d.name}</span>))}</div>
-        </div>
+        </DownloadableCard>
 
         {/* Rating */}
         {ratingData.length>0&&<ChartCard title="Average rating by brand" height={Math.max(180,ratingData.length*28)}>

@@ -305,96 +305,37 @@ Return: {"title":"...","slides":[...slides...]}`;
 
   /* ─── PDF DOWNLOAD ─── */
   const downloadPDF = async () => {
-    showToast("Generating PDF...");
-    const html2pdf = (await import("html2pdf.js")).default;
-    const slides = currentShowcase.slides || [];
-
-    // Create a temporary container for PDF rendering
-    const container = document.createElement("div");
-    container.style.width = "1280px";
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
-    document.body.appendChild(container);
-
-    slides.forEach((slide, i) => {
-      const theme = getThemeForSlide(slide, i);
-      const page = document.createElement("div");
-      page.style.cssText = `width:1280px;height:720px;background:${theme.bg};color:${theme.text};padding:60px 80px 60px 80px;display:flex;flex-direction:column;justify-content:center;font-family:system-ui,-apple-system,sans-serif;position:relative;overflow:hidden;box-sizing:border-box;`;
-
-      // K&D logo watermark
-      const logo = document.createElement("div");
-      logo.style.cssText = `position:absolute;left:20px;top:20px;opacity:0.12;font-size:10px;font-weight:bold;letter-spacing:2px;line-height:1.4;color:${theme.text};`;
-      logo.innerHTML = "K<br>N<br>&nbsp;O<br>&nbsp;&nbsp;T<br>S<br><em style='font-style:italic;font-family:Georgia,serif'>&amp;</em><br>D<br>&nbsp;O<br>T<br>S<br>.";
-      page.appendChild(logo);
-
-      const content = document.createElement("div");
-      content.style.cssText = "margin-left:40px;max-width:1100px;";
-
-      switch (slide.type) {
-        case "title":
-          content.innerHTML = `
-            <p style="font-size:10px;text-transform:uppercase;letter-spacing:4px;opacity:0.4;margin-bottom:20px;">${slide.client || ""}</p>
-            <h1 style="font-size:56px;font-weight:bold;text-transform:uppercase;line-height:1;margin-bottom:20px;">${slide.title || ""}</h1>
-            <p style="font-size:18px;opacity:0.5;max-width:600px;">${slide.subtitle || ""}</p>
-            ${slide.objective ? `<p style="font-size:13px;opacity:0.35;margin-top:30px;font-style:italic;">${slide.objective}</p>` : ""}`;
-          break;
-        case "key_findings":
-          const findings = slide.findings || [];
-          content.innerHTML = `
-            <h2 style="font-size:24px;font-weight:bold;text-transform:uppercase;margin-bottom:30px;">${slide.title || "Key Findings"}</h2>
-            <div style="display:flex;gap:24px;flex-wrap:wrap;">
-              ${findings.map(f => `<div style="flex:1;min-width:180px;">
-                <span style="font-size:28px;font-weight:bold;display:block;margin-bottom:8px;">${f.number || ""}</span>
-                <strong style="font-size:15px;display:block;margin-bottom:6px;line-height:1.3;">${f.heading || ""}</strong>
-                <div style="width:100%;height:2px;background:currentColor;opacity:0.7;margin-bottom:8px;"></div>
-                <p style="font-size:11px;opacity:0.7;line-height:1.5;">${f.summary || ""}</p>
-              </div>`).join("")}
-            </div>`;
-          break;
-        case "finding":
-          content.innerHTML = `
-            ${slide.brand ? `<p style="font-size:10px;text-transform:uppercase;letter-spacing:3px;opacity:0.4;margin-bottom:12px;">${slide.brand}</p>` : ""}
-            <h2 style="font-size:40px;font-weight:bold;text-transform:uppercase;line-height:1.05;margin-bottom:16px;">${slide.title || ""}</h2>
-            <div style="width:60px;height:2px;background:${theme.accent};opacity:0.5;margin-bottom:16px;"></div>
-            <p style="font-size:16px;opacity:0.7;line-height:1.6;max-width:600px;">${(slide.body || "").replace(/\*\*/g, "").replace(/\n/g, "<br>")}</p>`;
-          break;
-        case "takeaways":
-          const tks = slide.takeaways || [];
-          content.innerHTML = `
-            <h2 style="font-size:32px;font-weight:bold;text-transform:uppercase;margin-bottom:30px;">${slide.title || "Takeaways"}</h2>
-            ${tks.map((t, i) => `<div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;">
-              <span style="font-size:20px;font-weight:bold;opacity:0.3;min-width:30px;">${String(i+1).padStart(2,"0")}</span>
-              <p style="font-size:16px;line-height:1.5;">${t}</p>
-            </div>`).join("")}`;
-          break;
-        case "closing":
-          content.innerHTML = `
-            <h2 style="font-size:48px;font-weight:bold;text-transform:uppercase;line-height:1;margin-bottom:16px;">${slide.title || ""}</h2>
-            <p style="font-size:16px;opacity:0.5;">${slide.subtitle || ""}</p>
-            <div style="margin-top:60px;display:flex;align-items:center;gap:12px;">
-              <div style="width:40px;height:1px;opacity:0.2;background:currentColor;"></div>
-              <span style="font-size:9px;text-transform:uppercase;letter-spacing:3px;opacity:0.25;">A Knots &amp; Dots product</span>
-            </div>`;
-          break;
-        default:
-          content.innerHTML = `<h2 style="font-size:36px;font-weight:bold;">${slide.title || ""}</h2><p style="font-size:16px;opacity:0.7;margin-top:12px;">${slide.body || ""}</p>`;
-      }
-      page.appendChild(content);
-      container.appendChild(page);
-    });
-
+    showToast("Generating PDF — please wait...");
     try {
-      await html2pdf().set({
-        margin: 0,
-        filename: `${currentShowcase.title || "Showcase"}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, width: 1280, height: 720, useCORS: true },
-        jsPDF: { unit: "px", format: [1280, 720], orientation: "landscape", hotfixes: ["px_scaling"] },
-        pagebreak: { mode: ["css", "legacy"], after: "div" },
-      }).from(container).save();
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
+      const slides = currentShowcase.slides || [];
+      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [1280, 720] });
+
+      for (let i = 0; i < slides.length; i++) {
+        // Navigate to each slide and capture the visible content
+        setCurrentSlide(i);
+        await new Promise(r => setTimeout(r, 400)); // wait for render + animation
+
+        const slideEl = document.querySelector("[data-slide-content]");
+        if (!slideEl) continue;
+
+        const canvas = await html2canvas(slideEl, {
+          scale: 2, useCORS: true, allowTaint: true,
+          width: 1280, height: 720,
+          backgroundColor: null,
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        if (i > 0) pdf.addPage([1280, 720], "landscape");
+        pdf.addImage(imgData, "JPEG", 0, 0, 1280, 720);
+      }
+
+      pdf.save(`${currentShowcase.title || "Showcase"}.pdf`);
       showToast("PDF downloaded!");
-    } catch (err) { showToast("PDF error: " + err.message); }
-    document.body.removeChild(container);
+    } catch (err) {
+      showToast("PDF error: " + err.message);
+    }
   };
 
   /* ─── KEYBOARD NAV ─── */
@@ -427,7 +368,7 @@ Return: {"title":"...","slides":[...slides...]}`;
     const theme = getThemeForSlide(slide, currentSlide);
 
     return (
-      <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }}>
+      <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }} data-slide-content>
         {ToastEl}
         {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
         <KDLogo color={theme.text} opacity={theme.isDark ? 0.15 : 0.1} />
