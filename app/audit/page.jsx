@@ -186,6 +186,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [ytLoading,setYtLoading]=useState(false);
   const [showAddMenu,setShowAddMenu]=useState(false);
   const [dragOver,setDragOver]=useState(false);
+  const [zoomImg,setZoomImg]=useState(null);
   const [materialType,setMaterialType]=useState("none");
   const [highlighted,setHighlighted]=useState(new Set());
   const [listMode,setListMode]=useState("list");
@@ -623,7 +624,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     )}
                   </div>
                 )
-                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<img src={imgUrl} className="max-w-full max-h-[400px] rounded-lg" alt="" />
+                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<div className="relative group cursor-pointer" onClick={()=>setZoomImg(imgUrl)}><img src={imgUrl} className="max-w-full max-h-[400px] rounded-lg" alt="" /><div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/10 rounded-lg"><span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">Click to zoom</span></div></div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
               </div>
@@ -817,7 +818,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
         {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2">
-          <img src={sb.image_url} className="w-full rounded-md" />
+          <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
           {sb.image_urls&&JSON.parse(sb.image_urls||"[]").length>0&&(
             <div className="flex gap-1.5 mt-1.5 flex-wrap">
               {JSON.parse(sb.image_urls||"[]").map((url,i)=>(
@@ -845,6 +846,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       </div>)}
 
       {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
+
+      {/* Image zoom modal */}
+      {zoomImg&&(
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center cursor-pointer" onClick={()=>setZoomImg(null)}>
+          <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
+          <img src={zoomImg} className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" onClick={e=>e.stopPropagation()} alt="" />
+        </div>
+      )}
     </div>
   );
 }
