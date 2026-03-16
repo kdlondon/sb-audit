@@ -763,18 +763,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):""}</span>}</th>))}<th></th>
               </tr></thead>
               <tbody>{fd.map(e=>(<tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer" onClick={()=>setSb(e)}>
-                <td className="px-2 py-1.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                <td className="px-2 py-1.5">{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
-                <td className="px-2 py-1.5"><Tag v={e.category}/></td>
-                <td className="px-2 py-1.5 max-w-[180px] truncate font-medium text-main">{e.description||"—"}</td>
-                <td className="px-2 py-1.5 text-muted">{e.year||"—"}</td>
-                <td className="px-2 py-1.5 text-muted">{e.type||"—"}</td>
-                <td className="px-2 py-1.5 text-main">{e.portrait||"—"}</td>
-                <td className="px-2 py-1.5 text-main">{e.journey_phase||"—"}</td>
-                <td className="px-2 py-1.5 text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</td>
-                <td className="px-2 py-1.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
-                <td className="px-2 py-1.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
-                <td className="px-2 py-1" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
+                <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
+                <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
+                <td className="px-2 py-2.5"><Tag v={e.category}/></td>
+                <td className="px-2 py-2.5 max-w-[180px] truncate font-medium text-main">{e.description||"—"}</td>
+                <td className="px-2 py-2.5 text-muted">{e.year||"—"}</td>
+                <td className="px-2 py-2.5 text-muted">{e.type||"—"}</td>
+                <td className="px-2 py-2.5 text-muted">{e.communication_intent||"—"}</td>
+                <td className="px-2 py-2.5 text-main">{e.portrait||"—"}</td>
+                <td className="px-2 py-2.5 text-main">{e.journey_phase||"—"}</td>
+                <td className="px-2 py-2.5 text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</td>
+                <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
+                <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
+                <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
               </tr>))}</tbody>
             </table>
           </div>
