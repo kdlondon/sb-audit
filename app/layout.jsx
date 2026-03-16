@@ -1,7 +1,10 @@
 import "./globals.css";
 import { ProjectProvider } from "@/lib/project-context";
 import { RoleProvider } from "@/lib/role-context";
-import ChatBubble from "@/components/ChatBubble";
+import dynamic from "next/dynamic";
+
+const ChatBubble = dynamic(() => import("@/components/ChatBubble"), { ssr: false });
+
 export const metadata = {
   title: "Groundwork — Competitive Intelligence Platform",
   description: "Groundwork — Competitive Intelligence Platform by Knots & Dots",
