@@ -344,16 +344,40 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setCaptureActive(false);
   };
 
+  const videoIframeRef=useRef(null);
+
   const captureFrame=async()=>{
     const video=captureVideoRef.current;
     if(!video||video.readyState<2)return;
-    // Draw current frame to canvas
+
+    // Get the iframe's position to crop
+    const iframe=videoIframeRef.current;
+    if(!iframe){return;}
+    const rect=iframe.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+
+    // Draw full screen capture to temp canvas
+    const fullCanvas=document.createElement("canvas");
+    fullCanvas.width=video.videoWidth;
+    fullCanvas.height=video.videoHeight;
+    fullCanvas.getContext("2d").drawImage(video,0,0);
+
+    // Calculate crop coordinates (map iframe rect to capture coordinates)
+    const scaleX=video.videoWidth/window.innerWidth;
+    const scaleY=video.videoHeight/window.innerHeight;
+    const cropX=Math.round(rect.left*scaleX);
+    const cropY=Math.round(rect.top*scaleY);
+    const cropW=Math.round(rect.width*scaleX);
+    const cropH=Math.round(rect.height*scaleY);
+
+    // Draw cropped region to final canvas
     const canvas=document.createElement("canvas");
-    canvas.width=video.videoWidth;
-    canvas.height=video.videoHeight;
-    canvas.getContext("2d").drawImage(video,0,0);
+    canvas.width=cropW;
+    canvas.height=cropH;
+    canvas.getContext("2d").drawImage(fullCanvas,cropX,cropY,cropW,cropH,0,0,cropW,cropH);
+
     // Convert to blob and upload
-    const blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.9));
+    const blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.92));
     const file=new File([blob],`capture_${Date.now()}.jpg`,{type:"image/jpeg"});
     setUploading(true);
     const url=await uploadSingleImage(file);
@@ -533,7 +557,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               <div className={`flex items-center justify-center p-4 min-h-[250px] transition ${dragOver?"ring-2 ring-[var(--accent)] ring-inset":""}`} style={{background:dragOver?"var(--accent-soft)":"var(--surface2)"}}>
                 {materialType==="video"&&y?(
                   <div className="w-full">
-                    <iframe width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
+                    <iframe ref={videoIframeRef} width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
                     {/* Capture tools bar */}
                     <div className="flex items-center justify-center gap-2 mt-3 px-4">
                       {captureActive?(
