@@ -13,6 +13,43 @@ function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
+function ImageViewer({src}){
+  const [scale,setScale]=useState(1);
+  const [pos,setPos]=useState({x:0,y:0});
+  const [dragging,setDragging]=useState(false);
+  const [start,setStart]=useState({x:0,y:0});
+  const containerRef=useRef(null);
+
+  const handleWheel=(e)=>{e.preventDefault();const delta=e.deltaY>0?-0.15:0.15;setScale(s=>Math.min(Math.max(0.5,s+delta),5));};
+  const handleMouseDown=(e)=>{if(scale<=1)return;e.preventDefault();setDragging(true);setStart({x:e.clientX-pos.x,y:e.clientY-pos.y});};
+  const handleMouseMove=(e)=>{if(!dragging)return;setPos({x:e.clientX-start.x,y:e.clientY-start.y});};
+  const handleMouseUp=()=>setDragging(false);
+  const reset=()=>{setScale(1);setPos({x:0,y:0});};
+
+  useEffect(()=>{
+    const el=containerRef.current;if(!el)return;
+    el.addEventListener("wheel",handleWheel,{passive:false});
+    return()=>el.removeEventListener("wheel",handleWheel);
+  });
+
+  return(
+    <div ref={containerRef} className="w-full h-full min-h-[300px] flex flex-col items-center justify-center relative overflow-hidden select-none"
+      onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+      style={{cursor:scale>1?(dragging?"grabbing":"grab"):"zoom-in"}}>
+      <img src={src} alt="" draggable={false}
+        className="max-w-full max-h-[500px] rounded-lg transition-transform duration-100"
+        style={{transform:`translate(${pos.x}px,${pos.y}px) scale(${scale})`,transformOrigin:"center center"}} />
+      {/* Zoom controls */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+        <button onClick={()=>setScale(s=>Math.max(0.5,s-0.25))} className="text-white/70 hover:text-white w-6 h-6 flex items-center justify-center text-lg rounded-full hover:bg-white/10">−</button>
+        <span className="text-white/60 text-[10px] font-mono w-10 text-center">{Math.round(scale*100)}%</span>
+        <button onClick={()=>setScale(s=>Math.min(5,s+0.25))} className="text-white/70 hover:text-white w-6 h-6 flex items-center justify-center text-lg rounded-full hover:bg-white/10">+</button>
+        {scale!==1&&<button onClick={reset} className="text-white/50 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10">Reset</button>}
+      </div>
+    </div>
+  );
+}
+
 function Toast({message,link,onClose}){
   useEffect(()=>{const t=setTimeout(onClose,4000);return()=>clearTimeout(t);},[onClose]);
   return(<div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface border border-main rounded-xl shadow-lg px-5 py-3 flex items-center gap-3 z-50 animate-[slideUp_0.3s_ease]">
@@ -624,7 +661,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     )}
                   </div>
                 )
-                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<div className="relative group cursor-pointer" onClick={()=>setZoomImg(imgUrl)}><img src={imgUrl} className="max-w-full max-h-[400px] rounded-lg" alt="" /><div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/10 rounded-lg"><span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">Click to zoom</span></div></div>
+                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<ImageViewer src={imgUrl} />
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
               </div>
