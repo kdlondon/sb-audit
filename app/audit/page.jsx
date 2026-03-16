@@ -255,6 +255,32 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const del=async(id)=>{await supabase.from(getTableName(scope)).delete().eq("id",id);if(sb?.id===id)setSb(null);load();};
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
+
+  const moveEntry=async(entry)=>{
+    const fromTable=getTableName(scope);
+    const toScope=scope==="local"?"global":"local";
+    const toTable=getTableName(toScope);
+    if(!confirm(`Move this entry to ${toScope==="global"?"Global benchmarks":"Local audit"}?`))return;
+    // Copy entry data
+    const e={...entry};delete e.id;
+    // Map fields between scopes
+    if(toScope==="global"){
+      if(e.competitor&&!e.brand){e.brand=e.competitor;}
+      delete e.competitor;
+      if(!e.country)e.country="";
+    }else{
+      if(e.brand&&!e.competitor){e.competitor=e.brand;}
+      delete e.brand;delete e.country;delete e.category_proximity;delete e.company_type;
+    }
+    e.id=String(Date.now());
+    e.updated_at=new Date().toISOString();
+    const{error:insertErr}=await supabase.from(toTable).insert(e);
+    if(insertErr){setToast({message:"Error moving: "+insertErr.message});return;}
+    await supabase.from(fromTable).delete().eq("id",entry.id);
+    if(sb?.id===entry.id)setSb(null);
+    load();
+    setToast({message:`Moved to ${toScope==="global"?"Global benchmarks":"Local audit"}`});
+  };
   const toggleSelect=(id)=>{setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});};
 
   const doExport=()=>{
@@ -822,7 +848,12 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         {sb.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.insight}</div></div>}
         {sb.transcript&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Transcript</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded max-h-[150px] overflow-auto whitespace-pre-wrap text-main">{sb.transcript}</div></div>}
         {sb.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.analyst_comment}</div></div>}
-        <div className="p-3 border-t border-main sticky bottom-0 bg-surface"><button onClick={()=>openForm(sb)} className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">Edit</button></div>
+        <div className="p-3 border-t border-main sticky bottom-0 bg-surface flex gap-2">
+          <button onClick={()=>openForm(sb)} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">Edit</button>
+          <button onClick={()=>moveEntry(sb)} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition" title={`Move to ${scope==="local"?"Global":"Local"}`}>
+            {scope==="local"?"→ Global":"→ Local"}
+          </button>
+        </div>
       </div>)}
 
       {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}

@@ -91,8 +91,9 @@ export default function ScoutPage() {
 
   // Preview
   const [preview, setPreview] = useState(null); // { videoId, title }
-  // Transcripts per video (user can paste before import)
+  // Per-video settings (transcript + scope)
   const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
+  const [videoScopes, setVideoScopes] = useState({}); // { videoId: "local"|"global" }
 
   // Results
   const [videos, setVideos] = useState([]);
@@ -198,11 +199,14 @@ export default function ScoutPage() {
     setImporting(true);
     setImportProgress({ current: 0, total: toImport.length, label: "" });
     const { data: { session } } = await supabase.auth.getSession();
-    const table = scope === "global" ? "audit_global" : "audit_entries";
     let imported = 0;
 
     for (let i = 0; i < toImport.length; i++) {
       const v = toImport[i];
+      // Per-video scope (falls back to global scope selector)
+      const vidScope = videoScopes[v.videoId] || scope;
+      const table = vidScope === "global" ? "audit_global" : "audit_entries";
+
       setImportProgress({ current: i + 1, total: toImport.length, label: `Processing: ${v.title.slice(0, 40)}...` });
 
       // Use user-provided transcript or try auto-fetch
@@ -235,7 +239,7 @@ export default function ScoutPage() {
         transcript,
       };
 
-      if (scope === "global") {
+      if (vidScope === "global") {
         entry.brand = v.channel || "";
         entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
       } else {
@@ -501,20 +505,37 @@ export default function ScoutPage() {
                           className="text-[11px] text-accent hover:underline mt-1 inline-block">Watch video</button>
                         {isDuplicate && <p className="text-[10px] text-amber-500 font-medium mt-1">Already imported</p>}
 
-                        {/* Transcript area — shows when selected */}
+                        {/* Settings area — shows when selected */}
                         {isSelected && !isDuplicate && (
-                          <div className="mt-3 pt-3 border-t border-main" onClick={e => e.stopPropagation()}>
-                            <div className="flex justify-between items-center mb-1">
-                              <label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label>
-                              <span className="text-[9px] text-hint">Paste here for better AI analysis</span>
+                          <div className="mt-3 pt-3 border-t border-main space-y-3" onClick={e => e.stopPropagation()}>
+                            {/* Scope selector */}
+                            <div className="flex items-center gap-3">
+                              <label className="text-[10px] text-muted uppercase font-semibold">Import to:</label>
+                              <div className="flex bg-surface2 rounded-lg p-0.5">
+                                <button onClick={() => setVideoScopes(prev => ({ ...prev, [v.videoId]: "local" }))}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[v.videoId] || scope) === "local" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
+                                  Local
+                                </button>
+                                <button onClick={() => setVideoScopes(prev => ({ ...prev, [v.videoId]: "global" }))}
+                                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[v.videoId] || scope) === "global" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
+                                  Global
+                                </button>
+                              </div>
                             </div>
-                            <textarea
-                              value={transcripts[v.videoId] || ""}
-                              onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
-                              rows={3}
-                              placeholder="Paste the video transcript or ad copy here..."
-                              className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
-                            />
+                            {/* Transcript */}
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label>
+                                <span className="text-[9px] text-hint">Paste here for better AI analysis</span>
+                              </div>
+                              <textarea
+                                value={transcripts[v.videoId] || ""}
+                                onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                                rows={3}
+                                placeholder="Paste the video transcript or ad copy here..."
+                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -530,7 +551,7 @@ export default function ScoutPage() {
                   <button onClick={handleImport}
                     className="px-6 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition"
                     style={{ background: "#0019FF" }}>
-                    Import {selected.size} to {scope === "global" ? "Global" : "Local"} {autoAnalyze ? "+ AI Analyze" : ""}
+                    Import {selected.size} {autoAnalyze ? "+ AI Analyze" : ""}
                   </button>
                 </div>
               )}
