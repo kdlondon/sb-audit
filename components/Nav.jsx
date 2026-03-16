@@ -80,54 +80,55 @@ export default function Nav() {
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5" ref={menuRef}>
-        {/* AI sparkles in background */}
-        <div className="relative flex items-center gap-3">
+      <div className="flex items-center gap-2" ref={menuRef}>
+        {/* Sparkles background */}
+        <div className="relative flex items-center gap-2">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="ai-sparkle" style={{ top: "20%", left: "12%", animationDelay: "0s" }} />
-            <div className="ai-sparkle" style={{ top: "65%", left: "40%", animationDelay: "0.7s" }} />
-            <div className="ai-sparkle" style={{ top: "25%", left: "70%", animationDelay: "1.4s" }} />
-            <div className="ai-sparkle" style={{ top: "70%", left: "22%", animationDelay: "0.3s" }} />
-            <div className="ai-sparkle" style={{ top: "15%", left: "55%", animationDelay: "1.1s" }} />
+            <div className="ai-sparkle" style={{ top: "18%", left: "10%", animationDelay: "0s" }} />
+            <div className="ai-sparkle" style={{ top: "65%", left: "35%", animationDelay: "0.8s" }} />
+            <div className="ai-sparkle" style={{ top: "22%", left: "65%", animationDelay: "1.5s" }} />
+            <div className="ai-sparkle" style={{ top: "72%", left: "80%", animationDelay: "0.4s" }} />
           </div>
 
-          {/* Add button — K&D chartreuse */}
+          {/* Add — chartreuse */}
           {canAccess(role, "audit") && (
             <div className="relative" ref={addRef}>
-              <button onClick={() => setAddMenuOpen(!addMenuOpen)} title="Add entry"
-                className="nav-action-btn relative"
-                style={{ background: "#D4E520", color: "#0a0f3c" }}>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                <span className="nav-action-label" style={{ color: "#0a0f3c" }}>Add</span>
+              <button onClick={() => setAddMenuOpen(!addMenuOpen)}
+                className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
+                style={{ background: "#D4E520" }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#0a0f3c" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
+                <span className="text-[10px] font-bold uppercase tracking-wide overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap" style={{ color: "#0a0f3c" }}>Add</span>
               </button>
               {addMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-44 bg-surface border border-main rounded-xl shadow-2xl overflow-hidden animate-fadeIn" style={{ zIndex: 99999 }}>
-                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit?scope=local&add=1"); }}
+                <div className="absolute right-0 top-full mt-2 w-40 bg-surface border border-main rounded-xl shadow-2xl overflow-hidden animate-fadeIn" style={{ zIndex: 99999 }}>
+                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit"); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition border-b border-main">Local entry</button>
-                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit?scope=global&add=1"); }}
+                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit"); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition">Global entry</button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Scout button */}
-          {canAccess(role, "audit") && (
-            <button onClick={() => router.push("/scout")} title="Scout"
-              className="nav-action-btn text-white relative"
-              style={{ background: "linear-gradient(135deg, #0019FF, #4060ff)" }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><circle cx="7" cy="7" r="4.5"/><line x1="13" y1="13" x2="10.5" y2="10.5"/></svg>
-              <span className="nav-action-label">Scout</span>
+          {/* Scout — blue */}
+          {canAccess(role, "scout") && (
+            <button onClick={() => router.push("/scout")}
+              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
+              style={{ background: "#0019FF" }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><circle cx="7" cy="7" r="4"/><line x1="12.5" y1="12.5" x2="10" y2="10"/></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-white overflow-hidden max-w-0 group-hover:max-w-[50px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Scout</span>
             </button>
           )}
 
-          {/* Chat button */}
-          <button onClick={() => router.push("/chat")} title="AI Chat"
-            className="nav-action-btn text-white relative"
-            style={{ background: "#059669" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-            <span className="nav-action-label">Chat</span>
-          </button>
+          {/* Chat — blue */}
+          {canAccess(role, "chat") && (
+            <button onClick={() => router.push("/chat")}
+              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
+              style={{ background: "#0019FF" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-white overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Chat</span>
+            </button>
+          )}
         </div>
 
         <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.1)" }} />
