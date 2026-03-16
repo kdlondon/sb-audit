@@ -279,6 +279,22 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const save=async()=>{
     const e=prepareSaveData(cur);
     if(!e.competitor&&!e.brand&&!e.description){setToast({message:"Please fill at least a brand or description"});return;}
+
+    // Auto-save "Other" custom values to dropdown_options
+    const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
+    for(const f of allFields){
+      if(f.type==="select"&&cur[f.key]==="Other"&&cur[f.key+"_other"]){
+        const category=f.optKey||f.key;
+        const value=cur[f.key+"_other"].trim();
+        if(value){
+          const{data:existing}=await supabase.from("dropdown_options").select("id").eq("project_id",projectId).eq("category",category).eq("value",value);
+          if(!existing||existing.length===0){
+            await supabase.from("dropdown_options").insert({project_id:projectId,category,value,sort_order:999});
+          }
+        }
+      }
+    }
+
     const table=getTableName(scope);
     let savedId=eid;
     if(eid){

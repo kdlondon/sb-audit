@@ -357,8 +357,8 @@ function ReportsContent(){
     return matchBrand&&matchYear;
   });
   const availableBrands=selectedTemplate?.scope==="local"
-    ?[...new Set(localData.map(e=>e.competitor).filter(Boolean))].sort()
-    :[...new Set(globalData.map(e=>e.brand).filter(Boolean))].sort();
+    ?[...new Set([...(OPTIONS.competitor||[]).filter(v=>v!=="Other"),...localData.map(e=>e.competitor).filter(Boolean)])].sort()
+    :[...new Set([...globalData.map(e=>e.brand).filter(Boolean)])].sort();
   const allData=[...localData,...globalData];
 
   const toggleComp=(c)=>{
