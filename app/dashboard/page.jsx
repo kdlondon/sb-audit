@@ -87,10 +87,11 @@ function DashboardContent(){
   const[selectedBrands,setSelectedBrands]=useState([]);
   const[brandFilterOpen,setBrandFilterOpen]=useState(false);
   const[OPTIONS,setOPTIONS]=useState({});
+  const[brandMetaMap,setBrandMetaMap]=useState({});
   const brandFilterRef=useRef(null);
 
   const{projectId}=useProject();
-  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);})();},[projectId]);
+  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global},{data:meta}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId),supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);const map={};(meta||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});setBrandMetaMap(map);const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);})();},[projectId]);
 
   // Close brand filter on outside click
   useEffect(()=>{
@@ -103,14 +104,6 @@ function DashboardContent(){
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
   const scopedData=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
-  // Group brands by category from brand_metadata
-  const [brandMetaMap,setBrandMetaMap]=useState({});
-  useEffect(()=>{(async()=>{
-    const supabase2=createClient();
-    const{data}=await supabase2.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId);
-    const map={};(data||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});
-    setBrandMetaMap(map);
-  })();},[projectId]);
 
   const brandSet=new Set();
   scopedData.forEach(e=>{const b=e.competitor||e.brand;if(b)brandSet.add(b);});

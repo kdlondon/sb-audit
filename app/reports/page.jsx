@@ -313,6 +313,7 @@ function ReportsContent(){
   const[yearTo,setYearTo]=useState("");
   const[OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const[loading,setLoading]=useState(true);
+  const[brandMetaMap,setBrandMetaMap]=useState({});
   const[competitors,setCompetitors]=useState([]);
   const[sections,setSections]=useState([]);
   const[customInstructions,setCustomInstructions]=useState("");
@@ -356,8 +357,7 @@ function ReportsContent(){
     const matchYear=(!yearFrom||!e.year||e.year>=yearFrom)&&(!yearTo||!e.year||e.year<=yearTo);
     return matchBrand&&matchYear;
   });
-  // Group brands by category from brand_metadata
-  const [brandMetaMap,setBrandMetaMap]=useState({});
+  // Load brand metadata
   useEffect(()=>{(async()=>{
     const{data}=await supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId);
     const map={};(data||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});
