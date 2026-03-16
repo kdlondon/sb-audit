@@ -215,7 +215,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [fl,setFl]=useState({});
   const [sec,setSec]=useState(0);
   const [sb,setSbRaw]=useState(null);
-  const setSb=(entry)=>{setSbRaw(entry);if(typeof window!=="undefined"){if(entry)window.history.replaceState({},"",`/audit?id=${entry.id}`);else window.history.replaceState({},"","/audit");}};
+  const setSb=(entry)=>{setSbRaw(entry);if(typeof window!=="undefined"&&entry){window.history.replaceState({},"",`/audit?id=${entry.id}`);}else if(typeof window!=="undefined"&&!entry){window.history.replaceState({},"","/audit");}};
   const [loading,setLoading]=useState(true);
   const [sortCol,setSortCol]=useState("created_at");
   const [sortDir,setSortDir]=useState("desc");
@@ -915,24 +915,22 @@ export default function AuditPage(){
     const s=params.get("scope");
     const entryId=params.get("id");
 
-    if(s&&(s==="local"||s==="global")){
-      handleAddWithScope(s);
-      window.history.replaceState({},"","/audit");
-    }
-
     if(entryId){
       // Search both tables to find the entry and set correct scope
       (async()=>{
         const supabase=createClient();
         const[{data:local},{data:global}]=await Promise.all([
-          supabase.from("audit_entries").select("*").eq("project_id",projectId).or(`id.eq.${entryId}`),
-          supabase.from("audit_global").select("*").eq("project_id",projectId).or(`id.eq.${entryId}`),
+          supabase.from("audit_entries").select("*").eq("id",entryId),
+          supabase.from("audit_global").select("*").eq("id",entryId),
         ]);
-        const localMatch=(local||[]).find(e=>String(e.id)===String(entryId));
-        const globalMatch=(global||[]).find(e=>String(e.id)===String(entryId));
+        const localMatch=(local||[])[0];
+        const globalMatch=(global||[])[0];
         if(localMatch){setScope("local");setInitialEntry(localMatch);}
         else if(globalMatch){setScope("global");setInitialEntry(globalMatch);}
       })();
+    } else if(s&&(s==="local"||s==="global")){
+      handleAddWithScope(s);
+      window.history.replaceState({},"","/audit");
     }
   },[projectId]);
 
