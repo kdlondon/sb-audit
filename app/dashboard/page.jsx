@@ -103,12 +103,20 @@ function DashboardContent(){
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
   const scopedData=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
-  // Group brands by category for filter
-  const brandCatMap={};
-  scopedData.forEach(e=>{const b=e.competitor||e.brand;const cat=e.category||e.category_proximity;if(b)brandCatMap[b]=cat||"Other";});
-  (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>{if(!brandCatMap[b])brandCatMap[b]="Other";});
-  const catOrder=["Traditional Banking","Banking","Fintech","Financial Services","Neobank","Other"];
-  const groupedBrands=(()=>{const groups={};Object.entries(brandCatMap).forEach(([b,c])=>{if(!groups[c])groups[c]=[];groups[c].push(b);});return Object.entries(groups).sort((a,b)=>{const ia=catOrder.indexOf(a[0]),ib=catOrder.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));})();
+  // Group brands by category from brand_metadata
+  const [brandMetaMap,setBrandMetaMap]=useState({});
+  useEffect(()=>{(async()=>{
+    const supabase2=createClient();
+    const{data}=await supabase2.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId);
+    const map={};(data||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});
+    setBrandMetaMap(map);
+  })();},[projectId]);
+
+  const brandSet=new Set();
+  scopedData.forEach(e=>{const b=e.competitor||e.brand;if(b)brandSet.add(b);});
+  (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>brandSet.add(b));
+  const catOrder=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
+  const groupedBrands=(()=>{const groups={};brandSet.forEach(b=>{const cat=brandMetaMap[b]||"Other";if(!groups[cat])groups[cat]=[];groups[cat].push(b);});return Object.entries(groups).sort((a,b)=>{const ia=catOrder.indexOf(a[0]),ib=catOrder.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));})();
   const allBrands=groupedBrands.flatMap(g=>g.brands);
   // Apply brand filter
   const data=selectedBrands.length>0?scopedData.filter(e=>{const b=e.competitor||e.brand;return b&&selectedBrands.includes(b);}):scopedData;

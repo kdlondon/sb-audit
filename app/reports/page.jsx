@@ -356,17 +356,21 @@ function ReportsContent(){
     const matchYear=(!yearFrom||!e.year||e.year>=yearFrom)&&(!yearTo||!e.year||e.year<=yearTo);
     return matchBrand&&matchYear;
   });
-  // Group brands by category (Banking, Fintech, etc.)
+  // Group brands by category from brand_metadata
+  const [brandMetaMap,setBrandMetaMap]=useState({});
+  useEffect(()=>{(async()=>{
+    const{data}=await supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId);
+    const map={};(data||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});
+    setBrandMetaMap(map);
+  })();},[projectId]);
+
   const buildGroupedBrands=(dataArr,brandKey)=>{
-    const brandCategoryMap={};
-    dataArr.forEach(e=>{const b=e[brandKey];const cat=e.category||e.category_proximity;if(b)brandCategoryMap[b]=cat||"Other";});
-    // Add Settings brands
-    if(brandKey==="competitor")(OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>{if(!brandCategoryMap[b])brandCategoryMap[b]="Other";});
-    // Group
+    const allBrandSet=new Set();
+    dataArr.forEach(e=>{if(e[brandKey])allBrandSet.add(e[brandKey]);});
+    if(brandKey==="competitor")(OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>allBrandSet.add(b));
     const groups={};
-    Object.entries(brandCategoryMap).forEach(([brand,cat])=>{if(!groups[cat])groups[cat]=[];groups[cat].push(brand);});
-    // Sort groups and brands within
-    const order=["Traditional Banking","Banking","Fintech","Financial Services","Neobank","Other"];
+    allBrandSet.forEach(b=>{const cat=brandMetaMap[b]||"Other";if(!groups[cat])groups[cat]=[];groups[cat].push(b);});
+    const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
     return Object.entries(groups).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));
   };
   const groupedBrands=selectedTemplate?.scope==="local"
