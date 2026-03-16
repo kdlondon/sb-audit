@@ -114,21 +114,22 @@ a, button, input, select, textarea {
 .nav-action-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0;
-  height: 28px;
-  width: 28px;
-  border-radius: 14px;
+  height: 30px;
+  width: 30px;
+  border-radius: 15px;
   overflow: hidden;
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), gap 0.3s;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), gap 0.3s, padding 0.3s;
   cursor: pointer;
   border: none;
-  padding: 0 6px;
+  padding: 0;
   flex-shrink: 0;
 }
 .nav-action-btn:hover {
   width: auto;
-  gap: 5px;
-  padding: 0 12px 0 7px;
+  gap: 6px;
+  padding: 0 14px 0 9px;
 }
 .nav-action-btn .nav-action-label {
   font-size: 10px;

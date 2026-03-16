@@ -20,7 +20,9 @@ export default function Nav() {
   const { role, userEmail } = useRole();
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const addRef = useRef(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("sb-dark");
@@ -28,11 +30,14 @@ export default function Nav() {
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    if (!menuOpen && !addMenuOpen) return;
+    const handler = (e) => {
+      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (addMenuOpen && addRef.current && !addRef.current.contains(e.target)) setAddMenuOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
+  }, [menuOpen, addMenuOpen]);
 
   const toggleDark = () => {
     const next = !dark; setDark(next);
@@ -77,23 +82,33 @@ export default function Nav() {
 
       <div className="flex items-center gap-1.5" ref={menuRef}>
         {/* AI sparkles in background */}
-        <div className="relative flex items-center gap-1.5">
+        <div className="relative flex items-center gap-3">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="ai-sparkle" style={{ top: "20%", left: "15%", animationDelay: "0s" }} />
-            <div className="ai-sparkle" style={{ top: "60%", left: "45%", animationDelay: "0.7s" }} />
-            <div className="ai-sparkle" style={{ top: "30%", left: "75%", animationDelay: "1.4s" }} />
-            <div className="ai-sparkle" style={{ top: "70%", left: "25%", animationDelay: "0.3s" }} />
-            <div className="ai-sparkle" style={{ top: "15%", left: "60%", animationDelay: "1.1s" }} />
+            <div className="ai-sparkle" style={{ top: "20%", left: "12%", animationDelay: "0s" }} />
+            <div className="ai-sparkle" style={{ top: "65%", left: "40%", animationDelay: "0.7s" }} />
+            <div className="ai-sparkle" style={{ top: "25%", left: "70%", animationDelay: "1.4s" }} />
+            <div className="ai-sparkle" style={{ top: "70%", left: "22%", animationDelay: "0.3s" }} />
+            <div className="ai-sparkle" style={{ top: "15%", left: "55%", animationDelay: "1.1s" }} />
           </div>
 
-          {/* Add button */}
+          {/* Add button — K&D chartreuse */}
           {canAccess(role, "audit") && (
-            <button onClick={() => router.push("/audit")} title="Add entry"
-              className="nav-action-btn text-white relative"
-              style={{ background: "rgba(255,255,255,0.12)" }}>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" className="flex-shrink-0"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-              <span className="nav-action-label">Add</span>
-            </button>
+            <div className="relative" ref={addRef}>
+              <button onClick={() => setAddMenuOpen(!addMenuOpen)} title="Add entry"
+                className="nav-action-btn relative"
+                style={{ background: "#D4E520", color: "#0a0f3c" }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                <span className="nav-action-label" style={{ color: "#0a0f3c" }}>Add</span>
+              </button>
+              {addMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-44 bg-surface border border-main rounded-xl shadow-2xl overflow-hidden animate-fadeIn" style={{ zIndex: 99999 }}>
+                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit?scope=local&add=1"); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition border-b border-main">Local entry</button>
+                  <button onClick={() => { setAddMenuOpen(false); router.push("/audit?scope=global&add=1"); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition">Global entry</button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Scout button */}
@@ -101,7 +116,7 @@ export default function Nav() {
             <button onClick={() => router.push("/scout")} title="Scout"
               className="nav-action-btn text-white relative"
               style={{ background: "linear-gradient(135deg, #0019FF, #4060ff)" }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" className="flex-shrink-0"><circle cx="7" cy="7" r="4.5"/><line x1="13" y1="13" x2="10.5" y2="10.5"/></svg>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><circle cx="7" cy="7" r="4.5"/><line x1="13" y1="13" x2="10.5" y2="10.5"/></svg>
               <span className="nav-action-label">Scout</span>
             </button>
           )}
@@ -110,7 +125,7 @@ export default function Nav() {
           <button onClick={() => router.push("/chat")} title="AI Chat"
             className="nav-action-btn text-white relative"
             style={{ background: "#059669" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
             <span className="nav-action-label">Chat</span>
           </button>
         </div>
