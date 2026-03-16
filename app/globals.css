@@ -92,6 +92,9 @@ a, button, input, select, textarea {
   opacity: 1 !important;
 }
 
+/* Sticky bars — eliminate jank on scroll */
+.sticky { will-change: transform; }
+
 /* Focus styles — K&D accent */
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent) !important;
