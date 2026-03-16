@@ -304,38 +304,47 @@ Return: {"title":"...","slides":[...slides...]}`;
   };
 
   /* ─── PDF DOWNLOAD ─── */
+  const [pdfMode, setPdfMode] = useState(false);
   const downloadPDF = async () => {
-    showToast("Generating PDF — please wait...");
+    setPdfMode(true); // hide UI elements, disable animations
+    setToast(""); // clear any toast
+    await new Promise(r => setTimeout(r, 100));
+
     try {
       const html2canvas = (await import("html2canvas")).default;
       const jsPDF = (await import("jspdf")).default;
       const slides = currentShowcase.slides || [];
       const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [1280, 720] });
+      const startSlide = currentSlide;
 
       for (let i = 0; i < slides.length; i++) {
-        // Navigate to each slide and capture the visible content
         setCurrentSlide(i);
-        await new Promise(r => setTimeout(r, 400)); // wait for render + animation
+        await new Promise(r => setTimeout(r, 150)); // minimal wait, no animation in pdf mode
 
         const slideEl = document.querySelector("[data-slide-content]");
         if (!slideEl) continue;
 
         const canvas = await html2canvas(slideEl, {
           scale: 2, useCORS: true, allowTaint: true,
-          width: 1280, height: 720,
-          backgroundColor: null,
+          width: slideEl.offsetWidth, height: slideEl.offsetHeight,
+          backgroundColor: getThemeForSlide(slides[i], i).bg,
+          ignoreElements: (el) => {
+            // Hide toast, nav arrows, dots, header buttons
+            return el.hasAttribute?.("data-pdf-hide");
+          },
         });
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
         if (i > 0) pdf.addPage([1280, 720], "landscape");
         pdf.addImage(imgData, "JPEG", 0, 0, 1280, 720);
       }
 
       pdf.save(`${currentShowcase.title || "Showcase"}.pdf`);
-      showToast("PDF downloaded!");
+      setCurrentSlide(startSlide);
     } catch (err) {
-      showToast("PDF error: " + err.message);
+      console.error("PDF error:", err);
     }
+    setPdfMode(false);
   };
 
   /* ─── KEYBOARD NAV ─── */
@@ -369,7 +378,7 @@ Return: {"title":"...","slides":[...slides...]}`;
 
     return (
       <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }} data-slide-content>
-        {ToastEl}
+        {!pdfMode && ToastEl}
         {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
         <KDLogo color={theme.text} opacity={theme.isDark ? 0.15 : 0.1} />
 
@@ -385,7 +394,7 @@ Return: {"title":"...","slides":[...slides...]}`;
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-pdf-hide>
             <span className="text-[9px] font-mono" style={{ color: theme.text, opacity: 0.25 }}>
               {String(currentSlide + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
             </span>
@@ -418,29 +427,31 @@ Return: {"title":"...","slides":[...slides...]}`;
         {/* Content */}
         <div className="h-full flex items-center justify-center transition-colors duration-700">
           <div className="max-w-5xl w-full mx-auto pl-20 pr-12" key={currentSlide}>
-            <div className="slide-enter">
+            <div className={pdfMode ? "" : "slide-enter"}>
               <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} />
             </div>
           </div>
         </div>
 
         {/* Arrows */}
-        {currentSlide > 0 && (
-          <button onClick={() => setCurrentSlide(s => s - 1)} className="absolute left-14 bottom-7 text-2xl transition"
+        {currentSlide > 0 && !pdfMode && (
+          <button onClick={() => setCurrentSlide(s => s - 1)} className="absolute left-14 bottom-7 text-2xl transition" data-pdf-hide
             style={{ color: theme.text, opacity: 0.2 }}>←</button>
         )}
-        {currentSlide < slides.length - 1 && (
-          <button onClick={() => setCurrentSlide(s => s + 1)} className="absolute right-7 bottom-7 text-2xl transition"
+        {currentSlide < slides.length - 1 && !pdfMode && (
+          <button onClick={() => setCurrentSlide(s => s + 1)} className="absolute right-7 bottom-7 text-2xl transition" data-pdf-hide
             style={{ color: theme.text, opacity: 0.2 }}>→</button>
         )}
 
         {/* Dots */}
-        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {slides.map((_, i) => (
-            <button key={i} onClick={() => setCurrentSlide(i)} className="rounded-full transition-all"
-              style={{ width: i === currentSlide ? 18 : 5, height: 5, backgroundColor: i === currentSlide ? theme.accent : (theme.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)") }} />
-          ))}
-        </div>
+        {!pdfMode && (
+          <div className="absolute bottom-7 left-1/2 -translate-x-1/2 flex gap-1.5" data-pdf-hide>
+            {slides.map((_, i) => (
+              <button key={i} onClick={() => setCurrentSlide(i)} className="rounded-full transition-all"
+                style={{ width: i === currentSlide ? 18 : 5, height: 5, backgroundColor: i === currentSlide ? theme.accent : (theme.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)") }} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
