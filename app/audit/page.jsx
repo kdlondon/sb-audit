@@ -755,20 +755,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
         </div>
 
-        {/* Add button — in filter bar area */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className="relative">
-            <button ref={addBtnRef}
-              onClick={()=>{
-                if(!showAddMenu){const r=addBtnRef.current?.getBoundingClientRect();setAddMenuPos({top:(r?.top||0)+window.scrollY-80,right:window.innerWidth-(r?.right||0)+48});}
-                setShowAddMenu(!showAddMenu);
-              }}
-              title="Add entry"
-              className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl bg-accent">
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-            </button>
-          </div>
-        </div>
 
         {listMode==="list"?(
           <div className="px-5 pb-5 overflow-x-auto">
