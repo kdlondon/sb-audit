@@ -33,7 +33,8 @@ function ImageViewer({src}){
   });
 
   return(
-    <div ref={containerRef} className="w-full h-full min-h-[300px] flex flex-col items-center justify-center relative overflow-hidden select-none"
+    <div ref={containerRef} className="w-full h-full min-h-[300px] flex flex-col items-center justify-center relative overflow-hidden select-none rounded-lg"
+      style={{background:"#111015"}}
       onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
       style={{cursor:scale>1?(dragging?"grabbing":"grab"):"zoom-in"}}>
       <img src={src} alt="" draggable={false}
@@ -224,6 +225,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [showAddMenu,setShowAddMenu]=useState(false);
   const [dragOver,setDragOver]=useState(false);
   const [zoomImg,setZoomImg]=useState(null);
+  const [viewingImg,setViewingImg]=useState(null); // which image is shown in viewer
   const [materialType,setMaterialType]=useState("none");
   const [highlighted,setHighlighted]=useState(new Set());
   const [listMode,setListMode]=useState("list");
@@ -661,37 +663,33 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     )}
                   </div>
                 )
-                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<ImageViewer src={imgUrl} />
+                :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<div className="w-full">
+                  <ImageViewer src={viewingImg||imgUrl} />
+                  {/* Filmstrip — primary + extras */}
+                  {(()=>{const extras=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];const allImgs=[imgUrl,...extras].filter(Boolean);return allImgs.length>0?(
+                    <div className="flex gap-2 items-center mt-2 px-2 overflow-x-auto pb-1"
+                      onDrop={async(e)=>{e.preventDefault();e.stopPropagation();const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(!files.length)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(const file of files){const url=await uploadSingleImage(file);if(url)setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}setUploading(false);setToast({message:"✓ Images uploaded"});}}
+                      onDragOver={e=>{e.preventDefault();e.stopPropagation();}}>
+                      {allImgs.map((url,i)=>(
+                        <div key={i} className="relative group flex-shrink-0">
+                          <img src={url} onClick={()=>setViewingImg(url)}
+                            className={`w-14 h-14 object-cover rounded cursor-pointer transition ${(viewingImg||imgUrl)===url?"ring-2 ring-[var(--accent)] opacity-100":"opacity-60 hover:opacity-100"}`} alt="" />
+                          {i>0&&<button onClick={(e)=>{e.stopPropagation();removeExtraImage(i-1);if(viewingImg===url)setViewingImg(null);}} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button>}
+                        </div>
+                      ))}
+                      <label className="w-14 h-14 flex-shrink-0 border-2 border-dashed border-main rounded flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent)] hover:bg-accent-soft transition">
+                        <span className="text-lg text-hint">+</span>
+                        <input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(!files.length)return;setUploading(true);for(const file of files){const url=await uploadSingleImage(file);if(url)setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} added`});}} className="hidden"/>
+                      </label>
+                    </div>
+                  ):null;})()}
+                </div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
               </div>
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">Paste from YouTube or type what you see</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder="Paste the video transcript, ad copy, or any text content here..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
-                {/* EXTRA IMAGES */}
-                {cur.image_url&&(
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-[10px] text-muted uppercase font-semibold">Additional screenshots</label>
-                      <span className="text-[9px] text-hint">Drag, paste (⌘V), or click + to add</span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap mb-2"
-                      onDrop={async(e)=>{e.preventDefault();e.stopPropagation();const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(!files.length)return;setUploading(true);setToast({message:`Uploading ${files.length} extra image${files.length>1?"s":""}...`});for(const file of files){const url=await uploadSingleImage(file);if(url)setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}setUploading(false);setToast({message:"✓ Extra images uploaded"});}}
-                      onDragOver={e=>{e.preventDefault();e.stopPropagation();}}>
-                      {(cur.image_urls?JSON.parse(cur.image_urls||"[]"):[]).map((url,i)=>(
-                        <div key={i} className="relative group">
-                          <img src={url} className="w-16 h-16 object-cover rounded border border-main"/>
-                          <button onClick={()=>removeExtraImage(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button>
-                        </div>
-                      ))}
-                      <label className="w-16 h-16 border-2 border-dashed border-main rounded flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent)] hover:bg-accent-soft transition">
-                        <span className="text-xl text-hint">+</span>
-                        <span className="text-[9px] text-hint">Add</span>
-                        <input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(!files.length)return;setUploading(true);for(const file of files){const url=await uploadSingleImage(file);if(url)setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} added`});}} className="hidden"/>
-                      </label>
-                    </div>
-                  </div>
-                )}
                 {(cur.image_url||cur.transcript||cur.analyst_comment)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
               </div>
             </div>
