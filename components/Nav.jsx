@@ -113,7 +113,7 @@ export default function Nav() {
 
           {/* Dropdown menu */}
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-xl py-1 z-50 animate-fadeIn">
+            <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-xl py-1 animate-fadeIn" style={{ zIndex: 99999 }}>
               {/* User info */}
               <div className="px-4 py-3 border-b border-main">
                 <p className="text-sm font-medium text-main truncate">{userEmail}</p>
