@@ -206,7 +206,7 @@ function MultiSelect({ fieldKey, value, opts, onChange }) {
   );
 }
 
-function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId}){
+function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry}){
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
@@ -246,16 +246,10 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   useEffect(()=>{load();fetchOptions(projectId).then(o=>setOPTIONS(o));},[load]);
 
-  // Open entry from URL ?id=xxx
+  // Open entry passed from parent (via URL ?id=xxx)
   useEffect(()=>{
-    if(!data.length||typeof window==="undefined")return;
-    const params=new URLSearchParams(window.location.search);
-    const entryId=params.get("id");
-    if(entryId&&!sb){
-      const found=data.find(e=>e.id===entryId||String(e.id)===entryId);
-      if(found)setSbRaw(found);
-    }
-  },[data]);
+    if(initialEntry){setSbRaw(initialEntry);clearInitialEntry();}
+  },[initialEntry]);
   useEffect(()=>{if(pendingForm&&!loading){setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
 
   const highlightFields=(fields)=>{setHighlighted(new Set(fields));setTimeout(()=>setHighlighted(new Set()),3000);};
@@ -909,20 +903,38 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 export default function AuditPage(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
+  const[initialEntry,setInitialEntry]=useState(null);
   const{projectId}=useProject();
   const handleScopeChange=(s)=>{setScope(s);};
   const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
 
-  // Handle ?scope=local|global&add=1 from nav Add button
+  // Handle URL params: ?scope=...&add=1 or ?id=...
   useEffect(()=>{
-    if(typeof window==="undefined")return;
+    if(typeof window==="undefined"||!projectId)return;
     const params=new URLSearchParams(window.location.search);
     const s=params.get("scope");
+    const entryId=params.get("id");
+
     if(s&&(s==="local"||s==="global")){
       handleAddWithScope(s);
       window.history.replaceState({},"","/audit");
     }
-  },[]);
+
+    if(entryId){
+      // Search both tables to find the entry and set correct scope
+      (async()=>{
+        const supabase=createClient();
+        const[{data:local},{data:global}]=await Promise.all([
+          supabase.from("audit_entries").select("*").eq("project_id",projectId).or(`id.eq.${entryId}`),
+          supabase.from("audit_global").select("*").eq("project_id",projectId).or(`id.eq.${entryId}`),
+        ]);
+        const localMatch=(local||[]).find(e=>String(e.id)===String(entryId));
+        const globalMatch=(global||[]).find(e=>String(e.id)===String(entryId));
+        if(localMatch){setScope("local");setInitialEntry(localMatch);}
+        else if(globalMatch){setScope("global");setInitialEntry(globalMatch);}
+      })();
+    }
+  },[projectId]);
 
   // Listen for custom "openAddForm" event from Nav (when already on /audit)
   useEffect(()=>{
@@ -934,5 +946,5 @@ export default function AuditPage(){
     return()=>window.removeEventListener("openAddForm",handler);
   },[scope]);
 
-  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} key={scope}/></ProjectGuard></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} key={scope}/></ProjectGuard></AuthGuard>);
 }
