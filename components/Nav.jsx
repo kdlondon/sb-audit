@@ -24,6 +24,7 @@ export default function Nav() {
   const { role, userEmail } = useRole();
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -100,7 +101,13 @@ export default function Nav() {
 
         {/* Profile dropdown */}
         <div className="relative" ref={menuRef}>
-          <button onClick={() => setMenuOpen(!menuOpen)}
+          <button onClick={() => {
+              if (!menuOpen && menuRef.current) {
+                const r = menuRef.current.getBoundingClientRect();
+                setMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+              }
+              setMenuOpen(!menuOpen);
+            }}
             className="flex items-center gap-2 text-white/50 hover:text-white/80 transition pl-2">
             {/* Avatar circle */}
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold uppercase"
@@ -115,7 +122,7 @@ export default function Nav() {
           {/* Dropdown menu — rendered via portal to escape stacking context */}
           {menuOpen && typeof window !== "undefined" && createPortal(
             <><div className="fixed inset-0" style={{zIndex:99998}} onClick={()=>setMenuOpen(false)}/><div className="fixed w-56 bg-surface border border-main rounded-xl shadow-2xl py-1 animate-fadeIn"
-              style={{ zIndex: 99999, top: (menuRef.current?.getBoundingClientRect().bottom || 0) + 6, right: window.innerWidth - (menuRef.current?.getBoundingClientRect().right || 0) }}>
+              style={{ zIndex: 99999, top: menuPos.top, right: menuPos.right }}>
               {/* User info */}
               <div className="px-4 py-3 border-b border-main">
                 <p className="text-sm font-medium text-main truncate">{userEmail}</p>
