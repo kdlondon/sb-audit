@@ -88,6 +88,7 @@ export default function ScoutPage() {
   const [timeframe, setTimeframe] = useState(365);
   const [maxResults, setMaxResults] = useState(15);
   const [contentType, setContentType] = useState("official");
+  const [durationFilter, setDurationFilter] = useState("commercial"); // commercial | short | any
 
   // Preview
   const [preview, setPreview] = useState(null); // { videoId, title }
@@ -151,7 +152,13 @@ export default function ScoutPage() {
       const res = await fetch("/api/youtube-scout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", query, maxResults, publishedAfter, regionCode: region || undefined }),
+        body: JSON.stringify({
+          action: "search", query, maxResults: durationFilter === "commercial" ? 50 : maxResults,
+          publishedAfter, regionCode: region || undefined,
+          videoDuration: durationFilter === "any" ? undefined : "short",
+          minSeconds: durationFilter === "commercial" ? 15 : undefined,
+          maxSeconds: durationFilter === "commercial" ? 90 : undefined,
+        }),
       });
       const data = await res.json();
       if (data.error) { showToast("Error: " + data.error); setSearching(false); return; }
@@ -390,6 +397,26 @@ export default function ScoutPage() {
                     }`}>
                     {ct.label}
                     <span className="text-hint font-normal ml-1">— {ct.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Duration filter */}
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-[10px] text-muted uppercase font-semibold">Duration:</label>
+              <div className="flex gap-2">
+                {[
+                  { value: "commercial", label: "Commercials", hint: "15-90 seconds" },
+                  { value: "short", label: "Short videos", hint: "Under 4 min" },
+                  { value: "any", label: "Any length", hint: "No filter" },
+                ].map(d => (
+                  <button key={d.value} onClick={() => setDurationFilter(d.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                      durationFilter === d.value ? "border-[var(--accent)] bg-accent-soft text-accent" : "border-main text-muted hover:text-main"
+                    }`}>
+                    {d.label}
+                    <span className="text-hint font-normal ml-1">— {d.hint}</span>
                   </button>
                 ))}
               </div>

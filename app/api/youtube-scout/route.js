@@ -10,7 +10,7 @@ export async function POST(request) {
 
   // ─── SEARCH ───
   if (action === "search") {
-    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken } = body;
+    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
     const params = new URLSearchParams({
@@ -25,6 +25,7 @@ export async function POST(request) {
     if (publishedBefore) params.set("publishedBefore", publishedBefore);
     if (regionCode) params.set("regionCode", regionCode);
     if (pageToken) params.set("pageToken", pageToken);
+    if (videoDuration) params.set("videoDuration", videoDuration); // short (<4min), medium (4-20min), long (>20min)
 
     try {
       const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
@@ -32,7 +33,7 @@ export async function POST(request) {
 
       if (data.error) return Response.json({ error: data.error.message }, { status: 400 });
 
-      const videos = (data.items || []).map(item => ({
+      let videos = (data.items || []).map(item => ({
         videoId: item.id.videoId,
         title: item.snippet.title,
         channel: item.snippet.channelTitle,
@@ -56,8 +57,21 @@ export async function POST(request) {
         });
         videos.forEach(v => {
           const stats = statsMap[v.videoId];
-          if (stats) { v.viewCount = stats.viewCount; v.duration = stats.duration; }
+          if (stats) {
+            v.viewCount = stats.viewCount;
+            v.duration = stats.duration;
+            // Parse duration to seconds
+            const dm = stats.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+            v.durationSeconds = dm ? (parseInt(dm[1]||0)*3600 + parseInt(dm[2]||0)*60 + parseInt(dm[3]||0)) : 0;
+          }
         });
+
+        // Filter by exact duration range if specified
+        if (minSeconds || maxSeconds) {
+          const min = minSeconds || 0;
+          const max = maxSeconds || 999999;
+          videos = videos.filter(v => v.durationSeconds >= min && v.durationSeconds <= max);
+        }
       }
 
       return Response.json({
