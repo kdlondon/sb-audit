@@ -1,10 +1,6 @@
 import "./globals.css";
 import { ProjectProvider } from "@/lib/project-context";
 import { RoleProvider } from "@/lib/role-context";
-import dynamic from "next/dynamic";
-
-const ChatBubble = dynamic(() => import("@/components/ChatBubble"), { ssr: false });
-
 export const metadata = {
   title: "Groundwork — Competitive Intelligence Platform",
   description: "Groundwork — Competitive Intelligence Platform by Knots & Dots",
@@ -14,10 +10,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <RoleProvider>
-          <ProjectProvider>
-            {children}
-            <ChatBubble />
-          </ProjectProvider>
+          <ProjectProvider>{children}</ProjectProvider>
         </RoleProvider>
       </body>
     </html>
