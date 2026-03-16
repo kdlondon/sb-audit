@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
-import { COMPETITOR_COLORS } from "@/lib/options";
+import { COMPETITOR_COLORS, fetchOptions } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -85,10 +85,11 @@ function DashboardContent(){
   const[localData,setLocalData]=useState([]);const[globalData,setGlobalData]=useState([]);const[loading,setLoading]=useState(true);const[scope,setScope]=useState("all");
   const[selectedBrands,setSelectedBrands]=useState([]);
   const[brandFilterOpen,setBrandFilterOpen]=useState(false);
+  const[OPTIONS,setOPTIONS]=useState({});
   const brandFilterRef=useRef(null);
 
   const{projectId}=useProject();
-  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);setLoading(false);})();},[projectId]);
+  useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);})();},[projectId]);
 
   // Close brand filter on outside click
   useEffect(()=>{
@@ -102,7 +103,7 @@ function DashboardContent(){
 
   const scopedData=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
   // All brands for filter
-  const allBrands=[...new Set(scopedData.map(e=>e.competitor||e.brand).filter(Boolean))].sort();
+  const allBrands=[...new Set([...(OPTIONS.competitor||[]).filter(v=>v!=="Other"),...scopedData.map(e=>e.competitor||e.brand).filter(Boolean)])].sort();
   // Apply brand filter
   const data=selectedBrands.length>0?scopedData.filter(e=>{const b=e.competitor||e.brand;return b&&selectedBrands.includes(b);}):scopedData;
   const rated=data.filter(e=>e.rating);const avgRating=rated.length>0?(rated.reduce((s,e)=>s+Number(e.rating),0)/rated.length).toFixed(1):"—";
