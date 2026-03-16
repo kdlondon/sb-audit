@@ -324,19 +324,23 @@ Return: {"title":"...","slides":[...slides...]}`;
         const slideEl = document.querySelector("[data-slide-content]");
         if (!slideEl) continue;
 
+        // Force 16:9 aspect ratio for capture
+        const captureW = 1280;
+        const captureH = 720;
+
         const canvas = await html2canvas(slideEl, {
           scale: 2, useCORS: true, allowTaint: true,
-          width: slideEl.offsetWidth, height: slideEl.offsetHeight,
+          width: captureW, height: captureH,
+          windowWidth: captureW, windowHeight: captureH,
           backgroundColor: getThemeForSlide(slides[i], i).bg,
           ignoreElements: (el) => {
-            // Hide toast, nav arrows, dots, header buttons
             return el.hasAttribute?.("data-pdf-hide");
           },
         });
 
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        if (i > 0) pdf.addPage([1280, 720], "landscape");
-        pdf.addImage(imgData, "JPEG", 0, 0, 1280, 720);
+        if (i > 0) pdf.addPage([captureW, captureH], "landscape");
+        pdf.addImage(imgData, "JPEG", 0, 0, captureW, captureH);
       }
 
       pdf.save(`${currentShowcase.title || "Showcase"}.pdf`);
