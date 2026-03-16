@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -194,6 +195,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const addBtnRef=useRef(null);
   const fmtDate=(d)=>{if(!d)return"—";const dt=new Date(d);return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short"})+" "+dt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});};
   const supabase=createClient();
+  const router=useRouter();
 
   const load=useCallback(async()=>{
     setLoading(true);
@@ -725,6 +727,12 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 }}
                 className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
             </div>
+            <button onClick={()=>router.push("/scout")}
+              className="px-3 py-1.5 text-sm rounded-lg font-semibold hover:opacity-90 flex items-center gap-1.5"
+              style={{ background: "linear-gradient(135deg, #0019FF, #4060ff)", color: "#fff" }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="7" cy="7" r="5"/><line x1="14" y1="14" x2="11" y2="11"/></svg>
+              Scout
+            </button>
             <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
           </div>
         </div>
