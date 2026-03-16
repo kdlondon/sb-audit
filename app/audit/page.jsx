@@ -722,6 +722,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   return(
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
+        {/* Bar 2 — Section bar: title + scope toggle */}
         <div className="section-bar px-5 py-2.5 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-bold text-main">Audit</h2>
@@ -731,42 +732,52 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </div>
             <span className="text-xs text-hint">{fd.length} of {data.length}</span>
           </div>
+          {selected.size>0&&<button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
+        </div>
+        {/* Bar 3 — Filter + sort + view + export */}
+        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) + 44px)"}}>
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
+            {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
+            {Object.values(fl).some(Boolean)&&<span onClick={()=>setFl({})} className="text-accent text-xs cursor-pointer">Clear</span>}
+          </div>
           <div className="flex gap-2 items-center">
-            {selected.size>0&&<button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
             <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("created_at");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="rating">Best rated</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="rating">Rating</option>
             </select>
             <div className="flex bg-surface2 rounded p-0.5">
               <button onClick={()=>setListMode("list")} className={`p-1 rounded ${listMode==="list"?"bg-surface shadow-sm text-accent":"text-muted"}`}><ListIcon/></button>
               <button onClick={()=>setListMode("grid")} className={`p-1 rounded ${listMode==="grid"?"bg-surface shadow-sm text-accent":"text-muted"}`}><GridIcon/></button>
             </div>
-            <div className="relative">
-              <button
-                ref={addBtnRef}
-                onClick={()=>{
-                  if(!showAddMenu){
-                    const r=addBtnRef.current?.getBoundingClientRect();
-                    setAddMenuPos({top:(r?.bottom||0)+window.scrollY+4,right:window.innerWidth-(r?.right||0)});
-                  }
-                  setShowAddMenu(!showAddMenu);
-                }}
-                className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">+ Add</button>
-            </div>
-            <button onClick={()=>router.push("/scout")}
-              className="px-3 py-1.5 text-sm rounded-lg font-semibold hover:opacity-90 flex items-center gap-1.5"
-              style={{ background: "linear-gradient(135deg, #0019FF, #4060ff)", color: "#fff" }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="7" cy="7" r="5"/><line x1="14" y1="14" x2="11" y2="11"/></svg>
-              Scout
-            </button>
-            <button onClick={doExport} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Export</button>
+            <button onClick={doExport} className="px-2 py-1 text-xs border border-main rounded text-muted hover:bg-surface2">Export</button>
           </div>
         </div>
-        <div className="bg-surface border-b border-main px-5 py-2 flex gap-2 flex-wrap items-center sticky z-[29]" style={{top:"calc(var(--nav-h) + 44px)"}}>
-          <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
-          {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
-          {Object.values(fl).some(Boolean)&&<span onClick={()=>setFl({})} className="text-accent text-xs cursor-pointer">Clear</span>}
+
+        {/* Floating action buttons — bottom right */}
+        <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
+          <button onClick={()=>router.push("/chat")} title="AI Chat"
+            className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl"
+            style={{background:"#0a0f3c"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </button>
+          <button onClick={()=>router.push("/scout")} title="Scout"
+            className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl"
+            style={{background:"linear-gradient(135deg, #0019FF, #4060ff)"}}>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="1.8"><circle cx="7" cy="7" r="5"/><line x1="14" y1="14" x2="11" y2="11"/></svg>
+          </button>
+          <div className="relative">
+            <button ref={addBtnRef}
+              onClick={()=>{
+                if(!showAddMenu){const r=addBtnRef.current?.getBoundingClientRect();setAddMenuPos({top:(r?.top||0)+window.scrollY-80,right:window.innerWidth-(r?.right||0)+48});}
+                setShowAddMenu(!showAddMenu);
+              }}
+              title="Add entry"
+              className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl bg-accent">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+            </button>
+          </div>
         </div>
 
         {listMode==="list"?(
