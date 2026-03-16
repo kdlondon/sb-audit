@@ -83,6 +83,7 @@ export default function ScoutPage() {
   // Search form
   const [brand, setBrand] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [category, setCategory] = useState("");
   const [region, setRegion] = useState("");
   const [timeframe, setTimeframe] = useState(365);
   const [maxResults, setMaxResults] = useState(15);
@@ -123,14 +124,24 @@ export default function ScoutPage() {
 
   // ─── SEARCH ───
   const handleSearch = async () => {
-    if (!brand.trim()) return;
+    if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
     setSearching(true);
     setVideos([]);
     setSelected(new Set());
     setImportDone(false);
 
-    const officialTerms = contentType === "official" ? " official ad commercial campaign" : "";
-    const query = `${brand} ${keywords}${officialTerms}`.trim();
+    // Build query with strict keyword matching
+    const parts = [];
+    if (brand.trim()) parts.push(brand.trim());
+    if (category.trim()) parts.push(`"${category.trim()}"`); // exact match
+    if (keywords.trim()) {
+      // Wrap multi-word keywords in quotes for exact matching
+      keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
+        parts.push(k.includes(" ") ? `"${k}"` : k);
+      });
+    }
+    if (contentType === "official") parts.push("official ad commercial");
+    const query = parts.join(" ");
     const publishedAfter = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : undefined;
 
     try {
@@ -153,7 +164,7 @@ export default function ScoutPage() {
         const rankRes = await fetch("/api/youtube-scout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "rank", brand, keywords, market, videos: vids }),
+          body: JSON.stringify({ action: "rank", brand: brand || category, keywords: keywords || category, market, videos: vids }),
         });
         const rankData = await rankRes.json();
         const rankings = rankData.rankings || [];
@@ -306,16 +317,22 @@ export default function ScoutPage() {
 
           {/* Search Form */}
           <div className="bg-surface border border-main rounded-xl p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brand / Company *</label>
-                <input value={brand} onChange={e => setBrand(e.target.value)} placeholder="E.g., Tide Business Banking"
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brand / Company <span className="text-hint font-normal">(optional)</span></label>
+                <input value={brand} onChange={e => setBrand(e.target.value)} placeholder="E.g., Starling Bank"
                   className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
                   onKeyDown={e => e.key === "Enter" && handleSearch()} />
               </div>
               <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Keywords <span className="text-hint font-normal">(optional)</span></label>
-                <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., business banking ad campaign 2025"
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Category / Industry <span className="text-hint font-normal">(optional)</span></label>
+                <input value={category} onChange={e => setCategory(e.target.value)} placeholder="E.g., business banking, fintech, insurance"
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
+                  onKeyDown={e => e.key === "Enter" && handleSearch()} />
+              </div>
+              <div>
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Keywords <span className="text-hint font-normal">(comma-separated, strict match)</span></label>
+                <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., business banking, SME, entrepreneur"
                   className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
                   onKeyDown={e => e.key === "Enter" && handleSearch()} />
               </div>
@@ -375,7 +392,7 @@ export default function ScoutPage() {
                   className="rounded border-gray-300 text-accent" />
                 <span className="text-xs text-muted">Auto-analyze with AI after import</span>
               </label>
-              <button onClick={handleSearch} disabled={searching || !brand.trim()}
+              <button onClick={handleSearch} disabled={searching || (!brand.trim() && !keywords.trim() && !category.trim())}
                 className="px-6 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
                 style={{ background: "#0019FF" }}>
                 {searching ? (
