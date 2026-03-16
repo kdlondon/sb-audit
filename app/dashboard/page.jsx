@@ -102,8 +102,13 @@ function DashboardContent(){
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
   const scopedData=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
-  // All brands for filter
-  const allBrands=[...new Set([...(OPTIONS.competitor||[]).filter(v=>v!=="Other"),...scopedData.map(e=>e.competitor||e.brand).filter(Boolean)])].sort();
+  // Group brands by category for filter
+  const brandCatMap={};
+  scopedData.forEach(e=>{const b=e.competitor||e.brand;const cat=e.category||e.category_proximity;if(b)brandCatMap[b]=cat||"Other";});
+  (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>{if(!brandCatMap[b])brandCatMap[b]="Other";});
+  const catOrder=["Traditional Banking","Banking","Fintech","Financial Services","Neobank","Other"];
+  const groupedBrands=(()=>{const groups={};Object.entries(brandCatMap).forEach(([b,c])=>{if(!groups[c])groups[c]=[];groups[c].push(b);});return Object.entries(groups).sort((a,b)=>{const ia=catOrder.indexOf(a[0]),ib=catOrder.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));})();
+  const allBrands=groupedBrands.flatMap(g=>g.brands);
   // Apply brand filter
   const data=selectedBrands.length>0?scopedData.filter(e=>{const b=e.competitor||e.brand;return b&&selectedBrands.includes(b);}):scopedData;
   const rated=data.filter(e=>e.rating);const avgRating=rated.length>0?(rated.reduce((s,e)=>s+Number(e.rating),0)/rated.length).toFixed(1):"—";
@@ -149,13 +154,18 @@ function DashboardContent(){
                   <button onClick={()=>setSelectedBrands(allBrands)} className="text-[10px] text-accent hover:underline">Select all</button>
                   <button onClick={()=>setSelectedBrands([])} className="text-[10px] text-muted hover:text-main">Clear</button>
                 </div>
-                {allBrands.map(b=>(
-                  <label key={b} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface2 cursor-pointer">
-                    <input type="checkbox" checked={selectedBrands.includes(b)}
-                      onChange={()=>setSelectedBrands(prev=>prev.includes(b)?prev.filter(x=>x!==b):[...prev,b])}
-                      className="rounded border-gray-300 text-accent"/>
-                    <span className="text-xs text-main">{b}</span>
-                  </label>
+                {groupedBrands.map(g=>(
+                  <div key={g.cat}>
+                    <p className="px-3 pt-2 pb-1 text-[9px] text-hint uppercase font-semibold tracking-wider">{g.cat}</p>
+                    {g.brands.map(b=>(
+                      <label key={b} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface2 cursor-pointer">
+                        <input type="checkbox" checked={selectedBrands.includes(b)}
+                          onChange={()=>setSelectedBrands(prev=>prev.includes(b)?prev.filter(x=>x!==b):[...prev,b])}
+                          className="rounded border-gray-300 text-accent"/>
+                        <span className="text-xs text-main">{b}</span>
+                      </label>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}

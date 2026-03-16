@@ -356,9 +356,23 @@ function ReportsContent(){
     const matchYear=(!yearFrom||!e.year||e.year>=yearFrom)&&(!yearTo||!e.year||e.year<=yearTo);
     return matchBrand&&matchYear;
   });
-  const availableBrands=selectedTemplate?.scope==="local"
-    ?[...new Set([...(OPTIONS.competitor||[]).filter(v=>v!=="Other"),...localData.map(e=>e.competitor).filter(Boolean)])].sort()
-    :[...new Set([...globalData.map(e=>e.brand).filter(Boolean)])].sort();
+  // Group brands by category (Banking, Fintech, etc.)
+  const buildGroupedBrands=(dataArr,brandKey)=>{
+    const brandCategoryMap={};
+    dataArr.forEach(e=>{const b=e[brandKey];const cat=e.category||e.category_proximity;if(b)brandCategoryMap[b]=cat||"Other";});
+    // Add Settings brands
+    if(brandKey==="competitor")(OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>{if(!brandCategoryMap[b])brandCategoryMap[b]="Other";});
+    // Group
+    const groups={};
+    Object.entries(brandCategoryMap).forEach(([brand,cat])=>{if(!groups[cat])groups[cat]=[];groups[cat].push(brand);});
+    // Sort groups and brands within
+    const order=["Traditional Banking","Banking","Fintech","Financial Services","Neobank","Other"];
+    return Object.entries(groups).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));
+  };
+  const groupedBrands=selectedTemplate?.scope==="local"
+    ?buildGroupedBrands(localData,"competitor")
+    :buildGroupedBrands(globalData,"brand");
+  const availableBrands=groupedBrands.flatMap(g=>g.brands);
   const allData=[...localData,...globalData];
 
   const toggleComp=(c)=>{
@@ -634,9 +648,16 @@ function ReportsContent(){
                   <div className="bg-surface rounded-lg border border-main p-4 mb-3">
                     <h3 className="text-sm font-semibold text-main mb-1">{selectedTemplate.singleBrand?"Brand — select one":"Brands"}</h3>
                     {selectedTemplate.singleBrand&&<p className="text-[10px] text-hint mb-2">This report analyses a single brand in depth</p>}
-                    <div className="flex gap-2 flex-wrap">
-                      {availableBrands.map(c=>(
-                        <button key={c} onClick={()=>toggleComp(c)} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${competitors.includes(c)?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{c}</button>
+                    <div className="space-y-3">
+                      {groupedBrands.map(g=>(
+                        <div key={g.cat}>
+                          <p className="text-[9px] text-hint uppercase font-semibold tracking-wider mb-1.5">{g.cat}</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {g.brands.map(c=>(
+                              <button key={c} onClick={()=>toggleComp(c)} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${competitors.includes(c)?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{c}</button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                     {!selectedTemplate.singleBrand&&<p className="text-[10px] text-hint mt-1">{competitors.length===0?"All brands selected":`${competitors.length} brand${competitors.length>1?"s":""} selected`}</p>}
