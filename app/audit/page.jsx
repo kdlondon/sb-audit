@@ -276,6 +276,72 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const uploadImage=async(file)=>{if(!file)return;setUploading(true);const url=await uploadSingleImage(file);if(url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}setUploading(false);};
   const handleDrop=async(e)=>{e.preventDefault();setDragOver(false);const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{const existing=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];if(!existing.includes(url))setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});};
 
+  // ─── CLIPBOARD PASTE (CMD+V to paste screenshots) ───
+  useEffect(()=>{
+    if(vw!=="form")return;
+    const handlePaste=async(e)=>{
+      const items=[...e.clipboardData.items].filter(i=>i.type.startsWith("image/"));
+      if(items.length===0)return;
+      e.preventDefault();
+      setUploading(true);
+      setToast({message:"Uploading pasted image..."});
+      for(const item of items){
+        const file=item.getAsFile();if(!file)continue;
+        const url=await uploadSingleImage(file);
+        if(!url)continue;
+        if(!cur.image_url){
+          setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");
+        }else{
+          setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));
+        }
+      }
+      setUploading(false);
+      setToast({message:"✓ Screenshot pasted"});
+    };
+    window.addEventListener("paste",handlePaste);
+    return()=>window.removeEventListener("paste",handlePaste);
+  },[vw,cur.image_url,cur.image_urls]);
+
+  // ─── GRAB YOUTUBE THUMBNAILS ───
+  const grabYTThumbnails=async()=>{
+    const vid=ytId(cur.url);if(!vid)return;
+    setUploading(true);
+    setToast({message:"Grabbing video thumbnails..."});
+    // YouTube provides these thumbnail variants
+    const thumbUrls=[
+      `https://img.youtube.com/vi/${vid}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${vid}/sddefault.jpg`,
+      `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
+      `https://img.youtube.com/vi/${vid}/1.jpg`,
+      `https://img.youtube.com/vi/${vid}/2.jpg`,
+      `https://img.youtube.com/vi/${vid}/3.jpg`,
+    ];
+    let added=0;
+    for(const thumbUrl of thumbUrls){
+      try{
+        const res=await fetch(thumbUrl,{method:"HEAD"});
+        if(!res.ok||res.headers.get("content-length")==="0")continue;
+        // Check it's not the YouTube placeholder (120x90 grey image)
+        const size=parseInt(res.headers.get("content-length")||"0");
+        if(size<5000)continue;
+        // Download and re-upload to Supabase to avoid CORS issues
+        const imgRes=await fetch(thumbUrl);
+        const blob=await imgRes.blob();
+        const file=new File([blob],`yt_${vid}_${added}.jpg`,{type:"image/jpeg"});
+        const url=await uploadSingleImage(file);
+        if(!url)continue;
+        if(added===0&&!cur.image_url){
+          setCur(prev=>({...prev,image_url:url}));
+        }else{
+          setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));
+        }
+        added++;
+      }catch{}
+    }
+    setUploading(false);
+    setToast({message:added>0?`✓ ${added} thumbnail${added>1?"s":""} grabbed`:"No thumbnails found"});
+  };
+
   const resizeImageToBase64=async(url,maxW=800,quality=0.75)=>{
     try{
       const img=new Image();img.crossOrigin="anonymous";
@@ -434,10 +500,26 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </div>
             <div className="flex-1 overflow-auto" onDrop={handleDrop} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}>
               <div className={`flex items-center justify-center p-4 min-h-[250px] transition ${dragOver?"ring-2 ring-[var(--accent)] ring-inset":""}`} style={{background:dragOver?"var(--accent-soft)":"var(--surface2)"}}>
-                {materialType==="video"&&y?<iframe width="100%" height="350" style={{maxWidth:700}} src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
+                {materialType==="video"&&y?(
+                  <div className="w-full">
+                    <iframe width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={`https://www.youtube.com/embed/${y}?enablejsapi=1`} frameBorder="0" allowFullScreen className="rounded-lg" />
+                    {/* Capture tools */}
+                    <div className="flex items-center justify-center gap-2 mt-3 px-4">
+                      <button onClick={grabYTThumbnails} disabled={uploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition disabled:opacity-50">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="7" r="1.5"/><path d="M14 11l-3-3-2 2-2-2-3 3"/></svg>
+                        {uploading?"Grabbing...":"Grab video frames"}
+                      </button>
+                      <div className="h-4 w-px bg-surface2"/>
+                      <span className="text-[9px] text-hint flex items-center gap-1">
+                        <kbd className="px-1 py-0.5 bg-surface2 rounded text-[8px] font-mono border border-main">⌘V</kbd> paste screenshot
+                      </span>
+                    </div>
+                  </div>
+                )
                 :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<img src={imgUrl} className="max-w-full max-h-[400px] rounded-lg" alt="" />
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
-                :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"You can drag & drop multiple images at once":""}</p></div>}
+                :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
               </div>
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">Paste from YouTube or type what you see</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder="Paste the video transcript, ad copy, or any text content here..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
@@ -447,7 +529,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] text-muted uppercase font-semibold">Additional screenshots</label>
-                      <span className="text-[9px] text-hint">Drag multiple images here or click + to upload</span>
+                      <span className="text-[9px] text-hint">Drag, paste (⌘V), or click + to add</span>
                     </div>
                     <div className="flex gap-2 flex-wrap mb-2"
                       onDrop={async(e)=>{e.preventDefault();e.stopPropagation();const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(!files.length)return;setUploading(true);setToast({message:`Uploading ${files.length} extra image${files.length>1?"s":""}...`});for(const file of files){const url=await uploadSingleImage(file);if(url)setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}setUploading(false);setToast({message:"✓ Extra images uploaded"});}}
