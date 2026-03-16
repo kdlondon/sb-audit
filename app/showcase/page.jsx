@@ -68,20 +68,25 @@ function MediaModal({ src, type, onClose }) {
   const isVideo = type === "Video" || /youtube|youtu\.be|vimeo/i.test(src);
   let embedUrl = src;
   if (isVideo) {
-    const ytMatch = src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-    if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;
+    // Handle various YouTube URL formats
+    const ytMatch = src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([\w-]+)/);
+    if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`;
+    // Handle Vimeo
+    const vimeoMatch = src.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
   }
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center cursor-pointer" onClick={onClose}>
-      <button className="absolute top-6 right-6 text-white/60 hover:text-white text-2xl z-10" onClick={onClose}>×</button>
-      {isVideo ? (
-        <iframe src={embedUrl} className="w-[85vw] h-[80vh] rounded-lg" allowFullScreen allow="autoplay"
-          onClick={e => e.stopPropagation()} />
-      ) : (
-        <img src={src} alt="" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-          onClick={e => e.stopPropagation()} />
-      )}
+    <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center" onClick={onClose}>
+      <button className="absolute top-6 right-6 text-white/60 hover:text-white text-3xl z-10 w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>×</button>
+      <div className="slide-enter" onClick={e => e.stopPropagation()}>
+        {isVideo ? (
+          <iframe src={embedUrl} className="w-[85vw] h-[80vh] rounded-xl" allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture" style={{ border: "none" }} />
+        ) : (
+          <img src={src} alt="" className="max-w-[92vw] max-h-[92vh] object-contain rounded-xl shadow-2xl" />
+        )}
+      </div>
     </div>
   );
 }
@@ -217,25 +222,26 @@ CLIENT: ${clientName || projectName || "N/A"}
 OBJECTIVE: ${objective || "Analyze and present creative intelligence findings"}
 ${analystHighlights ? `\nANALYST HIGHLIGHTS (incorporate these into your narrative):\n${analystHighlights}` : ""}
 
-STRICT STRUCTURE — exactly 10 slides, no more, no less:
+STRUCTURE — tell the story as many slides as needed:
 
-1. type:"title" — Opening. Fields: title, subtitle, client, objective
-2. type:"key_findings" — ONE slide summarizing ALL key findings as numbered points. Fields: title, findings (array of {number, heading, summary})
-3-8. type:"finding" — SIX individual finding slides, one per finding. Each explores ONE finding in depth. Fields: title, body (markdown, 3-5 sentences max), brand (the brand featured), image_url (from entries), media_url (video URL if entry has one), media_type ("Video" or "Image"), entry_id
-9. type:"takeaways" — Strategic takeaways & considerations. Fields: title, takeaways (array of strings, 4-6 items)
-10. type:"closing" — Final slide. Fields: title, subtitle
+1. FIRST slide must be type:"title" — Opening. Fields: title, subtitle, client, objective
+2. SECOND slide must be type:"key_findings" — Summarize ALL key findings. Fields: title, findings (array of {number, heading, summary})
+3. THEN as many type:"finding" slides as needed (one per insight/case). Each explores ONE finding in depth. Fields: title, body (markdown, 3-5 sentences max), brand, year, country, territory (primary creative territory), image_url, media_url (YouTube/video URL from entry's url field), media_type ("Video" or "Image"), entry_id
+4. THEN type:"takeaways" — Strategic takeaways & considerations. Fields: title, takeaways (array of 4-6 strings)
+5. LAST slide must be type:"closing" — Fields: title, subtitle
 
 RULES:
 1. ALL output in English regardless of input language
 2. Return ONLY valid JSON — no markdown, no code blocks
 3. Every finding must reference real data from the entries
-4. Use actual image_url and url values from entries (url = media_url for videos)
-5. Write in a strategic, editorial tone — bold, provocative headlines
-6. Keep body text concise — this is a presentation, not a report
-7. For image_url, always use the entry's image_url if available
-8. For media_url, use the entry's url field if it's a YouTube/video link
+4. CRITICAL: For each finding slide, include ALL metadata: brand, year, country, territory
+5. CRITICAL: For image_url, ALWAYS copy the exact image_url from the entry
+6. CRITICAL: For media_url, copy the entry's url field if it contains youtube.com or youtu.be
+7. Write in a strategic, editorial tone — bold, provocative headlines
+8. Keep body text concise — this is a presentation, not a report
+9. Use as many finding slides as needed to tell the story well (typically 6-10)
 
-Return: {"title":"...","slides":[...10 slides...]}`;
+Return: {"title":"...","slides":[...slides...]}`;
 
     const userMsg = `Create a 10-slide showcase from these ${entries.length} entries:\n\n${JSON.stringify(entryData, null, 1)}`;
 
@@ -255,7 +261,7 @@ Return: {"title":"...","slides":[...10 slides...]}`;
       }
 
       const title = showcaseTitle.trim() || parsed.title || "Creative Showcase";
-      const slides = (parsed.slides || []).slice(0, 10);
+      const slides = parsed.slides || [];
 
       const { data: { session } } = await supabase.auth.getSession();
       const { data: saved, error } = await supabase.from("saved_showcases").insert({
@@ -470,8 +476,10 @@ Return: {"title":"...","slides":[...10 slides...]}`;
 
         {/* Content */}
         <div className="h-full flex items-center justify-center transition-colors duration-700">
-          <div className="max-w-5xl w-full mx-auto pl-20 pr-12">
-            <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} />
+          <div className="max-w-5xl w-full mx-auto pl-20 pr-12" key={currentSlide}>
+            <div className="slide-enter">
+              <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} />
+            </div>
           </div>
         </div>
 
@@ -539,7 +547,15 @@ Return: {"title":"...","slides":[...10 slides...]}`;
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {["title","subtitle","section","client","objective","brand","image_url","media_url"].map(field => (
+                    {/* Slide type selector */}
+                    <div>
+                      <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Slide Type</label>
+                      <select value={slide.type} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],type:e.target.value}; setEditSlides(s); }}
+                        className="px-2 py-1 bg-surface border border-main rounded text-xs text-main">
+                        {Object.entries(SLIDE_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                    {["title","subtitle","section","client","objective","brand","year","country","territory","image_url","media_url"].map(field => (
                       slide[field] !== undefined && (
                         <div key={field}>
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{field.replace(/_/g," ")}</label>
@@ -581,6 +597,13 @@ Return: {"title":"...","slides":[...10 slides...]}`;
                   </div>
                 </div>
               ))}
+
+              {/* Add new slide */}
+              <button onClick={() => {
+                setEditSlides([...editSlides, { type: "finding", title: "", body: "", brand: "", year: "", country: "", territory: "", image_url: "", media_url: "", media_type: "Image" }]);
+              }} className="w-full py-3 border-2 border-dashed border-main rounded-xl text-sm text-muted hover:text-main hover:border-[var(--accent)] transition">
+                + Add new slide
+              </button>
             </div>
           </div>
         </div>
@@ -681,8 +704,8 @@ Return: {"title":"...","slides":[...10 slides...]}`;
               </div>
 
               <div className="bg-surface2 rounded-lg p-3">
-                <p className="text-[10px] text-muted mb-1 font-semibold">OUTPUT STRUCTURE (10 slides)</p>
-                <p className="text-[10px] text-hint">1 Title → 1 Key Findings → 6 Individual Findings → 1 Takeaways → 1 Closing</p>
+                <p className="text-[10px] text-muted mb-1 font-semibold">OUTPUT STRUCTURE</p>
+                <p className="text-[10px] text-hint">Title → Key Findings → Individual Findings (as many as needed) → Takeaways → Closing</p>
               </div>
 
               <button onClick={generateShowcase} disabled={generating}
@@ -691,7 +714,7 @@ Return: {"title":"...","slides":[...10 slides...]}`;
                 {generating ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Generating 10-slide showcase...
+                    Generating showcase...
                   </span>
                 ) : "Generate Showcase"}
               </button>
@@ -801,8 +824,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
       <div className={`relative cursor-pointer group/media rounded-lg overflow-hidden ${className}`}
         onClick={() => onMediaClick({ src: mediaUrl || imageUrl, type: isVideo ? "Video" : "Image" })}
         style={{ border: `1px solid ${theme.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}>
-        <img src={imageUrl || `https://img.youtube.com/vi/${(mediaUrl||"").match(/(?:v=|youtu\.be\/)([\w-]+)/)?.[1]}/hqdefault.jpg`}
-          alt="" className="w-full h-auto object-contain max-h-[55vh]" onError={e => e.target.style.display = "none"} />
+        <img src={isVideo && !imageUrl ? `https://img.youtube.com/vi/${(mediaUrl||"").match(/(?:v=|youtu\.be\/|embed\/)([\w-]+)/)?.[1]}/hqdefault.jpg` : imageUrl}
+          alt="" className="w-full h-auto" style={{ objectFit: "contain", maxHeight: "50vh" }} onError={e => e.target.style.display = "none"} />
         {/* Play button overlay for videos */}
         {isVideo && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/media:bg-black/20 transition">
@@ -861,9 +884,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
       );
 
     case "finding":
+      const legend = [slide.year, slide.country, slide.territory ? `Territory: ${slide.territory}` : null].filter(Boolean).join(" | ");
+      const hasMedia = slide.image_url || slide.media_url;
       return (
-        <div className="flex gap-10 items-center animate-fadeIn">
-          <div className="flex-1">
+        <div className="flex gap-10 items-start">
+          <div className="flex-1 pt-4">
             {slide.brand && <p className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-4" style={{ color: f }}>{slide.brand}</p>}
             <h2 className="text-3xl md:text-4xl font-bold uppercase leading-[1.05] mb-5" style={{ color: t }}>{slide.title}</h2>
             <div className="w-14 h-0.5 mb-5" style={{ backgroundColor: theme.accent, opacity: 0.5 }} />
@@ -871,7 +896,26 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
               <Markdown remarkPlugins={[remarkGfm]} components={mdC}>{slide.body || ""}</Markdown>
             </div>
           </div>
-          <MediaThumb imageUrl={slide.image_url} mediaUrl={slide.media_url} mediaType={slide.media_type} className="w-80 flex-shrink-0" />
+          {hasMedia && (
+            <div className="w-[340px] flex-shrink-0 pt-4">
+              <MediaThumb imageUrl={slide.image_url} mediaUrl={slide.media_url} mediaType={slide.media_type} className="" />
+              {/* Legend / caption */}
+              <div className="mt-3 px-1" style={{ color: m }}>
+                <p className="text-xs font-semibold" style={{ color: t, opacity: 0.8 }}>
+                  {slide.brand}{slide.title ? ` | ${slide.title}` : ""}
+                </p>
+                {legend && <p className="text-[10px] mt-1" style={{ opacity: 0.6 }}>{legend}</p>}
+                {slide.media_url && (
+                  <a href={slide.media_url} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] mt-1 block hover:opacity-100 transition truncate"
+                    style={{ color: theme.accent, opacity: 0.7 }}
+                    onClick={e => e.stopPropagation()}>
+                    {slide.media_url}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       );
 
@@ -895,13 +939,25 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
 
     case "closing":
       return (
-        <div className="py-8 animate-fadeIn">
-          <h2 className="text-4xl md:text-5xl font-bold uppercase leading-[1] mb-5" style={{ color: t }}>{slide.title}</h2>
-          {slide.subtitle && <p className="text-lg" style={{ color: m }}>{slide.subtitle}</p>}
-          <div className="mt-16 flex items-center gap-3">
-            <div className="w-10 h-px" style={{ backgroundColor: t, opacity: 0.15 }} />
-            <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: f }}>A Knots &amp; Dots product</p>
+        <div className="py-8 flex flex-col items-center justify-center text-center">
+          {/* K&D logo large */}
+          <div className="mb-10 flex flex-col items-center gap-0" style={{ color: t, opacity: 0.25 }}>
+            {["K","N","O","T","S"].map((l,i) => (
+              <span key={i} className="text-2xl font-bold leading-[1.2]" style={{ marginLeft: i===2?10:i===3?5:0 }}>{l}</span>
+            ))}
+            <span className="text-2xl italic my-1" style={{ fontFamily: "Georgia, serif" }}>&amp;</span>
+            {["D","O","T","S","."].map((l,i) => (
+              <span key={i} className="text-2xl font-bold leading-[1.2]" style={{ marginLeft: i===1?5:0 }}>{l}</span>
+            ))}
           </div>
+          <h2 className="text-3xl md:text-4xl font-bold uppercase leading-[1] mb-4" style={{ color: t }}>{slide.title || "Thank You"}</h2>
+          {slide.subtitle && <p className="text-base max-w-md" style={{ color: m }}>{slide.subtitle}</p>}
+          <div className="mt-10 flex items-center gap-3">
+            <div className="w-10 h-px" style={{ backgroundColor: t, opacity: 0.12 }} />
+            <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: f }}>A Knots &amp; Dots product</p>
+            <div className="w-10 h-px" style={{ backgroundColor: t, opacity: 0.12 }} />
+          </div>
+          <p className="text-[9px] mt-3" style={{ color: f }}>groundwork by knots &amp; dots · {new Date().getFullYear()}</p>
         </div>
       );
 
