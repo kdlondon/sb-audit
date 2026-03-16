@@ -55,7 +55,7 @@ export default function Nav() {
       <div className="flex items-center gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={switchProject}>
-          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 20, filter: "brightness(10)" }} />
+          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 20 }} />
           <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Groundwork</span>
         </div>
 

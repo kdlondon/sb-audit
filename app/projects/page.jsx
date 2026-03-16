@@ -122,7 +122,7 @@ export default function ProjectsPage() {
         {/* HEADER */}
         <div className="px-6 py-4 flex justify-between items-center" style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-3">
-            <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 22, filter: "brightness(10)" }} />
+            <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 22 }} />
             <div>
               <p className="text-sm font-semibold text-white">Groundwork</p>
               <p className="text-[10px] text-white/40">Select a project to continue</p>
