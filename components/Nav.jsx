@@ -1,5 +1,6 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole, canAccess } from "@/lib/role-context";
@@ -58,7 +59,7 @@ export default function Nav() {
   const isAdmin = role === "full_admin";
 
   return (
-    <div className="px-5 py-2 flex items-center justify-between sticky top-0 z-40"
+    <div className="px-5 py-2 flex items-center justify-between sticky top-0 z-[100]"
       style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="flex items-center gap-4">
         {/* Logo → projects */}
@@ -111,9 +112,10 @@ export default function Nav() {
             </svg>
           </button>
 
-          {/* Dropdown menu */}
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-xl py-1 animate-fadeIn" style={{ zIndex: 99999 }}>
+          {/* Dropdown menu — rendered via portal to escape stacking context */}
+          {menuOpen && typeof window !== "undefined" && createPortal(
+            <><div className="fixed inset-0" style={{zIndex:99998}} onClick={()=>setMenuOpen(false)}/><div className="fixed w-56 bg-surface border border-main rounded-xl shadow-2xl py-1 animate-fadeIn"
+              style={{ zIndex: 99999, top: (menuRef.current?.getBoundingClientRect().bottom || 0) + 6, right: window.innerWidth - (menuRef.current?.getBoundingClientRect().right || 0) }}>
               {/* User info */}
               <div className="px-4 py-3 border-b border-main">
                 <p className="text-sm font-medium text-main truncate">{userEmail}</p>
@@ -169,7 +171,8 @@ export default function Nav() {
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M11 12l3-4-3-4M6 8h8"/></svg>
                 Sign out
               </button>
-            </div>
+            </div></>,
+            document.body
           )}
         </div>
       </div>
