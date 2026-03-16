@@ -302,44 +302,97 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     return()=>window.removeEventListener("paste",handlePaste);
   },[vw,cur.image_url,cur.image_urls]);
 
-  // ─── GRAB YOUTUBE THUMBNAILS ───
-  const grabYTThumbnails=async()=>{
+  // ─── GRAB YOUTUBE FRAMES (from storyboard sprites) ───
+  const [framePickerOpen,setFramePickerOpen]=useState(false);
+  const [framePickerFrames,setFramePickerFrames]=useState([]);
+  const [framePickerLoading,setFramePickerLoading]=useState(false);
+
+  const grabYTFrames=async()=>{
     const vid=ytId(cur.url);if(!vid)return;
+    setFramePickerLoading(true);
+    setFramePickerOpen(true);
+    setFramePickerFrames([]);
+    setToast({message:"Extracting video frames..."});
+
+    try{
+      const res=await fetch("/api/youtube-frames",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({videoId:vid})
+      });
+      const data=await res.json();
+      if(!data.storyboard||!data.storyboard.spriteUrls?.length){
+        setToast({message:"Could not extract frames. Use ⌘V paste instead."});
+        setFramePickerLoading(false);return;
+      }
+
+      const{width,height,cols,rows,spriteUrls,count}=data.storyboard;
+      const allFrames=[];
+
+      for(let si=0;si<spriteUrls.length;si++){
+        try{
+          // Load sprite sheet
+          const img=new Image();img.crossOrigin="anonymous";
+          await new Promise((ok,fail)=>{img.onload=ok;img.onerror=fail;img.src=spriteUrls[si];});
+
+          // Split into individual frames
+          const framesInSheet=Math.min(cols*rows,count-si*cols*rows);
+          for(let fi=0;fi<framesInSheet;fi++){
+            const col=fi%cols;const row=Math.floor(fi/cols);
+            const canvas=document.createElement("canvas");
+            canvas.width=width;canvas.height=height;
+            canvas.getContext("2d").drawImage(img,col*width,row*height,width,height,0,0,width,height);
+            const dataUrl=canvas.toDataURL("image/jpeg",0.85);
+            allFrames.push({dataUrl,index:si*cols*rows+fi});
+          }
+        }catch(e){console.warn("Sprite load failed:",e);}
+      }
+
+      // Sample evenly — pick ~20 frames spread throughout
+      const maxFrames=20;
+      const step=Math.max(1,Math.floor(allFrames.length/maxFrames));
+      const sampled=allFrames.filter((_,i)=>i%step===0).slice(0,maxFrames);
+      setFramePickerFrames(sampled);
+      setToast({message:`${sampled.length} frames extracted — click to add`});
+    }catch(err){
+      setToast({message:"Error: "+err.message});
+    }
+    setFramePickerLoading(false);
+  };
+
+  const addFrameAsImage=async(dataUrl)=>{
     setUploading(true);
-    setToast({message:"Grabbing video thumbnails..."});
-    // YouTube provides these thumbnail variants
-    const thumbUrls=[
-      `https://img.youtube.com/vi/${vid}/maxresdefault.jpg`,
-      `https://img.youtube.com/vi/${vid}/sddefault.jpg`,
-      `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
-      `https://img.youtube.com/vi/${vid}/1.jpg`,
-      `https://img.youtube.com/vi/${vid}/2.jpg`,
-      `https://img.youtube.com/vi/${vid}/3.jpg`,
-    ];
-    let added=0;
-    for(const thumbUrl of thumbUrls){
-      try{
-        const res=await fetch(thumbUrl,{method:"HEAD"});
-        if(!res.ok||res.headers.get("content-length")==="0")continue;
-        // Check it's not the YouTube placeholder (120x90 grey image)
-        const size=parseInt(res.headers.get("content-length")||"0");
-        if(size<5000)continue;
-        // Download and re-upload to Supabase to avoid CORS issues
-        const imgRes=await fetch(thumbUrl);
-        const blob=await imgRes.blob();
-        const file=new File([blob],`yt_${vid}_${added}.jpg`,{type:"image/jpeg"});
-        const url=await uploadSingleImage(file);
-        if(!url)continue;
-        if(added===0&&!cur.image_url){
-          setCur(prev=>({...prev,image_url:url}));
-        }else{
-          setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));
-        }
-        added++;
-      }catch{}
+    // Convert data URL to file
+    const res=await fetch(dataUrl);
+    const blob=await res.blob();
+    const file=new File([blob],`frame_${Date.now()}.jpg`,{type:"image/jpeg"});
+    const url=await uploadSingleImage(file);
+    if(!url){setUploading(false);return;}
+    if(!cur.image_url){
+      setCur(prev=>({...prev,image_url:url}));setMaterialType("image");
+    }else{
+      setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));
     }
     setUploading(false);
-    setToast({message:added>0?`✓ ${added} thumbnail${added>1?"s":""} grabbed`:"No thumbnails found"});
+    setToast({message:"✓ Frame added"});
+  };
+
+  const addAllSelectedFrames=async(frames)=>{
+    setUploading(true);
+    setToast({message:`Adding ${frames.length} frames...`});
+    for(const frame of frames){
+      const r=await fetch(frame.dataUrl);const blob=await r.blob();
+      const file=new File([blob],`frame_${Date.now()}_${Math.random().toString(36).slice(2,5)}.jpg`,{type:"image/jpeg"});
+      const url=await uploadSingleImage(file);
+      if(!url)continue;
+      if(!cur.image_url){
+        setCur(prev=>({...prev,image_url:url}));setMaterialType("image");
+      }else{
+        setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));
+      }
+    }
+    setUploading(false);
+    setFramePickerOpen(false);
+    setToast({message:`✓ ${frames.length} frames added`});
   };
 
   const resizeImageToBase64=async(url,maxW=800,quality=0.75)=>{
@@ -505,16 +558,56 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     <iframe width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={`https://www.youtube.com/embed/${y}?enablejsapi=1`} frameBorder="0" allowFullScreen className="rounded-lg" />
                     {/* Capture tools */}
                     <div className="flex items-center justify-center gap-2 mt-3 px-4">
-                      <button onClick={grabYTThumbnails} disabled={uploading}
+                      <button onClick={grabYTFrames} disabled={uploading||framePickerLoading}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition disabled:opacity-50">
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="7" r="1.5"/><path d="M14 11l-3-3-2 2-2-2-3 3"/></svg>
-                        {uploading?"Grabbing...":"Grab video frames"}
+                        {framePickerLoading?"Extracting...":"Extract video stills"}
                       </button>
                       <div className="h-4 w-px bg-surface2"/>
                       <span className="text-[9px] text-hint flex items-center gap-1">
                         <kbd className="px-1 py-0.5 bg-surface2 rounded text-[8px] font-mono border border-main">⌘V</kbd> paste screenshot
                       </span>
                     </div>
+
+                    {/* Frame picker panel */}
+                    {framePickerOpen&&(
+                      <div className="mt-3 mx-4 bg-surface border border-main rounded-xl p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-main">Select frames to add</h4>
+                            <p className="text-[10px] text-muted">Click individual frames or add all at once</p>
+                          </div>
+                          <div className="flex gap-2">
+                            {framePickerFrames.length>0&&(
+                              <button onClick={()=>addAllSelectedFrames(framePickerFrames)} disabled={uploading}
+                                className="px-3 py-1 text-xs font-medium text-white rounded-lg disabled:opacity-50" style={{background:"#0019FF"}}>
+                                {uploading?"Adding...":"Add all "+framePickerFrames.length}
+                              </button>
+                            )}
+                            <button onClick={()=>setFramePickerOpen(false)}
+                              className="px-3 py-1 text-xs text-muted hover:text-main border border-main rounded-lg">Close</button>
+                          </div>
+                        </div>
+                        {framePickerLoading?(
+                          <div className="text-center py-8 text-hint text-sm">
+                            <svg className="animate-spin h-5 w-5 mx-auto mb-2" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            Extracting frames from video...
+                          </div>
+                        ):(
+                          <div className="grid grid-cols-5 gap-2 max-h-[300px] overflow-y-auto">
+                            {framePickerFrames.map((frame,i)=>(
+                              <div key={i} className="cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-[var(--accent)] transition relative group"
+                                onClick={()=>addFrameAsImage(frame.dataUrl)}>
+                                <img src={frame.dataUrl} className="w-full h-auto" alt={`Frame ${i+1}`}/>
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                                  <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">+ Add</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
                 :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<img src={imgUrl} className="max-w-full max-h-[400px] rounded-lg" alt="" />
