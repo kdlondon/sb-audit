@@ -85,6 +85,13 @@ a, button, input, select, textarea {
 .slide-enter > *:nth-child(5) { animation-delay: 0.32s; }
 .slide-enter > *:nth-child(6) { animation-delay: 0.4s; }
 
+/* PDF capture mode — kill all animations, force full opacity */
+[data-pdf-mode] * {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+}
+
 /* Focus styles — K&D accent */
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent) !important;

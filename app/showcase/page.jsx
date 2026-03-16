@@ -319,7 +319,7 @@ Return: {"title":"...","slides":[...slides...]}`;
 
       for (let i = 0; i < slides.length; i++) {
         setCurrentSlide(i);
-        await new Promise(r => setTimeout(r, 300)); // wait for render to fully settle
+        await new Promise(r => setTimeout(r, 500)); // wait for render to fully settle
 
         const slideEl = document.querySelector("[data-slide-content]");
         if (!slideEl) continue;
@@ -377,7 +377,7 @@ Return: {"title":"...","slides":[...slides...]}`;
     const theme = getThemeForSlide(slide, currentSlide);
 
     return (
-      <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }} data-slide-content>
+      <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }} data-slide-content {...(pdfMode ? {"data-pdf-mode": true} : {})}>
         {!pdfMode && ToastEl}
         {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
         <KDLogo color={theme.text} opacity={theme.isDark ? 0.15 : 0.1} />
