@@ -488,7 +488,7 @@ function ReportsContent(){
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center sticky top-[41px] z-30">
+      <div className="section-bar px-5 py-3 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-bold text-main">Reports</h2>
           <div className="flex bg-surface2 rounded-lg p-0.5">

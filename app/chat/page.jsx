@@ -176,7 +176,7 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
-      <div className="bg-surface border-b border-main px-5 py-3 sticky top-[41px] z-30">
+      <div className="section-bar px-5 py-3">
         <h2 className="text-lg font-bold text-main">Chat with your data</h2>
         <p className="text-xs text-muted">{dataLoaded ? `${data.length} entries loaded (${data.filter(e=>e._scope==="local").length} local + ${data.filter(e=>e._scope==="global").length} global)` : "Loading..."}</p>
       </div>

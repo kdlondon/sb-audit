@@ -79,7 +79,7 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <div className="bg-surface border-b border-main px-5 py-3 sticky top-[41px] z-30">
+      <div className="section-bar px-5 py-3">
         <h2 className="text-lg font-bold text-main">Settings</h2>
         <p className="text-xs text-muted">Manage dropdown values across the application</p>
       </div>

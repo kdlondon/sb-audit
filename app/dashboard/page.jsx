@@ -108,7 +108,7 @@ function DashboardContent(){
 
   return(
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
-      <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center sticky top-[41px] z-30">
+      <div className="section-bar px-5 py-3 flex justify-between items-center">
         <div><h2 className="text-lg font-bold text-main">Dashboard</h2><p className="text-xs text-muted">Data visualizations across your audit</p></div>
         <div className="flex bg-surface2 rounded-lg p-0.5">{[["all","All"],["local","Local"],["global","Global"]].map(([k,l])=>(<button key={k} onClick={()=>setScope(k)} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div>
       </div>

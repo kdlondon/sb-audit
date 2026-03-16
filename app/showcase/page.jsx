@@ -688,17 +688,18 @@ Return: {"title":"...","slides":[...slides...]}`;
     <AuthGuard><ProjectGuard><Nav />
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         {ToastEl}
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-main">Creative Showcase</h1>
-              <p className="text-xs text-muted mt-1">Cinematic presentations powered by AI</p>
-            </div>
-            {canEdit && (
-              <button onClick={() => setView("create")} className="px-4 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90"
-                style={{ backgroundColor: KD.electric }}>+ New Showcase</button>
-            )}
+        {/* Section bar */}
+        <div className="section-bar px-5 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-bold text-main">Showcase</h2>
+            <p className="text-xs text-muted">Cinematic presentations powered by AI</p>
           </div>
+          {canEdit && (
+            <button onClick={() => setView("create")} className="px-3 py-1.5 text-sm text-white rounded-lg font-semibold hover:opacity-90"
+              style={{ backgroundColor: KD.electric }}>+ New Showcase</button>
+          )}
+        </div>
+        <div className="max-w-4xl mx-auto p-6">
 
           {loading ? (
             <p className="text-hint text-center py-20">Loading...</p>

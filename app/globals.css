@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  --nav-h: 41px;
   --bg: #f5f4f0;
   --surface: #ffffff;
   --surface2: #efeee9;
@@ -92,8 +93,17 @@ a, button, input, select, textarea {
   opacity: 1 !important;
 }
 
-/* Sticky bars — eliminate jank on scroll */
-.sticky { will-change: transform; }
+/* Section bar — fixed below nav, no scroll jank */
+.section-bar {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 30;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
 
 /* Focus styles — K&D accent */
 input:focus, textarea:focus, select:focus {
