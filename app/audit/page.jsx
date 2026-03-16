@@ -214,7 +214,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [eid,setEid]=useState(null);
   const [fl,setFl]=useState({});
   const [sec,setSec]=useState(0);
-  const [sb,setSb]=useState(null);
+  const [sb,setSbRaw]=useState(null);
+  const setSb=(entry)=>{setSbRaw(entry);if(typeof window!=="undefined"){if(entry)window.history.replaceState({},"",`/audit?id=${entry.id}`);else window.history.replaceState({},"","/audit");}};
   const [loading,setLoading]=useState(true);
   const [sortCol,setSortCol]=useState("created_at");
   const [sortDir,setSortDir]=useState("desc");
@@ -244,6 +245,17 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   },[scope]);
 
   useEffect(()=>{load();fetchOptions(projectId).then(o=>setOPTIONS(o));},[load]);
+
+  // Open entry from URL ?id=xxx
+  useEffect(()=>{
+    if(!data.length||typeof window==="undefined")return;
+    const params=new URLSearchParams(window.location.search);
+    const entryId=params.get("id");
+    if(entryId&&!sb){
+      const found=data.find(e=>e.id===entryId||String(e.id)===entryId);
+      if(found)setSbRaw(found);
+    }
+  },[data]);
   useEffect(()=>{if(pendingForm&&!loading){setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
 
   const highlightFields=(fields)=>{setHighlighted(new Set(fields));setTimeout(()=>setHighlighted(new Set()),3000);};
@@ -552,7 +564,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setAnalyzing(false);
   };
 
-  const openForm=(entry)=>{const e=entry||{};setCur({...e});setEid(entry?entry.id:null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);setVw("form");setSb(null);setHighlighted(new Set());};
+  const openForm=(entry)=>{const e=entry||{};setCur({...e});setEid(entry?entry.id:null);setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);setVw("form");setSb(null);setHighlighted(new Set());};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
