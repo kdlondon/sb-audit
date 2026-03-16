@@ -847,12 +847,13 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
       {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
 
-      {/* Image zoom modal */}
-      {zoomImg&&(
-        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center cursor-pointer" onClick={()=>setZoomImg(null)}>
+      {/* Image zoom modal — via portal to escape stacking contexts */}
+      {zoomImg&&typeof window!=="undefined"&&createPortal(
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center cursor-pointer animate-fadeIn" style={{zIndex:99999}} onClick={()=>setZoomImg(null)}>
           <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
           <img src={zoomImg} className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" onClick={e=>e.stopPropagation()} alt="" />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
