@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
-import { useRole, canAccess } from "@/lib/role-context";
+import { useRole } from "@/lib/role-context";
 import Nav from "@/components/Nav";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -13,103 +13,106 @@ import remarkGfm from "remark-gfm";
 /* ─── SLIDE TYPES ─── */
 const SLIDE_TYPES = {
   title: "Title",
-  insight: "Key Insight",
-  spotlight: "Creative Spotlight",
-  trend: "Trend Analysis",
-  comparison: "Brand Comparison",
-  summary: "Summary",
+  key_findings: "Key Findings",
+  finding: "Finding",
+  takeaways: "Takeaways",
+  closing: "Closing",
 };
 
 /* ─── K&D BRAND PALETTE ─── */
-const KD_THEMES = [
-  { bg: "#0a0f3c", text: "#ffffff", accent: "#4060ff", label: "navy" },        // deep navy
-  { bg: "#0019FF", text: "#ffffff", accent: "#ffffff", label: "electric" },     // electric blue
-  { bg: "#D4E520", text: "#0a0a0a", accent: "#0a0a0a", label: "chartreuse" },  // acid yellow
-  { bg: "#e8e0f0", text: "#1a1a2e", accent: "#0019FF", label: "lavender" },    // soft lavender
-  { bg: "#1e1a22", text: "#e5e0eb", accent: "#D4E520", label: "charcoal" },    // dark charcoal
-  { bg: "#0a0f3c", text: "#ffffff", accent: "#D4E520", label: "navy-accent" }, // navy + chartreuse
-];
+const KD = {
+  navy:       "#0a0f3c",
+  electric:   "#0019FF",
+  chartreuse: "#D4E520",
+  lavender:   "#e8e0f0",
+  charcoal:   "#1e1a22",
+  dark:       "#111015",
+};
 
-// Assign themes to slide types for visual rhythm
 function getThemeForSlide(slide, index) {
   switch (slide.type) {
-    case "title":      return KD_THEMES[0]; // deep navy
-    case "insight":    return index % 2 === 0 ? KD_THEMES[1] : KD_THEMES[4]; // electric blue / charcoal
-    case "spotlight":  return KD_THEMES[4]; // charcoal
-    case "trend":      return KD_THEMES[2]; // chartreuse
-    case "comparison": return KD_THEMES[2]; // chartreuse
-    case "summary":    return KD_THEMES[5]; // navy + chartreuse accent
-    default:           return KD_THEMES[index % KD_THEMES.length];
+    case "title":        return { bg: KD.navy, text: "#fff", accent: "#4060ff", isDark: true };
+    case "key_findings": return { bg: KD.chartreuse, text: "#0a0a0a", accent: "#0a0a0a", isDark: false };
+    case "finding":      return index % 2 === 0
+      ? { bg: KD.charcoal, text: "#e5e0eb", accent: KD.chartreuse, isDark: true }
+      : { bg: KD.electric, text: "#fff", accent: "#fff", isDark: true };
+    case "takeaways":    return { bg: KD.chartreuse, text: "#0a0a0a", accent: "#0a0a0a", isDark: false };
+    case "closing":      return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
+    default:             return { bg: KD.charcoal, text: "#e5e0eb", accent: KD.chartreuse, isDark: true };
   }
 }
 
 /* ─── K&D VERTICAL LOGO ─── */
-function KDLogo({ color = "#ffffff", opacity = 0.3 }) {
-  const letters1 = ["K","N","O","T","S"];
-  const letters2 = ["D","O","T","S","."];
+function KDLogo({ color = "#ffffff", opacity = 0.2 }) {
   return (
-    <div className="absolute left-6 top-6 bottom-6 flex flex-col justify-between select-none pointer-events-none z-10"
+    <div className="absolute left-5 top-5 bottom-5 flex flex-col justify-between select-none pointer-events-none z-10"
       style={{ color, opacity }}>
       <div className="flex flex-col items-start gap-0">
-        {letters1.map((l, i) => (
-          <span key={i} className="text-[13px] font-bold tracking-wide leading-[1.3]"
-            style={{ marginLeft: i === 2 ? 8 : i === 3 ? 4 : 0 }}>{l}</span>
+        {["K","N","O","T","S"].map((l, i) => (
+          <span key={i} className="text-[12px] font-bold tracking-wide leading-[1.3]"
+            style={{ marginLeft: i === 2 ? 6 : i === 3 ? 3 : 0 }}>{l}</span>
         ))}
-        <span className="text-[15px] italic mt-2 mb-2" style={{ fontFamily: "Georgia, serif" }}>&amp;</span>
-        {letters2.map((l, i) => (
-          <span key={i} className="text-[13px] font-bold tracking-wide leading-[1.3]"
-            style={{ marginLeft: i === 1 ? 4 : 0 }}>{l}</span>
+        <span className="text-[14px] italic mt-1.5 mb-1.5" style={{ fontFamily: "Georgia, serif" }}>&amp;</span>
+        {["D","O","T","S","."].map((l, i) => (
+          <span key={i} className="text-[12px] font-bold tracking-wide leading-[1.3]"
+            style={{ marginLeft: i === 1 ? 3 : 0 }}>{l}</span>
         ))}
       </div>
     </div>
   );
 }
 
-/* ─── DECORATIVE DOTS (K&D brand element) ─── */
-function BrandDots({ color = "#4060ff", opacity = 0.4 }) {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0" style={{ opacity }}>
-      {[
-        { top: "12%", left: "3.5%"  },
-        { top: "28%", left: "5%"    },
-        { top: "44%", left: "2.5%"  },
-        { top: "60%", left: "4.5%"  },
-        { top: "76%", left: "2%"    },
-        { top: "88%", left: "4%"    },
-      ].map((pos, i) => (
-        <div key={i} className="absolute w-1.5 h-1.5 rounded-full" style={{ ...pos, backgroundColor: color }} />
-      ))}
-    </div>
-  );
-}
+/* ─── MEDIA MODAL (fullscreen image zoom / video player) ─── */
+function MediaModal({ src, type, onClose }) {
+  if (!src) return null;
+  const isVideo = type === "Video" || /youtube|youtu\.be|vimeo/i.test(src);
+  let embedUrl = src;
+  if (isVideo) {
+    const ytMatch = src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+    if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;
+  }
 
-/* ─── DOTTED LINE SEPARATOR ─── */
-function DottedLine({ color = "#ffffff", opacity = 0.2, className = "" }) {
   return (
-    <div className={`w-full ${className}`} style={{ opacity }}>
-      <div className="border-t-2 border-dotted w-full" style={{ borderColor: color }} />
+    <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center cursor-pointer" onClick={onClose}>
+      <button className="absolute top-6 right-6 text-white/60 hover:text-white text-2xl z-10" onClick={onClose}>×</button>
+      {isVideo ? (
+        <iframe src={embedUrl} className="w-[85vw] h-[80vh] rounded-lg" allowFullScreen allow="autoplay"
+          onClick={e => e.stopPropagation()} />
+      ) : (
+        <img src={src} alt="" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          onClick={e => e.stopPropagation()} />
+      )}
     </div>
   );
 }
 
 /* ─── MAIN COMPONENT ─── */
-export default function ShowcasePage() {
+export default function ShowcasePageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading...</p></div>}>
+      <ShowcasePage />
+    </Suspense>
+  );
+}
+
+function ShowcasePage() {
   const { projectId, projectName } = useProject();
   const { role } = useRole();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const pdfRef = useRef(null);
 
   // State
-  const [view, setView] = useState("list"); // list | create | present | edit
+  const [view, setView] = useState("list");
   const [showcases, setShowcases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentShowcase, setCurrentShowcase] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [toast, setToast] = useState("");
+  const [mediaModal, setMediaModal] = useState(null); // { src, type }
 
   // Create form
-  const [brands, setBrands] = useState([]);
-  const [countries, setCountries] = useState([]);
   const [allBrands, setAllBrands] = useState([]);
   const [allCountries, setAllCountries] = useState([]);
   const [yearFrom, setYearFrom] = useState("");
@@ -118,6 +121,9 @@ export default function ShowcasePage() {
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [showcaseTitle, setShowcaseTitle] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [objective, setObjective] = useState("");
+  const [analystHighlights, setAnalystHighlights] = useState("");
 
   // Edit state
   const [editSlides, setEditSlides] = useState([]);
@@ -127,7 +133,7 @@ export default function ShowcasePage() {
   const canEdit = role === "full_admin" || role === "analyst";
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
-  /* ─── LOAD SHOWCASES ─── */
+  /* ─── LOAD ─── */
   const loadShowcases = async () => {
     const { data } = await supabase
       .from("saved_showcases")
@@ -138,32 +144,43 @@ export default function ShowcasePage() {
     setLoading(false);
   };
 
-  /* ─── LOAD FILTER OPTIONS ─── */
   const loadFilterOptions = async () => {
     const [localRes, globalRes] = await Promise.all([
       supabase.from("audit_entries").select("competitor, year").eq("project_id", projectId),
       supabase.from("audit_global").select("brand, country, year").eq("project_id", projectId),
     ]);
-    const localData = localRes.data || [];
-    const globalData = globalRes.data || [];
-
     const brandSet = new Set();
-    localData.forEach(e => e.competitor && brandSet.add(e.competitor));
-    globalData.forEach(e => e.brand && brandSet.add(e.brand));
+    (localRes.data || []).forEach(e => e.competitor && brandSet.add(e.competitor));
+    (globalRes.data || []).forEach(e => e.brand && brandSet.add(e.brand));
     setAllBrands([...brandSet].sort());
-
     const countrySet = new Set();
-    globalData.forEach(e => e.country && countrySet.add(e.country));
+    (globalRes.data || []).forEach(e => e.country && countrySet.add(e.country));
     setAllCountries([...countrySet].sort());
   };
 
   useEffect(() => { if (projectId) { loadShowcases(); loadFilterOptions(); } }, [projectId]);
 
-  /* ─── GENERATE SHOWCASE ─── */
+  // Handle shared showcase link
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (viewId && typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("shared-showcase");
+      if (stored) {
+        try {
+          const sc = JSON.parse(stored);
+          setCurrentShowcase(sc);
+          setCurrentSlide(0);
+          setView("present");
+          sessionStorage.removeItem("shared-showcase");
+        } catch {}
+      }
+    }
+  }, [searchParams]);
+
+  /* ─── GENERATE ─── */
   const generateShowcase = async () => {
     setGenerating(true);
 
-    // Fetch matching entries
     let localQuery = supabase.from("audit_entries").select("*").eq("project_id", projectId);
     let globalQuery = supabase.from("audit_global").select("*").eq("project_id", projectId);
 
@@ -171,126 +188,82 @@ export default function ShowcasePage() {
       localQuery = localQuery.in("competitor", selectedBrands);
       globalQuery = globalQuery.in("brand", selectedBrands);
     }
-    if (yearFrom) {
-      localQuery = localQuery.gte("year", yearFrom);
-      globalQuery = globalQuery.gte("year", yearFrom);
-    }
-    if (yearTo) {
-      localQuery = localQuery.lte("year", yearTo);
-      globalQuery = globalQuery.lte("year", yearTo);
-    }
-    if (selectedCountries.length > 0) {
-      globalQuery = globalQuery.in("country", selectedCountries);
-    }
+    if (yearFrom) { localQuery = localQuery.gte("year", yearFrom); globalQuery = globalQuery.gte("year", yearFrom); }
+    if (yearTo) { localQuery = localQuery.lte("year", yearTo); globalQuery = globalQuery.lte("year", yearTo); }
+    if (selectedCountries.length > 0) { globalQuery = globalQuery.in("country", selectedCountries); }
 
-    // If country filter is set, skip local entries (they have no country field)
     const skipLocal = selectedCountries.length > 0;
     const [localRes, globalRes] = await Promise.all([
-      skipLocal ? Promise.resolve({ data: [] }) : localQuery,
-      globalQuery,
+      skipLocal ? Promise.resolve({ data: [] }) : localQuery, globalQuery,
     ]);
     const entries = [...(localRes.data || []), ...(globalRes.data || [])];
 
-    if (entries.length === 0) {
-      showToast("No entries match your filters");
-      setGenerating(false);
-      return;
-    }
+    if (entries.length === 0) { showToast("No entries match your filters"); setGenerating(false); return; }
 
-    // Build the AI prompt
     const entryData = entries.map(e => ({
-      id: e.id,
-      brand: e.competitor || e.brand || "Unknown",
-      country: e.country || "Local market",
-      year: e.year,
-      type: e.type,
-      description: e.description,
-      insight: e.insight,
-      idea: e.idea,
-      synopsis: e.synopsis,
-      main_slogan: e.main_slogan,
-      primary_territory: e.primary_territory,
-      tone_of_voice: e.tone_of_voice,
-      brand_archetype: e.brand_archetype,
-      portrait: e.portrait,
-      journey_phase: e.journey_phase,
-      funnel: e.funnel,
-      rating: e.rating,
-      image_url: e.image_url,
-      image_urls: e.image_urls,
-      url: e.url,
-      analyst_comment: e.analyst_comment,
-      execution_style: e.execution_style,
-      main_vp: e.main_vp,
-      emotional_benefit: e.emotional_benefit,
+      id: e.id, brand: e.competitor || e.brand || "Unknown", country: e.country || "Local market",
+      year: e.year, type: e.type, description: e.description, insight: e.insight, idea: e.idea,
+      synopsis: e.synopsis, main_slogan: e.main_slogan, primary_territory: e.primary_territory,
+      tone_of_voice: e.tone_of_voice, brand_archetype: e.brand_archetype, portrait: e.portrait,
+      journey_phase: e.journey_phase, funnel: e.funnel, rating: e.rating, image_url: e.image_url,
+      image_urls: e.image_urls, url: e.url, analyst_comment: e.analyst_comment,
+      execution_style: e.execution_style, main_vp: e.main_vp, emotional_benefit: e.emotional_benefit,
       pain_point: e.pain_point,
     }));
 
-    const systemPrompt = `You are a creative strategist at Knots & Dots, building a cinematic presentation showcase.
-You analyze advertising and brand communication entries and create a compelling, storytelling-driven presentation.
+    const systemPrompt = `You are a senior creative strategist at Knots & Dots building a cinematic presentation.
 
-IMPORTANT RULES:
-1. ALL output must be in English regardless of input language
-2. Return ONLY valid JSON — no markdown, no code blocks, no explanation
-3. Create 6-12 slides that tell a compelling story
-4. Every insight must be grounded in the actual data provided
-5. Be specific — reference actual brands, campaigns, slogans, and creative approaches
-6. For image_url fields, use actual image URLs from the entries when available
-7. Write in a strategic, editorial tone — confident and insightful, like a top-tier consultancy
-8. Use bold, provocative headlines that could work on a presentation slide
-9. Keep body text concise and impactful — this is a visual presentation, not a report
+CLIENT: ${clientName || projectName || "N/A"}
+OBJECTIVE: ${objective || "Analyze and present creative intelligence findings"}
+${analystHighlights ? `\nANALYST HIGHLIGHTS (incorporate these into your narrative):\n${analystHighlights}` : ""}
 
-SLIDE TYPES available:
-- "title": Opening slide. Fields: title, subtitle, section (optional label like "Creative Intelligence")
-- "insight": A key finding. Fields: title, body (markdown), brand, image_url, entry_id
-- "spotlight": Deep dive on one creative piece. Fields: title, body (markdown), brand, image_url, entry_id, quote (a standout slogan or line)
-- "trend": Pattern across entries. Fields: title, body (short markdown intro), points (array of 3-5 objects with {heading, description})
-- "comparison": Compare 2-3 brands. Fields: title, body (markdown), items (array of {brand, description, image_url})
-- "summary": Closing slide. Fields: title, takeaways (array of 3-5 strings)
+STRICT STRUCTURE — exactly 10 slides, no more, no less:
 
-Return JSON in this exact format:
-{"title":"Showcase title","slides":[{slide objects}]}`;
+1. type:"title" — Opening. Fields: title, subtitle, client, objective
+2. type:"key_findings" — ONE slide summarizing ALL key findings as numbered points. Fields: title, findings (array of {number, heading, summary})
+3-8. type:"finding" — SIX individual finding slides, one per finding. Each explores ONE finding in depth. Fields: title, body (markdown, 3-5 sentences max), brand (the brand featured), image_url (from entries), media_url (video URL if entry has one), media_type ("Video" or "Image"), entry_id
+9. type:"takeaways" — Strategic takeaways & considerations. Fields: title, takeaways (array of strings, 4-6 items)
+10. type:"closing" — Final slide. Fields: title, subtitle
 
-    const userMsg = `Create a creative showcase presentation from these ${entries.length} entries:\n\n${JSON.stringify(entryData, null, 1)}`;
+RULES:
+1. ALL output in English regardless of input language
+2. Return ONLY valid JSON — no markdown, no code blocks
+3. Every finding must reference real data from the entries
+4. Use actual image_url and url values from entries (url = media_url for videos)
+5. Write in a strategic, editorial tone — bold, provocative headlines
+6. Keep body text concise — this is a presentation, not a report
+7. For image_url, always use the entry's image_url if available
+8. For media_url, use the entry's url field if it's a YouTube/video link
+
+Return: {"title":"...","slides":[...10 slides...]}`;
+
+    const userMsg = `Create a 10-slide showcase from these ${entries.length} entries:\n\n${JSON.stringify(entryData, null, 1)}`;
 
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          use_opus: true,
-          max_tokens: 8000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userMsg }],
-        }),
+        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt,
+          messages: [{ role: "user", content: userMsg }] }),
       });
-
       const data = await res.json();
       const text = data.content?.[0]?.text || "";
-
-      // Parse JSON from response
       let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-        else throw new Error("Could not parse AI response");
+      try { parsed = JSON.parse(text); } catch {
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) parsed = JSON.parse(m[0]); else throw new Error("Could not parse AI response");
       }
 
       const title = showcaseTitle.trim() || parsed.title || "Creative Showcase";
-      const slides = parsed.slides || [];
+      const slides = (parsed.slides || []).slice(0, 10);
 
-      // Save to database
       const { data: { session } } = await supabase.auth.getSession();
       const { data: saved, error } = await supabase.from("saved_showcases").insert({
-        title,
-        project_id: projectId,
-        filters: { brands: selectedBrands, countries: selectedCountries, yearFrom, yearTo },
-        slides,
-        created_by: session?.user?.email || "",
+        title, project_id: projectId,
+        filters: { brands: selectedBrands, countries: selectedCountries, yearFrom, yearTo,
+          client: clientName, objective, analystHighlights },
+        slides, created_by: session?.user?.email || "",
       }).select().single();
-
       if (error) throw error;
 
       setCurrentShowcase(saved);
@@ -298,35 +271,124 @@ Return JSON in this exact format:
       setView("present");
       showToast("Showcase generated!");
       loadShowcases();
-
-    } catch (err) {
-      showToast("Error generating showcase: " + err.message);
-    }
+    } catch (err) { showToast("Error: " + err.message); }
     setGenerating(false);
   };
 
   /* ─── SAVE EDITS ─── */
   const saveEdits = async () => {
     setSaving(true);
-    await supabase.from("saved_showcases").update({
-      title: editTitle,
-      slides: editSlides,
-      updated_at: new Date().toISOString(),
-    }).eq("id", currentShowcase.id);
+    await supabase.from("saved_showcases").update({ title: editTitle, slides: editSlides, updated_at: new Date().toISOString() }).eq("id", currentShowcase.id);
     setCurrentShowcase({ ...currentShowcase, title: editTitle, slides: editSlides });
-    setSaving(false);
-    showToast("Changes saved");
-    setView("present");
-    loadShowcases();
+    setSaving(false); showToast("Changes saved"); setView("present"); loadShowcases();
   };
 
-  /* ─── DELETE SHOWCASE ─── */
   const deleteShowcase = async (id, e) => {
     e.stopPropagation();
-    if (!confirm("Delete this showcase? This cannot be undone.")) return;
+    if (!confirm("Delete this showcase?")) return;
     await supabase.from("saved_showcases").delete().eq("id", id);
-    showToast("Showcase deleted");
-    loadShowcases();
+    showToast("Deleted"); loadShowcases();
+  };
+
+  /* ─── SHARE ─── */
+  const copyShareLink = () => {
+    const url = `${window.location.origin}/showcase/${currentShowcase.id}`;
+    navigator.clipboard.writeText(url);
+    showToast("Link copied! (login required to view)");
+  };
+
+  /* ─── PDF DOWNLOAD ─── */
+  const downloadPDF = async () => {
+    showToast("Generating PDF...");
+    const html2pdf = (await import("html2pdf.js")).default;
+    const slides = currentShowcase.slides || [];
+
+    // Create a temporary container for PDF rendering
+    const container = document.createElement("div");
+    container.style.width = "1280px";
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    document.body.appendChild(container);
+
+    slides.forEach((slide, i) => {
+      const theme = getThemeForSlide(slide, i);
+      const page = document.createElement("div");
+      page.style.cssText = `width:1280px;height:720px;background:${theme.bg};color:${theme.text};padding:60px 80px 60px 80px;display:flex;flex-direction:column;justify-content:center;font-family:system-ui,-apple-system,sans-serif;position:relative;overflow:hidden;box-sizing:border-box;`;
+
+      // K&D logo watermark
+      const logo = document.createElement("div");
+      logo.style.cssText = `position:absolute;left:20px;top:20px;opacity:0.12;font-size:10px;font-weight:bold;letter-spacing:2px;line-height:1.4;color:${theme.text};`;
+      logo.innerHTML = "K<br>N<br>&nbsp;O<br>&nbsp;&nbsp;T<br>S<br><em style='font-style:italic;font-family:Georgia,serif'>&amp;</em><br>D<br>&nbsp;O<br>T<br>S<br>.";
+      page.appendChild(logo);
+
+      const content = document.createElement("div");
+      content.style.cssText = "margin-left:40px;max-width:1100px;";
+
+      switch (slide.type) {
+        case "title":
+          content.innerHTML = `
+            <p style="font-size:10px;text-transform:uppercase;letter-spacing:4px;opacity:0.4;margin-bottom:20px;">${slide.client || ""}</p>
+            <h1 style="font-size:56px;font-weight:bold;text-transform:uppercase;line-height:1;margin-bottom:20px;">${slide.title || ""}</h1>
+            <p style="font-size:18px;opacity:0.5;max-width:600px;">${slide.subtitle || ""}</p>
+            ${slide.objective ? `<p style="font-size:13px;opacity:0.35;margin-top:30px;font-style:italic;">${slide.objective}</p>` : ""}`;
+          break;
+        case "key_findings":
+          const findings = slide.findings || [];
+          content.innerHTML = `
+            <h2 style="font-size:24px;font-weight:bold;text-transform:uppercase;margin-bottom:30px;">${slide.title || "Key Findings"}</h2>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;">
+              ${findings.map(f => `<div style="flex:1;min-width:180px;">
+                <span style="font-size:28px;font-weight:bold;display:block;margin-bottom:8px;">${f.number || ""}</span>
+                <strong style="font-size:15px;display:block;margin-bottom:6px;line-height:1.3;">${f.heading || ""}</strong>
+                <div style="width:100%;height:2px;background:currentColor;opacity:0.7;margin-bottom:8px;"></div>
+                <p style="font-size:11px;opacity:0.7;line-height:1.5;">${f.summary || ""}</p>
+              </div>`).join("")}
+            </div>`;
+          break;
+        case "finding":
+          content.innerHTML = `
+            ${slide.brand ? `<p style="font-size:10px;text-transform:uppercase;letter-spacing:3px;opacity:0.4;margin-bottom:12px;">${slide.brand}</p>` : ""}
+            <h2 style="font-size:40px;font-weight:bold;text-transform:uppercase;line-height:1.05;margin-bottom:16px;">${slide.title || ""}</h2>
+            <div style="width:60px;height:2px;background:${theme.accent};opacity:0.5;margin-bottom:16px;"></div>
+            <p style="font-size:16px;opacity:0.7;line-height:1.6;max-width:600px;">${(slide.body || "").replace(/\*\*/g, "").replace(/\n/g, "<br>")}</p>`;
+          break;
+        case "takeaways":
+          const tks = slide.takeaways || [];
+          content.innerHTML = `
+            <h2 style="font-size:32px;font-weight:bold;text-transform:uppercase;margin-bottom:30px;">${slide.title || "Takeaways"}</h2>
+            ${tks.map((t, i) => `<div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;">
+              <span style="font-size:20px;font-weight:bold;opacity:0.3;min-width:30px;">${String(i+1).padStart(2,"0")}</span>
+              <p style="font-size:16px;line-height:1.5;">${t}</p>
+            </div>`).join("")}`;
+          break;
+        case "closing":
+          content.innerHTML = `
+            <h2 style="font-size:48px;font-weight:bold;text-transform:uppercase;line-height:1;margin-bottom:16px;">${slide.title || ""}</h2>
+            <p style="font-size:16px;opacity:0.5;">${slide.subtitle || ""}</p>
+            <div style="margin-top:60px;display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:1px;opacity:0.2;background:currentColor;"></div>
+              <span style="font-size:9px;text-transform:uppercase;letter-spacing:3px;opacity:0.25;">A Knots &amp; Dots product</span>
+            </div>`;
+          break;
+        default:
+          content.innerHTML = `<h2 style="font-size:36px;font-weight:bold;">${slide.title || ""}</h2><p style="font-size:16px;opacity:0.7;margin-top:12px;">${slide.body || ""}</p>`;
+      }
+      page.appendChild(content);
+      container.appendChild(page);
+    });
+
+    try {
+      await html2pdf().set({
+        margin: 0,
+        filename: `${currentShowcase.title || "Showcase"}.pdf`,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, width: 1280, height: 720, useCORS: true },
+        jsPDF: { unit: "px", format: [1280, 720], orientation: "landscape", hotfixes: ["px_scaling"] },
+        pagebreak: { mode: ["css", "legacy"], after: "div" },
+      }).from(container).save();
+      showToast("PDF downloaded!");
+    } catch (err) { showToast("PDF error: " + err.message); }
+    document.body.removeChild(container);
   };
 
   /* ─── KEYBOARD NAV ─── */
@@ -334,145 +396,100 @@ Return JSON in this exact format:
     if (view !== "present") return;
     const slides = currentShowcase?.slides || [];
     const handler = (e) => {
-      if (e.key === "ArrowRight" || e.key === " ") {
-        e.preventDefault();
-        setCurrentSlide(s => Math.min(s + 1, slides.length - 1));
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setCurrentSlide(s => Math.max(s - 1, 0));
-      }
-      if (e.key === "Escape") setView("list");
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); setCurrentSlide(s => Math.min(s + 1, slides.length - 1)); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); setCurrentSlide(s => Math.max(s - 1, 0)); }
+      if (e.key === "Escape") { if (mediaModal) setMediaModal(null); else setView("list"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [view, currentShowcase]);
+  }, [view, currentShowcase, mediaModal]);
 
-  /* ─── OPEN SHOWCASE ─── */
-  const openShowcase = (sc) => {
-    setCurrentShowcase(sc);
-    setCurrentSlide(0);
-    setView("present");
-  };
+  const openShowcase = (sc) => { setCurrentShowcase(sc); setCurrentSlide(0); setView("present"); };
+  const enterEdit = () => { setEditSlides(JSON.parse(JSON.stringify(currentShowcase.slides))); setEditTitle(currentShowcase.title); setView("edit"); };
 
-  const enterEdit = () => {
-    setEditSlides(JSON.parse(JSON.stringify(currentShowcase.slides)));
-    setEditTitle(currentShowcase.title);
-    setView("edit");
-  };
-
-  /* ─── TOAST ─── */
   const ToastEl = toast ? (
-    <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-[100] shadow-lg">
-      {toast}
-    </div>
+    <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-[100] shadow-lg">{toast}</div>
   ) : null;
 
   /* ═══════════════════════════════════════════
-     PRESENTATION VIEW (K&D BRANDED)
+     PRESENTATION VIEW
      ═══════════════════════════════════════════ */
   if (view === "present" && currentShowcase) {
     const slides = currentShowcase.slides || [];
     const slide = slides[currentSlide];
     if (!slide) return null;
     const theme = getThemeForSlide(slide, currentSlide);
-    const isDark = theme.label !== "chartreuse" && theme.label !== "lavender";
 
     return (
       <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }}>
         {ToastEl}
+        {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
+        <KDLogo color={theme.text} opacity={theme.isDark ? 0.15 : 0.1} />
 
-        {/* K&D vertical logo */}
-        <KDLogo color={isDark ? "#ffffff" : "#0a0a0a"} opacity={isDark ? 0.2 : 0.15} />
-        <BrandDots color={theme.accent} opacity={0.25} />
-
-        {/* Top header bar */}
-        <div className="absolute top-0 left-16 right-0 z-50 flex justify-between items-start px-6 py-5">
-          <div className="flex items-start gap-4">
+        {/* Header */}
+        <div className="absolute top-0 left-14 right-0 z-50 flex justify-between items-start px-6 py-4">
+          <div className="flex items-start gap-3">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] font-semibold" style={{ color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)" }}>
-                {projectName || "Groundwork"}
+              <p className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: theme.text, opacity: 0.4 }}>
+                {currentShowcase.filters?.client || projectName}
               </p>
-              <p className="text-[9px] italic mt-0.5" style={{ color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)" }}>
+              <p className="text-[8px] italic mt-0.5" style={{ color: theme.text, opacity: 0.25 }}>
                 {currentShowcase.title}
               </p>
             </div>
-            {slide.section && (
-              <>
-                <div className="w-px h-8 ml-2" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)" }} />
-                <p className="text-[10px] mt-0.5 ml-2" style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)" }}>
-                  {slide.section}
-                </p>
-              </>
-            )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono" style={{ color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono" style={{ color: theme.text, opacity: 0.25 }}>
               {String(currentSlide + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
             </span>
+            <button onClick={copyShareLink} className="text-[9px] px-2 py-1 rounded border transition"
+              style={{ color: theme.text, opacity: 0.4, borderColor: theme.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)" }}>
+              Share
+            </button>
+            <button onClick={downloadPDF} className="text-[9px] px-2 py-1 rounded border transition"
+              style={{ color: theme.text, opacity: 0.4, borderColor: theme.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)" }}>
+              PDF
+            </button>
             {canEdit && (
-              <button onClick={enterEdit}
-                className="text-[10px] px-3 py-1 rounded border transition"
-                style={{
-                  color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)",
-                  borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
-                }}>
+              <button onClick={enterEdit} className="text-[9px] px-2 py-1 rounded border transition"
+                style={{ color: theme.text, opacity: 0.4, borderColor: theme.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)" }}>
                 Edit
               </button>
             )}
-            <button onClick={() => setView("list")}
-              className="text-[10px] px-3 py-1 rounded border transition"
-              style={{
-                color: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)",
-                borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
-              }}>
+            <button onClick={() => setView("list")} className="text-[9px] px-2 py-1 rounded border transition"
+              style={{ color: theme.text, opacity: 0.4, borderColor: theme.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)" }}>
               Close
             </button>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] z-50" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
-          <div className="h-full transition-all duration-500" style={{
-            width: `${((currentSlide + 1) / slides.length) * 100}%`,
-            backgroundColor: theme.accent,
-            opacity: 0.6,
-          }} />
+        {/* Progress */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] z-50" style={{ backgroundColor: theme.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
+          <div className="h-full transition-all duration-500" style={{ width: `${((currentSlide+1)/slides.length)*100}%`, backgroundColor: theme.accent, opacity: 0.5 }} />
         </div>
 
-        {/* Slide content */}
+        {/* Content */}
         <div className="h-full flex items-center justify-center transition-colors duration-700">
           <div className="max-w-5xl w-full mx-auto pl-20 pr-12">
-            <SlideRenderer slide={slide} theme={theme} isDark={isDark} projectName={projectName} />
+            <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} />
           </div>
         </div>
 
-        {/* Nav arrows */}
+        {/* Arrows */}
         {currentSlide > 0 && (
-          <button onClick={() => setCurrentSlide(s => s - 1)}
-            className="absolute left-16 bottom-8 text-3xl transition hover:opacity-100"
-            style={{ color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)" }}>
-            ←
-          </button>
+          <button onClick={() => setCurrentSlide(s => s - 1)} className="absolute left-14 bottom-7 text-2xl transition"
+            style={{ color: theme.text, opacity: 0.2 }}>←</button>
         )}
         {currentSlide < slides.length - 1 && (
-          <button onClick={() => setCurrentSlide(s => s + 1)}
-            className="absolute right-8 bottom-8 text-3xl transition hover:opacity-100"
-            style={{ color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)" }}>
-            →
-          </button>
+          <button onClick={() => setCurrentSlide(s => s + 1)} className="absolute right-7 bottom-7 text-2xl transition"
+            style={{ color: theme.text, opacity: 0.2 }}>→</button>
         )}
 
-        {/* Minimal dot indicators */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1.5">
+        {/* Dots */}
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 flex gap-1.5">
           {slides.map((_, i) => (
-            <button key={i} onClick={() => setCurrentSlide(i)}
-              className="rounded-full transition-all"
-              style={{
-                width: i === currentSlide ? 20 : 6,
-                height: 6,
-                backgroundColor: i === currentSlide ? theme.accent : (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"),
-              }} />
+            <button key={i} onClick={() => setCurrentSlide(i)} className="rounded-full transition-all"
+              style={{ width: i === currentSlide ? 18 : 5, height: 5, backgroundColor: i === currentSlide ? theme.accent : (theme.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)") }} />
           ))}
         </div>
       </div>
@@ -484,181 +501,90 @@ Return JSON in this exact format:
      ═══════════════════════════════════════════ */
   if (view === "edit" && currentShowcase) {
     return (
-      <AuthGuard>
-        <ProjectGuard>
-          <Nav />
-          <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-            {ToastEl}
-            <div className="max-w-4xl mx-auto p-6">
-              {/* Header */}
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setView("present")} className="text-muted hover:text-main text-lg">←</button>
-                  <h1 className="text-xl font-bold text-main">Edit Showcase</h1>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setView("present")}
-                    className="px-4 py-2 border border-main rounded-lg text-sm text-muted hover:text-main transition">
-                    Cancel
-                  </button>
-                  <button onClick={saveEdits} disabled={saving}
-                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
-                    {saving ? "Saving..." : "Save changes"}
-                  </button>
-                </div>
+      <AuthGuard><ProjectGuard><Nav />
+        <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+          {ToastEl}
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setView("present")} className="text-muted hover:text-main text-lg">←</button>
+                <h1 className="text-xl font-bold text-main">Edit Showcase</h1>
               </div>
-
-              {/* Title */}
-              <div className="mb-6">
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Showcase Title</label>
-                <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-              </div>
-
-              {/* Slides */}
-              <div className="space-y-4">
-                {editSlides.map((slide, idx) => (
-                  <div key={idx} className="bg-surface border border-main rounded-xl p-5">
-                    <div className="flex justify-between items-center mb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-hint font-mono">#{idx + 1}</span>
-                        <span className="text-[10px] text-accent uppercase font-semibold">
-                          {SLIDE_TYPES[slide.type] || slide.type}
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        {idx > 0 && (
-                          <button onClick={() => {
-                            const s = [...editSlides]; [s[idx-1], s[idx]] = [s[idx], s[idx-1]]; setEditSlides(s);
-                          }} className="text-xs text-muted hover:text-main px-2 py-1 rounded hover:bg-surface2">↑</button>
-                        )}
-                        {idx < editSlides.length - 1 && (
-                          <button onClick={() => {
-                            const s = [...editSlides]; [s[idx], s[idx+1]] = [s[idx+1], s[idx]]; setEditSlides(s);
-                          }} className="text-xs text-muted hover:text-main px-2 py-1 rounded hover:bg-surface2">↓</button>
-                        )}
-                        <button onClick={() => {
-                          if (confirm("Remove this slide?")) setEditSlides(editSlides.filter((_, i) => i !== idx));
-                        }} className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50">×</button>
-                      </div>
-                    </div>
-
-                    {/* Editable fields */}
-                    <div className="space-y-3">
-                      {slide.title !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Title</label>
-                          <input value={slide.title || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], title: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.subtitle !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Subtitle</label>
-                          <input value={slide.subtitle || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], subtitle: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.section !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Section Label</label>
-                          <input value={slide.section || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], section: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.body !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Body (Markdown)</label>
-                          <textarea value={slide.body || ""} rows={5} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], body: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)] font-mono" />
-                        </div>
-                      )}
-                      {slide.quote !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Quote</label>
-                          <input value={slide.quote || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], quote: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)] italic" />
-                        </div>
-                      )}
-                      {slide.brand !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brand</label>
-                          <input value={slide.brand || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], brand: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.image_url !== undefined && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Image URL</label>
-                          <input value={slide.image_url || ""} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], image_url: e.target.value }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.points && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Points</label>
-                          {slide.points.map((point, pi) => {
-                            const isObj = typeof point === "object";
-                            return (
-                              <div key={pi} className="flex gap-2 mb-2">
-                                <span className="text-xs text-hint font-mono mt-2 w-6">{String(pi+1).padStart(2,"0")}</span>
-                                {isObj ? (
-                                  <div className="flex-1 space-y-1">
-                                    <input value={point.heading || ""} placeholder="Heading" onChange={e => {
-                                      const s = [...editSlides]; const pts = [...s[idx].points]; pts[pi] = { ...pts[pi], heading: e.target.value }; s[idx] = { ...s[idx], points: pts }; setEditSlides(s);
-                                    }} className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold" />
-                                    <input value={point.description || ""} placeholder="Description" onChange={e => {
-                                      const s = [...editSlides]; const pts = [...s[idx].points]; pts[pi] = { ...pts[pi], description: e.target.value }; s[idx] = { ...s[idx], points: pts }; setEditSlides(s);
-                                    }} className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                                  </div>
-                                ) : (
-                                  <input value={point} placeholder="Point" onChange={e => {
-                                    const s = [...editSlides]; const pts = [...s[idx].points]; pts[pi] = e.target.value; s[idx] = { ...s[idx], points: pts }; setEditSlides(s);
-                                  }} className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {slide.takeaways && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Takeaways (one per line)</label>
-                          <textarea value={(slide.takeaways || []).join("\n")} rows={4} onChange={e => {
-                            const s = [...editSlides]; s[idx] = { ...s[idx], takeaways: e.target.value.split("\n") }; setEditSlides(s);
-                          }} className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                        </div>
-                      )}
-                      {slide.items && (
-                        <div>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Comparison Items</label>
-                          {slide.items.map((item, ii) => (
-                            <div key={ii} className="flex gap-2 mb-2">
-                              <input value={item.brand || ""} placeholder="Brand" onChange={e => {
-                                const s = [...editSlides]; const items = [...s[idx].items]; items[ii] = { ...items[ii], brand: e.target.value }; s[idx] = { ...s[idx], items }; setEditSlides(s);
-                              }} className="w-32 px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                              <input value={item.description || ""} placeholder="Description" onChange={e => {
-                                const s = [...editSlides]; const items = [...s[idx].items]; items[ii] = { ...items[ii], description: e.target.value }; s[idx] = { ...s[idx], items }; setEditSlides(s);
-                              }} className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex gap-2">
+                <button onClick={() => setView("present")} className="px-4 py-2 border border-main rounded-lg text-sm text-muted hover:text-main">Cancel</button>
+                <button onClick={saveEdits} disabled={saving} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                  {saving ? "Saving..." : "Save changes"}
+                </button>
               </div>
             </div>
+
+            <div className="mb-6">
+              <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Showcase Title</label>
+              <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+            </div>
+
+            <div className="space-y-4">
+              {editSlides.map((slide, idx) => (
+                <div key={idx} className="bg-surface border border-main rounded-xl p-5">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-hint font-mono">#{idx + 1}</span>
+                      <span className="text-[10px] text-accent uppercase font-semibold">{SLIDE_TYPES[slide.type] || slide.type}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      {idx > 0 && <button onClick={() => { const s = [...editSlides]; [s[idx-1],s[idx]]=[s[idx],s[idx-1]]; setEditSlides(s); }} className="text-xs text-muted hover:text-main px-2 py-1 rounded hover:bg-surface2">↑</button>}
+                      {idx < editSlides.length-1 && <button onClick={() => { const s = [...editSlides]; [s[idx],s[idx+1]]=[s[idx+1],s[idx]]; setEditSlides(s); }} className="text-xs text-muted hover:text-main px-2 py-1 rounded hover:bg-surface2">↓</button>}
+                      <button onClick={() => { if(confirm("Remove this slide?")) setEditSlides(editSlides.filter((_,i)=>i!==idx)); }} className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50">×</button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {["title","subtitle","section","client","objective","brand","image_url","media_url"].map(field => (
+                      slide[field] !== undefined && (
+                        <div key={field}>
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{field.replace(/_/g," ")}</label>
+                          <input value={slide[field] || ""} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],[field]:e.target.value}; setEditSlides(s); }}
+                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                        </div>
+                      )
+                    ))}
+                    {slide.body !== undefined && (
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Body (Markdown)</label>
+                        <textarea value={slide.body||""} rows={4} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],body:e.target.value}; setEditSlides(s); }}
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)] font-mono" />
+                      </div>
+                    )}
+                    {slide.findings && (
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Findings</label>
+                        {slide.findings.map((f, fi) => (
+                          <div key={fi} className="flex gap-2 mb-2 items-start">
+                            <span className="text-xs text-hint font-mono mt-2 w-6">{f.number || String(fi+1).padStart(2,"0")}</span>
+                            <div className="flex-1 space-y-1">
+                              <input value={f.heading||""} placeholder="Heading" onChange={e => { const s=[...editSlides]; const fs=[...s[idx].findings]; fs[fi]={...fs[fi],heading:e.target.value}; s[idx]={...s[idx],findings:fs}; setEditSlides(s); }}
+                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold" />
+                              <input value={f.summary||""} placeholder="Summary" onChange={e => { const s=[...editSlides]; const fs=[...s[idx].findings]; fs[fi]={...fs[fi],summary:e.target.value}; s[idx]={...s[idx],findings:fs}; setEditSlides(s); }}
+                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {slide.takeaways && (
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Takeaways (one per line)</label>
+                        <textarea value={(slide.takeaways||[]).join("\n")} rows={4} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],takeaways:e.target.value.split("\n")}; setEditSlides(s); }}
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </ProjectGuard>
-      </AuthGuard>
+        </div>
+      </ProjectGuard></AuthGuard>
     );
   }
 
@@ -667,384 +593,314 @@ Return JSON in this exact format:
      ═══════════════════════════════════════════ */
   if (view === "create") {
     return (
-      <AuthGuard>
-        <ProjectGuard>
-          <Nav />
-          <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-            {ToastEl}
-            <div className="max-w-2xl mx-auto p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <button onClick={() => setView("list")} className="text-muted hover:text-main text-lg">←</button>
-                <h1 className="text-xl font-bold text-main">New Creative Showcase</h1>
-              </div>
+      <AuthGuard><ProjectGuard><Nav />
+        <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+          {ToastEl}
+          <div className="max-w-2xl mx-auto p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setView("list")} className="text-muted hover:text-main text-lg">←</button>
+              <h1 className="text-xl font-bold text-main">New Creative Showcase</h1>
+            </div>
 
-              <div className="bg-surface border border-main rounded-xl p-6 space-y-5">
-                {/* Title */}
+            <div className="bg-surface border border-main rounded-xl p-6 space-y-5">
+              {/* Client & Objective */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Showcase Title (optional)</label>
-                  <input value={showcaseTitle} onChange={e => setShowcaseTitle(e.target.value)}
-                    placeholder="AI will generate a title if left empty"
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Client *</label>
+                  <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="E.g., Scotiabank"
                     className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
                 </div>
+                <div>
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Showcase Title</label>
+                  <input value={showcaseTitle} onChange={e => setShowcaseTitle(e.target.value)} placeholder="AI generates if empty"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
+              </div>
 
-                {/* Year range */}
-                <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Objective *</label>
+                <textarea value={objective} onChange={e => setObjective(e.target.value)} rows={2}
+                  placeholder="What should this showcase communicate? E.g., 'Show how UK fintechs are challenging traditional banks through emotional storytelling'"
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">
+                  Analyst Highlights <span className="text-hint font-normal">(optional — your team's observations for AI to weave in)</span>
+                </label>
+                <textarea value={analystHighlights} onChange={e => setAnalystHighlights(e.target.value)} rows={3}
+                  placeholder="E.g., 'Tide's manifesto approach is the strongest in market. Notice how RBC avoids SME language entirely. The freedom narrative is dominant but only Venn connects it to product.'"
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+              </div>
+
+              <div className="border-t border-main pt-5">
+                <p className="text-[10px] text-muted uppercase font-semibold mb-3">Filters</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
                     <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Year From</label>
                     <select value={yearFrom} onChange={e => setYearFrom(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
                       <option value="">All years</option>
-                      {["2020","2021","2022","2023","2024","2025","2026"].map(y => <option key={y} value={y}>{y}</option>)}
+                      {["2020","2021","2022","2023","2024","2025","2026"].map(y => <option key={y}>{y}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Year To</label>
                     <select value={yearTo} onChange={e => setYearTo(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
                       <option value="">All years</option>
-                      {["2020","2021","2022","2023","2024","2025","2026"].map(y => <option key={y} value={y}>{y}</option>)}
+                      {["2020","2021","2022","2023","2024","2025","2026"].map(y => <option key={y}>{y}</option>)}
                     </select>
                   </div>
                 </div>
 
-                {/* Brands */}
-                <div>
-                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">
-                    Brands {selectedBrands.length > 0 && `(${selectedBrands.length} selected)`}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 p-2 bg-surface border border-main rounded-lg min-h-[40px]">
-                    {allBrands.length === 0 && <span className="text-xs text-hint">No brands found in entries</span>}
-                    {allBrands.map(b => {
-                      const sel = selectedBrands.includes(b);
-                      return (
-                        <button key={b} onClick={() => {
-                          setSelectedBrands(sel ? selectedBrands.filter(x => x !== b) : [...selectedBrands, b]);
-                        }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
-                          sel ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"
-                        }`}>{b}</button>
-                      );
-                    })}
+                <div className="mb-4">
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brands {selectedBrands.length > 0 && `(${selectedBrands.length})`}</label>
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-surface border border-main rounded-lg min-h-[36px]">
+                    {allBrands.length === 0 && <span className="text-xs text-hint">No brands found</span>}
+                    {allBrands.map(b => (
+                      <button key={b} onClick={() => setSelectedBrands(selectedBrands.includes(b) ? selectedBrands.filter(x=>x!==b) : [...selectedBrands,b])}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${selectedBrands.includes(b) ? "text-white" : "bg-surface2 text-muted hover:text-main"}`}
+                        style={selectedBrands.includes(b) ? {backgroundColor:KD.electric} : {}}>{b}</button>
+                    ))}
                   </div>
-                  <p className="text-[10px] text-hint mt-1">Leave empty to include all brands</p>
                 </div>
 
-                {/* Countries */}
                 {allCountries.length > 0 && (
-                  <div>
-                    <label className="block text-[10px] text-muted uppercase font-semibold mb-1">
-                      Markets {selectedCountries.length > 0 && `(${selectedCountries.length} selected)`}
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 p-2 bg-surface border border-main rounded-lg min-h-[40px]">
-                      {allCountries.map(c => {
-                        const sel = selectedCountries.includes(c);
-                        return (
-                          <button key={c} onClick={() => {
-                            setSelectedCountries(sel ? selectedCountries.filter(x => x !== c) : [...selectedCountries, c]);
-                          }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
-                            sel ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"
-                          }`}>{c}</button>
-                        );
-                      })}
+                  <div className="mb-4">
+                    <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Markets {selectedCountries.length > 0 && `(${selectedCountries.length})`}</label>
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-surface border border-main rounded-lg min-h-[36px]">
+                      {allCountries.map(c => (
+                        <button key={c} onClick={() => setSelectedCountries(selectedCountries.includes(c) ? selectedCountries.filter(x=>x!==c) : [...selectedCountries,c])}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${selectedCountries.includes(c) ? "text-white" : "bg-surface2 text-muted hover:text-main"}`}
+                          style={selectedCountries.includes(c) ? {backgroundColor:KD.electric} : {}}>{c}</button>
+                      ))}
                     </div>
-                    <p className="text-[10px] text-hint mt-1">Leave empty to include all markets</p>
                   </div>
                 )}
-
-                {/* Generate button */}
-                <button onClick={generateShowcase} disabled={generating}
-                  className="w-full py-3 text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
-                  style={{ backgroundColor: "#0019FF" }}>
-                  {generating ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      Generating showcase...
-                    </span>
-                  ) : "Generate Showcase"}
-                </button>
               </div>
+
+              <div className="bg-surface2 rounded-lg p-3">
+                <p className="text-[10px] text-muted mb-1 font-semibold">OUTPUT STRUCTURE (10 slides)</p>
+                <p className="text-[10px] text-hint">1 Title → 1 Key Findings → 6 Individual Findings → 1 Takeaways → 1 Closing</p>
+              </div>
+
+              <button onClick={generateShowcase} disabled={generating}
+                className="w-full py-3 text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
+                style={{ backgroundColor: KD.electric }}>
+                {generating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    Generating 10-slide showcase...
+                  </span>
+                ) : "Generate Showcase"}
+              </button>
             </div>
           </div>
-        </ProjectGuard>
-      </AuthGuard>
+        </div>
+      </ProjectGuard></AuthGuard>
     );
   }
 
   /* ═══════════════════════════════════════════
-     LIST VIEW (DEFAULT)
+     LIST VIEW
      ═══════════════════════════════════════════ */
   return (
-    <AuthGuard>
-      <ProjectGuard>
-        <Nav />
-        <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-          {ToastEl}
-          <div className="max-w-4xl mx-auto p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h1 className="text-xl font-bold text-main">Creative Showcase</h1>
-                <p className="text-xs text-muted mt-1">Cinematic presentations powered by AI</p>
-              </div>
-              {canEdit && (
-                <button onClick={() => setView("create")}
-                  className="px-4 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90"
-                  style={{ backgroundColor: "#0019FF" }}>
-                  + New Showcase
-                </button>
-              )}
+    <AuthGuard><ProjectGuard><Nav />
+      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+        {ToastEl}
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-xl font-bold text-main">Creative Showcase</h1>
+              <p className="text-xs text-muted mt-1">Cinematic presentations powered by AI</p>
             </div>
+            {canEdit && (
+              <button onClick={() => setView("create")} className="px-4 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90"
+                style={{ backgroundColor: KD.electric }}>+ New Showcase</button>
+            )}
+          </div>
 
-            {loading ? (
-              <p className="text-hint text-center py-20">Loading showcases...</p>
-            ) : showcases.length === 0 ? (
-              <div className="text-center py-20 text-hint">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ backgroundColor: "#0a0f3c" }}>
-                  <span className="text-white text-xl font-bold">K</span>
-                </div>
-                <p className="text-lg mb-2">No showcases yet</p>
-                <p className="text-sm">{canEdit ? "Create your first creative showcase" : "No showcases have been created for this project yet"}</p>
+          {loading ? (
+            <p className="text-hint text-center py-20">Loading...</p>
+          ) : showcases.length === 0 ? (
+            <div className="text-center py-20 text-hint">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ backgroundColor: KD.navy }}>
+                <span className="text-white text-xl font-bold">K</span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {showcases.map(sc => (
-                  <div key={sc.id} onClick={() => openShowcase(sc)}
-                    className="bg-surface border border-main rounded-xl overflow-hidden hover:border-[var(--accent)] transition cursor-pointer group">
-                    {/* Preview header — K&D navy */}
-                    <div className="p-6 relative overflow-hidden" style={{ backgroundColor: "#0a0f3c" }}>
-                      <div className="absolute top-3 left-3 flex flex-col gap-0 opacity-20">
-                        {["K","N","O","T","S"].map((l,i) => <span key={i} className="text-white text-[8px] font-bold leading-[1.3]">{l}</span>)}
-                      </div>
-                      <div className="ml-6">
-                        <h3 className="text-white font-bold text-lg group-hover:text-blue-200 transition">{sc.title}</h3>
-                        <p className="text-white/40 text-xs mt-1">{(sc.slides || []).length} slides</p>
-                      </div>
+              <p className="text-lg mb-2">No showcases yet</p>
+              <p className="text-sm">{canEdit ? "Create your first creative showcase" : "No showcases available"}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {showcases.map(sc => (
+                <div key={sc.id} onClick={() => openShowcase(sc)}
+                  className="bg-surface border border-main rounded-xl overflow-hidden hover:border-[var(--accent)] transition cursor-pointer group">
+                  <div className="p-6 relative overflow-hidden" style={{ backgroundColor: KD.navy }}>
+                    <div className="absolute top-3 left-3 flex flex-col gap-0 opacity-15">
+                      {["K","N","O","T","S"].map((l,i) => <span key={i} className="text-white text-[7px] font-bold leading-[1.3]">{l}</span>)}
                     </div>
-                    <div className="px-5 py-3 flex justify-between items-center">
-                      <div>
-                        <p className="text-[10px] text-hint">
-                          {sc.created_by} · {new Date(sc.created_at).toLocaleDateString()}
+                    <div className="ml-5">
+                      <h3 className="text-white font-bold text-lg group-hover:text-blue-200 transition">{sc.title}</h3>
+                      <p className="text-white/40 text-xs mt-1">{(sc.slides||[]).length} slides</p>
+                      {sc.filters?.client && <p className="text-white/25 text-[10px] mt-2 uppercase tracking-wider">{sc.filters.client}</p>}
+                    </div>
+                  </div>
+                  <div className="px-5 py-3 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] text-hint">{sc.created_by} · {new Date(sc.created_at).toLocaleDateString()}</p>
+                      {sc.filters && (
+                        <p className="text-[10px] text-muted mt-0.5">
+                          {[sc.filters.brands?.length ? `${sc.filters.brands.length} brands` : null,
+                            sc.filters.yearFrom || sc.filters.yearTo ? `${sc.filters.yearFrom||"?"} – ${sc.filters.yearTo||"?"}` : null,
+                          ].filter(Boolean).join(" · ") || "All entries"}
                         </p>
-                        {sc.filters && (
-                          <p className="text-[10px] text-muted mt-0.5">
-                            {[
-                              sc.filters.brands?.length ? `${sc.filters.brands.length} brands` : null,
-                              sc.filters.yearFrom || sc.filters.yearTo ? `${sc.filters.yearFrom || "?"} – ${sc.filters.yearTo || "?"}` : null,
-                            ].filter(Boolean).join(" · ") || "All entries"}
-                          </p>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/showcase/${sc.id}`); showToast("Link copied!"); }}
+                        className="text-xs text-muted hover:text-main px-2 py-1 rounded hover:bg-surface2">Share</button>
                       {canEdit && (
                         <button onClick={(e) => deleteShowcase(sc.id, e)}
-                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition">
-                          Delete
-                        </button>
+                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50">Delete</button>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </ProjectGuard>
-    </AuthGuard>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   SLIDE RENDERER (K&D BRANDED)
-   ═══════════════════════════════════════════ */
-function SlideRenderer({ slide, theme, isDark, projectName }) {
-  const textColor = isDark ? "#ffffff" : "#0a0a0a";
-  const mutedColor = isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)";
-  const faintColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)";
-
-  const mdComponents = {
-    p: ({ children }) => <p className="text-lg leading-relaxed mb-3" style={{ color: mutedColor }}>{children}</p>,
-    strong: ({ children }) => <strong className="font-semibold" style={{ color: textColor }}>{children}</strong>,
-    em: ({ children }) => <em className="italic" style={{ color: mutedColor, fontFamily: "Georgia, serif" }}>{children}</em>,
-    ul: ({ children }) => <ul className="space-y-2 mb-4">{children}</ul>,
-    li: ({ children }) => <li className="text-base flex gap-3" style={{ color: mutedColor }}>
-      <span style={{ color: theme.accent }}>•</span><span>{children}</span>
-    </li>,
-    h3: ({ children }) => <h3 className="text-xl font-semibold mb-2 mt-4" style={{ color: textColor }}>{children}</h3>,
-  };
-
-  switch (slide.type) {
-    case "title":
-      return (
-        <div className="py-12 animate-fadeIn">
-          {slide.section && (
-            <p className="text-xs uppercase tracking-[0.3em] mb-6 font-medium" style={{ color: faintColor }}>
-              {slide.section}
-            </p>
-          )}
-          <div className="flex items-center gap-6 mb-8">
-            <p className="text-sm italic" style={{ color: faintColor, fontFamily: "Georgia, serif" }}>presents</p>
-            <p className="text-sm uppercase tracking-widest font-semibold" style={{ color: mutedColor }}>
-              {projectName}
-            </p>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-tight leading-[0.95] mb-8"
-            style={{ color: textColor }}>
-            {slide.title}
-          </h1>
-          {slide.subtitle && (
-            <p className="text-xl max-w-2xl leading-relaxed" style={{ color: mutedColor }}>{slide.subtitle}</p>
-          )}
-        </div>
-      );
-
-    case "insight":
-      return (
-        <div className="flex gap-12 items-center animate-fadeIn">
-          <div className="flex-1">
-            {slide.brand && (
-              <p className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-6" style={{ color: faintColor }}>
-                {slide.brand}
-              </p>
-            )}
-            <h2 className="text-3xl md:text-5xl font-bold uppercase leading-[1.05] mb-8"
-              style={{ color: textColor }}>
-              {slide.title}
-            </h2>
-            <div className="w-16 h-0.5 mb-6" style={{ backgroundColor: theme.accent, opacity: 0.5 }} />
-            <div className="prose max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{slide.body || ""}</Markdown>
-            </div>
-          </div>
-          {slide.image_url && (
-            <div className="w-80 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl" style={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` }}>
-              <img src={slide.image_url} alt="" className="w-full h-auto object-contain max-h-[65vh]" onError={e => e.target.style.display = "none"} />
-            </div>
-          )}
-        </div>
-      );
-
-    case "spotlight":
-      return (
-        <div className="flex gap-0 items-stretch animate-fadeIn" style={{ margin: "0 -48px" }}>
-          {/* Left half */}
-          <div className="flex-1 pr-12 pl-12 flex flex-col justify-center">
-            {slide.brand && (
-              <p className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-4" style={{ color: faintColor }}>
-                {slide.brand}
-              </p>
-            )}
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-6" style={{ color: textColor }}>
-              {slide.title}
-            </h2>
-            {slide.quote && (
-              <>
-                <p className="text-xl italic leading-relaxed mb-2" style={{ color: theme.accent, fontFamily: "Georgia, serif" }}>
-                  {slide.quote}
-                </p>
-                <DottedLine color={textColor} opacity={0.15} className="my-6" />
-              </>
-            )}
-            <div className="prose max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{slide.body || ""}</Markdown>
-            </div>
-          </div>
-          {/* Right half — image */}
-          {slide.image_url && (
-            <div className="w-[45%] flex-shrink-0 relative">
-              <img src={slide.image_url} alt="" className="w-full h-full object-cover" style={{ minHeight: "50vh" }} onError={e => e.target.style.display = "none"} />
-              <div className="absolute inset-0" style={{ background: `linear-gradient(to right, ${theme.bg} 0%, transparent 20%)` }} />
-            </div>
-          )}
-        </div>
-      );
-
-    case "trend":
-      return (
-        <div className="animate-fadeIn">
-          <p className="text-sm mb-4" style={{ color: mutedColor }}>{slide.body || ""}</p>
-          <h2 className="text-2xl md:text-3xl font-bold uppercase mb-10" style={{ color: textColor }}>
-            {slide.title}
-          </h2>
-          {slide.points && (
-            <div className={`grid gap-6 ${slide.points.length <= 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-4"}`}>
-              {slide.points.map((point, i) => {
-                const isObj = typeof point === "object";
-                const heading = isObj ? point.heading : point;
-                const desc = isObj ? point.description : null;
-                return (
-                  <div key={i}>
-                    <span className="text-3xl font-bold mb-3 block" style={{ color: textColor }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <h4 className="text-lg font-bold leading-snug mb-3" style={{ color: textColor }}>
-                      {heading}
-                    </h4>
-                    <div className="w-full h-0.5 mb-3" style={{ backgroundColor: textColor, opacity: 0.8 }} />
-                    {desc && <p className="text-sm leading-relaxed" style={{ color: mutedColor }}>{desc}</p>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-
-    case "comparison":
-      return (
-        <div className="animate-fadeIn">
-          <h2 className="text-3xl md:text-4xl font-bold uppercase mb-4" style={{ color: textColor }}>
-            {slide.title}
-          </h2>
-          {slide.body && (
-            <div className="prose max-w-none mb-8">
-              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{slide.body}</Markdown>
-            </div>
-          )}
-          {slide.items && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {slide.items.map((item, i) => (
-                <div key={i} className="rounded-lg p-5" style={{
-                  backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-                  border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-                }}>
-                  {item.image_url && (
-                    <div className="w-full rounded-lg overflow-hidden mb-3">
-                      <img src={item.image_url} alt="" className="w-full h-auto object-contain max-h-40" onError={e => e.target.style.display = "none"} />
-                    </div>
-                  )}
-                  <h4 className="font-bold text-lg mb-2" style={{ color: textColor }}>{item.brand}</h4>
-                  <div className="w-8 h-0.5 mb-2" style={{ backgroundColor: theme.accent }} />
-                  <p className="text-sm" style={{ color: mutedColor }}>{item.description}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
-      );
+      </div>
+    </ProjectGuard></AuthGuard>
+  );
+}
 
-    case "summary":
+/* ═══════════════════════════════════════════
+   SLIDE RENDERER
+   ═══════════════════════════════════════════ */
+function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
+  const t = theme.text;
+  const m = theme.isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)";
+  const f = theme.isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)";
+
+  const mdC = {
+    p: ({ children }) => <p className="text-base leading-relaxed mb-3" style={{ color: m }}>{children}</p>,
+    strong: ({ children }) => <strong className="font-semibold" style={{ color: t }}>{children}</strong>,
+    em: ({ children }) => <em className="italic" style={{ color: m, fontFamily: "Georgia, serif" }}>{children}</em>,
+    ul: ({ children }) => <ul className="space-y-1.5 mb-3">{children}</ul>,
+    li: ({ children }) => <li className="text-sm flex gap-2" style={{ color: m }}><span style={{ color: theme.accent }}>•</span><span>{children}</span></li>,
+  };
+
+  // Clickable media thumbnail
+  const MediaThumb = ({ imageUrl, mediaUrl, mediaType, className = "" }) => {
+    const src = imageUrl || mediaUrl;
+    if (!src) return null;
+    const isVideo = mediaType === "Video" || /youtube|youtu\.be/i.test(mediaUrl || "");
+    return (
+      <div className={`relative cursor-pointer group/media rounded-lg overflow-hidden ${className}`}
+        onClick={() => onMediaClick({ src: mediaUrl || imageUrl, type: isVideo ? "Video" : "Image" })}
+        style={{ border: `1px solid ${theme.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}>
+        <img src={imageUrl || `https://img.youtube.com/vi/${(mediaUrl||"").match(/(?:v=|youtu\.be\/)([\w-]+)/)?.[1]}/hqdefault.jpg`}
+          alt="" className="w-full h-auto object-contain max-h-[55vh]" onError={e => e.target.style.display = "none"} />
+        {/* Play button overlay for videos */}
+        {isVideo && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/media:bg-black/20 transition">
+            <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
+            </div>
+          </div>
+        )}
+        {/* Zoom hint for images */}
+        {!isVideo && (
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover/media:opacity-100 transition bg-black/60 text-white text-[9px] px-2 py-1 rounded">
+            Click to expand
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  switch (slide.type) {
+    case "title":
       return (
         <div className="py-8 animate-fadeIn">
-          <h2 className="text-3xl md:text-5xl font-bold uppercase mb-12" style={{ color: textColor }}>
+          <p className="text-[10px] uppercase tracking-[0.3em] mb-3 font-medium" style={{ color: f }}>
+            {slide.client || projectName}
+          </p>
+          <div className="flex items-center gap-4 mb-8">
+            <p className="text-sm italic" style={{ color: f, fontFamily: "Georgia, serif" }}>presents</p>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-tight leading-[0.95] mb-6" style={{ color: t }}>
             {slide.title}
-          </h2>
-          <div className="max-w-3xl space-y-5">
-            {(slide.takeaways || []).map((t, i) => (
-              <div key={i} className="flex items-start gap-5">
-                <span className="text-2xl font-bold flex-shrink-0 w-10" style={{ color: theme.accent }}>
-                  {String(i + 1).padStart(2, "0")}
-                </span>
+          </h1>
+          {slide.subtitle && <p className="text-lg max-w-2xl leading-relaxed" style={{ color: m }}>{slide.subtitle}</p>}
+          {slide.objective && (
+            <p className="text-sm italic mt-8 max-w-xl" style={{ color: f, fontFamily: "Georgia, serif" }}>{slide.objective}</p>
+          )}
+        </div>
+      );
+
+    case "key_findings":
+      const findings = slide.findings || [];
+      return (
+        <div className="animate-fadeIn">
+          <p className="text-sm mb-3" style={{ color: m }}>{slide.body || ""}</p>
+          <h2 className="text-2xl font-bold uppercase mb-8" style={{ color: t }}>{slide.title || "Key Findings"}</h2>
+          <div className={`grid gap-6 ${findings.length <= 3 ? "grid-cols-1 md:grid-cols-3" : findings.length <= 4 ? "grid-cols-1 md:grid-cols-4" : "grid-cols-1 md:grid-cols-3"}`}>
+            {findings.map((fi, i) => (
+              <div key={i}>
+                <span className="text-3xl font-bold block mb-2" style={{ color: t }}>{fi.number || String(i+1).padStart(2,"0")}</span>
+                <h4 className="text-base font-bold leading-snug mb-2" style={{ color: t }}>{fi.heading}</h4>
+                <div className="w-full h-0.5 mb-2" style={{ backgroundColor: t, opacity: 0.7 }} />
+                <p className="text-xs leading-relaxed" style={{ color: m }}>{fi.summary}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "finding":
+      return (
+        <div className="flex gap-10 items-center animate-fadeIn">
+          <div className="flex-1">
+            {slide.brand && <p className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-4" style={{ color: f }}>{slide.brand}</p>}
+            <h2 className="text-3xl md:text-4xl font-bold uppercase leading-[1.05] mb-5" style={{ color: t }}>{slide.title}</h2>
+            <div className="w-14 h-0.5 mb-5" style={{ backgroundColor: theme.accent, opacity: 0.5 }} />
+            <div className="prose max-w-none">
+              <Markdown remarkPlugins={[remarkGfm]} components={mdC}>{slide.body || ""}</Markdown>
+            </div>
+          </div>
+          <MediaThumb imageUrl={slide.image_url} mediaUrl={slide.media_url} mediaType={slide.media_type} className="w-80 flex-shrink-0" />
+        </div>
+      );
+
+    case "takeaways":
+      return (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl md:text-3xl font-bold uppercase mb-8" style={{ color: t }}>{slide.title || "Takeaways & Considerations"}</h2>
+          <div className="max-w-3xl space-y-4">
+            {(slide.takeaways || []).map((tk, i) => (
+              <div key={i} className="flex items-start gap-4">
+                <span className="text-xl font-bold flex-shrink-0 w-8" style={{ color: t, opacity: 0.3 }}>{String(i+1).padStart(2,"0")}</span>
                 <div>
-                  <p className="text-lg" style={{ color: textColor }}>{t}</p>
-                  {i < (slide.takeaways || []).length - 1 && (
-                    <div className="mt-5 border-t border-dotted" style={{ borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" }} />
-                  )}
+                  <p className="text-base leading-relaxed" style={{ color: t }}>{tk}</p>
+                  {i < (slide.takeaways||[]).length-1 && <div className="mt-4 border-t border-dotted" style={{ borderColor: t, opacity: 0.15 }} />}
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-16 flex items-center gap-4">
-            <div className="w-12 h-px" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
-            <p className="text-[10px] uppercase tracking-[0.3em]" style={{ color: faintColor }}>
-              A Knots &amp; Dots product
-            </p>
+        </div>
+      );
+
+    case "closing":
+      return (
+        <div className="py-8 animate-fadeIn">
+          <h2 className="text-4xl md:text-5xl font-bold uppercase leading-[1] mb-5" style={{ color: t }}>{slide.title}</h2>
+          {slide.subtitle && <p className="text-lg" style={{ color: m }}>{slide.subtitle}</p>}
+          <div className="mt-16 flex items-center gap-3">
+            <div className="w-10 h-px" style={{ backgroundColor: t, opacity: 0.15 }} />
+            <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: f }}>A Knots &amp; Dots product</p>
           </div>
         </div>
       );
@@ -1052,9 +908,9 @@ function SlideRenderer({ slide, theme, isDark, projectName }) {
     default:
       return (
         <div className="animate-fadeIn">
-          <h2 className="text-3xl font-bold uppercase mb-6" style={{ color: textColor }}>{slide.title || "Slide"}</h2>
+          <h2 className="text-3xl font-bold uppercase mb-4" style={{ color: t }}>{slide.title || ""}</h2>
           <div className="prose max-w-none">
-            <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{slide.body || ""}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]} components={mdC}>{slide.body || ""}</Markdown>
           </div>
         </div>
       );
