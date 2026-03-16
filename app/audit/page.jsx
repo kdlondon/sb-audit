@@ -667,6 +667,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                         Play the video and click <strong>Capture frame</strong> at the moments you want. Each click saves a still to your gallery.
                       </p>
                     )}
+                    {/* Filmstrip for captured stills */}
+                    {(cur.image_url||(cur.image_urls&&JSON.parse(cur.image_urls||"[]").length>0))&&(
+                      <div className="flex gap-2 items-center mt-3 px-2 overflow-x-auto pb-1">
+                        {[cur.image_url,...(cur.image_urls?JSON.parse(cur.image_urls||"[]"):[])].filter(Boolean).map((url,i)=>(
+                          <div key={i} className="relative group flex-shrink-0">
+                            <img src={url} onClick={()=>setZoomImg(url)}
+                              className="w-14 h-14 object-cover rounded cursor-pointer opacity-80 hover:opacity-100 transition border border-white/10" alt="" />
+                            {i>0&&<button onClick={()=>removeExtraImage(i-1)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button>}
+                          </div>
+                        ))}
+                        <span className="text-[9px] text-hint whitespace-nowrap">{[cur.image_url,...(cur.image_urls?JSON.parse(cur.image_urls||"[]"):[])].filter(Boolean).length} stills</span>
+                      </div>
+                    )}
                   </div>
                 )
                 :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<div className="w-full">
