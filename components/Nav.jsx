@@ -60,7 +60,7 @@ export default function Nav() {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearProject(); router.push("/projects"); }}>
           <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 20 }} />
-          <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.15em]">Groundwork</span>
+          <span className="text-[10px] font-bold text-white/60 uppercase tracking-[0.15em]">Groundwork</span>
         </div>
         <div className="border-l border-white/10 pl-4">
           <button onClick={() => router.push("/dashboard")} className="text-xs text-white/70 font-medium hover:text-white transition">
