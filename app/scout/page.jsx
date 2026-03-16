@@ -268,7 +268,7 @@ export default function ScoutPage() {
             const updates = {};
             const a = analysis.analysis;
             const fields = ["insight", "idea", "primary_territory", "secondary_territory",
-              "synopsis", "entry_door", "experience_reflected", "portrait", "richness_definition",
+              "synopsis", "communication_intent", "entry_door", "experience_reflected", "portrait", "richness_definition",
               "journey_phase", "client_lifecycle", "moment_acquisition", "moment_deepening",
               "moment_unexpected", "bank_role", "pain_point_type", "pain_point",
               "language_register", "main_vp", "brand_attributes", "emotional_benefit",

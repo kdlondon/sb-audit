@@ -116,6 +116,12 @@ function DashboardContent(){
   const archetypeCounts=count(data,"brand_archetype");
   const languageCounts=count(data,"language_register");
   const executionCounts=count(data,"execution_style");
+  const intentCounts=count(data,"communication_intent");
+  const INTENT_COLORS={Brand:"#0019FF",Product:"#059669",Innovation:"#d97706"};
+  // Intent by brand — normalized percentages
+  const intentByBrand={};data.forEach(e=>{const b=e.competitor||e.brand;const intent=e.communication_intent;if(!b||!intent)return;if(!intentByBrand[b])intentByBrand[b]={Brand:0,Product:0,Innovation:0,total:0};intentByBrand[b][intent]=(intentByBrand[b][intent]||0)+1;intentByBrand[b].total++;});
+  const intentNormalized=Object.entries(intentByBrand).map(([name,d])=>({name,Brand:Math.round((d.Brand/d.total)*100),Product:Math.round((d.Product/d.total)*100),Innovation:Math.round((d.Innovation/d.total)*100),total:d.total})).sort((a,b)=>b.total-a.total);
+
   const ratingByBrand={};data.forEach(e=>{const b=e.competitor||e.brand;if(!b||!e.rating)return;if(!ratingByBrand[b])ratingByBrand[b]={total:0,count:0};ratingByBrand[b].total+=Number(e.rating);ratingByBrand[b].count++;});
   const ratingData=Object.entries(ratingByBrand).map(([name,{total,count:c}])=>({name,value:Math.round((total/c)*10)/10})).sort((a,b)=>b.value-a.value);
 
@@ -173,6 +179,26 @@ function DashboardContent(){
             <Tooltip content={<CT/>}/><Bar dataKey="value" radius={[0,4,4,0]}>{brandCounts.map((e,i)=><Cell key={i} fill={COMPETITOR_COLORS[e.name]||COLORS[i%COLORS.length]}/>)}</Bar>
           </BarChart>
         </ChartCard>
+
+        {/* Communication Intent */}
+        {intentCounts.length>0&&(
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <PieCard title="Communication intent split" data={intentCounts.map(d=>({...d,fill:INTENT_COLORS[d.name]||COLORS[0]}))}/>
+            {intentNormalized.length>0&&(
+              <ChartCard title="Intent mix by brand (normalized %)" height={Math.max(200,intentNormalized.length*32)}>
+                <BarChart data={intentNormalized} layout="vertical" margin={{left:90,right:20}}>
+                  <XAxis type="number" domain={[0,100]} tick={{fontSize:10,fill:"var(--text3)"}} tickFormatter={v=>v+"%"}/>
+                  <YAxis type="category" dataKey="name" tick={{fontSize:11,fill:"var(--text)"}} width={85}/>
+                  <Tooltip formatter={(v)=>v+"%"}/>
+                  <Bar dataKey="Brand" stackId="a" fill="#0019FF" radius={[0,0,0,0]}/>
+                  <Bar dataKey="Product" stackId="a" fill="#059669" radius={[0,0,0,0]}/>
+                  <Bar dataKey="Innovation" stackId="a" fill="#d97706" radius={[0,4,4,0]}/>
+                  <Legend wrapperStyle={{fontSize:11}}/>
+                </BarChart>
+              </ChartCard>
+            )}
+          </div>
+        )}
 
         {/* OUR RESEARCH FRAMEWORKS */}
         {/* Portraits */}
@@ -264,6 +290,9 @@ function DashboardContent(){
 
         {/* Portrait × Tone */}
         <Heatmap data={data} rowKey="portrait" colKey="tone_of_voice" title="Portrait × tone of voice" subtitle="How do competitors speak to each founder type?"/>
+
+        {/* Intent × Brand */}
+        <Heatmap data={data} rowKey={data[0]?.competitor?"competitor":"brand"} colKey="communication_intent" title="Communication intent by brand" subtitle="Brand building vs Product selling vs Innovation — who does what?"/>
       </div>
     </div>
   );
