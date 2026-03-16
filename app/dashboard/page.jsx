@@ -18,10 +18,11 @@ async function downloadChartAsPNG(element, filename) {
   link.click();
 }
 
-const COLORS=["#2563eb","#7c3aed","#059669","#dc2626","#0ea5e9","#d97706","#14b8a6","#ec4899","#6366f1","#84cc16","#f97316","#06b6d4"];
-const PORTRAIT_COLORS={Dreamer:"#7c3aed",Builder:"#059669",Sovereign:"#d97706",Architect:"#2563eb"};
-const DOOR_COLORS={Freedom:"#0ea5e9",Craft:"#059669",Identity:"#d97706","Build to Exit":"#dc2626"};
-const PHASE_COLORS={Existential:"#dc2626",Validation:"#d97706",Complexity:"#2563eb",Consolidation:"#059669"};
+// Pastel K&D palette
+const COLORS=["#7B9BF4","#B8A9E8","#7DCFB6","#F4A7A7","#82CCE5","#E8C87D","#7DD4C8","#E8A0C8","#9B9BF0","#B8D97D","#F0B87D","#7DD4E8"];
+const PORTRAIT_COLORS={Dreamer:"#B8A9E8",Builder:"#7DCFB6",Sovereign:"#E8C87D",Architect:"#7B9BF4"};
+const DOOR_COLORS={Freedom:"#82CCE5",Craft:"#7DCFB6",Identity:"#E8C87D","Build to Exit":"#F4A7A7"};
+const PHASE_COLORS={Existential:"#F4A7A7",Validation:"#E8C87D",Complexity:"#7B9BF4",Consolidation:"#7DCFB6"};
 
 function count(arr,key){const c={};arr.forEach(e=>{const v=e[key];if(v&&!v.startsWith("Not ")&&!v.startsWith("None")&&v!=="")c[v]=(c[v]||0)+1;});return Object.entries(c).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);}
 
@@ -37,7 +38,7 @@ function Heatmap({data,rowKey,colKey,title,subtitle}){
       <button onClick={download} className="opacity-0 group-hover:opacity-100 transition text-[9px] text-muted hover:text-main px-2 py-1 rounded border border-main hover:bg-surface2" title="Download as PNG">PNG ↓</button>
     </div>
     <div className="overflow-x-auto"><table className="text-xs border-collapse w-full"><thead><tr><th className="px-3 py-2 text-left text-muted font-medium"></th>{cols.map(c=><th key={c} className="px-3 py-2 text-center text-muted font-medium" style={{minWidth:70,fontSize:10}}>{c}</th>)}</tr></thead>
-    <tbody>{rows.map(r=>(<tr key={r}><td className="px-3 py-2 text-main font-medium whitespace-nowrap" style={{fontSize:11}}>{r}</td>{cols.map(c=>{const v=grid[`${r}__${c}`]||0;const i=v/max;return(<td key={c} className="px-3 py-2 text-center" style={{background:v>0?`rgba(37,99,235,${0.1+i*0.6})`:"transparent",color:i>0.5?"#fff":"var(--text2)",borderRadius:4,fontSize:11,fontWeight:v>0?600:400}}>{v||"·"}</td>);})}</tr>))}</tbody></table></div>
+    <tbody>{rows.map(r=>(<tr key={r}><td className="px-3 py-2 text-main font-medium whitespace-nowrap" style={{fontSize:11}}>{r}</td>{cols.map(c=>{const v=grid[`${r}__${c}`]||0;const i=v/max;return(<td key={c} className="px-3 py-2 text-center" style={{background:v>0?`rgba(123,155,244,${0.15+i*0.65})`:"transparent",color:i>0.5?"#fff":"var(--text2)",borderRadius:4,fontSize:11,fontWeight:v>0?600:400}}>{v||"·"}</td>);})}</tr>))}</tbody></table></div>
   </div>);
 }
 
@@ -123,7 +124,7 @@ function DashboardContent(){
   const languageCounts=count(data,"language_register");
   const executionCounts=count(data,"execution_style");
   const intentCounts=count(data,"communication_intent");
-  const INTENT_COLORS={Brand:"#0019FF",Product:"#059669",Innovation:"#d97706","Beyond Banking":"#7c3aed"};
+  const INTENT_COLORS={Brand:"#7B9BF4",Product:"#7DCFB6",Innovation:"#E8C87D","Beyond Banking":"#B8A9E8"};
   // Intent by brand — normalized percentages
   const intentByBrand={};data.forEach(e=>{const b=e.competitor||e.brand;const intent=e.communication_intent;if(!b||!intent)return;if(!intentByBrand[b])intentByBrand[b]={Brand:0,Product:0,Innovation:0,"Beyond Banking":0,total:0};intentByBrand[b][intent]=(intentByBrand[b][intent]||0)+1;intentByBrand[b].total++;});
   const intentNormalized=Object.entries(intentByBrand).map(([name,d])=>({name,Brand:Math.round((d.Brand/d.total)*100),Product:Math.round((d.Product/d.total)*100),Innovation:Math.round((d.Innovation/d.total)*100),"Beyond Banking":Math.round((d["Beyond Banking"]/d.total)*100),total:d.total})).sort((a,b)=>b.total-a.total);
@@ -201,10 +202,10 @@ function DashboardContent(){
                   <XAxis type="number" domain={[0,100]} tick={{fontSize:10,fill:"var(--text3)"}} tickFormatter={v=>v+"%"}/>
                   <YAxis type="category" dataKey="name" tick={{fontSize:11,fill:"var(--text)"}} width={85}/>
                   <Tooltip formatter={(v)=>v+"%"}/>
-                  <Bar dataKey="Brand" stackId="a" fill="#0019FF" radius={[0,0,0,0]}/>
-                  <Bar dataKey="Product" stackId="a" fill="#059669" radius={[0,0,0,0]}/>
-                  <Bar dataKey="Innovation" stackId="a" fill="#d97706" radius={[0,0,0,0]}/>
-                  <Bar dataKey="Beyond Banking" stackId="a" fill="#7c3aed" radius={[0,4,4,0]}/>
+                  <Bar dataKey="Brand" stackId="a" fill="#7B9BF4" radius={[0,0,0,0]}/>
+                  <Bar dataKey="Product" stackId="a" fill="#7DCFB6" radius={[0,0,0,0]}/>
+                  <Bar dataKey="Innovation" stackId="a" fill="#E8C87D" radius={[0,0,0,0]}/>
+                  <Bar dataKey="Beyond Banking" stackId="a" fill="#B8A9E8" radius={[0,4,4,0]}/>
                   <Legend wrapperStyle={{fontSize:11}}/>
                 </BarChart>
               </ChartCard>
