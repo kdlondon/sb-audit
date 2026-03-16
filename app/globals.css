@@ -3,33 +3,39 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f7f8fa;
+  --bg: #f5f4f0;
   --surface: #ffffff;
-  --surface2: #f1f5f9;
-  --border: #e2e5e9;
-  --text: #111827;
-  --text2: #6b7280;
-  --text3: #9ca3af;
-  --accent: #2563eb;
-  --accent-soft: #eff6ff;
+  --surface2: #efeee9;
+  --border: #ddd9d0;
+  --text: #0a0f3c;
+  --text2: #5a5e7a;
+  --text3: #8e90a6;
+  --accent: #0019FF;
+  --accent-soft: #eef0ff;
+  --navy: #0a0f3c;
+  --chartreuse: #D4E520;
 }
 
 .dark {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #232733;
-  --border: #2e3240;
-  --text: #e5e7eb;
-  --text2: #9ca3af;
-  --text3: #6b7280;
-  --accent: #3b82f6;
-  --accent-soft: #1e2a4a;
+  --bg: #0a0d14;
+  --surface: #12151f;
+  --surface2: #1a1e2c;
+  --border: #262a3a;
+  --text: #e8e6f0;
+  --text2: #9094b0;
+  --text3: #5c6080;
+  --accent: #4060ff;
+  --accent-soft: #151a35;
+  --navy: #0a0f3c;
+  --chartreuse: #D4E520;
 }
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 select, input, textarea, button { font-family: inherit; }
@@ -43,6 +49,11 @@ select, input, textarea, button { font-family: inherit; }
 .bg-accent { background: var(--accent); }
 .bg-accent-soft { background: var(--accent-soft); }
 .text-accent { color: var(--accent); }
+
+/* Smooth transitions on interactive elements */
+a, button, input, select, textarea {
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(12px); }
@@ -73,3 +84,15 @@ select, input, textarea, button { font-family: inherit; }
 .slide-enter > *:nth-child(4) { animation-delay: 0.24s; }
 .slide-enter > *:nth-child(5) { animation-delay: 0.32s; }
 .slide-enter > *:nth-child(6) { animation-delay: 0.4s; }
+
+/* Focus styles — K&D accent */
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }

@@ -120,15 +120,15 @@ export default function ProjectsPage() {
     <AuthGuard>
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         {/* HEADER */}
-        <div className="bg-surface border-b border-main px-6 py-4 flex justify-between items-center">
+        <div className="px-6 py-4 flex justify-between items-center" style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-3">
-            <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 28 }} />
+            <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 22, filter: "brightness(10)" }} />
             <div>
-              <p className="text-sm font-semibold text-main">Groundwork</p>
-              <p className="text-[10px] text-muted">Select a project to continue</p>
+              <p className="text-sm font-semibold text-white">Groundwork</p>
+              <p className="text-[10px] text-white/40">Select a project to continue</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="text-xs text-hint hover:text-muted">Sign out</button>
+          <button onClick={handleLogout} className="text-[11px] text-white/25 hover:text-white/50 transition">Sign out</button>
         </div>
 
         <div className="max-w-3xl mx-auto p-8">
