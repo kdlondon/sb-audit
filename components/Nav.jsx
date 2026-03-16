@@ -11,6 +11,7 @@ const allTabs = [
   { name: "Reports", href: "/reports", module: "reports" },
   { name: "Chat", href: "/chat", module: "chat" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
+  { name: "Scout", href: "/scout", module: "scout" },
   { name: "Settings", href: "/settings", module: "settings" },
   { name: "Users", href: "/users", module: "users" },
 ];
