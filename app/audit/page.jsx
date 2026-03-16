@@ -860,13 +860,21 @@ export default function AuditPage(){
     if(typeof window==="undefined")return;
     const params=new URLSearchParams(window.location.search);
     const s=params.get("scope");
-    const add=params.get("add");
     if(s&&(s==="local"||s==="global")){
       handleAddWithScope(s);
-      // Clean URL without reload
       window.history.replaceState({},"","/audit");
     }
   },[]);
+
+  // Listen for custom "openAddForm" event from Nav (when already on /audit)
+  useEffect(()=>{
+    const handler=(e)=>{
+      const s=e.detail?.scope||"local";
+      handleAddWithScope(s);
+    };
+    window.addEventListener("openAddForm",handler);
+    return()=>window.removeEventListener("openAddForm",handler);
+  },[scope]);
 
   return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} key={scope}/></ProjectGuard></AuthGuard>);
 }

@@ -101,10 +101,14 @@ export default function Nav() {
               </button>
               {addMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 bg-surface border border-main rounded-xl shadow-2xl overflow-hidden animate-fadeIn" style={{ zIndex: 99999 }}>
-                  <button onClick={() => { setAddMenuOpen(false); window.location.href = "/audit?scope=local&add=1"; }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition border-b border-main">Local entry</button>
-                  <button onClick={() => { setAddMenuOpen(false); window.location.href = "/audit?scope=global&add=1"; }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition">Global entry</button>
+                  <button onClick={() => { setAddMenuOpen(false);
+                    if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"local"}}));}
+                    else{window.location.href="/audit?scope=local&add=1";}
+                  }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition border-b border-main">Local entry</button>
+                  <button onClick={() => { setAddMenuOpen(false);
+                    if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"global"}}));}
+                    else{window.location.href="/audit?scope=global&add=1";}
+                  }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition">Global entry</button>
                 </div>
               )}
             </div>
