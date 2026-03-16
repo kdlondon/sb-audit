@@ -91,6 +91,8 @@ export default function ScoutPage() {
 
   // Preview
   const [preview, setPreview] = useState(null); // { videoId, title }
+  // Transcripts per video (user can paste before import)
+  const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
 
   // Results
   const [videos, setVideos] = useState([]);
@@ -201,19 +203,22 @@ export default function ScoutPage() {
 
     for (let i = 0; i < toImport.length; i++) {
       const v = toImport[i];
-      setImportProgress({ current: i + 1, total: toImport.length, label: `Fetching transcript: ${v.title.slice(0, 40)}...` });
+      setImportProgress({ current: i + 1, total: toImport.length, label: `Processing: ${v.title.slice(0, 40)}...` });
 
-      // Fetch transcript
-      let transcript = "";
-      try {
-        const tRes = await fetch("/api/youtube-scout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "transcript", videoId: v.videoId }),
-        });
-        const tData = await tRes.json();
-        transcript = tData.transcript || "";
-      } catch {}
+      // Use user-provided transcript or try auto-fetch
+      let transcript = transcripts[v.videoId] || "";
+      if (!transcript) {
+        setImportProgress({ current: i + 1, total: toImport.length, label: `Fetching transcript: ${v.title.slice(0, 40)}...` });
+        try {
+          const tRes = await fetch("/api/youtube-scout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "transcript", videoId: v.videoId }),
+          });
+          const tData = await tRes.json();
+          transcript = tData.transcript || "";
+        } catch {}
+      }
 
       // Build entry
       const entry = {
@@ -495,6 +500,23 @@ export default function ScoutPage() {
                         <button onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}
                           className="text-[11px] text-accent hover:underline mt-1 inline-block">Watch video</button>
                         {isDuplicate && <p className="text-[10px] text-amber-500 font-medium mt-1">Already imported</p>}
+
+                        {/* Transcript area — shows when selected */}
+                        {isSelected && !isDuplicate && (
+                          <div className="mt-3 pt-3 border-t border-main" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label>
+                              <span className="text-[9px] text-hint">Paste here for better AI analysis</span>
+                            </div>
+                            <textarea
+                              value={transcripts[v.videoId] || ""}
+                              onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                              rows={3}
+                              placeholder="Paste the video transcript or ad copy here..."
+                              className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

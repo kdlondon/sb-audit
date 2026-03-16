@@ -100,9 +100,14 @@ a, button, input, select, textarea {
   z-index: 30;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  will-change: transform;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Force GPU layer for all sticky elements */
+[class*="sticky"] {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Focus styles — K&D accent */

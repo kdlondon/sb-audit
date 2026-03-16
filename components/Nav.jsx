@@ -51,7 +51,7 @@ export default function Nav() {
 
   return (
     <div className="px-5 py-2 flex items-center justify-between sticky top-0"
-      style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 100 }}>
+      style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 100, transform: "translateZ(0)" }}>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearProject(); router.push("/projects"); }}>
           <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 20 }} />

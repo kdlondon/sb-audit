@@ -83,13 +83,28 @@ const CT=({active,payload})=>{if(!active||!payload?.[0])return null;const d=payl
 
 function DashboardContent(){
   const[localData,setLocalData]=useState([]);const[globalData,setGlobalData]=useState([]);const[loading,setLoading]=useState(true);const[scope,setScope]=useState("all");
+  const[selectedBrands,setSelectedBrands]=useState([]);
+  const[brandFilterOpen,setBrandFilterOpen]=useState(false);
+  const brandFilterRef=useRef(null);
 
   const{projectId}=useProject();
   useEffect(()=>{(async()=>{const supabase=createClient();const[{data:local},{data:global}]=await Promise.all([supabase.from("audit_entries").select("*").eq("project_id",projectId),supabase.from("audit_global").select("*").eq("project_id",projectId)]);setLocalData(local||[]);setGlobalData(global||[]);setLoading(false);})();},[projectId]);
 
+  // Close brand filter on outside click
+  useEffect(()=>{
+    if(!brandFilterOpen)return;
+    const handler=(e)=>{if(brandFilterRef.current&&!brandFilterRef.current.contains(e.target))setBrandFilterOpen(false);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[brandFilterOpen]);
+
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
 
-  const data=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
+  const scopedData=scope==="local"?localData:scope==="global"?globalData:[...localData,...globalData];
+  // All brands for filter
+  const allBrands=[...new Set(scopedData.map(e=>e.competitor||e.brand).filter(Boolean))].sort();
+  // Apply brand filter
+  const data=selectedBrands.length>0?scopedData.filter(e=>{const b=e.competitor||e.brand;return b&&selectedBrands.includes(b);}):scopedData;
   const rated=data.filter(e=>e.rating);const avgRating=rated.length>0?(rated.reduce((s,e)=>s+Number(e.rating),0)/rated.length).toFixed(1):"—";
   const brands=[...new Set(data.map(e=>e.competitor||e.brand).filter(Boolean))];
   const brandCounts=count(data,data.some(e=>e.competitor)?"competitor":"brand");
@@ -109,8 +124,36 @@ function DashboardContent(){
   return(
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
       <div className="section-bar px-5 py-3 flex justify-between items-center">
-        <div><h2 className="text-lg font-bold text-main">Dashboard</h2><p className="text-xs text-muted">Data visualizations across your audit</p></div>
-        <div className="flex bg-surface2 rounded-lg p-0.5">{[["all","All"],["local","Local"],["global","Global"]].map(([k,l])=>(<button key={k} onClick={()=>setScope(k)} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div>
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-bold text-main">Dashboard</h2>
+          <div className="flex bg-surface2 rounded-lg p-0.5">{[["all","All"],["local","Local"],["global","Global"]].map(([k,l])=>(<button key={k} onClick={()=>setScope(k)} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Brand filter */}
+          <div className="relative" ref={brandFilterRef}>
+            <button onClick={()=>setBrandFilterOpen(!brandFilterOpen)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition flex items-center gap-1.5 ${selectedBrands.length>0?"border-[var(--accent)] bg-accent-soft text-accent":"border-main text-muted hover:text-main"}`}>
+              {selectedBrands.length>0?`${selectedBrands.length} brand${selectedBrands.length>1?"s":""}  selected`:"All brands"}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition ${brandFilterOpen?"rotate-180":""}`}><path d="M2 4l3 3 3-3"/></svg>
+            </button>
+            {brandFilterOpen&&(
+              <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-xl py-2 max-h-[300px] overflow-y-auto" style={{zIndex:50}}>
+                <div className="px-3 pb-2 mb-1 border-b border-main flex justify-between">
+                  <button onClick={()=>setSelectedBrands(allBrands)} className="text-[10px] text-accent hover:underline">Select all</button>
+                  <button onClick={()=>setSelectedBrands([])} className="text-[10px] text-muted hover:text-main">Clear</button>
+                </div>
+                {allBrands.map(b=>(
+                  <label key={b} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface2 cursor-pointer">
+                    <input type="checkbox" checked={selectedBrands.includes(b)}
+                      onChange={()=>setSelectedBrands(prev=>prev.includes(b)?prev.filter(x=>x!==b):[...prev,b])}
+                      className="rounded border-gray-300 text-accent"/>
+                    <span className="text-xs text-main">{b}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="p-5 max-w-5xl mx-auto space-y-4">
