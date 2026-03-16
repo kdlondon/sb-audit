@@ -54,6 +54,26 @@ function ScoreBadge({ score }) {
   );
 }
 
+/* ─── VIDEO PREVIEW MODAL ─── */
+function VideoPreview({ videoId, title, onClose }) {
+  if (!videoId) return null;
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center" onClick={onClose}>
+      <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>×</button>
+      <div className="w-[85vw] max-w-[1000px]" onClick={e => e.stopPropagation()}>
+        <iframe width="100%" style={{ aspectRatio: "16/9" }} src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+          frameBorder="0" allowFullScreen allow="autoplay; encrypted-media" className="rounded-xl" />
+        {title && <p className="text-white/70 text-sm mt-3 text-center">{title}</p>}
+      </div>
+    </div>
+  );
+}
+
+const CONTENT_TYPES = [
+  { value: "official", label: "Official content", hint: "Ads, campaigns, brand videos" },
+  { value: "all", label: "All content", hint: "Everything including commentary, tutorials" },
+];
+
 export default function ScoutPage() {
   const { projectId, projectName } = useProject();
   const { role } = useRole();
@@ -66,6 +86,10 @@ export default function ScoutPage() {
   const [region, setRegion] = useState("");
   const [timeframe, setTimeframe] = useState(365);
   const [maxResults, setMaxResults] = useState(15);
+  const [contentType, setContentType] = useState("official");
+
+  // Preview
+  const [preview, setPreview] = useState(null); // { videoId, title }
 
   // Results
   const [videos, setVideos] = useState([]);
@@ -105,7 +129,8 @@ export default function ScoutPage() {
     setSelected(new Set());
     setImportDone(false);
 
-    const query = `${brand} ${keywords}`.trim();
+    const officialTerms = contentType === "official" ? " official ad commercial campaign" : "";
+    const query = `${brand} ${keywords}${officialTerms}`.trim();
     const publishedAfter = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : undefined;
 
     try {
@@ -270,6 +295,7 @@ export default function ScoutPage() {
     <AuthGuard><ProjectGuard><Nav />
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 shadow-lg">{toast}</div>}
+        {preview && <VideoPreview videoId={preview.videoId} title={preview.title} onClose={() => setPreview(null)} />}
 
         <div className="max-w-5xl mx-auto p-6">
           {/* Header */}
@@ -324,6 +350,22 @@ export default function ScoutPage() {
                   <option value="global">Global benchmarks</option>
                   <option value="local">Local audit</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Content type */}
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-[10px] text-muted uppercase font-semibold">Content type:</label>
+              <div className="flex gap-2">
+                {CONTENT_TYPES.map(ct => (
+                  <button key={ct.value} onClick={() => setContentType(ct.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                      contentType === ct.value ? "border-[var(--accent)] bg-accent-soft text-accent" : "border-main text-muted hover:text-main"
+                    }`}>
+                    {ct.label}
+                    <span className="text-hint font-normal ml-1">— {ct.hint}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -403,9 +445,15 @@ export default function ScoutPage() {
                           className="rounded border-gray-300 text-accent" />
                       </div>
 
-                      {/* Thumbnail */}
-                      <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative">
+                      {/* Thumbnail — click to preview */}
+                      <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
+                        onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}>
                         {v.thumbnail && <img src={v.thumbnail} className="w-full h-full object-cover" alt="" />}
+                        <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover/thumb:opacity-100 transition">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
+                          </div>
+                        </div>
                         {v.duration && (
                           <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
                             {formatDuration(v.duration)}
@@ -419,8 +467,16 @@ export default function ScoutPage() {
                           <h3 className="text-sm font-semibold text-main leading-snug line-clamp-2">{v.title}</h3>
                           {v.score !== null && <ScoreBadge score={v.score} />}
                         </div>
-                        <p className="text-xs text-muted mt-1">{v.channel} · {formatViews(v.viewCount)} views · {v.year}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-muted">{v.channel}</p>
+                          {v.channel && brand && v.channel.toLowerCase().includes(brand.toLowerCase().split(" ")[0]) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Official</span>
+                          )}
+                          <span className="text-xs text-hint">· {formatViews(v.viewCount)} views · {v.year}</span>
+                        </div>
                         {v.reason && <p className="text-[11px] text-hint mt-1 italic">{v.reason}</p>}
+                        <button onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}
+                          className="text-[11px] text-accent hover:underline mt-1 inline-block">Watch video</button>
                         {isDuplicate && <p className="text-[10px] text-amber-500 font-medium mt-1">Already imported</p>}
                       </div>
                     </div>

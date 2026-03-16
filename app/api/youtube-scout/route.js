@@ -79,18 +79,34 @@ export async function POST(request) {
 
     const videoList = videos.map((v, i) => `${i + 1}. "${v.title}" by ${v.channel} (${v.viewCount?.toLocaleString() || "?"} views, ${v.year}) — ${v.description?.slice(0, 150)}`).join("\n");
 
-    const system = `You are a competitive intelligence analyst scoring YouTube videos for relevance.
+    const system = `You are a competitive intelligence analyst scoring YouTube videos for relevance to brand advertising and marketing analysis.
 
 BRAND: ${brand}
 ${keywords ? `KEYWORDS: ${keywords}` : ""}
 ${market ? `MARKET: ${market}` : ""}
 
-Score each video 1-10 for competitive intelligence relevance:
-- 8-10: Directly relevant (official brand ad/campaign, product launch, competitive comparison)
-- 5-7: Moderately relevant (industry commentary, related brand content, news coverage)
-- 1-4: Low relevance (unrelated content, user-generated, noise)
+Score each video 1-10 for competitive intelligence relevance. We are looking for OFFICIAL BRAND COMMUNICATIONS — ads, campaigns, branded content, product launches.
 
-Return ONLY valid JSON: {"rankings":[{"index":1,"score":8,"reason":"Official campaign ad"},...]}"
+SCORING GUIDE:
+- 9-10: Official brand advertisement or campaign (aired on TV, YouTube pre-roll, official channel)
+- 7-8: Official brand content (product explainer, brand film, press conference, official launch)
+- 5-6: News coverage or industry analysis OF the brand's marketing/campaigns
+- 3-4: Tangentially related (industry overview, fintech roundup mentioning the brand)
+- 1-2: NOT relevant — influencer tutorials, user reviews, reaction videos, "how to use" guides, unrelated content
+
+HEAVILY PENALIZE:
+- Influencer/creator content that is NOT official brand advertising
+- Tutorial or "how to" videos
+- User-generated reviews or reaction videos
+- Content from channels that are clearly not the brand or media outlets
+- Videos where the brand is just mentioned in passing
+
+BOOST:
+- Videos from the brand's official YouTube channel
+- Videos that are clearly produced advertisements or campaigns
+- Content from advertising industry channels (e.g., Ads of the World, The Drum)
+
+Return ONLY valid JSON: {"rankings":[{"index":1,"score":9,"reason":"Official TV campaign from brand channel"},...]}"
 Do not include markdown or explanation.`;
 
     try {
