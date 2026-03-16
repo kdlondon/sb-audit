@@ -319,7 +319,7 @@ Return: {"title":"...","slides":[...slides...]}`;
 
       for (let i = 0; i < slides.length; i++) {
         setCurrentSlide(i);
-        await new Promise(r => setTimeout(r, 150)); // minimal wait, no animation in pdf mode
+        await new Promise(r => setTimeout(r, 300)); // wait for render to fully settle
 
         const slideEl = document.querySelector("[data-slide-content]");
         if (!slideEl) continue;
@@ -428,7 +428,7 @@ Return: {"title":"...","slides":[...slides...]}`;
         <div className="h-full flex items-center justify-center transition-colors duration-700">
           <div className="max-w-5xl w-full mx-auto pl-20 pr-12" key={currentSlide}>
             <div className={pdfMode ? "" : "slide-enter"}>
-              <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} />
+              <SlideRenderer slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} pdfMode={pdfMode} />
             </div>
           </div>
         </div>
@@ -754,10 +754,15 @@ Return: {"title":"...","slides":[...slides...]}`;
 /* ═══════════════════════════════════════════
    SLIDE RENDERER
    ═══════════════════════════════════════════ */
-function SlideRenderer({ slide, theme, projectName, onMediaClick }) {
+function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = false }) {
   const t = theme.text;
-  const m = theme.isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)";
-  const f = theme.isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)";
+  // Boost contrast for PDF export — html2canvas renders transparency poorly
+  const m = pdfMode
+    ? (theme.isDark ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.85)")
+    : (theme.isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)");
+  const f = pdfMode
+    ? (theme.isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)")
+    : (theme.isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)");
 
   const mdC = {
     p: ({ children }) => <p className="text-base leading-relaxed mb-3" style={{ color: m }}>{children}</p>,
