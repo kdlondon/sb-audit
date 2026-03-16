@@ -755,18 +755,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
         </div>
 
-        {/* Floating action buttons — bottom right */}
-        <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
-          <button onClick={()=>router.push("/chat")} title="AI Chat"
-            className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl"
-            style={{background:"#0a0f3c"}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          </button>
-          <button onClick={()=>router.push("/scout")} title="Scout"
-            className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl"
-            style={{background:"linear-gradient(135deg, #0019FF, #4060ff)"}}>
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="1.8"><circle cx="7" cy="7" r="5"/><line x1="14" y1="14" x2="11" y2="11"/></svg>
-          </button>
+        {/* Add button — in filter bar area */}
+        <div className="fixed bottom-6 right-6 z-50">
           <div className="relative">
             <button ref={addBtnRef}
               onClick={()=>{
@@ -774,8 +764,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 setShowAddMenu(!showAddMenu);
               }}
               title="Add entry"
-              className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl bg-accent">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+              className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition hover:scale-110 hover:shadow-xl bg-accent">
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
             </button>
           </div>
         </div>

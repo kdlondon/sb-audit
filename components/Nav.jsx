@@ -75,12 +75,22 @@ export default function Nav() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2" ref={menuRef}>
-        {/* Chat button */}
-        <button onClick={() => router.push("/chat")}
-          className="text-white/30 hover:text-white/60 p-1.5 rounded-md transition" title="AI Chat">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <div className="flex items-center gap-1.5" ref={menuRef}>
+        {/* Action buttons — always visible */}
+        {canAccess(role, "audit") && (
+          <button onClick={() => router.push("/scout")} title="Scout"
+            className="w-7 h-7 rounded-full flex items-center justify-center transition hover:scale-110"
+            style={{ background: "linear-gradient(135deg, #0019FF, #4060ff)" }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="1.8"><circle cx="7" cy="7" r="4.5"/><line x1="13" y1="13" x2="10.5" y2="10.5"/></svg>
+          </button>
+        )}
+        <button onClick={() => router.push("/chat")} title="AI Chat"
+          className="w-7 h-7 rounded-full flex items-center justify-center transition hover:scale-110"
+          style={{ background: "#059669" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         </button>
+
+        <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.1)" }} />
 
         {/* Profile button */}
         <button onClick={() => setMenuOpen(!menuOpen)}
