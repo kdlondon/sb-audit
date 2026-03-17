@@ -237,6 +237,7 @@ Rules:
     if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
     setSearching(true);
     setVideos([]);
+    setScoutMessage(SEARCH_MESSAGES[Math.floor(Math.random() * SEARCH_MESSAGES.length)]);
     setSelected(new Set());
     setImportDone(false);
 
@@ -453,23 +454,7 @@ Rules:
   ];
   const randomMsg = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  // Conversational search — parse natural language
-  const [searchInput, setSearchInput] = useState("");
   const [scoutMessage, setScoutMessage] = useState("");
-
-  const doSearch = () => {
-    const q = searchInput.trim();
-    if (!q) return;
-    // Parse natural language into search params
-    setBrand(q);
-    setKeywords("");
-    setCategory("");
-    setScoutMessage(randomMsg(SEARCH_MESSAGES));
-    handleSearch();
-  };
-
-  // Override handleSearch to use searchInput if brand/keywords/category are empty
-  const originalSearch = handleSearch;
 
   // ─── RENDER ───
   return (
@@ -480,21 +465,20 @@ Rules:
 
         <div className="max-w-5xl mx-auto p-6">
 
-          {/* ─── CONVERSATIONAL HEADER ─── */}
-          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
-            <div className="text-center pt-12 pb-8" style={{ animation: "fadeIn 0.5s" }}>
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </div>
-              <h1 className="text-2xl font-bold text-main mb-2">Scout</h1>
-              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
-            </div>
-          )}
-
-          {/* ─── SEARCH INPUT (chat-style, sticky) ─── */}
-          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto sticky top-[52px] z-30 pt-4 pb-6`}>
+          {/* ─── HEADER + SEARCH (always visible, sticky) ─── */}
+          <div className="max-w-2xl mx-auto sticky top-[52px] z-30 pt-4 pb-6 mb-4">
             {/* Background + shadow mask */}
-            <div className="absolute inset-0 -top-2 -left-8 -right-8 -bottom-2 -z-10" style={{ background: "var(--bg)", boxShadow: "0 12px 24px -4px rgba(0,0,0,0.12)" , borderRadius: "0 0 24px 24px" }} />
+            <div className="absolute inset-0 -top-2 -left-8 -right-8 -bottom-2 -z-10" style={{ background: "var(--bg)", boxShadow: "0 12px 24px -4px rgba(0,0,0,0.12)", borderRadius: "0 0 24px 24px" }} />
+            {/* Scout branding — compact when results, full when empty */}
+            <div className={`text-center ${videos.length > 0 || searching || ranking || importing || importDone ? "mb-3" : "pt-8 pb-4 mb-4"}`}>
+              <div className={`mx-auto rounded-full flex items-center justify-center ${videos.length > 0 || searching || ranking || importing || importDone ? "w-8 h-8 mb-1" : "w-16 h-16 mb-4"}`} style={{ background: "#0a0f3c" }}>
+                <svg width={videos.length > 0 || searching || ranking ? "14" : "28"} height={videos.length > 0 || searching || ranking ? "14" : "28"} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+              <h1 className={`font-bold text-main ${videos.length > 0 || searching || ranking || importing || importDone ? "text-sm" : "text-2xl mb-2"}`}>Scout</h1>
+              {!(videos.length > 0 || searching || ranking || importing || importDone) && (
+                <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
+              )}
+            </div>
             <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -581,7 +565,7 @@ Rules:
               <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none"/><path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
               </div>
-              <p className="text-sm font-medium text-main">{ranking ? randomMsg(RANKING_MESSAGES) : randomMsg(SEARCH_MESSAGES)}</p>
+              <p className="text-sm font-medium text-main">{ranking ? "Ranking results by relevance..." : scoutMessage}</p>
               {ranking && <p className="text-xs text-muted mt-1">Scoring {videos.length} videos</p>}
             </div>
           )}
