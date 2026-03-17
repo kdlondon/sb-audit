@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -210,12 +210,16 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
-  const [vw,setVw]=useState("list");
-  const [eid,setEid]=useState(null);
+  const router=useRouter();
+  const searchParams=useSearchParams();
+  const editParam=searchParams.get("edit");
+  const entryParam=searchParams.get("entry");
+  const vw=editParam?"form":"list";
+  const eid=editParam==="new"?null:editParam;
   const [fl,setFl]=useState({});
   const [sec,setSec]=useState(0);
   const [sb,setSbRaw]=useState(null);
-  const setSb=(entry)=>{setSbRaw(entry);if(typeof window!=="undefined"&&entry){window.history.replaceState({},"",`/audit?id=${entry.id}`);}else if(typeof window!=="undefined"&&!entry){window.history.replaceState({},"","/audit");}};
+  const setSb=(entry)=>{if(entry){router.push(`/audit?entry=${entry.id}`,{scroll:false});setSbRaw(entry);}else{router.push("/audit",{scroll:false});setSbRaw(null);}};
   const [loading,setLoading]=useState(true);
   const [sortCol,setSortCol]=useState("created_at");
   const [sortDir,setSortDir]=useState("desc");
@@ -244,21 +248,42 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const addBtnRef=useRef(null);
   const fmtDate=(d)=>{if(!d)return"—";const dt=new Date(d);return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short"})+" "+dt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});};
   const supabase=createClient();
-  const router=useRouter();
 
   const load=useCallback(async()=>{
     setLoading(true);
     const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).order("created_at",{ascending:false});
-    setData(rows||[]);setLoading(false);setSelected(new Set());setSb(null);
+    setData(rows||[]);setLoading(false);setSelected(new Set());setSbRaw(null);
   },[scope]);
 
   useEffect(()=>{load();fetchOptions(projectId).then(o=>setOPTIONS(o));},[load]);
+
+  // Sync sidebar from URL entryParam (browser back/forward)
+  useEffect(()=>{
+    if(!entryParam){return;}
+    if(sb?.id===entryParam)return;
+    const found=data.find(x=>x.id===entryParam);
+    if(found)setSbRaw(found);
+  },[entryParam,data]);
+
+  // Sync form from URL editParam (browser back/forward)
+  useEffect(()=>{
+    if(!editParam)return;
+    if(editParam==="new"){setCur({});setMaterialType("none");return;}
+    const entry=data.find(x=>x.id===editParam);
+    if(entry){
+      setCur({...entry});
+      if(entry.url&&/youtube|youtu\.be/i.test(entry.url))setMaterialType("video");
+      else if(entry.url)setMaterialType("web");
+      else if(entry.image_url)setMaterialType("image");
+      else setMaterialType("none");
+    }
+  },[editParam,data]);
 
   // Open entry passed from parent (via URL ?id=xxx)
   useEffect(()=>{
     if(initialEntry){setSbRaw(initialEntry);clearInitialEntry();}
   },[initialEntry]);
-  useEffect(()=>{if(pendingForm&&!loading){setCur({});setEid(null);setMaterialType("none");setSec(0);setVw("form");setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
+  useEffect(()=>{if(pendingForm&&!loading){setCur({});setMaterialType("none");setSec(0);router.push("/audit?edit=new",{scroll:false});setHighlighted(new Set());clearPendingForm();}},[pendingForm,loading,clearPendingForm]);
 
   const highlightFields=(fields)=>{setHighlighted(new Set(fields));setTimeout(()=>setHighlighted(new Set()),3000);};
   const autoFill=(updates)=>{const fk=[];setCur(prev=>{const u={...prev};Object.entries(updates).forEach(([k,v])=>{if(!u[k]&&v){u[k]=v;fk.push(k);}});return u;});if(fk.length>0)highlightFields(fk);};
@@ -318,9 +343,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const{error}=await supabase.from(table).insert(e);
       if(error){setToast({message:"Error saving: "+error.message});return;}
     }
-    setCur({});setEid(null);setVw("list");setMaterialType("none");
+    const wasEdit=!!eid;
+    setCur({});setMaterialType("none");
+    router.push("/audit",{scroll:false});
     await load();
-    setToast({message:eid?"Entry updated":"Entry saved",link:{label:"View →",action:()=>{const found=data.find(x=>x.id===savedId);if(found)setSb(found);}}});
+    setToast({message:wasEdit?"Entry updated":"Entry saved",link:{label:"View →",action:()=>{const found=data.find(x=>x.id===savedId);if(found)setSb(found);}}});
   };
 
   const del=async(id)=>{await supabase.from(getTableName(scope)).delete().eq("id",id);if(sb?.id===id)setSb(null);load();};
@@ -329,7 +356,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const inlineSave=async(id,field,value,keepOpen=false)=>{
     await supabase.from(getTableName(scope)).update({[field]:value,updated_at:new Date().toISOString()}).eq("id",id);
     setData(prev=>prev.map(e=>e.id===id?{...e,[field]:value,updated_at:new Date().toISOString()}:e));
-    if(sb?.id===id)setSb(prev=>({...prev,[field]:value}));
+    if(sb?.id===id)setSbRaw(prev=>({...prev,[field]:value}));
     if(!keepOpen)setInlineEdit(null);
   };
 
@@ -602,7 +629,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setAnalyzing(false);
   };
 
-  const openForm=(entry)=>{const e=entry||{};setCur({...e});setEid(entry?entry.id:null);setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);setVw("form");setSb(null);setHighlighted(new Set());};
+  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
@@ -656,7 +683,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
           <div className="flex gap-2">
             <button onClick={clearForm} className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Clear</button>
-            <button onClick={()=>{setVw("list");setEid(null);setCur({});setMaterialType("none");}} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
+            <button onClick={()=>{router.push("/audit",{scroll:false});setCur({});setMaterialType("none");}} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
             <button onClick={save} className="px-4 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">Save</button>
           </div>
         </div>
@@ -997,7 +1024,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   );
 }
 
-export default function AuditPage(){
+function AuditPageInner(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
   const[initialEntry,setInitialEntry]=useState(null);
@@ -1042,4 +1069,8 @@ export default function AuditPage(){
   },[scope]);
 
   return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} key={scope}/></ProjectGuard></AuthGuard>);
+}
+
+export default function AuditPage(){
+  return(<Suspense fallback={<div className="p-10 text-center text-hint">Loading...</div>}><AuditPageInner/></Suspense>);
 }

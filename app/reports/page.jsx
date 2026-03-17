@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -377,7 +378,10 @@ function EntryViewer({entry,onClose}){
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
   const{projectId}=useProject();
-  const[view,setView]=useState("generate");
+  const searchParams=useSearchParams();
+  const tabParam=searchParams.get("tab");
+  const reportParam=searchParams.get("report");
+  const view=reportParam?"generate":(tabParam||"generate");
   const[journeyBrand,setJourneyBrand]=useState("");
   const[journeyView,setJourneyView]=useState("funnel");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
@@ -420,6 +424,13 @@ function ReportsContent(){
     if(years.length>0){setYearFrom(years[0]);setYearTo(years[years.length-1]);}
     const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);
   })();},[projectId]);
+
+  useEffect(()=>{
+    if(!reportParam){setViewingReport(null);return;}
+    if(viewingReport?.id===reportParam)return;
+    const found=savedReports.find(r=>r.id===reportParam);
+    if(found)setViewingReport(found);
+  },[reportParam,savedReports]);
 
   useEffect(()=>{
     if(!selectedTemplate)return;
@@ -501,7 +512,7 @@ function ReportsContent(){
     await supabase.from("saved_reports").delete().eq("id",id);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
-    if(viewingReport?.id===id)setViewingReport(null);
+    if(viewingReport?.id===id)router.push("/reports?tab=archive",{scroll:false});
   };
 
   const searchResults=searchQuery.length>1?allData.filter(e=>{const q=searchQuery.toLowerCase();return(e.description||"").toLowerCase().includes(q)||(e.competitor||"").toLowerCase().includes(q)||(e.brand||"").toLowerCase().includes(q)||(e.main_slogan||"").toLowerCase().includes(q);}).slice(0,10):[];
@@ -786,9 +797,9 @@ RULES:
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-bold text-main">Reports</h2>
           <div className="flex bg-surface2 rounded-lg p-0.5">
-            <button onClick={()=>{setView("generate");setViewingReport(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
-            <button onClick={()=>setView("journey")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Journey Map</button>
-            <button onClick={()=>setView("archive")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
+            <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
+            <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Journey Map</button>
+            <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
           </div>
         </div>
         {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
@@ -830,7 +841,7 @@ RULES:
           {savedReports.length===0
             ?<div className="text-center text-hint py-20">No saved reports yet.</div>
             :<div className="space-y-2">{savedReports.map(r=>(
-              <div key={r.id} className="bg-surface border border-main rounded-lg p-4 flex justify-between items-center hover:border-[var(--accent)] transition cursor-pointer" onClick={()=>{setViewingReport(r);setView("generate");}}>
+              <div key={r.id} className="bg-surface border border-main rounded-lg p-4 flex justify-between items-center hover:border-[var(--accent)] transition cursor-pointer" onClick={()=>router.push(`/reports?report=${r.id}`,{scroll:false})}>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-sm font-medium text-main">{r.title}</p>
@@ -861,7 +872,7 @@ RULES:
             <div className="bg-surface rounded-lg border border-main overflow-hidden">
               <div className="flex justify-between items-center px-5 py-3 border-b border-main flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <button onClick={()=>{setViewingReport(null);setReport("");setSelectedTemplate(null);}} className="text-xs text-muted hover:text-main">← Back</button>
+                  <button onClick={()=>{router.push("/reports",{scroll:false});setReport("");setSelectedTemplate(null);}} className="text-xs text-muted hover:text-main">← Back</button>
                   <h3 className="text-sm font-semibold text-main">{viewingReport?.title||reportTitle||"Generated report"}</h3>
                 </div>
                 <div className="flex gap-2">
@@ -1018,4 +1029,4 @@ RULES:
   );
 }
 
-export default function ReportsPage(){return <AuthGuard><ProjectGuard><Nav/><ReportsContent/></ProjectGuard></AuthGuard>;}
+export default function ReportsPage(){return <AuthGuard><ProjectGuard><Nav/><Suspense fallback={null}><ReportsContent/></Suspense></ProjectGuard></AuthGuard>;}
