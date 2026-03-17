@@ -137,13 +137,30 @@ export default function ScoutPage() {
           max_tokens: 1500,
           system: `You are a competitive intelligence research assistant for a brand strategy team. The user is using a YouTube Scout tool to find and analyze competitor communications in financial services / banking.
 
-Help them by:
-- Suggesting specific brand names, banks, fintechs, or financial institutions to search for
-- Recommending search keywords and phrases for finding relevant content
-- Suggesting markets/regions worth exploring
-- Providing context on who the key players are in specific markets or segments
+Help them by suggesting specific brands, banks, fintechs, or financial institutions to search for, with context on why each is relevant.
 
-Be concise and practical. Format suggestions as bullet points. Always include the brand/company name and a brief reason why it's relevant. If they ask about a market, list 5-8 key players.`,
+RESPONSE FORMAT — CRITICAL:
+Return a JSON object with this structure:
+{
+  "intro": "Brief intro sentence",
+  "groups": [
+    {
+      "title": "Group name (e.g. Neo-Banking)",
+      "brands": [
+        { "name": "Brand Name", "url": "https://brand-website.com", "desc": "Brief description of why they're relevant" }
+      ]
+    }
+  ],
+  "keywords": ["keyword 1", "keyword 2"],
+  "note": "Optional closing note"
+}
+
+Rules:
+- Group brands by category (3-4 groups max)
+- Include the brand's actual website URL
+- Keep descriptions to one line
+- Include 4-6 search keywords at the end
+- Return ONLY valid JSON, no markdown`,
           messages: [
             ...assistMessages.map(m => ({ role: m.role, content: m.text })),
             { role: "user", content: q },
@@ -151,8 +168,15 @@ Be concise and practical. Format suggestions as bullet points. Always include th
         }),
       });
       const data = await res.json();
-      const reply = data.content?.[0]?.text || "No response";
-      setAssistMessages(prev => [...prev, { role: "assistant", text: reply }]);
+      const raw = data.content?.[0]?.text || "No response";
+      let parsed = null;
+      try { parsed = JSON.parse(raw); } catch {
+        const m2 = raw.match(/\{[\s\S]*\}/);
+        if (m2) try { parsed = JSON.parse(m2[0]); } catch {}
+      }
+      setAssistMessages(prev => [...prev, { role: "assistant", text: raw, parsed, isNew: true }]);
+      // Remove isNew flag after animation
+      setTimeout(() => setAssistMessages(prev => prev.map(m => ({ ...m, isNew: false }))), 50);
     } catch (err) {
       setAssistMessages(prev => [...prev, { role: "assistant", text: "Error: " + err.message }]);
     }
@@ -713,14 +737,46 @@ Be concise and practical. Format suggestions as bullet points. Always include th
                 </div>
               )}
               {assistMessages.map((m, i) => (
-                <div key={i} className={`${m.role === "user" ? "text-right" : ""}`}>
-                  <div className={`inline-block max-w-[90%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
-                    m.role === "user" ? "bg-[#0019FF] text-white rounded-br-sm" : "bg-surface2 text-main rounded-bl-sm"
-                  }`}>
-                    {m.role === "assistant" ? (
-                      <div className="whitespace-pre-wrap">{m.text}</div>
-                    ) : m.text}
-                  </div>
+                <div key={i} className={`${m.role === "user" ? "text-right" : ""}`} style={{ animation: "fadeIn 0.3s ease-out" }}>
+                  {m.role === "user" ? (
+                    <div className="inline-block max-w-[90%] px-3 py-2 rounded-xl rounded-br-sm text-xs text-white" style={{ background: "#0019FF" }}>{m.text}</div>
+                  ) : m.parsed ? (
+                    <div className="space-y-3 text-xs" style={{ animation: "fadeIn 0.5s ease-out" }}>
+                      {m.parsed.intro && <p className="text-muted">{m.parsed.intro}</p>}
+                      {(m.parsed.groups || []).map((g, gi) => (
+                        <div key={gi}>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-accent mb-1.5">{g.title}</p>
+                          <div className="space-y-1">
+                            {(g.brands || []).map((b, bi) => (
+                              <div key={bi} className="flex items-start gap-2 pl-1">
+                                <span className="text-accent mt-0.5">•</span>
+                                <div>
+                                  <a href={b.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-main hover:text-accent transition underline underline-offset-2 decoration-dotted">{b.name}</a>
+                                  <span className="text-muted ml-1">— {b.desc}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {m.parsed.keywords?.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-accent mb-1.5">Search Keywords</p>
+                          <div className="flex flex-wrap gap-1">
+                            {m.parsed.keywords.map((kw, ki) => (
+                              <span key={ki} className="px-2 py-1 bg-accent-soft text-accent rounded-full text-[10px] font-medium cursor-pointer hover:bg-[#0019FF] hover:text-white transition"
+                                onClick={() => { setBrand(""); setKeywords(kw); setAssistOpen(false); }}>
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {m.parsed.note && <p className="text-muted italic text-[10px] pt-1 border-t border-main">{m.parsed.note}</p>}
+                    </div>
+                  ) : (
+                    <div className="bg-surface2 rounded-xl rounded-bl-sm px-3 py-2 text-xs text-main whitespace-pre-wrap">{m.text}</div>
+                  )}
                 </div>
               ))}
               {assistLoading && (
