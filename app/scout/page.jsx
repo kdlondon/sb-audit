@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
@@ -120,6 +120,7 @@ export default function ScoutPage() {
   // Scout Assistant
   const [assistOpen, setAssistOpen] = useState(false);
   const [assistQuery, setAssistQuery] = useState("");
+  const assistEndRef = useRef(null);
   const [assistLoading, setAssistLoading] = useState(false);
   const [assistMessages, setAssistMessages] = useState([]);
 
@@ -129,6 +130,7 @@ export default function ScoutPage() {
     setAssistMessages(prev => [...prev, { role: "user", text: q }]);
     setAssistQuery("");
     setAssistLoading(true);
+    setTimeout(() => assistEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -175,8 +177,7 @@ Rules:
         if (m2) try { parsed = JSON.parse(m2[0]); } catch {}
       }
       setAssistMessages(prev => [...prev, { role: "assistant", text: raw, parsed, isNew: true }]);
-      // Remove isNew flag after animation
-      setTimeout(() => setAssistMessages(prev => prev.map(m => ({ ...m, isNew: false }))), 50);
+      setTimeout(() => { setAssistMessages(prev => prev.map(m => ({ ...m, isNew: false }))); assistEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, 100);
     } catch (err) {
       setAssistMessages(prev => [...prev, { role: "assistant", text: "Error: " + err.message }]);
     }
@@ -775,7 +776,14 @@ Rules:
                       {m.parsed.note && <p className="text-muted italic text-[10px] pt-1 border-t border-main">{m.parsed.note}</p>}
                     </div>
                   ) : (
-                    <div className="bg-surface2 rounded-xl rounded-bl-sm px-3 py-2 text-xs text-main whitespace-pre-wrap">{m.text}</div>
+                    <div className="bg-surface2 rounded-xl rounded-bl-sm px-3 py-2 text-xs text-main leading-relaxed">
+                      {m.text.split("\n").map((line, li) => {
+                        // Bold **text**
+                        const formatted = line.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+                        const isBullet = /^[\s]*[-•·]/.test(line);
+                        return <p key={li} className={`${isBullet ? "pl-2" : ""} ${li > 0 ? "mt-1" : ""}`} dangerouslySetInnerHTML={{ __html: formatted || "&nbsp;" }} />;
+                      })}
+                    </div>
                   )}
                 </div>
               ))}
@@ -786,6 +794,7 @@ Rules:
                   <span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               )}
+              <div ref={assistEndRef} />
             </div>
             <div className="border-t border-main p-2 flex gap-2">
               <input value={assistQuery} onChange={e => setAssistQuery(e.target.value)}
