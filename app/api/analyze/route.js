@@ -1,7 +1,7 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 
 export async function POST(request) {
-  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context } = await request.json();
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -63,6 +63,14 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
   try {
     const messageContent = [];
 
+    // Add document (PDF) if provided — Claude reads PDFs natively
+    if (documentBase64) {
+      messageContent.push({
+        type: "document",
+        source: { type: "base64", media_type: documentMediaType || "application/pdf", data: documentBase64 }
+      });
+    }
+
     // Add primary image — prefer base64 (compressed), fall back to URL
     if (imageBase64) {
       messageContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } });
@@ -90,7 +98,8 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
+        "anthropic-version": "2023-06-01",
+        ...(documentBase64 ? { "anthropic-beta": "pdfs-2024-09-25" } : {}),
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
