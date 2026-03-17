@@ -95,6 +95,8 @@ export default function ScoutPage() {
   // Per-video settings (transcript + scope)
   const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
   const [videoScopes, setVideoScopes] = useState({}); // { videoId: "local"|"global" }
+  const [videoIntents, setVideoIntents] = useState({}); // { videoId: "Brand Hero" etc }
+  const INTENT_OPTIONS = ["Brand Hero","Brand Tactical","Client Testimonials","Product","Innovation","Beyond Banking"];
 
   // Results
   const [videos, setVideos] = useState([]);
@@ -245,6 +247,10 @@ export default function ScoutPage() {
         synopsis: v.description || "",
         transcript,
       };
+
+      // Add communication intent if set
+      const vidIntent = videoIntents[v.videoId];
+      if (vidIntent) entry.communication_intent = vidIntent;
 
       if (vidScope === "global") {
         entry.brand = v.channel || "";
@@ -548,6 +554,15 @@ export default function ScoutPage() {
                                   Global
                                 </button>
                               </div>
+                            </div>
+                            {/* Communication Intent */}
+                            <div className="flex items-center gap-3">
+                              <label className="text-[10px] text-muted uppercase font-semibold">Intent:</label>
+                              <select value={videoIntents[v.videoId] || ""} onChange={ev => setVideoIntents(prev => ({ ...prev, [v.videoId]: ev.target.value }))}
+                                className="px-2 py-1 bg-surface border border-main rounded text-xs text-main">
+                                <option value="">— Select —</option>
+                                {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
                             </div>
                             {/* Transcript */}
                             <div>

@@ -10,6 +10,7 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
+function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);return m?m[1]:null;}
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
@@ -676,7 +677,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   // ── FORM ──
   if(vw==="form"){
-    const y=ytId(cur.url);const imgUrl=cur.image_url;
+    const y=ytId(cur.url);const vim=vimeoId(cur.url);const imgUrl=cur.image_url;
     return(
       <div className="min-h-screen" style={{background:"var(--bg)"}}>
         <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center sticky top-0 z-30">
@@ -698,7 +699,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
               ):(<div className="space-y-2">
                 <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
-                {materialType==="video"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
+                {materialType==="video"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube / Vimeo)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
                 {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
                 {materialType==="web"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
                 {materialType==="image"&&(<div className="flex gap-2"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL</label><input value={cur.image_url||""} onChange={e=>setImageFromUrl(e.target.value)} placeholder="https://...image.jpg" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div><div className="flex items-end"><label className="px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Upload"}<input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});}} className="hidden" /></label></div></div>)}
@@ -707,9 +708,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </div>
             <div className="flex-1 overflow-auto" onDrop={handleDrop} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}>
               <div className={`flex items-center justify-center p-4 min-h-[250px] transition ${dragOver?"ring-2 ring-[var(--accent)] ring-inset":""}`} style={{background:dragOver?"var(--accent-soft)":"var(--surface2)"}}>
-                {materialType==="video"&&y?(
+                {materialType==="video"&&(y||vim)?(
                   <div className="w-full">
-                    <iframe ref={videoIframeRef} width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={`https://www.youtube.com/embed/${y}`} frameBorder="0" allowFullScreen className="rounded-lg" />
+                    <iframe ref={videoIframeRef} width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={y?`https://www.youtube.com/embed/${y}`:`https://player.vimeo.com/video/${vim}`} frameBorder="0" allowFullScreen className="rounded-lg" />
                     {/* Capture tools bar */}
                     <div className="flex items-center justify-center gap-2 mt-3 px-4">
                       {captureActive?(
