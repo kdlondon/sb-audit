@@ -424,7 +424,69 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const uploadSingleImage=async(file)=>uploadFile(file);
   const uploadImage=async(file)=>{if(!file)return;setUploading(true);const url=await uploadFile(file);if(url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}setUploading(false);};
   const uploadVideoFile=async(file)=>{if(!file)return;setUploading(true);setToast({message:"Uploading video..."});const url=await uploadFile(file);if(url){setCur(prev=>({...prev,url}));setMaterialType("videoFile");setToast({message:"Video uploaded"});}else{setToast({message:"Upload failed"});}setUploading(false);};
-  const uploadDocument=async(file)=>{if(!file)return;setUploading(true);setToast({message:"Uploading document..."});const url=await uploadFile(file);if(url){setCur(prev=>({...prev,url,description:prev.description||file.name.replace(/\.[^.]+$/,"")}));setMaterialType("document");setToast({message:"Document uploaded"});}else{setToast({message:"Upload failed"});}setUploading(false);};
+  const extractTextFromFile=async(file)=>{
+    // TXT files — read directly
+    if(file.name.endsWith(".txt")||file.type==="text/plain"){
+      return await file.text();
+    }
+    // PDF — extract via server or read raw (basic extraction)
+    if(file.name.endsWith(".pdf")||file.type==="application/pdf"){
+      try{
+        const buf=await file.arrayBuffer();
+        const bytes=new Uint8Array(buf);
+        // Basic text extraction: find text between stream markers
+        const text=new TextDecoder("utf-8",{fatal:false}).decode(bytes);
+        const chunks=[];
+        // Extract readable strings (skip binary)
+        const readable=text.replace(/[^\x20-\x7E\n\r\t]/g," ").replace(/\s{3,}/g," ").trim();
+        if(readable.length>100)return readable.slice(0,8000);
+      }catch{}
+      return "";
+    }
+    // DOCX — extract from XML inside zip (basic)
+    if(file.name.endsWith(".docx")){
+      try{
+        const buf=await file.arrayBuffer();
+        const text=new TextDecoder("utf-8",{fatal:false}).decode(new Uint8Array(buf));
+        // Extract text between <w:t> tags
+        const matches=[...text.matchAll(/<w:t[^>]*>([^<]+)<\/w:t>/g)];
+        if(matches.length>0)return matches.map(m=>m[1]).join(" ").slice(0,8000);
+      }catch{}
+      return "";
+    }
+    return "";
+  };
+  const uploadDocument=async(file)=>{if(!file)return;setUploading(true);setToast({message:"Uploading document..."});
+    // Extract text content
+    const extractedText=await extractTextFromFile(file);
+    const url=await uploadFile(file);
+    if(url){
+      const fileName=file.name.replace(/\.[^.]+$/,"");
+      setCur(prev=>({...prev,url,description:prev.description||fileName,transcript:prev.transcript||(extractedText?extractedText.slice(0,3000):"")}));
+      setMaterialType("document");
+      setToast({message:extractedText?"Document uploaded — analyzing with AI...":"Document uploaded"});
+      // Auto-analyze if we got text
+      if(extractedText){
+        setUploading(false);
+        // Small delay to let state update, then trigger AI analysis
+        setTimeout(()=>analyzeDocWithAI(extractedText,fileName),300);
+        return;
+      }
+    }else{setToast({message:"Upload failed"});}
+    setUploading(false);
+  };
+  const analyzeDocWithAI=async(text,fileName)=>{
+    setAnalyzing(true);
+    try{
+      const context=[`Document: ${fileName}`,`Content:\n${text.slice(0,4000)}`];
+      const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({context:context.join("\n")})});
+      if(!res.ok){setToast({message:"Analysis error"});setAnalyzing(false);return;}
+      const result=await res.json();
+      if(result.success&&result.analysis){autoFill(result.analysis);setToast({message:"✓ AI analysis complete"});}
+      else{setToast({message:"Analysis returned no data"});}
+    }catch(err){setToast({message:"Error: "+err.message});}
+    setAnalyzing(false);
+  };
   const handleDrop=async(e)=>{e.preventDefault();setDragOver(false);const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{const existing=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];if(!existing.includes(url))setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});};
 
   // ─── CLIPBOARD PASTE (CMD+V to paste screenshots) ───
