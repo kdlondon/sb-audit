@@ -922,8 +922,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                       </select>
                     </td>);
                   }
+                  // Text input for fields without dropdown options
+                  if(editing&&!opts){
+                    return(<td className={"px-1 py-1 "+className} onClick={ev=>ev.stopPropagation()}>
+                      <input autoFocus defaultValue={e[field]||""} onKeyDown={ev=>{if(ev.key==="Enter"){inlineSave(e.id,field,ev.target.value);}if(ev.key==="Escape")setInlineEdit(null);}} onBlur={ev=>inlineSave(e.id,field,ev.target.value)}
+                        className="w-full px-1 py-1 bg-surface border border-[var(--accent)] rounded text-xs text-main focus:outline-none" />
+                    </td>);
+                  }
                   return(<td className={"px-2 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-white/5 rounded transition "+className}
-                    onClick={ev=>{ev.stopPropagation();if(opts)setInlineEdit({id:e.id,field});}}>
+                    onClick={ev=>{ev.stopPropagation();setInlineEdit({id:e.id,field});}}>
                     {children}
                   </td>);
                 };
@@ -931,7 +938,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}>{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
                   <IC field="category" className=""><Tag v={e.category}/></IC>
-                  <td className="px-2 py-2.5 max-w-[180px] truncate font-medium text-main">{e.description||"—"}</td>
+                  <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
                   <IC field="type" className="text-muted">{e.type||"—"}</IC>
                   <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
