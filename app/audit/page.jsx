@@ -955,7 +955,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 };
                 return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#0019FF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}>{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
+                  <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
                   <IC field="category" className=""><Tag v={e.category}/></IC>
                   <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
