@@ -868,9 +868,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   const isMulti=MULTI_SELECT_FIELDS.has(field);
                   if(editing&&opts&&isMulti){
                     const curVals=(e[field]||"").split(",").map(v=>v.trim()).filter(Boolean);
+                    // Include any legacy values not in current options so they can be unchecked
+                    const allOpts=[...opts,...curVals.filter(v=>!opts.includes(v))];
                     return(<td className={"px-1 py-1 relative "+className} onClick={ev=>ev.stopPropagation()} data-inline-multi>
                       <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-xl p-2 z-50 min-w-[160px] max-h-[240px] overflow-y-auto animate-fadeIn" data-inline-multi>
-                        {opts.map(o=>{
+                        {allOpts.map(o=>{
                           const checked=curVals.includes(o);
                           return(<label key={o} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent-soft cursor-pointer text-xs text-main">
                             <input type="checkbox" checked={checked} onChange={()=>{
