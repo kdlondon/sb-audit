@@ -402,6 +402,7 @@ function ReportsContent(){
   const reportRef=useRef(null);
   const supabase=createClient();
   const router=useRouter();
+  const[generatingShowcase,setGeneratingShowcase]=useState(false);
 
   useEffect(()=>{(async()=>{
     const[{data:local},{data:global},{data:reports}]=await Promise.all([
@@ -469,13 +470,13 @@ function ReportsContent(){
   };
 
   const saveReport=async(openEditor=false)=>{
-    if(!report)return;setSaving(true);
+    if(!report)return null;setSaving(true);
     const{data:{session}}=await supabase.auth.getSession();
     const rTitle=reportTitle||`${selectedTemplate?.label} — ${new Date().toLocaleDateString()}`;
     const id=String(Date.now());
-    await supabase.from("saved_reports").insert({
+    const reportObj={
       id,title:rTitle,
-      scope:selectedTemplate?.scope||"local",
+      scope:selectedTemplate?.scopeAny?"local":selectedTemplate?.scope||"local",
       template_type:selectedTemplate?.id||"",
       sections:sections.join(","),
       competitors:competitors.join(","),
@@ -484,10 +485,12 @@ function ReportsContent(){
       content:report,
       created_by:session?.user?.email||"",
       project_id:projectId,
-    });
+    };
+    await supabase.from("saved_reports").insert(reportObj);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setSavedReports(reports||[]);setSaving(false);
     if(openEditor)router.push(`/reports/editor?id=${id}`);
+    return reportObj;
   };
 
   const deleteReport=async(id)=>{
@@ -583,6 +586,141 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
       else setReport(result.content?.map(c=>c.text||"").join("")||"No content.");
     }catch(err){setReport("Error: "+err.message);}
     setGenerating(false);
+  };
+
+  /* ─── GENERATE SHOWCASE FROM REPORT (using original entry data) ─── */
+  const generateShowcaseFromReport = async (reportOverride) => {
+    const rpt = reportOverride || viewingReport;
+    if (!rpt) return;
+    setGeneratingShowcase(true);
+
+    const isAgnostic = rpt.template_type === "agnostic_snapshot";
+    const brandName = rpt.competitors || "";
+    const scope = rpt.scope || "local";
+
+    // Get the original entries for this brand — same data the report was built from
+    let entries = [];
+    if (scope === "local" || isAgnostic) {
+      const { data } = await supabase.from("audit_entries").select("*").eq("project_id", projectId);
+      if (data) entries.push(...(brandName ? data.filter(e => e.competitor === brandName) : data));
+    }
+    if (scope === "global" || isAgnostic) {
+      const { data } = await supabase.from("audit_global").select("*").eq("project_id", projectId);
+      if (data) entries.push(...(brandName ? data.filter(e => e.brand === brandName) : data));
+    }
+    // Apply year filters if the report had them
+    if (rpt.year_from) entries = entries.filter(e => e.year >= rpt.year_from);
+    if (rpt.year_to) entries = entries.filter(e => e.year <= rpt.year_to);
+
+    if (entries.length === 0) { alert("No entries found for this report's brand/scope"); setGeneratingShowcase(false); return; }
+
+    const entryData = entries.map(e => ({
+      id: e.id, brand: e.competitor || e.brand || "Unknown", country: e.country || "Local market",
+      year: e.year, type: e.type, description: e.description, insight: e.insight, idea: e.idea,
+      synopsis: e.synopsis, main_slogan: e.main_slogan, primary_territory: e.primary_territory,
+      secondary_territory: e.secondary_territory, tone_of_voice: e.tone_of_voice,
+      brand_archetype: e.brand_archetype, communication_intent: e.communication_intent,
+      funnel: e.funnel, rating: e.rating, image_url: e.image_url, image_urls: e.image_urls,
+      url: e.url, analyst_comment: e.analyst_comment, execution_style: e.execution_style,
+      main_vp: e.main_vp, emotional_benefit: e.emotional_benefit,
+      rational_benefit: e.rational_benefit, pain_point: e.pain_point,
+    }));
+
+    // Also pass the report content so AI can extract the exact findings
+    const reportContent = rpt.content || "";
+    const scopeLabel = scope === "local" ? "Local Audit" : scope === "global" ? "Global Benchmark" : "Local + Global";
+    const dateStr = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    const fullDateStr = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+    let systemPrompt, userMsg;
+
+    if (isAgnostic) {
+      systemPrompt = `You are reformatting an Agnostic Competitor Snapshot report into a structured slide deck.
+
+CRITICAL: The report content is provided below. EXTRACT the content from each section and map it to the corresponding slide fields. Do NOT generate new analysis — use what the report already says, shortened for visual scannability.
+
+The original audit entries are also provided so you can include image_url and media_url (video URLs) for relevant entries.
+
+This is framework-agnostic. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle.
+
+MAPPING — Report section → Slide:
+- "## 01 — Understanding the Audience" → SLIDE 2: extract Demographic, Psychographic, Tension, Human Insight
+- "## 02 — The Brand Response" → SLIDE 3: extract Creative Proposition, Brand Archetype, Brand Role, Emotional/Rational Positioning, Brand Territory, Key Differentiators
+- "## 03 — Proof Points & Communication Strategy" → SLIDE 4: extract Primary/Secondary Proof Points, Communication Focus, Tone & Voice
+- "## 04 — Product Communication" → SLIDE 5: extract Approach, Key Product Messages, Channels & Formats, Gap
+- "## 05 — Beyond Banking & Innovation" → SLIDE 6: extract Beyond Banking, Innovation, White Space
+- "## 06 — Brand Assessment" → SLIDE 7: extract Strengths and Weaknesses (brand-focused)
+- "## 07 — Communication Assessment" → SLIDE 8: extract Strengths and Weaknesses (communication-focused)
+
+Return EXACTLY 9 slides as JSON:
+
+SLIDE 1: type:"cs_title" — brand ("${brandName}"), scope ("${scopeLabel}"), date ("${dateStr}"), entry_count (${entries.length}), subtitle ("Competitive Communication Snapshot")
+SLIDE 2: type:"cs_audience" — demographic (string), psychographic (string), tension (string), human_insight (string — first-person quote 20-35 words)
+SLIDE 3: type:"cs_brand_response" — creative_proposition (3-6 words), proposition_description (one line), brand_archetype (name + sentence), brand_role (sentence), emotional_positioning (5-10 words), rational_positioning (15-25 words), brand_territory (primary + secondary), key_differentiators (array of 3 strings)
+SLIDE 4: type:"cs_proof_points" — creative_proposition (same as slide 3), primary_proof (1-2 sentences), secondary_proofs (array of 3 strings), communication_focus (1-2 sentences), tone_voice (array of 3 labels)
+SLIDE 5: type:"cs_product" — approach (one sentence), key_messages (array of 3), channels_formats (string), gap (one sentence insight)
+SLIDE 6: type:"cs_beyond_banking" — beyond_banking (one paragraph), innovation (one paragraph), white_space (one sentence insight)
+SLIDE 7: type:"cs_brand_assessment" — strengths (array of 3 {label, explanation}), weaknesses (array of 2 {label, explanation})
+SLIDE 8: type:"cs_comm_assessment" — strengths (array of 3 {label, explanation}), weaknesses (array of 2 {label, explanation})
+SLIDE 9: type:"cs_closing" — title ("Thank You"), subtitle ("Generated by Knots & Dots — Category Landscape Platform"), date ("${fullDateStr}")
+
+Return ONLY valid JSON: {"title":"...","slides":[...]}`;
+
+      userMsg = `REPORT CONTENT:\n${reportContent}\n\nORIGINAL ENTRIES (${entries.length} entries — use for image_url/url references):\n${JSON.stringify(entryData.slice(0, 30), null, 1)}`;
+    } else {
+      // Creative showcase from non-agnostic reports
+      systemPrompt = `You are a senior creative strategist at Knots & Dots. Transform this report into a cinematic showcase presentation.
+
+The original audit entries are provided so you can include image_url and media_url for relevant findings.
+
+STRUCTURE:
+1. type:"title" — Fields: title, subtitle, client, objective
+2. type:"key_findings" — Fields: title, findings (array of {number, heading, summary})
+3. Multiple type:"finding" — One per key insight. Fields: title, body (markdown 3-5 sentences), brand, year, country, territory, image_url (from entry), media_url (YouTube URL from entry), media_type ("Video"/"Image"), entry_id
+4. type:"takeaways" — Fields: title, takeaways (array of 4-6 strings)
+5. type:"closing" — Fields: title, subtitle
+
+RULES:
+- Extract findings from the report — use the original entries for image_url and media_url
+- CRITICAL: For each finding, match it to the relevant entry and include its image_url and url (as media_url if YouTube)
+- Bold, provocative slide headlines
+- ALL output in English
+- Return ONLY valid JSON: {"title":"...","slides":[...]}`;
+
+      userMsg = `REPORT CONTENT:\n${reportContent}\n\nORIGINAL ENTRIES (use for images/videos):\n${JSON.stringify(entryData, null, 1)}`;
+    }
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt, messages: [{ role: "user", content: userMsg }] }),
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "";
+      let parsed;
+      try { parsed = JSON.parse(text); } catch {
+        const m2 = text.match(/\{[\s\S]*\}/);
+        if (m2) parsed = JSON.parse(m2[0]); else throw new Error("Could not parse AI response");
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: showcase } = await supabase.from("saved_showcases").insert({
+        title: parsed.title || rpt.title || "Showcase",
+        project_id: projectId,
+        slides: parsed.slides || [],
+        created_by: session?.user?.email || "",
+        filters: {
+          source_report_id: rpt.id,
+          ...(isAgnostic ? { showcaseType: "competitor_snapshot" } : {}),
+        },
+      }).select().single();
+
+      if (showcase) router.push(`/showcase?view=${showcase.id}`);
+    } catch (err) {
+      alert("Error generating showcase: " + err.message);
+    }
+    setGeneratingShowcase(false);
   };
 
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
@@ -727,8 +865,10 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
                   {report&&!viewingReport&&<>
                     <button onClick={()=>saveReport(true)} disabled={saving} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#0019FF"}}>{saving?"Saving...":"Save & Edit"}</button>
                     <button onClick={()=>saveReport(false)} disabled={saving} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:text-main">Skip editing</button>
+                    <button onClick={async()=>{const saved=await saveReport(false);if(saved)generateShowcaseFromReport(saved);}} disabled={saving||generatingShowcase} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Save & Showcase"}</button>
                   </>}
                   {viewingReport&&<button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90" style={{background:"#0019FF"}}>Edit</button>}
+                  {viewingReport&&<button onClick={generateShowcaseFromReport} disabled={generatingShowcase} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>}
                   <button onClick={copyReport} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">{copied?"Copied!":"Copy"}</button>
                   <button onClick={downloadMD} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.md</button>
                   <button onClick={downloadPDF} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.pdf</button>

@@ -250,14 +250,9 @@ function EditorContent() {
 
   const generateShowcase = async () => {
     setGeneratingShowcase(true);
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          use_opus: true,
-          max_tokens: 8000,
-          system: `You are a senior creative strategist at Knots & Dots. Transform this competitive intelligence report into a cinematic showcase presentation.
+    const isAgnostic = report?.template_type === "agnostic_snapshot";
+
+    const creativeSystemPrompt = `You are a senior creative strategist at Knots & Dots. Transform this competitive intelligence report into a cinematic showcase presentation.
 
 STRUCTURE:
 1. type:"title" — Opening. Fields: title, subtitle, client, objective
@@ -271,8 +266,54 @@ RULES:
 - Transform analytical prose into bold, provocative slide headlines
 - Keep body text concise
 - ALL output in English
-- Return ONLY valid JSON: {"title":"...","slides":[...]}`,
-          messages: [{ role: "user", content: `Transform this report into a showcase presentation:\n\n${content}` }],
+- Return ONLY valid JSON: {"title":"...","slides":[...]}`;
+
+    const csSystemPrompt = `You are reformatting an Agnostic Competitor Snapshot report into a structured slide deck.
+
+CRITICAL: Do NOT generate new analysis or narrative. EXTRACT the content that already exists in the report and map it to the slide fields below. The report already has sections 01 through 07 — each maps directly to a slide. Shorten text for scannability but preserve the original findings, not invent new ones.
+
+This is framework-agnostic. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle.
+
+MAPPING — Report section → Slide:
+- Report "## 01 — Understanding the Audience" → SLIDE 2 (cs_audience): extract the Demographic, Psychographic, Tension, and Human Insight fields exactly as written in the report. Tighten for slide format.
+- Report "## 02 — The Brand Response" → SLIDE 3 (cs_brand_response): extract the Creative Proposition, Brand Archetype, Brand Role, Emotional Positioning Statement, Rational Positioning Statement, Brand Territory, and Key Differentiators exactly from the report.
+- Report "## 03 — Proof Points & Communication Strategy" → SLIDE 4 (cs_proof_points): extract Primary Proof Point, Secondary Proof Points, Communication Focus, and Tone & Voice from the report.
+- Report "## 04 — Product Communication" → SLIDE 5 (cs_product): extract Approach, Key Product Messages, Channels & Formats, and Gap from the report.
+- Report "## 05 — Beyond Banking & Innovation" → SLIDE 6 (cs_beyond_banking): extract Beyond Banking, Innovation, and White Space from the report.
+- Report "## 06 — Brand Assessment" → SLIDE 7 (cs_brand_assessment): extract the Strengths and Weaknesses. If the report has a combined assessment, split into brand-focused items.
+- Report "## 07 — Communication Assessment" → SLIDE 8 (cs_comm_assessment): extract the Strengths and Weaknesses focused on communication.
+
+Return a JSON object with EXACTLY 9 slides:
+
+SLIDE 1: type:"cs_title" — Fields: brand (string — the brand name from the report), scope (string — "Local Audit", "Global Benchmark", or "Local + Global"), date ("${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}"), entry_count (number — count from the report if mentioned, otherwise 0), subtitle ("Competitive Communication Snapshot")
+
+SLIDE 2: type:"cs_audience" — Fields: demographic (string — short scannable text), psychographic (string — 2-3 short lines), tension (string — 1-2 sentences), human_insight (string — first-person quote 20-35 words, in the voice of the target audience)
+
+SLIDE 3: type:"cs_brand_response" — Fields: creative_proposition (string — 3-6 words), proposition_description (string — one line), brand_archetype (string — name + one sentence), brand_role (string — one sentence), emotional_positioning (string — 5-10 words), rational_positioning (string — 15-25 words), brand_territory (string — primary + secondary), key_differentiators (array of 3 strings)
+
+SLIDE 4: type:"cs_proof_points" — Fields: creative_proposition (string — same as slide 3), primary_proof (string — 1-2 sentences), secondary_proofs (array of 3 strings), communication_focus (string — 1-2 sentences), tone_voice (array of 3 string labels)
+
+SLIDE 5: type:"cs_product" — Fields: approach (string — one sentence), key_messages (array of 3 strings), channels_formats (string), gap (string — one sentence insight)
+
+SLIDE 6: type:"cs_beyond_banking" — Fields: beyond_banking (string — one paragraph), innovation (string — one paragraph), white_space (string — one sentence insight)
+
+SLIDE 7: type:"cs_brand_assessment" — Fields: strengths (array of 3 {label: string, explanation: string}), weaknesses (array of 2 {label: string, explanation: string}). Assesses the BRAND itself.
+
+SLIDE 8: type:"cs_comm_assessment" — Fields: strengths (array of 3 {label: string, explanation: string}), weaknesses (array of 2 {label: string, explanation: string}). Assesses COMMUNICATION across proof points, product, beyond banking.
+
+SLIDE 9: type:"cs_closing" — Fields: title ("Thank You"), subtitle ("Generated by Knots & Dots — Category Landscape Platform"), date ("${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}")
+
+Return ONLY valid JSON: {"title":"...","slides":[...]}`;
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          use_opus: true,
+          max_tokens: 8000,
+          system: isAgnostic ? csSystemPrompt : creativeSystemPrompt,
+          messages: [{ role: "user", content: `Transform this report into a ${isAgnostic ? "Competitor Snapshot showcase" : "showcase presentation"}:\n\n${content}` }],
         }),
       });
 
@@ -290,7 +331,10 @@ RULES:
         project_id: projectId,
         slides: parsed.slides || [],
         created_by: session?.user?.email || "",
-        filters: { source_report_id: reportId },
+        filters: {
+          source_report_id: reportId,
+          ...(isAgnostic ? { showcaseType: "competitor_snapshot" } : {}),
+        },
       }).select().single();
 
       if (showcase) router.push(`/showcase?view=${showcase.id}`);
