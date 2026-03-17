@@ -140,27 +140,30 @@ CITATION RULES — CRITICAL:
 REPORT STRUCTURE — follow this EXACTLY:
 
 ## 01 — Understanding the Audience
-- **Demographic:** age range, financial profile, experience level inferred from the brand's communications
-- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand
+(Focus ONLY on entries with Brand Hero communication intent — these are the core positioning pieces)
+- **Demographic:** age range, financial profile, experience level inferred from the brand's hero communications
+- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
 - **Tension:** the core unresolved need their brand addresses (1–2 sentences)
 - **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
 
 ## 02 — The Brand Response
-(Focus on entries with Brand communication intent)
-- **Creative Proposition:** 3–6 word campaign/brand idea label
+(Focus ONLY on entries with Brand Hero communication intent — the core positioning pieces like manifestos, brand commercials, tagline-driven campaigns. Do NOT include Brand Tactical pieces like events, sponsorships, or cause marketing here.)
+- **Creative Proposition:** 3–6 word campaign/brand idea label derived from the hero pieces
 - **Brand Archetype:** single archetype + one sentence explanation
 - **Brand Role:** one sentence on what role the brand plays in the customer's life
 - **Emotional Positioning Statement:** short phrase (5–10 words)
 - **Rational Positioning Statement:** one sentence (15–25 words)
 - **Brand Territory:** primary + secondary if applicable
 - **Key Differentiators:** 3 bullet points
-Include references to specific cases that support the findings.
+Include references to specific Brand Hero cases that support the findings.
 
 ## 03 — Proof Points & Communication Strategy
+(Analyze how the brand proves its positioning across Brand Hero and Brand Tactical pieces)
 - **Primary Proof Point:** 1–2 sentences on the main proof of their positioning
 - **Secondary Proof Points:** 3 supporting points, one line each
 - **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
 - **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
+- **Brand Tactical Support:** 1–2 sentences on how tactical brand pieces (events, sponsorships, community initiatives) reinforce or diverge from the core positioning
 
 ## 04 — Product Communication
 (Focus on entries with Product communication intent)
@@ -176,7 +179,7 @@ Include references to specific cases that support the findings.
 - **White Space:** one sentence on the most credible territory this brand has not yet claimed
 
 ## 06 — Brand Assessment
-Assessment of the brand itself — its positioning, identity, proposition, and territory.
+Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces.
 - **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
 - **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation
 

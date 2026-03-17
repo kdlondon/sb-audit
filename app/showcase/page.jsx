@@ -379,7 +379,7 @@ SLIDE 1 — type:"cs_title"
 Fields: brand ("${brand}"), scope ("${scopeLabel}"), date ("${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}"), entry_count (${entries.length}), subtitle ("Competitive Communication Snapshot")
 
 SLIDE 2 — type:"cs_audience"
-Analyze all entries to infer the target audience this brand is speaking to.
+Analyze entries with Brand Hero communication intent to infer the target audience this brand is speaking to in its core positioning.
 Fields:
 - demographic: string — age range, financial profile, experience level. Short scannable text.
 - psychographic: string — mindset, motivations, self-image. 2-3 short lines.
@@ -387,7 +387,7 @@ Fields:
 - human_insight: string — a first-person quote (20-35 words) capturing the human truth the brand responds to. Written as if the target audience is speaking. Example: "I need investing tools that evolve with me: easy when I start out, more powerful as I gain confidence."
 
 SLIDE 3 — type:"cs_brand_response"
-Extract from entries with Brand communication intent.
+Extract ONLY from entries with Brand Hero communication intent (core positioning pieces: manifestos, brand commercials, tagline campaigns). Do NOT use Brand Tactical pieces (events, sponsorships) for positioning analysis.
 Fields:
 - creative_proposition: string — the brand's main campaign idea in 3-6 words. Use the actual main_slogan from the data if one is prominent.
 - proposition_description: string — one line describing what the campaign communicates.
