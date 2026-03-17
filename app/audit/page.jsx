@@ -273,6 +273,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     if(entry){
       setCur({...entry});
       if(entry.url&&/youtube|youtu\.be/i.test(entry.url))setMaterialType("video");
+      else if(entry.url&&/\.(mp4|mov|webm)(\?|$)/i.test(entry.url))setMaterialType("videoFile");
+      else if(entry.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(entry.url))setMaterialType("document");
       else if(entry.url)setMaterialType("web");
       else if(entry.image_url)setMaterialType("image");
       else setMaterialType("none");
@@ -417,8 +419,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const setVideoUrl=(url)=>{setCur(prev=>({...prev,url}));setMaterialType("video");if(ytId(url))fetchYTMeta(url);};
   const setWebUrl=(url)=>{setCur(prev=>({...prev,url}));setMaterialType("web");};
   const setImageFromUrl=(url)=>{setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");};
-  const uploadSingleImage=async(file)=>{if(!file)return null;const ext=file.name.split(".").pop();const path=`${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;const{error}=await supabase.storage.from("media").upload(path,file);if(error)return null;const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);return publicUrl;};
-  const uploadImage=async(file)=>{if(!file)return;setUploading(true);const url=await uploadSingleImage(file);if(url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}setUploading(false);};
+  const uploadFile=async(file)=>{if(!file)return null;const ext=file.name.split(".").pop();const path=`${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;const{error}=await supabase.storage.from("media").upload(path,file);if(error){console.error("Upload error:",error);return null;}const{data:{publicUrl}}=supabase.storage.from("media").getPublicUrl(path);return publicUrl;};
+  const uploadSingleImage=async(file)=>uploadFile(file);
+  const uploadImage=async(file)=>{if(!file)return;setUploading(true);const url=await uploadFile(file);if(url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}setUploading(false);};
+  const uploadVideoFile=async(file)=>{if(!file)return;setUploading(true);setToast({message:"Uploading video..."});const url=await uploadFile(file);if(url){setCur(prev=>({...prev,url}));setMaterialType("videoFile");setToast({message:"Video uploaded"});}else{setToast({message:"Upload failed"});}setUploading(false);};
+  const uploadDocument=async(file)=>{if(!file)return;setUploading(true);setToast({message:"Uploading document..."});const url=await uploadFile(file);if(url){setCur(prev=>({...prev,url,description:prev.description||file.name.replace(/\.[^.]+$/,"")}));setMaterialType("document");setToast({message:"Document uploaded"});}else{setToast({message:"Upload failed"});}setUploading(false);};
   const handleDrop=async(e)=>{e.preventDefault();setDragOver(false);const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/"));if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{const existing=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];if(!existing.includes(url))setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});};
 
   // ─── CLIPBOARD PASTE (CMD+V to paste screenshots) ───
@@ -629,7 +634,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setAnalyzing(false);
   };
 
-  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());};
+  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
@@ -690,12 +695,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         <div className="flex" style={{height:"calc(100vh - 52px)"}}>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="bg-surface border-b border-main px-4 py-3 flex-shrink-0">
-              {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2">{[["video","Video URL"],["web","Website URL"],["image","Image"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
+              {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
               ):(<div className="space-y-2">
-                <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video"],["web","Website"],["image","Image"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);if(k!=="image")setCur(prev=>({...prev,url:"",image_url:prev.image_url||""}));if(k==="image")setCur(prev=>({...prev,url:""}));}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
+                <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
                 {materialType==="video"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
+                {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
                 {materialType==="web"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
                 {materialType==="image"&&(<div className="flex gap-2"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL</label><input value={cur.image_url||""} onChange={e=>setImageFromUrl(e.target.value)} placeholder="https://...image.jpg" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div><div className="flex items-end"><label className="px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Upload"}<input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});}} className="hidden" /></label></div></div>)}
+                {materialType==="document"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Document (PDF, Word, TXT)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={e=>{if(e.target.files[0])uploadDocument(e.target.files[0]);}} className="hidden" /></label></div>}
               </div>)}
             </div>
             <div className="flex-1 overflow-auto" onDrop={handleDrop} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}>
@@ -774,8 +781,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     </div>
                   ):null;})()}
                 </div>
+                :materialType==="videoFile"&&cur.url&&!ytId(cur.url)?<div className="w-full">
+                  <video controls width="100%" style={{maxWidth:700,maxHeight:400,margin:"0 auto",display:"block"}} className="rounded-lg" src={cur.url} />
+                  <p className="text-center text-[10px] text-hint mt-2">{cur.url.split("/").pop()}</p>
+                </div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
-                :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":"Enter a URL or drop images"}</p><p className="text-xs">{materialType!=="none"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
+                :materialType==="document"&&cur.url?<div className="flex flex-col items-center justify-center gap-3">
+                  <div className="w-16 h-20 rounded-lg bg-surface border-2 border-main flex items-center justify-center">
+                    <span className="text-2xl">📄</span>
+                  </div>
+                  <p className="text-sm font-medium text-main">{cur.url.split("/").pop()}</p>
+                  <a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open document ↗</a>
+                </div>
+                :<div className="text-center text-hint"><p className="text-lg mb-2">{dragOver?"Drop images here":materialType==="none"?"Choose a material type above":materialType==="videoFile"?"Upload a video file":materialType==="document"?"Upload a document":"Enter a URL or drop images"}</p><p className="text-xs">{materialType==="image"&&!dragOver?"Drop images, paste screenshots (⌘V), or upload":""}</p></div>}
               </div>
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">Paste from YouTube or type what you see</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder="Paste the video transcript, ad copy, or any text content here..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
