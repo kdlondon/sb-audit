@@ -126,34 +126,144 @@ const CT = ({ active, payload }) => {
   return <div className="bg-surface border border-main rounded-lg px-3 py-2 shadow-lg text-xs"><p className="font-semibold text-main">{d.name}</p><p className="text-muted">{d.value} entries</p></div>;
 };
 
-/* ─── DRILL PANEL — shows filtered entries when clicking chart segments ─── */
+/* ─── DRILL PANEL — shows filtered entries, click to expand full detail ─── */
 function DrillPanel({ entries, title, onClose }) {
+  const [activeId, setActiveId] = useState(null);
   if (!entries || entries.length === 0) return null;
+  const active = activeId ? entries.find(e => e.id === activeId) : null;
+  const ytId = (u) => { if (!u) return null; const m = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return m ? m[1] : null; };
+  const vimId = (u) => { if (!u) return null; const m = u.match(/vimeo\.com\/(\d+)/); return m ? m[1] : null; };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onClose}>
-      <div className="w-[420px] bg-surface h-full shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-surface border-b border-main px-5 py-3 flex justify-between items-center z-10">
-          <div>
-            <h3 className="text-sm font-semibold text-main">{title}</h3>
-            <p className="text-[10px] text-muted">{entries.length} entries</p>
-          </div>
-          <button onClick={onClose} className="text-muted hover:text-main text-lg w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface2">×</button>
-        </div>
-        <div className="p-4 space-y-2">
-          {entries.map(e => (
-            <div key={e.id} className="bg-surface2 rounded-lg p-3 border border-main">
-              <div className="flex items-start gap-3">
-                {e.image_url && <img src={e.image_url} className="w-12 h-12 rounded object-cover flex-shrink-0" alt="" />}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-main truncate">{e.description || "—"}</p>
-                  <p className="text-[10px] text-muted mt-0.5">{e.competitor || e.brand} · {e.year} · {e.type}</p>
-                  {e.communication_intent && <p className="text-[10px] text-accent mt-0.5">{e.communication_intent}</p>}
-                  {e.main_slogan && <p className="text-[10px] text-hint mt-1 italic">"{e.main_slogan}"</p>}
-                </div>
-                {e.rating && <span className="text-[10px] text-main font-semibold">{"★".repeat(Number(e.rating))}</span>}
-              </div>
+      <div className="flex h-full" onClick={e => e.stopPropagation()} style={{ animation: "fadeIn 0.2s ease-out" }}>
+        {/* Detail view — slides in when entry selected */}
+        {active && (
+          <div className="w-[480px] bg-surface h-full shadow-2xl overflow-y-auto border-r border-main" style={{ animation: "fadeIn 0.25s ease-out" }}>
+            <div className="sticky top-0 bg-surface border-b border-main px-5 py-3 flex justify-between items-center z-10">
+              <button onClick={() => setActiveId(null)} className="text-xs text-muted hover:text-main flex items-center gap-1">← Back to list</button>
+              <span className="text-[10px] text-hint">{active.competitor || active.brand}</span>
             </div>
-          ))}
+            <div className="p-5 space-y-4">
+              {/* Media */}
+              {ytId(active.url) ? (
+                <iframe width="100%" height="260" src={`https://www.youtube.com/embed/${ytId(active.url)}`} frameBorder="0" allowFullScreen className="rounded-xl" />
+              ) : vimId(active.url) ? (
+                <iframe width="100%" height="260" src={`https://player.vimeo.com/video/${vimId(active.url)}`} frameBorder="0" allowFullScreen className="rounded-xl" />
+              ) : active.url && /\.(mp4|mov|webm)/i.test(active.url) ? (
+                <video controls width="100%" className="rounded-xl" src={active.url} style={{ maxHeight: 280 }} />
+              ) : active.image_url ? (
+                <img src={active.image_url} className="w-full rounded-xl object-contain" style={{ maxHeight: 300 }} alt="" />
+              ) : null}
+
+              {/* Title + meta */}
+              <div>
+                <h3 className="text-base font-bold text-main">{active.description || "—"}</h3>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="text-[10px] px-2 py-0.5 bg-accent-soft text-accent rounded-full font-semibold">{active.competitor || active.brand}</span>
+                  {active.year && <span className="text-[10px] px-2 py-0.5 bg-surface2 text-muted rounded-full">{active.year}</span>}
+                  {active.type && <span className="text-[10px] px-2 py-0.5 bg-surface2 text-muted rounded-full">{active.type}</span>}
+                  {active.rating && <span className="text-[10px] px-2 py-0.5 bg-surface2 text-main rounded-full font-semibold">{"★".repeat(Number(active.rating))}</span>}
+                </div>
+              </div>
+
+              {/* Intent */}
+              {active.communication_intent && (
+                <div>
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Communication Intent</p>
+                  <p className="text-xs text-accent font-medium">{active.communication_intent}</p>
+                </div>
+              )}
+
+              {/* Slogan */}
+              {active.main_slogan && (
+                <div>
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Main Slogan</p>
+                  <p className="text-sm text-main italic" style={{ fontFamily: "Georgia, serif" }}>"{active.main_slogan}"</p>
+                </div>
+              )}
+
+              {/* Synopsis */}
+              {active.synopsis && (
+                <div>
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Synopsis</p>
+                  <p className="text-xs text-main leading-relaxed">{active.synopsis}</p>
+                </div>
+              )}
+
+              {/* Insight + Idea */}
+              {active.insight && (
+                <div>
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Insight</p>
+                  <p className="text-xs text-main">{active.insight}</p>
+                </div>
+              )}
+              {active.idea && (
+                <div>
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Creative Idea</p>
+                  <p className="text-xs text-main">{active.idea}</p>
+                </div>
+              )}
+
+              {/* Strategic fields */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Territory", active.primary_territory],
+                  ["Archetype", active.brand_archetype],
+                  ["Tone", active.tone_of_voice],
+                  ["Execution", active.execution_style],
+                  ["Emotional Benefit", active.emotional_benefit],
+                  ["Rational Benefit", active.rational_benefit],
+                ].filter(([, v]) => v).map(([label, val]) => (
+                  <div key={label}>
+                    <p className="text-[9px] text-hint uppercase font-semibold mb-0.5">{label}</p>
+                    <p className="text-xs text-main">{val}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Analyst comment */}
+              {active.analyst_comment && (
+                <div className="bg-surface2 rounded-lg p-3">
+                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">Analyst Notes</p>
+                  <p className="text-xs text-main leading-relaxed">{active.analyst_comment}</p>
+                </div>
+              )}
+
+              {/* URL */}
+              {active.url && (
+                <a href={active.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline block truncate">
+                  {active.url}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Entry list */}
+        <div className="w-[380px] bg-surface h-full shadow-2xl overflow-y-auto">
+          <div className="sticky top-0 bg-surface border-b border-main px-5 py-3 flex justify-between items-center z-10">
+            <div>
+              <h3 className="text-sm font-semibold text-main">{title}</h3>
+              <p className="text-[10px] text-muted">{entries.length} entries</p>
+            </div>
+            <button onClick={onClose} className="text-muted hover:text-main text-lg w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface2">×</button>
+          </div>
+          <div className="p-3 space-y-1.5">
+            {entries.map(e => (
+              <div key={e.id} onClick={() => setActiveId(e.id)}
+                className={`rounded-lg p-3 border cursor-pointer transition ${activeId === e.id ? "border-[var(--accent)] bg-accent-soft" : "border-main bg-surface2 hover:border-[var(--accent)]"}`}>
+                <div className="flex items-start gap-3">
+                  {e.image_url && <img src={e.image_url} className="w-10 h-10 rounded object-cover flex-shrink-0" alt="" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-main truncate">{e.description || "—"}</p>
+                    <p className="text-[10px] text-muted mt-0.5">{e.competitor || e.brand} · {e.year}</p>
+                  </div>
+                  {e.rating && <span className="text-[9px] text-main">{"★".repeat(Number(e.rating))}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
