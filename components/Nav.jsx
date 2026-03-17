@@ -1,5 +1,6 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole, canAccess } from "@/lib/role-context";
@@ -186,45 +187,78 @@ export default function Nav() {
         )}
       </div>
 
-      {/* What's New modal */}
-      {whatsNewOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center" style={{zIndex:99999}} onClick={()=>setWhatsNewOpen(false)}>
-          <div className="bg-surface w-[520px] max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden animate-fadeIn" onClick={e=>e.stopPropagation()}>
+      {/* What's New modal — via portal */}
+      {whatsNewOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center animate-fadeIn" style={{zIndex:99999}} onClick={()=>setWhatsNewOpen(false)}>
+          <div className="bg-surface w-[520px] max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
             <div className="px-6 py-4 flex justify-between items-center" style={{background:"#0a0f3c"}}>
               <div>
                 <h2 className="text-lg font-bold text-white">What's new</h2>
-                <p className="text-[10px] text-white/40 mt-0.5">Groundwork v2.5 · March 2026</p>
+                <p className="text-[10px] text-white/40 mt-0.5">Release notes</p>
               </div>
               <button onClick={()=>setWhatsNewOpen(false)} className="text-white/40 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
             </div>
-            <div className="px-6 py-5 overflow-y-auto max-h-[60vh] space-y-4">
-              {[
-                { icon: "🔍", title: "YouTube Scout", desc: "AI-powered content discovery. Search by brand, category, or keywords. AI ranks results by relevance. Duration filter for commercials." },
-                { icon: "🎬", title: "Creative Showcase", desc: "Cinematic K&D-branded presentations. Generate from audit data, edit slides, export to PDF, share via link." },
-                { icon: "👥", title: "User Management", desc: "Three roles (Admin, Analyst, Client) with per-project access control." },
-                { icon: "📊", title: "Communication Intent", desc: "Classify entries as Brand / Product / Innovation / Beyond Banking. Dashboard shows normalized comparisons." },
-                { icon: "🏷️", title: "Brand Classification", desc: "Classify brands by type (Banking, Fintech, etc.) in Settings. Grouped lists everywhere." },
-                { icon: "📸", title: "Video Frame Capture", desc: "Native screen capture tool. Click to grab stills from any video while watching." },
-                { icon: "🖼️", title: "Image Viewer", desc: "Zoom and pan inside the audit form. Filmstrip of all images below the viewer." },
-                { icon: "📈", title: "Dashboard Upgrades", desc: "Brand filter with checkboxes, pastel chart colors, PNG downloads for every visualization." },
-                { icon: "🔗", title: "Shareable Entry URLs", desc: "Each audit entry has a unique URL. Share directly to a specific case." },
-                { icon: "↔️", title: "Move Entries", desc: "Move cases between Local and Global with automatic field mapping." },
-                { icon: "🌐", title: "Custom Domain", desc: "Live at groundwork.kad.london with staging environment for testing." },
-              ].map((item, i) => (
-                <div key={i} className="flex gap-3">
-                  <span className="text-lg flex-shrink-0 mt-0.5">{item.icon}</span>
-                  <div>
-                    <h4 className="text-sm font-semibold text-main">{item.title}</h4>
-                    <p className="text-xs text-muted mt-0.5 leading-relaxed">{item.desc}</p>
-                  </div>
+            <div className="px-6 py-5 overflow-y-auto max-h-[60vh]">
+              {/* v2.5 */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{background:"#D4E520",color:"#0a0f3c"}}>v2.5</span>
+                  <span className="text-[10px] text-hint">March 2026</span>
                 </div>
-              ))}
+                <div className="space-y-3">
+                  {[
+                    { title: "YouTube Scout", desc: "AI-powered content discovery. Search by brand, category, or keywords with relevance scoring and commercial duration filters." },
+                    { title: "Creative Showcase", desc: "Cinematic K&D-branded presentations with slide editor, PDF export, and shareable links." },
+                    { title: "User Management", desc: "Role-based access control — Admin, Analyst, and Client with per-project permissions." },
+                    { title: "Communication Intent", desc: "Classify entries as Brand, Product, Innovation, or Beyond Banking. Normalized dashboard comparisons." },
+                    { title: "Brand Classification", desc: "Assign brand types in Settings. Grouped lists across Reports and Dashboard." },
+                    { title: "Video Frame Capture", desc: "Native screen capture tool for grabbing stills directly from video playback." },
+                    { title: "Image Viewer", desc: "In-place zoom and pan with filmstrip navigation for all entry images." },
+                    { title: "Dashboard Upgrades", desc: "Brand filter, pastel chart palette, PNG export for every visualization." },
+                    { title: "Shareable Entry URLs", desc: "Direct links to specific audit entries for easy team collaboration." },
+                    { title: "Move Entries", desc: "Transfer cases between Local and Global scopes with automatic field mapping." },
+                    { title: "Custom Domain & Staging", desc: "Production at groundwork.kad.london with staging environment for safe testing." },
+                  ].map((item, i) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0" style={{background:"#0019FF"}} />
+                      <div>
+                        <span className="text-sm font-semibold text-main">{item.title}</span>
+                        <span className="text-xs text-muted ml-1.5">{item.desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* v2.4 */}
+              <div className="pt-4 border-t border-main">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface2 text-muted">v2.4</span>
+                  <span className="text-[10px] text-hint">February 2026</span>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    "Multi-project module with project selector",
+                    "Audit form with multi-select fields and AI analysis",
+                    "Reports module — 5 templates + Journey Map",
+                    "AI Chat with entry citations",
+                    "Dashboard data visualizations",
+                    "Settings for dropdown management",
+                  ].map((item, i) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0 bg-surface2" />
+                      <p className="text-xs text-muted">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="px-6 py-3 border-t border-main text-center">
-              <p className="text-[10px] text-hint">A Knots & Dots product · groundwork.kad.london</p>
+              <p className="text-[10px] text-hint">Groundwork by Knots & Dots</p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
