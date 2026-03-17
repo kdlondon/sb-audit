@@ -389,149 +389,166 @@ Rules:
   };
 
   const filteredVideos = minScore > 0 ? videos.filter(v => (v.score || 0) >= minScore) : videos;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  // Search messages for conversational UI
+  const SEARCH_MESSAGES = [
+    "Digging into the content library...",
+    "Searching across YouTube...",
+    "Looking for interesting campaigns...",
+    "Hunting for competitive intelligence...",
+  ];
+  const RANKING_MESSAGES = [
+    "Found some pieces! Let me rank them by relevance...",
+    "Scoring each video for strategic value...",
+    "Almost there — picking the best ones...",
+  ];
+  const RESULT_MESSAGES = [
+    "Here's what I found! 👇",
+    "Take a look at these — some interesting stuff!",
+    "Got results! The best ones are at the top.",
+  ];
+  const randomMsg = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Conversational search — parse natural language
+  const [searchInput, setSearchInput] = useState("");
+  const [scoutMessage, setScoutMessage] = useState("");
+
+  const doSearch = () => {
+    const q = searchInput.trim();
+    if (!q) return;
+    // Parse natural language into search params
+    setBrand(q);
+    setKeywords("");
+    setCategory("");
+    setScoutMessage(randomMsg(SEARCH_MESSAGES));
+    handleSearch();
+  };
+
+  // Override handleSearch to use searchInput if brand/keywords/category are empty
+  const originalSearch = handleSearch;
 
   // ─── RENDER ───
   return (
     <AuthGuard><ProjectGuard><Nav />
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-        {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 shadow-lg">{toast}</div>}
+        {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 shadow-lg" style={{ animation: "fadeIn 0.3s" }}>{toast}</div>}
         {preview && <VideoPreview videoId={preview.videoId} title={preview.title} onClose={() => setPreview(null)} />}
 
         <div className="max-w-5xl mx-auto p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl font-bold text-main">YouTube Scout</h1>
-            <p className="text-xs text-muted mt-1">Search, discover, and import competitive content automatically</p>
-          </div>
 
-          {/* Search Form */}
-          <div className="bg-surface border border-main rounded-xl p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brand / Company <span className="text-hint font-normal">(optional)</span></label>
-                <input value={brand} onChange={e => setBrand(e.target.value)} placeholder="E.g., Starling Bank"
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
-                  onKeyDown={e => e.key === "Enter" && handleSearch()} />
+          {/* ─── CONVERSATIONAL HEADER ─── */}
+          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+            <div className="text-center pt-12 pb-8" style={{ animation: "fadeIn 0.5s" }}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </div>
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Category / Industry <span className="text-hint font-normal">(optional)</span></label>
-                <input value={category} onChange={e => setCategory(e.target.value)} placeholder="E.g., business banking, fintech, insurance"
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
-                  onKeyDown={e => e.key === "Enter" && handleSearch()} />
-              </div>
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Keywords <span className="text-hint font-normal">(comma-separated, strict match)</span></label>
-                <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., business banking, SME, entrepreneur"
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
-                  onKeyDown={e => e.key === "Enter" && handleSearch()} />
-              </div>
+              <h1 className="text-2xl font-bold text-main mb-2">Scout</h1>
+              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Market</label>
-                <select value={region} onChange={e => setRegion(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
-                  {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-                </select>
+          {/* ─── SEARCH INPUT (chat-style) ─── */}
+          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
+            <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input ref={searchInputRef} value={brand} onChange={e => setBrand(e.target.value)}
+                  placeholder="Search a brand, market, or topic..."
+                  className="flex-1 text-sm text-main bg-transparent focus:outline-none placeholder:text-hint"
+                  onKeyDown={e => { if (e.key === "Enter") handleSearch(); }} />
+                <button onClick={handleSearch} disabled={searching || !brand.trim()}
+                  className="px-4 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-30 transition flex-shrink-0"
+                  style={{ background: "#0019FF" }}>
+                  {searching ? "Searching..." : "Scout"}
+                </button>
               </div>
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Timeframe</label>
-                <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
-                  {TIMEFRAMES.map(t => <option key={t.days} value={t.days}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Max results</label>
-                <select value={maxResults} onChange={e => setMaxResults(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
-                  {[10, 15, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Import to</label>
-                <select value={scope} onChange={e => setScope(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main">
-                  <option value="global">Global benchmarks</option>
-                  <option value="local">Local audit</option>
-                </select>
-              </div>
-            </div>
 
-            {/* Content type */}
-            <div className="flex items-center gap-4 mb-4">
-              <label className="text-[10px] text-muted uppercase font-semibold">Content type:</label>
-              <div className="flex gap-2">
-                {CONTENT_TYPES.map(ct => (
-                  <button key={ct.value} onClick={() => setContentType(ct.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-                      contentType === ct.value ? "border-[var(--accent)] bg-accent-soft text-accent" : "border-main text-muted hover:text-main"
-                    }`}>
-                    {ct.label}
-                    <span className="text-hint font-normal ml-1">— {ct.hint}</span>
-                  </button>
-                ))}
+              {/* Advanced filters — collapsed by default */}
+              <div className="border-t border-main">
+                <button onClick={() => setFiltersOpen(!filtersOpen)}
+                  className="w-full px-4 py-2 flex items-center justify-between text-[10px] text-muted hover:text-main transition">
+                  <span className="uppercase font-semibold tracking-wider">Advanced filters</span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition ${filtersOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3" /></svg>
+                </button>
+                {filtersOpen && (
+                  <div className="px-4 pb-4 space-y-3" style={{ animation: "fadeIn 0.2s" }}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Category / Keywords</label>
+                        <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., business banking, SME"
+                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main focus:outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Market</label>
+                        <select value={region} onChange={e => setRegion(e.target.value)}
+                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
+                          {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Timeframe</label>
+                        <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
+                          {TIMEFRAMES.map(t => <option key={t.days} value={t.days}>{t.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Max results</label>
+                        <select value={maxResults} onChange={e => setMaxResults(Number(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
+                          {[10, 15, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Duration</label>
+                        <select value={durationFilter} onChange={e => setDurationFilter(e.target.value)}
+                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
+                          <option value="commercial">Commercials (15-90s)</option>
+                          <option value="short">Short (&lt;4 min)</option>
+                          <option value="any">Any length</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={contentType === "official"} onChange={e => setContentType(e.target.checked ? "official" : "all")} className="rounded border-gray-300 text-accent" />
+                          <span className="text-[10px] text-muted">Official content only</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={autoAnalyze} onChange={e => setAutoAnalyze(e.target.checked)} className="rounded border-gray-300 text-accent" />
+                          <span className="text-[10px] text-muted">AI analyze on import</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Duration filter */}
-            <div className="flex items-center gap-4 mb-4">
-              <label className="text-[10px] text-muted uppercase font-semibold">Duration:</label>
-              <div className="flex gap-2">
-                {[
-                  { value: "commercial", label: "Commercials", hint: "15-90 seconds" },
-                  { value: "short", label: "Short videos", hint: "Under 4 min" },
-                  { value: "any", label: "Any length", hint: "No filter" },
-                ].map(d => (
-                  <button key={d.value} onClick={() => setDurationFilter(d.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-                      durationFilter === d.value ? "border-[var(--accent)] bg-accent-soft text-accent" : "border-main text-muted hover:text-main"
-                    }`}>
-                    {d.label}
-                    <span className="text-hint font-normal ml-1">— {d.hint}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={autoAnalyze} onChange={e => setAutoAnalyze(e.target.checked)}
-                  className="rounded border-gray-300 text-accent" />
-                <span className="text-xs text-muted">Auto-analyze with AI after import</span>
-              </label>
-              <button onClick={handleSearch} disabled={searching || (!brand.trim() && !keywords.trim() && !category.trim())}
-                className="px-6 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
-                style={{ background: "#0019FF" }}>
-                {searching ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Searching...
-                  </span>
-                ) : "Search YouTube"}
-              </button>
             </div>
           </div>
 
-          {/* AI Ranking indicator */}
-          {ranking && (
-            <div className="bg-accent-soft border border-[var(--accent)] rounded-xl p-4 mb-6 flex items-center gap-3">
-              <svg className="animate-spin h-5 w-5 text-accent" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              <div>
-                <p className="text-sm font-medium text-accent">AI is ranking results by relevance...</p>
-                <p className="text-xs text-muted">Scoring {videos.length} videos for competitive intelligence value</p>
+          {/* ─── SEARCHING STATE ─── */}
+          {(searching || ranking) && (
+            <div className="text-center py-12" style={{ animation: "fadeIn 0.3s" }}>
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none"/><path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
               </div>
+              <p className="text-sm font-medium text-main">{ranking ? randomMsg(RANKING_MESSAGES) : randomMsg(SEARCH_MESSAGES)}</p>
+              {ranking && <p className="text-xs text-muted mt-1">Scoring {videos.length} videos</p>}
             </div>
           )}
 
           {/* Results */}
-          {videos.length > 0 && !importing && !importDone && (
+          {videos.length > 0 && !searching && !ranking && !importing && !importDone && (
             <div>
-              {/* Controls bar */}
+              {/* Conversational results header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-main font-medium">{filteredVideos.length} results</p>
+                  <p className="text-sm text-main font-medium">Found {filteredVideos.length} pieces 👇</p>
                   {videos.some(v => v.score !== null) && (
                     <div className="flex items-center gap-2">
                       <label className="text-[10px] text-muted">Min score:</label>
@@ -695,7 +712,7 @@ Rules:
                   className="px-5 py-2 text-white rounded-lg text-sm font-semibold" style={{ background: "#0019FF" }}>
                   View in Audit
                 </button>
-                <button onClick={() => { setImportDone(false); setVideos([]); setSelected(new Set()); }}
+                <button onClick={() => { setImportDone(false); setVideos([]); setSelected(new Set()); setBrand(""); setKeywords(""); }}
                   className="px-5 py-2 border border-main rounded-lg text-sm text-muted hover:text-main">
                   New search
                 </button>
@@ -703,14 +720,16 @@ Rules:
             </div>
           )}
 
-          {/* Empty state */}
-          {videos.length === 0 && !searching && !importing && !importDone && (
-            <div className="text-center py-16 text-hint">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {/* Quick suggestions when no results */}
+          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+            <div className="max-w-2xl mx-auto">
+              <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-2 text-center">Try searching for</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["Starling Bank", "Tide business", "RBC small business", "Monzo business account", "BBVA SME"].map(q => (
+                  <button key={q} onClick={() => { setBrand(q); setTimeout(() => handleSearch(), 100); }}
+                    className="px-3 py-1.5 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] transition">{q}</button>
+                ))}
               </div>
-              <p className="text-lg mb-2">Search for competitive content</p>
-              <p className="text-sm">Enter a brand name to find their YouTube ads, campaigns, and branded content</p>
             </div>
           )}
         </div>
