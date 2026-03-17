@@ -230,6 +230,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [materialType,setMaterialType]=useState("none");
   const [highlighted,setHighlighted]=useState(new Set());
   const [listMode,setListMode]=useState("list");
+  const [inlineEdit,setInlineEdit]=useState(null); // {id, field}
   const [toast,setToast]=useState(null);
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
@@ -316,6 +317,26 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   };
 
   const del=async(id)=>{await supabase.from(getTableName(scope)).delete().eq("id",id);if(sb?.id===id)setSb(null);load();};
+
+  // Inline edit — save single field
+  const inlineSave=async(id,field,value)=>{
+    await supabase.from(getTableName(scope)).update({[field]:value,updated_at:new Date().toISOString()}).eq("id",id);
+    setData(prev=>prev.map(e=>e.id===id?{...e,[field]:value,updated_at:new Date().toISOString()}:e));
+    if(sb?.id===id)setSb(prev=>({...prev,[field]:value}));
+    setInlineEdit(null);
+  };
+
+  // Map column keys to option arrays for inline dropdowns
+  const inlineOpts={
+    type:OPTIONS.type||[],
+    communication_intent:OPTIONS.communicationIntent||[],
+    portrait:OPTIONS.portrait||[],
+    journey_phase:OPTIONS.journeyPhase||[],
+    rating:["1","2","3","4","5"],
+    year:["2020","2021","2022","2023","2024","2025","2026"],
+    category:OPTIONS.category||[],
+    brand_archetype:OPTIONS.brandArchetype||[],
+  };
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
 
   const moveEntry=async(entry)=>{
@@ -833,21 +854,40 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               <thead><tr className="border-b-2 border-main">
                 {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):""}</span>}</th>))}<th></th>
               </tr></thead>
-              <tbody>{fd.map(e=>(<tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer" onClick={()=>setSb(e)}>
-                <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
-                <td className="px-2 py-2.5"><Tag v={e.category}/></td>
-                <td className="px-2 py-2.5 max-w-[180px] truncate font-medium text-main">{e.description||"—"}</td>
-                <td className="px-2 py-2.5 text-muted">{e.year||"—"}</td>
-                <td className="px-2 py-2.5 text-muted">{e.type||"—"}</td>
-                <td className="px-2 py-2.5 text-muted">{e.communication_intent||"—"}</td>
-                <td className="px-2 py-2.5 text-main">{e.portrait||"—"}</td>
-                <td className="px-2 py-2.5 text-main">{e.journey_phase||"—"}</td>
-                <td className="px-2 py-2.5 text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</td>
-                <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
-                <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
-                <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
-              </tr>))}</tbody>
+              <tbody>{fd.map(e=>{
+                const IC=({field,children,className=""})=>{
+                  const editing=inlineEdit?.id===e.id&&inlineEdit?.field===field;
+                  const opts=inlineOpts[field];
+                  if(editing&&opts){
+                    return(<td className={"px-1 py-1 "+className} onClick={ev=>ev.stopPropagation()}>
+                      <select autoFocus value={e[field]||""} onChange={ev=>{inlineSave(e.id,field,ev.target.value);}} onBlur={()=>setInlineEdit(null)}
+                        className="w-full px-1 py-1 bg-surface border border-[var(--accent)] rounded text-xs text-main focus:outline-none">
+                        <option value="">—</option>
+                        {opts.map(o=><option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </td>);
+                  }
+                  return(<td className={"px-2 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-white/5 rounded transition "+className}
+                    onClick={ev=>{ev.stopPropagation();if(opts)setInlineEdit({id:e.id,field});}}>
+                    {children}
+                  </td>);
+                };
+                return(<tr key={e.id} className="border-b border-main hover:bg-accent-soft cursor-pointer" onClick={()=>setSb(e)}>
+                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
+                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}>{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
+                  <IC field="category" className=""><Tag v={e.category}/></IC>
+                  <td className="px-2 py-2.5 max-w-[180px] truncate font-medium text-main">{e.description||"—"}</td>
+                  <IC field="year" className="text-muted">{e.year||"—"}</IC>
+                  <IC field="type" className="text-muted">{e.type||"—"}</IC>
+                  <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
+                  <IC field="portrait" className="text-main">{e.portrait||"—"}</IC>
+                  <IC field="journey_phase" className="text-main">{e.journey_phase||"—"}</IC>
+                  <IC field="rating" className="text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</IC>
+                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
+                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
+                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
+                </tr>);
+              })}</tbody>
             </table>
           </div>
         ):(
