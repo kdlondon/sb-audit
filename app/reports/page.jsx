@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
@@ -329,6 +330,7 @@ function ReportsContent(){
   const[saving,setSaving]=useState(false);
   const reportRef=useRef(null);
   const supabase=createClient();
+  const router=useRouter();
 
   useEffect(()=>{(async()=>{
     const[{data:local},{data:global},{data:reports}]=await Promise.all([
@@ -393,12 +395,13 @@ function ReportsContent(){
     setViewerOpen(true);
   };
 
-  const saveReport=async()=>{
+  const saveReport=async(openEditor=false)=>{
     if(!report)return;setSaving(true);
     const{data:{session}}=await supabase.auth.getSession();
-    const title=reportTitle||`${selectedTemplate?.label} — ${new Date().toLocaleDateString()}`;
+    const rTitle=reportTitle||`${selectedTemplate?.label} — ${new Date().toLocaleDateString()}`;
+    const id=String(Date.now());
     await supabase.from("saved_reports").insert({
-      id:String(Date.now()),title,
+      id,title:rTitle,
       scope:selectedTemplate?.scope||"local",
       template_type:selectedTemplate?.id||"",
       sections:sections.join(","),
@@ -411,6 +414,7 @@ function ReportsContent(){
     });
     const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     setSavedReports(reports||[]);setSaving(false);
+    if(openEditor)router.push(`/reports/editor?id=${id}`);
   };
 
   const deleteReport=async(id)=>{
@@ -566,7 +570,10 @@ function ReportsContent(){
                     <span className="text-[10px] text-hint">{r.created_by}</span>
                   </div>
                 </div>
-                <button onClick={ev=>{ev.stopPropagation();deleteReport(r.id);}} className="text-hint hover:text-red-400 text-sm px-2">×</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={ev=>{ev.stopPropagation();router.push(`/reports/editor?id=${r.id}`);}} className="text-xs text-accent hover:underline px-2">Edit</button>
+                  <button onClick={ev=>{ev.stopPropagation();deleteReport(r.id);}} className="text-hint hover:text-red-400 text-sm px-2">×</button>
+                </div>
               </div>
             ))}</div>
           }
@@ -586,7 +593,11 @@ function ReportsContent(){
                   <h3 className="text-sm font-semibold text-main">{viewingReport?.title||reportTitle||"Generated report"}</h3>
                 </div>
                 <div className="flex gap-2">
-                  {report&&!viewingReport&&<button onClick={saveReport} disabled={saving} className="px-3 py-1 text-xs bg-accent text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50">{saving?"Saving...":"Save report"}</button>}
+                  {report&&!viewingReport&&<>
+                    <button onClick={()=>saveReport(true)} disabled={saving} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#0019FF"}}>{saving?"Saving...":"Save & Edit"}</button>
+                    <button onClick={()=>saveReport(false)} disabled={saving} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:text-main">Skip editing</button>
+                  </>}
+                  {viewingReport&&<button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90" style={{background:"#0019FF"}}>Edit</button>}
                   <button onClick={copyReport} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">{copied?"Copied!":"Copy"}</button>
                   <button onClick={downloadMD} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.md</button>
                   <button onClick={downloadPDF} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.pdf</button>
