@@ -326,11 +326,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const del=async(id)=>{await supabase.from(getTableName(scope)).delete().eq("id",id);if(sb?.id===id)setSb(null);load();};
 
   // Inline edit — save single field
-  const inlineSave=async(id,field,value)=>{
+  const inlineSave=async(id,field,value,keepOpen=false)=>{
     await supabase.from(getTableName(scope)).update({[field]:value,updated_at:new Date().toISOString()}).eq("id",id);
     setData(prev=>prev.map(e=>e.id===id?{...e,[field]:value,updated_at:new Date().toISOString()}:e));
     if(sb?.id===id)setSb(prev=>({...prev,[field]:value}));
-    setInlineEdit(null);
+    if(!keepOpen)setInlineEdit(null);
   };
 
   // Map column keys to option arrays for inline dropdowns
@@ -871,19 +871,17 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                     // Include any legacy values not in current options so they can be unchecked
                     const allOpts=[...opts,...curVals.filter(v=>!opts.includes(v))];
                     return(<td className={"px-1 py-1 relative "+className} onClick={ev=>ev.stopPropagation()} data-inline-multi>
-                      <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-xl p-2 z-50 min-w-[160px] max-h-[240px] overflow-y-auto animate-fadeIn" data-inline-multi>
+                      <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-xl p-2 z-50 min-w-[160px] max-h-[240px] overflow-y-auto" data-inline-multi>
                         {allOpts.map(o=>{
                           const checked=curVals.includes(o);
                           return(<label key={o} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent-soft cursor-pointer text-xs text-main">
                             <input type="checkbox" checked={checked} onChange={()=>{
                               const next=checked?curVals.filter(v=>v!==o):[...curVals,o];
-                              inlineSave(e.id,field,next.join(", "));
-                              setInlineEdit({id:e.id,field}); // keep open
+                              inlineSave(e.id,field,next.join(", "),true);
                             }} className="rounded" />
                             {o}
                           </label>);
                         })}
-                        <button onClick={()=>setInlineEdit(null)} className="w-full mt-1 px-2 py-1 text-[10px] text-accent font-semibold rounded hover:bg-accent-soft">Done</button>
                       </div>
                       <span className="text-xs text-accent">{curVals.join(", ")||"—"}</span>
                     </td>);
