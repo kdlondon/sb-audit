@@ -132,6 +132,14 @@ CRITICAL: This is framework-agnostic. Do NOT reference any proprietary framework
 
 Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
 
+IMPORTANT — BRAND HERO EVOLUTION:
+The data contains entries across multiple years. Brand Hero pieces represent core positioning campaigns. When a brand has Brand Hero entries from different years, this tells a story of positioning evolution. You MUST:
+- Identify Brand Hero entries chronologically by year
+- Use the MOST RECENT Brand Hero campaign as the current positioning reference
+- Trace how the brand's positioning has evolved over time — shifts in archetype, territory, proposition, tone
+- Note whether the evolution shows strategic consistency (building on the same territory) or strategic pivots (shifting direction)
+- Reference specific campaigns by name/slogan and year when describing the evolution
+
 CITATION RULES — CRITICAL:
 - Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
 - Citations must appear inline immediately after the claim.
@@ -146,10 +154,13 @@ REPORT STRUCTURE — follow this EXACTLY:
 - **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
 - **Tension:** the core unresolved need their brand addresses (1–2 sentences)
 - **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
+- **Audience Evolution:** If the brand's target audience has shifted across Brand Hero campaigns over time, describe the shift in 1–2 sentences. If consistent, state that.
 
 ## 02 — The Brand Response
 (Focus ONLY on entries with Brand Hero communication intent — the core positioning pieces like manifestos, brand commercials, tagline-driven campaigns. Do NOT include Brand Tactical pieces like events, sponsorships, or cause marketing here.)
-- **Creative Proposition:** 3–6 word campaign/brand idea label derived from the hero pieces
+
+First, present the CURRENT positioning (based on the most recent Brand Hero campaign):
+- **Creative Proposition:** 3–6 word campaign/brand idea label derived from the most recent hero pieces
 - **Brand Archetype:** single archetype + one sentence explanation
 - **Brand Role:** one sentence on what role the brand plays in the customer's life
 - **Emotional Positioning Statement:** short phrase (5–10 words)
@@ -157,6 +168,9 @@ REPORT STRUCTURE — follow this EXACTLY:
 - **Brand Territory:** primary + secondary if applicable
 - **Key Differentiators:** 3 bullet points
 Include references to specific Brand Hero cases that support the findings.
+
+Then, if multiple Brand Hero campaigns exist across different years:
+- **Positioning Evolution:** A brief chronological narrative (3–5 sentences) tracing how the brand's core proposition, archetype, and territory have evolved. Reference specific campaigns by name/slogan and year. End with an assessment: is the evolution coherent and building equity, or fragmented and diluting the brand?
 
 ## 03 — Proof Points & Communication Strategy
 (Analyze how the brand proves its positioning across Brand Hero and Brand Tactical pieces)
@@ -180,7 +194,7 @@ Include references to specific Brand Hero cases that support the findings.
 - **White Space:** one sentence on the most credible territory this brand has not yet claimed
 
 ## 06 — Brand Assessment
-Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces.
+Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces. Consider the positioning evolution in the assessment.
 - **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
 - **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation
 
