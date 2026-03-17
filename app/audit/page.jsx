@@ -231,6 +231,13 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [highlighted,setHighlighted]=useState(new Set());
   const [listMode,setListMode]=useState("list");
   const [inlineEdit,setInlineEdit]=useState(null); // {id, field}
+  // Close inline multi-select on outside click
+  useEffect(()=>{
+    if(!inlineEdit)return;
+    const handler=(ev)=>{if(!ev.target.closest("[data-inline-multi]"))setInlineEdit(null);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[inlineEdit]);
   const [toast,setToast]=useState(null);
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
@@ -858,6 +865,27 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 const IC=({field,children,className=""})=>{
                   const editing=inlineEdit?.id===e.id&&inlineEdit?.field===field;
                   const opts=inlineOpts[field];
+                  const isMulti=MULTI_SELECT_FIELDS.has(field);
+                  if(editing&&opts&&isMulti){
+                    const curVals=(e[field]||"").split(",").map(v=>v.trim()).filter(Boolean);
+                    return(<td className={"px-1 py-1 relative "+className} onClick={ev=>ev.stopPropagation()} data-inline-multi>
+                      <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-xl p-2 z-50 min-w-[160px] max-h-[240px] overflow-y-auto animate-fadeIn" data-inline-multi>
+                        {opts.map(o=>{
+                          const checked=curVals.includes(o);
+                          return(<label key={o} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent-soft cursor-pointer text-xs text-main">
+                            <input type="checkbox" checked={checked} onChange={()=>{
+                              const next=checked?curVals.filter(v=>v!==o):[...curVals,o];
+                              inlineSave(e.id,field,next.join(", "));
+                              setInlineEdit({id:e.id,field}); // keep open
+                            }} className="rounded" />
+                            {o}
+                          </label>);
+                        })}
+                        <button onClick={()=>setInlineEdit(null)} className="w-full mt-1 px-2 py-1 text-[10px] text-accent font-semibold rounded hover:bg-accent-soft">Done</button>
+                      </div>
+                      <span className="text-xs text-accent">{curVals.join(", ")||"—"}</span>
+                    </td>);
+                  }
                   if(editing&&opts){
                     return(<td className={"px-1 py-1 "+className} onClick={ev=>ev.stopPropagation()}>
                       <select autoFocus value={e[field]||""} onChange={ev=>{inlineSave(e.id,field,ev.target.value);}} onBlur={()=>setInlineEdit(null)}
