@@ -1364,14 +1364,14 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                       <p className="text-base font-semibold text-white">{slide.brand_territory}</p>
                     </div>
                   )}
-                  {slide.key_differentiators?.length > 0 && (
+                  {(Array.isArray(slide.key_differentiators) ? slide.key_differentiators : []).length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Key Differentiators</span>
                       </div>
                       <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      {slide.key_differentiators.map((d, i) => (
+                      {(Array.isArray(slide.key_differentiators) ? slide.key_differentiators : []).map((d, i) => (
                         <p key={i} className="text-sm flex gap-2 items-start text-white/90">
                           <span className="text-white/40">•</span> {d}
                         </p>
@@ -1385,66 +1385,70 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
         </div>
       );
 
-    case "cs_proof_points":
+    case "cs_proof_points": {
+      const secProofs = Array.isArray(slide.secondary_proofs) ? slide.secondary_proofs : [];
+      const toneVoice = Array.isArray(slide.tone_voice) ? slide.tone_voice : [];
       return (
         <div className="animate-fadeIn -mx-4">
-          {/* Section title */}
           <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Proof Points and Communication Strategy</h2>
-          {/* White card container */}
           <div className="bg-white rounded-2xl shadow-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
-            {/* Proposition anchor */}
             {slide.creative_proposition && (
               <p className="text-4xl font-bold mb-6" style={{ color: t }}>
                 &ldquo;{slide.creative_proposition}&rdquo;
               </p>
             )}
-            {/* 4 columns with green accent bars */}
             <div className="grid grid-cols-4 gap-5">
-              {[
-                ["Primary Proof Points", (() => <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.primary_proof}</p>)()],
-                ["Secondary Proof Points", (() => (
-                  <div className="space-y-1">
-                    {(slide.secondary_proofs || []).map((sp, i) => (
-                      <p key={i} className="text-sm" style={{ color: t }}><span className="font-bold">{i+1}.</span> {sp}</p>
-                    ))}
-                  </div>
-                ))()],
-                ["Communication Focus", (() => <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.communication_focus}</p>)()],
-                ["Tone & Voice", (() => (
-                  <div className="space-y-1">
-                    {(slide.tone_voice || []).map((tv, i) => (
-                      <p key={i} className="text-xl font-bold" style={{ color: t }}>{tv}</p>
-                    ))}
-                  </div>
-                ))()],
-              ].map(([label, content], i) => (
-                <div key={i}>
-                  <p className="text-xs font-bold mb-1" style={{ color: t }}>{label}</p>
-                  <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                  {content}
+              <div>
+                <p className="text-xs font-bold mb-1" style={{ color: t }}>Primary Proof Points</p>
+                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
+                <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.primary_proof || ""}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold mb-1" style={{ color: t }}>Secondary Proof Points</p>
+                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
+                <div className="space-y-1">
+                  {secProofs.map((sp, i) => (
+                    <p key={i} className="text-sm" style={{ color: t }}><span className="font-bold">{i+1}.</span> {sp}</p>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div>
+                <p className="text-xs font-bold mb-1" style={{ color: t }}>Communication Focus</p>
+                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
+                <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.communication_focus || ""}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold mb-1" style={{ color: t }}>Tone & Voice</p>
+                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
+                <div className="space-y-1">
+                  {toneVoice.map((tv, i) => (
+                    <p key={i} className="text-xl font-bold" style={{ color: t }}>{tv}</p>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       );
+    }
 
-    case "cs_product":
+    case "cs_product": {
+      const keyMsgs = Array.isArray(slide.key_messages) ? slide.key_messages : [];
       return (
         <div className="animate-fadeIn -mx-4">
           <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Product Communication</h2>
           <div className="bg-white rounded-2xl shadow-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
             <div className="grid grid-cols-3 gap-5 mb-5">
               {[
-                ["Approach", <p key="a" className="text-sm leading-relaxed" style={{ color: t }}>{slide.approach}</p>],
+                ["Approach", <p key="a" className="text-sm leading-relaxed" style={{ color: t }}>{slide.approach || ""}</p>],
                 ["Key Product Messages", (
                   <div key="k" className="space-y-1">
-                    {(slide.key_messages || []).map((km, i) => (
+                    {keyMsgs.map((km, i) => (
                       <p key={i} className="text-sm" style={{ color: t }}><span className="font-bold">{i+1}.</span> {km}</p>
                     ))}
                   </div>
                 )],
-                ["Channels & Formats", <p key="c" className="text-sm leading-relaxed" style={{ color: t }}>{slide.channels_formats}</p>],
+                ["Channels & Formats", <p key="c" className="text-sm leading-relaxed" style={{ color: t }}>{slide.channels_formats || ""}</p>],
               ].map(([label, content], i) => (
                 <div key={i}>
                   <p className="text-xs font-bold mb-1" style={{ color: t }}>{label}</p>
@@ -1460,12 +1464,13 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               </svg>
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: "#92400E" }}>Gap — Untold Product Story</p>
-                <p className="text-sm font-medium" style={{ color: "#78350F" }}>{slide.gap}</p>
+                <p className="text-sm font-medium" style={{ color: "#78350F" }}>{slide.gap || ""}</p>
               </div>
             </div>
           </div>
         </div>
       );
+    }
 
     case "cs_beyond_banking":
       return (
@@ -1512,7 +1517,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#16A34A" }} />
                 <div className="space-y-4">
-                  {(slide.strengths || []).map((s, i) => (
+                  {(Array.isArray(slide.strengths) ? slide.strengths : []).map((s, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
@@ -1530,7 +1535,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#EA580C" }} />
                 <div className="space-y-4">
-                  {(slide.weaknesses || []).map((w, i) => (
+                  {(Array.isArray(slide.weaknesses) ? slide.weaknesses : []).map((w, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
@@ -1559,7 +1564,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#16A34A" }} />
                 <div className="space-y-4">
-                  {(slide.strengths || []).map((s, i) => (
+                  {(Array.isArray(slide.strengths) ? slide.strengths : []).map((s, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
@@ -1577,7 +1582,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#EA580C" }} />
                 <div className="space-y-4">
-                  {(slide.weaknesses || []).map((w, i) => (
+                  {(Array.isArray(slide.weaknesses) ? slide.weaknesses : []).map((w, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
