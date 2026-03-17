@@ -65,9 +65,10 @@ const TEMPLATES=[
     {id:"audience",label:"Understanding the Audience",desc:"Demographic, psychographic, tension, human insight"},
     {id:"brand_response",label:"The Brand Response",desc:"Proposition, archetype, role, positioning, territory, differentiators"},
     {id:"proof_points",label:"Proof Points & Communication Strategy",desc:"Primary proof, supporting points, focus, tone & voice"},
-    {id:"assessment",label:"Brand Assessment",desc:"Strengths and weaknesses"},
     {id:"product_comms",label:"Product Communication",desc:"Approach, key messages, channels, gaps"},
     {id:"beyond_banking",label:"Beyond Banking & Innovation",desc:"Lifestyle, community, innovation, white space"},
+    {id:"brand_assessment",label:"Brand Assessment",desc:"Strengths and weaknesses of the brand itself"},
+    {id:"comm_assessment",label:"Communication Assessment",desc:"Strengths and weaknesses across communication areas"},
   ]},
 ];
 
@@ -161,22 +162,28 @@ Include references to specific cases that support the findings.
 - **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
 - **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
 
-## 04 — Brand Assessment
-- **Strengths:** 3 bullets, each with a bold label + brief one-sentence explanation
-- **Weaknesses:** 2 bullets, each with a bold label + brief one-sentence explanation
-
-## 05 — Product Communication
+## 04 — Product Communication
 (Focus on entries with Product communication intent)
 - **Approach:** feature-led, outcome-led, or emotion-led — and one sentence explaining why
 - **Key Product Messages:** the 3 most recurring product claims from the communications
 - **Channels & Formats:** where and how product communication is primarily delivered
 - **Gap:** one sentence on what product story they are NOT telling
 
-## 06 — Beyond Banking & Innovation
+## 05 — Beyond Banking & Innovation
 (Focus on entries with Innovation or Beyond Banking communication intent)
 - **Beyond Banking:** are they occupying lifestyle, community, aspiration, identity, or life-moment territories — and how genuinely? One paragraph.
 - **Innovation:** Does innovation appear as a stated claim, a demonstrated capability, or is it absent? One paragraph with evidence from the communications.
 - **White Space:** one sentence on the most credible territory this brand has not yet claimed
+
+## 06 — Brand Assessment
+Assessment of the brand itself — its positioning, identity, proposition, and territory.
+- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
+- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation
+
+## 07 — Communication Assessment
+Assessment across the three communication areas: proof points & strategy (section 03), product communication (section 04), and beyond banking & innovation (section 05).
+- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
+- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
 
 Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`,
 };
