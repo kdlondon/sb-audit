@@ -117,6 +117,48 @@ export default function ScoutPage() {
   const [toast, setToast] = useState("");
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
+  // Scout Assistant
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [assistQuery, setAssistQuery] = useState("");
+  const [assistLoading, setAssistLoading] = useState(false);
+  const [assistMessages, setAssistMessages] = useState([]);
+
+  const askAssistant = async () => {
+    if (!assistQuery.trim() || assistLoading) return;
+    const q = assistQuery.trim();
+    setAssistMessages(prev => [...prev, { role: "user", text: q }]);
+    setAssistQuery("");
+    setAssistLoading(true);
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          max_tokens: 1500,
+          system: `You are a competitive intelligence research assistant for a brand strategy team. The user is using a YouTube Scout tool to find and analyze competitor communications in financial services / banking.
+
+Help them by:
+- Suggesting specific brand names, banks, fintechs, or financial institutions to search for
+- Recommending search keywords and phrases for finding relevant content
+- Suggesting markets/regions worth exploring
+- Providing context on who the key players are in specific markets or segments
+
+Be concise and practical. Format suggestions as bullet points. Always include the brand/company name and a brief reason why it's relevant. If they ask about a market, list 5-8 key players.`,
+          messages: [
+            ...assistMessages.map(m => ({ role: m.role, content: m.text })),
+            { role: "user", content: q },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "No response";
+      setAssistMessages(prev => [...prev, { role: "assistant", text: reply }]);
+    } catch (err) {
+      setAssistMessages(prev => [...prev, { role: "assistant", text: "Error: " + err.message }]);
+    }
+    setAssistLoading(false);
+  };
+
   // Existing URLs for duplicate detection
   const [existingUrls, setExistingUrls] = useState(new Set());
   useEffect(() => {
@@ -647,6 +689,69 @@ export default function ScoutPage() {
             </div>
           )}
         </div>
+      </div>
+      {/* ─── SCOUT ASSISTANT BUBBLE ─── */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {assistOpen && (
+          <div className="absolute bottom-16 right-0 w-[360px] bg-surface border border-main rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: "60vh" }}>
+            <div className="px-4 py-3 flex justify-between items-center" style={{ background: "#0a0f3c" }}>
+              <div>
+                <h3 className="text-sm font-bold text-white">Scout Assistant</h3>
+                <p className="text-[9px] text-white/40">Ask me who to search for</p>
+              </div>
+              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
+            </div>
+            <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: "calc(60vh - 110px)" }}>
+              {assistMessages.length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-xs text-muted mb-3">Try asking:</p>
+                  <div className="space-y-1.5">
+                    {["Banks competing in SME in Spain","Top fintechs for small business UK","Who are the main neobanks in Latin America","Business banking players in Australia"].map(q => (
+                      <button key={q} onClick={() => { setAssistQuery(q); }} className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {assistMessages.map((m, i) => (
+                <div key={i} className={`${m.role === "user" ? "text-right" : ""}`}>
+                  <div className={`inline-block max-w-[90%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                    m.role === "user" ? "bg-[#0019FF] text-white rounded-br-sm" : "bg-surface2 text-main rounded-bl-sm"
+                  }`}>
+                    {m.role === "assistant" ? (
+                      <div className="whitespace-pre-wrap">{m.text}</div>
+                    ) : m.text}
+                  </div>
+                </div>
+              ))}
+              {assistLoading && (
+                <div className="flex gap-1 px-3 py-2">
+                  <span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              )}
+            </div>
+            <div className="border-t border-main p-2 flex gap-2">
+              <input value={assistQuery} onChange={e => setAssistQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") askAssistant(); }}
+                placeholder="Ask about brands, markets..."
+                className="flex-1 px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-[var(--accent)]" />
+              <button onClick={askAssistant} disabled={assistLoading || !assistQuery.trim()}
+                className="px-3 py-2 bg-[#0019FF] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">
+                Send
+              </button>
+            </div>
+          </div>
+        )}
+        <button onClick={() => setAssistOpen(!assistOpen)}
+          className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition"
+          style={{ background: "#0019FF" }}>
+          {assistOpen ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><path d="M12 2a7 7 0 017 7c0 3-2 5.5-4 7l-1 4h-4l-1-4c-2-1.5-4-4-4-7a7 7 0 017-7z"/><circle cx="12" cy="9" r="2" fill="white"/></svg>
+          )}
+        </button>
       </div>
     </ProjectGuard></AuthGuard>
   );
