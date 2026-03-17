@@ -21,6 +21,7 @@ export default function Nav() {
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const menuRef = useRef(null);
   const addRef = useRef(null);
 
@@ -173,12 +174,58 @@ export default function Nav() {
             </button>
             <button onClick={() => { setMenuOpen(false); clearProject(); router.push("/projects"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch project</button>
+            <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
+              What's new
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{background:"#D4E520",color:"#0a0f3c"}}>v2.5</span>
+            </button>
             <div className="border-t border-main my-1" />
             <button onClick={() => { setMenuOpen(false); handleLogout(); }}
               className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:text-red-500 hover:bg-red-50 transition">Sign out</button>
           </div>
         )}
       </div>
+
+      {/* What's New modal */}
+      {whatsNewOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center" style={{zIndex:99999}} onClick={()=>setWhatsNewOpen(false)}>
+          <div className="bg-surface w-[520px] max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden animate-fadeIn" onClick={e=>e.stopPropagation()}>
+            <div className="px-6 py-4 flex justify-between items-center" style={{background:"#0a0f3c"}}>
+              <div>
+                <h2 className="text-lg font-bold text-white">What's new</h2>
+                <p className="text-[10px] text-white/40 mt-0.5">Groundwork v2.5 · March 2026</p>
+              </div>
+              <button onClick={()=>setWhatsNewOpen(false)} className="text-white/40 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
+            </div>
+            <div className="px-6 py-5 overflow-y-auto max-h-[60vh] space-y-4">
+              {[
+                { icon: "🔍", title: "YouTube Scout", desc: "AI-powered content discovery. Search by brand, category, or keywords. AI ranks results by relevance. Duration filter for commercials." },
+                { icon: "🎬", title: "Creative Showcase", desc: "Cinematic K&D-branded presentations. Generate from audit data, edit slides, export to PDF, share via link." },
+                { icon: "👥", title: "User Management", desc: "Three roles (Admin, Analyst, Client) with per-project access control." },
+                { icon: "📊", title: "Communication Intent", desc: "Classify entries as Brand / Product / Innovation / Beyond Banking. Dashboard shows normalized comparisons." },
+                { icon: "🏷️", title: "Brand Classification", desc: "Classify brands by type (Banking, Fintech, etc.) in Settings. Grouped lists everywhere." },
+                { icon: "📸", title: "Video Frame Capture", desc: "Native screen capture tool. Click to grab stills from any video while watching." },
+                { icon: "🖼️", title: "Image Viewer", desc: "Zoom and pan inside the audit form. Filmstrip of all images below the viewer." },
+                { icon: "📈", title: "Dashboard Upgrades", desc: "Brand filter with checkboxes, pastel chart colors, PNG downloads for every visualization." },
+                { icon: "🔗", title: "Shareable Entry URLs", desc: "Each audit entry has a unique URL. Share directly to a specific case." },
+                { icon: "↔️", title: "Move Entries", desc: "Move cases between Local and Global with automatic field mapping." },
+                { icon: "🌐", title: "Custom Domain", desc: "Live at groundwork.kad.london with staging environment for testing." },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-3">
+                  <span className="text-lg flex-shrink-0 mt-0.5">{item.icon}</span>
+                  <div>
+                    <h4 className="text-sm font-semibold text-main">{item.title}</h4>
+                    <p className="text-xs text-muted mt-0.5 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 border-t border-main text-center">
+              <p className="text-[10px] text-hint">A Knots & Dots product · groundwork.kad.london</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
