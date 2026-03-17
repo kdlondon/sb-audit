@@ -184,6 +184,42 @@ Rules:
     setAssistLoading(false);
   };
 
+  // Dynamic suggestions — generated from project data + AI
+  const [suggestions, setSuggestions] = useState([]);
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const supabaseClient = createClient();
+      const [{ data: local }, { data: global }] = await Promise.all([
+        supabaseClient.from("audit_entries").select("competitor").eq("project_id", projectId),
+        supabaseClient.from("audit_global").select("brand, country").eq("project_id", projectId),
+      ]);
+      const brands = new Set();
+      (local || []).forEach(e => { if (e.competitor) brands.add(e.competitor); });
+      (global || []).forEach(e => { if (e.brand) brands.add(e.brand); });
+      const countries = new Set();
+      (global || []).forEach(e => { if (e.country) countries.add(e.country); });
+
+      // Build smart suggestions from existing data + variations
+      const s = [];
+      const brandArr = [...brands];
+      // Suggest existing brands (pick random 2)
+      const shuffled = brandArr.sort(() => 0.5 - Math.random());
+      shuffled.slice(0, 2).forEach(b => s.push(b));
+      // Suggest brand + context
+      if (shuffled[0]) s.push(`${shuffled[0]} small business`);
+      // Suggest market exploration
+      const countryArr = [...countries];
+      if (countryArr.length > 0) s.push(`business banking ${countryArr[Math.floor(Math.random() * countryArr.length)]}`);
+      else s.push("business banking UK");
+      // Always add a discovery suggestion
+      const discoveries = ["neobank business account", "SME fintech ads", "challenger bank commercial", "business banking innovation", "small business testimonials"];
+      s.push(discoveries[Math.floor(Math.random() * discoveries.length)]);
+
+      setSuggestions(s.slice(0, 5));
+    })();
+  }, [projectId]);
+
   // Existing URLs for duplicate detection
   const [existingUrls, setExistingUrls] = useState(new Set());
   useEffect(() => {
@@ -725,11 +761,11 @@ Rules:
           )}
 
           {/* Quick suggestions when no results */}
-          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+          {videos.length === 0 && !searching && !ranking && !importing && !importDone && suggestions.length > 0 && (
             <div className="max-w-2xl mx-auto">
               <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-2 text-center">Try searching for</p>
               <div className="flex flex-wrap justify-center gap-2">
-                {["Starling Bank", "Tide business", "RBC small business", "Monzo business account", "BBVA SME"].map(q => (
+                {suggestions.map(q => (
                   <button key={q} onClick={() => { setBrand(q); setTimeout(() => handleSearch(), 100); }}
                     className="px-3 py-1.5 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] transition">{q}</button>
                 ))}
@@ -754,7 +790,7 @@ Rules:
                 <div className="text-center py-4">
                   <p className="text-xs text-muted mb-3">Try asking:</p>
                   <div className="space-y-1.5">
-                    {["Banks competing in SME in Spain","Top fintechs for small business UK","Who are the main neobanks in Latin America","Business banking players in Australia"].map(q => (
+                    {["Who competes in SME banking here?","Top fintechs for small business","Neobanks worth exploring","What brands should I look at next?"].map(q => (
                       <button key={q} onClick={() => { setAssistQuery(q); }} className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
                     ))}
                   </div>
