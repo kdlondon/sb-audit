@@ -96,6 +96,7 @@ export default function ScoutPage() {
   const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
   const [videoScopes, setVideoScopes] = useState({}); // { videoId: "local"|"global" }
   const [videoIntents, setVideoIntents] = useState({}); // { videoId: "Brand Hero" etc }
+  const [analystNotes, setAnalystNotes] = useState({}); // { videoId: "notes" }
   const INTENT_OPTIONS = ["Brand Hero","Brand Tactical","Client Testimonials","Product","Innovation","Beyond Banking"];
 
   // Results
@@ -353,9 +354,11 @@ Rules:
         transcript,
       };
 
-      // Add communication intent if set
+      // Add communication intent and analyst notes if set
       const vidIntent = videoIntents[v.videoId];
       if (vidIntent) entry.communication_intent = vidIntent;
+      const vidNotes = analystNotes[v.videoId];
+      if (vidNotes) entry.analyst_comment = vidNotes;
 
       if (vidScope === "global") {
         entry.brand = v.channel || "";
@@ -381,6 +384,7 @@ Rules:
               context: [
                 `Brand: ${v.channel || ""}`,
                 transcript ? `Transcript: ${transcript.slice(0, 1500)}` : "",
+                vidNotes ? `Analyst observations: ${vidNotes}` : "",
               ].filter(Boolean).join("\n"),
             }),
           });
@@ -699,6 +703,20 @@ Rules:
                                 onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
                                 rows={3}
                                 placeholder="Paste the video transcript or ad copy here..."
+                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
+                              />
+                            </div>
+                            {/* Analyst Notes */}
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] text-muted uppercase font-semibold">Analyst Notes</label>
+                                <span className="text-[9px] text-hint">Your observations — sent to AI</span>
+                              </div>
+                              <textarea
+                                value={analystNotes[v.videoId] || ""}
+                                onChange={e => setAnalystNotes(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                                rows={2}
+                                placeholder="What stands out? Strategic observations..."
                                 className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
                               />
                             </div>
