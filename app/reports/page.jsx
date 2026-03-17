@@ -73,15 +73,39 @@ const TEMPLATES=[
   ]},
 ];
 
+// ── GLOBAL ANALYSIS RULES (injected into every report prompt) ─────────────────
+const GLOBAL_RULES = `
+GLOBAL ANALYSIS RULES — APPLY TO ALL REPORTS:
+
+1. COMMUNICATION INTENT HIERARCHY:
+The data classifies entries by communication intent. You MUST respect this hierarchy:
+- **Brand Hero**: Core brand positioning pieces — manifestos, brand commercials, major campaign films, tagline-driven ads. These define what the brand STANDS FOR. Use these as the primary source for positioning analysis (archetype, territory, proposition, emotional/rational positioning).
+- **Brand Tactical**: Brand-building pieces that support values but are NOT core positioning — events, sponsorships, community initiatives, cause marketing, employer branding, CSR. These build perception but don't define the central proposition. Analyze separately from hero pieces.
+- **Client Testimonials**: Real customer stories and case studies. These reveal what customers value in their own voice. Analyze for audience insights and proof points, not brand positioning.
+- **Product**: Drives a specific product/service/offer. Analyze for product communication strategy.
+- **Innovation**: Showcases new capability or technology. Analyze for innovation positioning.
+- **Beyond Banking**: Educational content, community building, financial literacy. Analyze for territory expansion.
+
+When analyzing brand positioning, archetype, territory, or proposition: use ONLY Brand Hero entries. Brand Tactical, Client Testimonials, and other intents provide supporting context but should not define the core positioning analysis.
+
+2. BRAND HERO EVOLUTION:
+When a brand has Brand Hero entries across different years, trace the positioning evolution chronologically. Use the MOST RECENT Brand Hero campaign as the current reference, but note shifts in archetype, territory, and proposition over time. Assess whether the evolution is coherent (building equity) or fragmented (diluting the brand).
+
+3. FAIR CROSS-BRAND COMPARISON:
+Brands may have different numbers of entries in the data. Do NOT let volume bias your analysis — a brand with 20 entries is not necessarily stronger than one with 5. Normalize your assessments by quality and strategic clarity, not quantity. When comparing brands, evaluate the strength of their positioning and communication, not how many pieces they produced.
+
+4. CITATION RULES — CRITICAL:
+- Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
+- Citations must appear inline immediately after the claim.
+- Never make a specific claim about a piece without citing it.
+- Include a ## Sources section at the end listing all cited entries.
+`;
+
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPTS={
   competitor_snapshot:`You are a world-class brand strategist analyzing Canadian business banking competitive communications for Scotiabank. Write a deep competitor snapshot.
 
-CITATION RULES — CRITICAL:
-- Every time you reference a specific piece of communication, you MUST cite it using this exact format: [ENTRY:entry_id] where entry_id is the ID provided in the data.
-- Citations must appear inline immediately after the claim, e.g. "Their 2024 awareness campaign leads with fear reduction [ENTRY:1234567890]"
-- Never make a specific claim about a piece without citing it.
-- At the end of the report, include a ## Sources section listing all cited entries as: [ENTRY:id] — Brand, Description, Year
+${GLOBAL_RULES}
 
 BRAND CONSISTENCY SECTION — when generating this section, evaluate:
 1. Tone consistency — does the emotional register stay coherent across channels and funnel stages?
@@ -95,50 +119,47 @@ Write with authority. Use ## for sections, ### for subsections, **bold** for key
 
   category_landscape:`You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank.
 
-CITATION RULES — CRITICAL:
-- When referencing a specific piece as evidence, cite it as [ENTRY:entry_id]
-- Citations appear inline: "TD's warmth-led approach peaks in their 2024 testimonial series [ENTRY:1234567890]"
-- Include a ## Sources section at the end listing all cited entries.
+${GLOBAL_RULES}
+
+When comparing brands across the category, group your analysis by communication intent:
+- Compare Brand Hero positioning across competitors (archetype, territory, proposition)
+- Compare Product communication strategies
+- Compare Beyond Banking and Innovation approaches
+- Note which brands use Client Testimonials effectively and what those reveal
 
 Use ## for sections, **bold** for key findings, markdown tables for cross-brand comparisons. Be conclusive.`,
 
   opportunity:`You are a world-class brand strategist identifying strategic white spaces for Scotiabank in Canadian business banking.
 
-CITATION RULES — CRITICAL:
-- When pointing to specific evidence of a gap or a pattern, cite the entry as [ENTRY:entry_id]
-- Include a ## Sources section at the end.
+${GLOBAL_RULES}
+
+When identifying opportunities, consider gaps across all communication intent categories:
+- Unclaimed Brand Hero territories (positioning no competitor owns)
+- Product communication gaps (product stories no one is telling)
+- Beyond Banking white spaces (lifestyle/community territories unexplored)
+- Client Testimonial opportunities (customer voices no one is amplifying)
 
 Be specific, opinionated, and direct. End with 3–5 named opportunity territories.`,
 
   creative_intelligence:`You are a world-class creative strategist analyzing global financial brand communications to extract inspiration for Scotiabank business banking.
 
-CITATION RULES — CRITICAL:
-- Cite specific global pieces as [ENTRY:entry_id] when referencing them as examples.
-- Include a ## Sources section at the end.
+${GLOBAL_RULES}
 
-For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context.`,
+For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context. Distinguish between Brand Hero inspiration (positioning/territory ideas) and tactical inspiration (execution/format ideas).`,
 
   innovation:`You are a world-class brand strategist identifying communication innovation and convention breaks in global financial brands.
 
-CITATION RULES — CRITICAL:
-- Cite specific pieces as [ENTRY:entry_id] when naming convention breakers or emerging signals.
-- Include a ## Sources section at the end.
+${GLOBAL_RULES}
 
-Focus on what breaks category norms. Identify emerging signals before they become mainstream.`,
+Focus on what breaks category norms. Identify emerging signals before they become mainstream. Note whether innovation appears in Brand Hero positioning (strategic innovation) or in tactical execution (format/channel innovation).`,
 
   agnostic_snapshot:`You are a senior brand strategist writing a competitive communication audit.
 
 CRITICAL: This is framework-agnostic. Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit.
 
-Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
+${GLOBAL_RULES}
 
-IMPORTANT — BRAND HERO EVOLUTION:
-The data contains entries across multiple years. Brand Hero pieces represent core positioning campaigns. When a brand has Brand Hero entries from different years, this tells a story of positioning evolution. You MUST:
-- Identify Brand Hero entries chronologically by year
-- Use the MOST RECENT Brand Hero campaign as the current positioning reference
-- Trace how the brand's positioning has evolved over time — shifts in archetype, territory, proposition, tone
-- Note whether the evolution shows strategic consistency (building on the same territory) or strategic pivots (shifting direction)
-- Reference specific campaigns by name/slogan and year when describing the evolution
+Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
 
 CITATION RULES — CRITICAL:
 - Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
