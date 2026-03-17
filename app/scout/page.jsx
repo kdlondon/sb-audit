@@ -451,8 +451,10 @@ Rules:
             </div>
           )}
 
-          {/* ─── SEARCH INPUT (chat-style) ─── */}
-          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
+          {/* ─── SEARCH INPUT (chat-style, sticky) ─── */}
+          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto sticky top-[52px] z-30`}>
+            {/* Fade mask behind search bar */}
+            <div className="absolute -top-4 -left-6 -right-6 h-[calc(100%+2rem)] -z-10" style={{ background: "linear-gradient(to bottom, var(--bg) 70%, transparent 100%)" }} />
             <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
