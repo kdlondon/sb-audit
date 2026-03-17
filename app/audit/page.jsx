@@ -370,7 +370,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     portrait:OPTIONS.portrait||[],
     journey_phase:OPTIONS.journeyPhase||[],
     rating:["1","2","3","4","5"],
-    year:["2020","2021","2022","2023","2024","2025","2026"],
+    year:Array.from({length:27},(_,i)=>String(2000+i)),
     category:OPTIONS.category||[],
     brand_archetype:OPTIONS.brandArchetype||[],
   };
