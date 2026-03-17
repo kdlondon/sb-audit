@@ -61,6 +61,14 @@ const TEMPLATES=[
     {id:"format",label:"Format & channel innovation",desc:"Unusual format or channel choices"},
     {id:"implications",label:"Strategic implications",desc:"3–5 signals distilled into actionable implications"},
   ]},
+  {id:"agnostic_snapshot",label:"Agnostic Competitor Snapshot",scope:"local",badge:"Local + Global",description:"Framework-agnostic competitive communication audit — pure brand & product analysis",singleBrand:true,scopeAny:true,sections:[
+    {id:"audience",label:"Understanding the Audience",desc:"Demographic, psychographic, tension, human insight"},
+    {id:"brand_response",label:"The Brand Response",desc:"Proposition, archetype, role, positioning, territory, differentiators"},
+    {id:"proof_points",label:"Proof Points & Communication Strategy",desc:"Primary proof, supporting points, focus, tone & voice"},
+    {id:"assessment",label:"Brand Assessment",desc:"Strengths and weaknesses"},
+    {id:"product_comms",label:"Product Communication",desc:"Approach, key messages, channels, gaps"},
+    {id:"beyond_banking",label:"Beyond Banking & Innovation",desc:"Lifestyle, community, innovation, white space"},
+  ]},
 ];
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
@@ -115,6 +123,62 @@ CITATION RULES — CRITICAL:
 - Include a ## Sources section at the end.
 
 Focus on what breaks category norms. Identify emerging signals before they become mainstream.`,
+
+  agnostic_snapshot:`You are a senior brand strategist writing a competitive communication audit.
+
+CRITICAL: This is framework-agnostic. Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit.
+
+Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
+
+CITATION RULES — CRITICAL:
+- Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
+- Citations must appear inline immediately after the claim.
+- Never make a specific claim about a piece without citing it.
+- Include a ## Sources section at the end.
+
+REPORT STRUCTURE — follow this EXACTLY:
+
+## 01 — Understanding the Audience
+- **Demographic:** age range, financial profile, experience level inferred from the brand's communications
+- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand
+- **Tension:** the core unresolved need their brand addresses (1–2 sentences)
+- **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
+
+## 02 — The Brand Response
+(Focus on entries with Brand communication intent)
+- **Creative Proposition:** 3–6 word campaign/brand idea label
+- **Brand Archetype:** single archetype + one sentence explanation
+- **Brand Role:** one sentence on what role the brand plays in the customer's life
+- **Emotional Positioning Statement:** short phrase (5–10 words)
+- **Rational Positioning Statement:** one sentence (15–25 words)
+- **Brand Territory:** primary + secondary if applicable
+- **Key Differentiators:** 3 bullet points
+Include references to specific cases that support the findings.
+
+## 03 — Proof Points & Communication Strategy
+- **Primary Proof Point:** 1–2 sentences on the main proof of their positioning
+- **Secondary Proof Points:** 3 supporting points, one line each
+- **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
+- **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
+
+## 04 — Brand Assessment
+- **Strengths:** 3 bullets, each with a bold label + brief one-sentence explanation
+- **Weaknesses:** 2 bullets, each with a bold label + brief one-sentence explanation
+
+## 05 — Product Communication
+(Focus on entries with Product communication intent)
+- **Approach:** feature-led, outcome-led, or emotion-led — and one sentence explaining why
+- **Key Product Messages:** the 3 most recurring product claims from the communications
+- **Channels & Formats:** where and how product communication is primarily delivered
+- **Gap:** one sentence on what product story they are NOT telling
+
+## 06 — Beyond Banking & Innovation
+(Focus on entries with Innovation or Beyond Banking communication intent)
+- **Beyond Banking:** are they occupying lifestyle, community, aspiration, identity, or life-moment territories — and how genuinely? One paragraph.
+- **Innovation:** Does innovation appear as a stated claim, a demonstrated capability, or is it absent? One paragraph with evidence from the communications.
+- **White Space:** one sentence on the most credible territory this brand has not yet claimed
+
+Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`,
 };
 
 const BADGE={local:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",global:"bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"};
@@ -352,7 +416,7 @@ function ReportsContent(){
     setCompetitors([]);setReport("");setViewingReport(null);
   },[selectedTemplate]);
 
-  const currentData=selectedTemplate?.scope==="local"?localData:globalData;
+  const currentData=selectedTemplate?.scopeAny?[...localData,...globalData]:selectedTemplate?.scope==="local"?localData:globalData;
   const filteredData=currentData.filter(e=>{
     const brand=e.competitor||e.brand||"";
     const matchBrand=competitors.length===0||competitors.includes(brand);
@@ -375,9 +439,11 @@ function ReportsContent(){
     const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
     return Object.entries(groups).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));
   };
-  const groupedBrands=selectedTemplate?.scope==="local"
-    ?buildGroupedBrands(localData,"competitor")
-    :buildGroupedBrands(globalData,"brand");
+  const groupedBrands=selectedTemplate?.scopeAny
+    ?(()=>{const localG=buildGroupedBrands(localData,"competitor");const globalG=buildGroupedBrands(globalData,"brand");const merged={};[...localG,...globalG].forEach(g=>{if(!merged[g.cat])merged[g.cat]=new Set();g.brands.forEach(b=>merged[g.cat].add(b));});const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];return Object.entries(merged).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,set])=>({cat,brands:[...set].sort()}));})()
+    :selectedTemplate?.scope==="local"
+      ?buildGroupedBrands(localData,"competitor")
+      :buildGroupedBrands(globalData,"brand");
   const availableBrands=groupedBrands.flatMap(g=>g.brands);
   const allData=[...localData,...globalData];
 
@@ -434,7 +500,65 @@ function ReportsContent(){
     const sectionNames=sections.map(id=>selectedTemplate.sections.find(s=>s.id===id)?.label).filter(Boolean).join(", ");
 
     // Build data string with IDs for citations
-    const dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
+    let dataStr;
+    if(selectedTemplate.id==="agnostic_snapshot"){
+      // Agnostic snapshot: aggregated counts + full text fields
+      const fd=filteredData;
+      const countField=(field)=>{const c={};fd.forEach(e=>{const v=e[field];if(v&&v!=="Other"&&!v.startsWith("Not ")&&!v.startsWith("None"))v.split(",").map(s=>s.trim()).forEach(s=>{c[s]=(c[s]||0)+1;});});return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} (${v})`).join(", ");};
+      const collectField=(field)=>fd.map(e=>e[field]).filter(Boolean).map((v,i)=>`[ID:${fd[i]?.id}] ${v}`);
+      const avgRating=fd.filter(e=>e.rating).length>0?(fd.filter(e=>e.rating).reduce((s,e)=>s+Number(e.rating),0)/fd.filter(e=>e.rating).length).toFixed(1):"N/A";
+
+      dataStr=`BRAND: ${competitors[0]||"Unknown"}
+TOTAL ENTRIES: ${fd.length}
+AVERAGE RATING: ${avgRating}/5
+
+COMMUNICATION INTENT BREAKDOWN:
+${countField("communication_intent")}
+
+AGGREGATED FREQUENCIES:
+Brand Archetype: ${countField("brand_archetype")}
+Primary Territory: ${countField("primary_territory")}
+Secondary Territory: ${countField("secondary_territory")}
+Tone of Voice: ${countField("tone_of_voice")}
+Execution Style: ${countField("execution_style")}
+Channel: ${countField("channel")}
+CTA: ${countField("cta")}
+Differentiation: ${countField("diff_claim")}
+Media Type: ${countField("type")}
+Pain Point Type: ${countField("pain_point_type")}
+
+EMOTIONAL BENEFITS:
+${collectField("emotional_benefit").join("\n")}
+
+RATIONAL BENEFITS:
+${collectField("rational_benefit").join("\n")}
+
+MAIN VALUE PROPOSITIONS:
+${collectField("main_vp").join("\n")}
+
+SLOGANS:
+${collectField("main_slogan").join("\n")}
+
+INSIGHTS (human truths):
+${collectField("insight").join("\n")}
+
+CREATIVE IDEAS:
+${collectField("idea").join("\n")}
+
+PAIN POINTS:
+${fd.map(e=>e.pain_point?`[ID:${e.id}] (${e.pain_point_type||""}) ${e.pain_point}`:"").filter(Boolean).join("\n")}
+
+SYNOPSES:
+${collectField("synopsis").join("\n")}
+
+ANALYST COMMENTS:
+${collectField("analyst_comment").join("\n")}
+
+ENTRY DESCRIPTIONS:
+${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communication_intent||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | URL:${e.url||""} | Image:${e.image_url||""}`).join("\n")}`;
+    }else{
+      dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
+    }
 
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
     const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
