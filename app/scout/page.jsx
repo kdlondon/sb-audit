@@ -203,17 +203,15 @@ Rules:
     setSelected(new Set());
     setImportDone(false);
 
-    // Build query with strict keyword matching
+    // Build query — clean, no "ad commercial" noise (server handles official channel search)
     const parts = [];
     if (brand.trim()) parts.push(brand.trim());
-    if (category.trim()) parts.push(`"${category.trim()}"`); // exact match
+    if (category.trim()) parts.push(category.trim());
     if (keywords.trim()) {
-      // Wrap multi-word keywords in quotes for exact matching
       keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
         parts.push(k.includes(" ") ? `"${k}"` : k);
       });
     }
-    if (contentType === "official") parts.push("official ad commercial");
     const query = parts.join(" ");
     const publishedAfter = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : undefined;
 
@@ -256,8 +254,12 @@ Rules:
               updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
             }
           });
-          // Sort by score descending
-          return updated.sort((a, b) => (b.score || 0) - (a.score || 0));
+          // Sort: official first, then by score
+          return updated.sort((a, b) => {
+            if (a.isOfficial && !b.isOfficial) return -1;
+            if (!a.isOfficial && b.isOfficial) return 1;
+            return (b.score || 0) - (a.score || 0);
+          });
         });
         setRanking(false);
       }
@@ -612,7 +614,7 @@ Rules:
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-xs text-muted">{v.channel}</p>
-                          {v.channel && brand && v.channel.toLowerCase().includes(brand.toLowerCase().split(" ")[0]) && (
+                          {v.isOfficial && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Official</span>
                           )}
                           <span className="text-xs text-hint">· {formatViews(v.viewCount)} views · {v.year}</span>

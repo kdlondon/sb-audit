@@ -8,77 +8,163 @@ export async function POST(request) {
 
   if (!apiKey) return Response.json({ error: "YouTube API key not configured" }, { status: 500 });
 
-  // ─── SEARCH ───
+  // ─── HELPER: fetch video stats (views, duration) ───
+  async function enrichWithStats(videos) {
+    if (videos.length === 0) return videos;
+    const ids = videos.map(v => v.videoId).join(",");
+    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails&id=${ids}&key=${apiKey}`);
+    const statsData = await statsRes.json();
+    const statsMap = {};
+    (statsData.items || []).forEach(item => {
+      statsMap[item.id] = {
+        viewCount: parseInt(item.statistics?.viewCount || "0"),
+        duration: item.contentDetails?.duration || "",
+      };
+    });
+    videos.forEach(v => {
+      const stats = statsMap[v.videoId];
+      if (stats) {
+        v.viewCount = stats.viewCount;
+        v.duration = stats.duration;
+        const dm = stats.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        v.durationSeconds = dm ? (parseInt(dm[1]||0)*3600 + parseInt(dm[2]||0)*60 + parseInt(dm[3]||0)) : 0;
+      }
+    });
+    return videos;
+  }
+
+  // ─── HELPER: YouTube search call ───
+  async function ytSearch(params) {
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return (data.items || []).filter(item => item.id?.videoId).map(item => ({
+      videoId: item.id.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      channelId: item.snippet.channelId,
+      description: item.snippet.description,
+      thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
+      publishedAt: item.snippet.publishedAt,
+      year: item.snippet.publishedAt?.substring(0, 4),
+    }));
+  }
+
+  // ─── SEARCH (2-phase: official channel + general) ───
   if (action === "search") {
     const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
-    const params = new URLSearchParams({
-      part: "snippet",
-      q: query,
-      type: "video",
-      maxResults: String(Math.min(maxResults, 50)),
-      key: apiKey,
-      order: "relevance",
-    });
-    if (publishedAfter) params.set("publishedAfter", publishedAfter);
-    if (publishedBefore) params.set("publishedBefore", publishedBefore);
-    if (regionCode) params.set("regionCode", regionCode);
-    if (pageToken) params.set("pageToken", pageToken);
-    if (videoDuration) params.set("videoDuration", videoDuration); // short (<4min), medium (4-20min), long (>20min)
+    // Extract brand name (first part of query, before keywords)
+    const brandName = query.split(/\s+(ad|commercial|campaign|banking|business|small|sme|official)/i)[0].trim();
 
     try {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
-      const data = await res.json();
+      let allVideos = [];
+      let officialChannelId = null;
+      let officialChannelName = null;
 
-      if (data.error) return Response.json({ error: data.error.message }, { status: 400 });
-
-      let videos = (data.items || []).map(item => ({
-        videoId: item.id.videoId,
-        title: item.snippet.title,
-        channel: item.snippet.channelTitle,
-        description: item.snippet.description,
-        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
-        publishedAt: item.snippet.publishedAt,
-        year: item.snippet.publishedAt?.substring(0, 4),
-      }));
-
-      // Get view counts in batch
-      if (videos.length > 0) {
-        const ids = videos.map(v => v.videoId).join(",");
-        const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails&id=${ids}&key=${apiKey}`);
-        const statsData = await statsRes.json();
-        const statsMap = {};
-        (statsData.items || []).forEach(item => {
-          statsMap[item.id] = {
-            viewCount: parseInt(item.statistics?.viewCount || "0"),
-            duration: item.contentDetails?.duration || "",
-          };
+      // ─── PHASE 1: Find the brand's official YouTube channel ───
+      if (brandName) {
+        const channelParams = new URLSearchParams({
+          part: "snippet",
+          q: brandName,
+          type: "channel",
+          maxResults: "5",
+          key: apiKey,
         });
-        videos.forEach(v => {
-          const stats = statsMap[v.videoId];
-          if (stats) {
-            v.viewCount = stats.viewCount;
-            v.duration = stats.duration;
-            // Parse duration to seconds
-            const dm = stats.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-            v.durationSeconds = dm ? (parseInt(dm[1]||0)*3600 + parseInt(dm[2]||0)*60 + parseInt(dm[3]||0)) : 0;
-          }
-        });
+        const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
+        const channelData = await channelRes.json();
+        const channels = channelData.items || [];
 
-        // Filter by exact duration range if specified
-        if (minSeconds || maxSeconds) {
-          const min = minSeconds || 0;
-          const max = maxSeconds || 999999;
-          videos = videos.filter(v => v.durationSeconds >= min && v.durationSeconds <= max);
+        // Find best matching channel (prefer exact name match or verified)
+        const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const bestChannel = channels.find(ch => {
+          const chName = (ch.snippet.channelTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          return chName.includes(brandLower) || brandLower.includes(chName);
+        }) || channels[0];
+
+        if (bestChannel) {
+          officialChannelId = bestChannel.id.channelId;
+          officialChannelName = bestChannel.snippet.channelTitle;
+
+          // Search WITHIN the official channel (clean query, no "ad commercial" noise)
+          const channelSearchParams = new URLSearchParams({
+            part: "snippet",
+            channelId: officialChannelId,
+            q: query.replace(/official\s*ad\s*commercial/gi, "").trim() || "",
+            type: "video",
+            maxResults: String(Math.min(maxResults, 50)),
+            key: apiKey,
+            order: "date",
+          });
+          if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
+          if (regionCode) channelSearchParams.set("regionCode", regionCode);
+          if (videoDuration) channelSearchParams.set("videoDuration", videoDuration);
+
+          const channelVids = await ytSearch(channelSearchParams);
+          channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
+          allVideos.push(...channelVids);
         }
       }
 
+      // ─── PHASE 2: General search (for media coverage, ad industry, third-party) ───
+      const generalParams = new URLSearchParams({
+        part: "snippet",
+        q: query,
+        type: "video",
+        maxResults: String(Math.min(maxResults, 50)),
+        key: apiKey,
+        order: "relevance",
+      });
+      if (publishedAfter) generalParams.set("publishedAfter", publishedAfter);
+      if (publishedBefore) generalParams.set("publishedBefore", publishedBefore);
+      if (regionCode) generalParams.set("regionCode", regionCode);
+      if (videoDuration) generalParams.set("videoDuration", videoDuration);
+
+      const generalVids = await ytSearch(generalParams);
+      generalVids.forEach(v => {
+        // Mark as official if channel matches
+        if (officialChannelId && v.channelId === officialChannelId) {
+          v.isOfficial = true;
+          v.source = "official";
+        } else {
+          v.isOfficial = false;
+          v.source = "general";
+        }
+      });
+      allVideos.push(...generalVids);
+
+      // ─── DEDUPLICATE by videoId ───
+      const seen = new Set();
+      let videos = [];
+      allVideos.forEach(v => {
+        if (!seen.has(v.videoId)) { seen.add(v.videoId); videos.push(v); }
+      });
+
+      // ─── ENRICH with stats ───
+      videos = await enrichWithStats(videos);
+
+      // ─── FILTER by duration ───
+      if (minSeconds || maxSeconds) {
+        const min = minSeconds || 0;
+        const max = maxSeconds || 999999;
+        videos = videos.filter(v => v.durationSeconds >= min && v.durationSeconds <= max);
+      }
+
+      // ─── SORT: official first, then by views ───
+      videos.sort((a, b) => {
+        if (a.isOfficial && !b.isOfficial) return -1;
+        if (!a.isOfficial && b.isOfficial) return 1;
+        return (b.viewCount || 0) - (a.viewCount || 0);
+      });
+
+      // Trim to maxResults
+      videos = videos.slice(0, maxResults);
+
       return Response.json({
         videos,
-        nextPageToken: data.nextPageToken || null,
-        totalResults: data.pageInfo?.totalResults || 0,
-        quotaUsed: 100 + 1, // search + one details call
+        officialChannel: officialChannelName ? { name: officialChannelName, id: officialChannelId } : null,
+        totalResults: videos.length,
       });
     } catch (err) {
       return Response.json({ error: err.message }, { status: 500 });
