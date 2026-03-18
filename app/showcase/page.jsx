@@ -400,35 +400,39 @@ Fields:
 - demographic: string — age range, financial profile, experience level. Short scannable text.
 - psychographic: string — mindset, motivations, self-image. 2-3 short lines.
 - tension: string — the core unresolved need the brand addresses. 1-2 sentences.
-- human_insight: string — a first-person quote (20-35 words) capturing the human truth the brand responds to. Written as if the target audience is speaking. Example: "I need investing tools that evolve with me: easy when I start out, more powerful as I gain confidence."
+- human_insight: string — a first-person quote (20-35 words) capturing the human truth the brand responds to.
+- entries: array of 1-2 entries: {description, image_url, url, year} — pick the most representative pieces
 
 SLIDE 3 — type:"cs_brand_response"
-Extract ONLY from entries with Brand Hero communication intent (core positioning pieces: manifestos, brand commercials, tagline campaigns). Do NOT use Brand Tactical pieces (events, sponsorships) for positioning analysis.
+Extract ONLY from entries with Brand Hero communication intent.
 Fields:
-- creative_proposition: string — the brand's main campaign idea in 3-6 words. Use the actual main_slogan from the data if one is prominent.
-- proposition_description: string — one line describing what the campaign communicates.
-- brand_archetype: string — the dominant brand_archetype from the data + one sentence explaining how it manifests.
-- brand_role: string — one sentence on what role the brand plays in the customer's life.
-- emotional_positioning: string — 5-10 words capturing the emotional promise.
-- rational_positioning: string — 15-25 words capturing the rational value proposition.
-- brand_territory: string — primary territory (+ secondary if present). Use primary_territory values from the data.
-- key_differentiators: array of 3 strings — what sets this brand apart based on the evidence.
+- creative_proposition: string — 3-6 words. Use actual main_slogan if prominent.
+- proposition_description: string — one line.
+- brand_archetype: string — dominant archetype + one sentence.
+- brand_role: string — one sentence.
+- emotional_positioning: string — 5-10 words.
+- rational_positioning: string — 15-25 words.
+- brand_territory: string — primary + secondary.
+- key_differentiators: array of 3 strings.
+- entries: array of 2-3 Brand Hero entries: {description, image_url, url, year} — the key positioning pieces. COPY exact image_url and url from the data.
 
 SLIDE 4 — type:"cs_proof_points"
 Fields:
-- creative_proposition: string — same as slide 3 (repeated as headline anchor).
-- primary_proof: string — 1-2 sentences on the main proof of their positioning, with evidence from specific entries.
-- secondary_proofs: array of 3 strings — one supporting point per line.
-- communication_focus: string — 1-2 sentences on what their ads consistently revolve around.
-- tone_voice: array of 3 strings — tone labels. Use tone_of_voice values from the data.
+- creative_proposition: string — same as slide 3.
+- primary_proof: string — 1-2 sentences.
+- secondary_proofs: array of 3 strings.
+- communication_focus: string — 1-2 sentences.
+- tone_voice: array of 3 strings.
+- entries: array of 2-3 entries: {description, image_url, url, year} — pieces that prove the positioning. COPY exact image_url and url.
 
 SLIDE 5 — type:"cs_product"
 Extract from entries with Product communication intent.
 Fields:
-- approach: string — feature-led, outcome-led, or emotion-led + one sentence explaining why.
-- key_messages: array of 3 strings — the 3 most recurring product claims from the data.
-- channels_formats: string — where and how product communication is delivered.
-- gap: string — one sentence on what product story they are NOT telling. This is a strategic insight.
+- approach: string — one sentence.
+- key_messages: array of 3 strings.
+- channels_formats: string.
+- gap: string — one sentence insight.
+- entries: array of 2-3 Product entries: {description, image_url, url, year}. COPY exact image_url and url.
 
 SLIDE 6 — type:"cs_beyond_banking"
 Extract from entries with Innovation or Beyond Banking communication intent.
@@ -436,6 +440,7 @@ Fields:
 - beyond_banking: string — one paragraph on lifestyle/community/aspiration/identity territories.
 - innovation: string — one paragraph with evidence from communications.
 - white_space: string — one sentence on the most credible unclaimed territory. This is a strategic insight.
+- entries: array of 1-2 entries: {description, image_url, url, year}. COPY exact image_url and url.
 
 SLIDE 7 — type:"cs_brand_assessment"
 Assess the BRAND itself — its positioning, identity, archetype, proposition, territory.
@@ -1081,6 +1086,37 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
   const safeArr = (v) => Array.isArray(v) ? v : [];
   const safeStr = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "") || "";
 
+  // Entry thumbnails strip for CS slides
+  const EntryStrip = ({ entries }) => {
+    const items = safeArr(entries);
+    if (items.length === 0) return null;
+    const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
+    return (
+      <div className="flex gap-3 mt-4 pt-4 overflow-x-auto" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        {items.map((e, i) => {
+          const yt = ytId(e.url);
+          const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
+          const isVideo = yt || (e.url && /vimeo/i.test(e.url));
+          return (
+            <div key={i} className="flex-shrink-0 w-[140px] cursor-pointer group/entry"
+              onClick={() => { if (e.url) onMediaClick({ src: e.url, type: isVideo ? "Video" : "Image" }); else if (e.image_url) onMediaClick({ src: e.image_url, type: "Image" }); }}>
+              <div className="relative rounded-lg overflow-hidden bg-surface2" style={{ height: 80 }}>
+                {thumb ? <img src={thumb} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">No preview</div>}
+                {isVideo && (
+                  <div className="absolute inset-0 bg-black/20 group-hover/entry:bg-black/10 transition flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg></div>
+                  </div>
+                )}
+              </div>
+              <p className="text-[9px] text-muted mt-1 truncate">{e.description || "—"}</p>
+              <p className="text-[8px] text-hint">{e.year || ""}</p>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const mdC = {
     p: ({ children }) => <p className="text-base leading-relaxed mb-3" style={{ color: m }}>{children}</p>,
     strong: ({ children }) => <strong className="font-semibold" style={{ color: t }}>{children}</strong>,
@@ -1318,6 +1354,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               </div>
             </div>
           </div>
+          <EntryStrip entries={slide.entries} />
         </div>
       );
 
@@ -1402,6 +1439,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               </div>
             </div>
           </div>
+          <EntryStrip entries={slide.entries} />
         </div>
       );
 
@@ -1447,6 +1485,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
               </div>
             </div>
+            <EntryStrip entries={slide.entries} />
           </div>
         </div>
       );
@@ -1487,6 +1526,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 <p className="text-sm font-medium" style={{ color: "#78350F" }}>{slide.gap || ""}</p>
               </div>
             </div>
+            <EntryStrip entries={slide.entries} />
           </div>
         </div>
       );
@@ -1519,6 +1559,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 <p className="text-sm font-medium" style={{ color: "#1e3a5f" }}>{slide.white_space}</p>
               </div>
             </div>
+            <EntryStrip entries={slide.entries} />
           </div>
         </div>
       );
