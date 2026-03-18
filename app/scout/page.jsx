@@ -1,4 +1,24 @@
 "use client";
+/*
+ * Supabase migration for scout_saved:
+ *
+ * CREATE TABLE scout_saved (
+ *   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   project_id text,
+ *   video_id text,
+ *   title text,
+ *   channel text,
+ *   thumbnail text,
+ *   url text,
+ *   description text,
+ *   year text,
+ *   duration text,
+ *   view_count integer,
+ *   notes text,
+ *   saved_by text,
+ *   created_at timestamptz DEFAULT now()
+ * );
+ */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
@@ -167,6 +187,11 @@ export default function ScoutPage() {
   const [toast, setToast] = useState("");
   const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(""), 4000); }, []);
 
+  // Saved items
+  const [savedItems, setSavedItems] = useState([]);
+  const [savedTab, setSavedTab] = useState(false);
+  const [savedNotes, setSavedNotes] = useState({});
+
   // FIX #1: Store status messages in state — set ONCE, never call randomMsg during render
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -252,6 +277,141 @@ Rules:
     })();
   }, [projectId, scope]);
 
+  // ─── LOAD SAVED ITEMS ───
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase.from("scout_saved").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      if (data) {
+        setSavedItems(data);
+        const notes = {};
+        data.forEach(d => { if (d.notes) notes[d.id] = d.notes; });
+        setSavedNotes(notes);
+      }
+    })();
+  }, [projectId]);
+
+  const savedVideoIds = new Set(savedItems.map(s => s.video_id));
+
+  const handleSaveItem = async (v) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const entry = {
+      project_id: projectId,
+      video_id: v.videoId,
+      title: v.title || "",
+      channel: v.channel || "",
+      thumbnail: v.thumbnail || "",
+      url: `https://www.youtube.com/watch?v=${v.videoId}`,
+      description: v.description || "",
+      year: v.year || "",
+      duration: v.duration || "",
+      view_count: v.viewCount || 0,
+      notes: "",
+      saved_by: session?.user?.email || "",
+    };
+    const { data, error } = await supabase.from("scout_saved").insert(entry).select().single();
+    if (error) { showToast("Error saving: " + error.message); return; }
+    setSavedItems(prev => [data, ...prev]);
+    showToast("Saved!");
+  };
+
+  const handleRemoveSaved = async (id) => {
+    const { error } = await supabase.from("scout_saved").delete().eq("id", id);
+    if (error) { showToast("Error removing: " + error.message); return; }
+    setSavedItems(prev => prev.filter(s => s.id !== id));
+    showToast("Removed from saved");
+  };
+
+  const handleUpdateSavedNotes = async (id, notes) => {
+    setSavedNotes(prev => ({ ...prev, [id]: notes }));
+    await supabase.from("scout_saved").update({ notes }).eq("id", id);
+  };
+
+  const handleImportSaved = async (item) => {
+    setImporting(true);
+    setImportProgress({ current: 1, total: 1, label: `Processing: ${(item.title || "").slice(0, 40)}...` });
+    const { data: { session } } = await supabase.auth.getSession();
+    const table = scope === "global" ? "audit_global" : "audit_entries";
+
+    let transcript = "";
+    setImportProgress({ current: 1, total: 1, label: `Fetching transcript: ${(item.title || "").slice(0, 40)}...` });
+    try {
+      const tRes = await fetch("/api/youtube-scout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "transcript", videoId: item.video_id }),
+      });
+      const tData = await tRes.json();
+      transcript = tData.transcript || "";
+    } catch { /* ignore */ }
+
+    const entry = {
+      id: String(Date.now()) + "_saved",
+      project_id: projectId,
+      created_by: session?.user?.email || "",
+      updated_at: new Date().toISOString(),
+      url: item.url,
+      image_url: item.thumbnail,
+      description: item.title,
+      year: item.year || "",
+      type: "Video",
+      synopsis: item.description || "",
+      transcript,
+    };
+
+    if (scope === "global") {
+      entry.brand = item.channel || "";
+      entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
+    } else {
+      entry.competitor = item.channel || "";
+    }
+
+    const notes = savedNotes[item.id] || "";
+    if (notes) entry.analyst_comment = notes;
+
+    const { error } = await supabase.from(table).insert(entry);
+    if (error) { showToast("Import error: " + error.message); setImporting(false); return; }
+
+    if (autoAnalyze && (item.thumbnail || transcript)) {
+      setImportProgress({ current: 1, total: 1, label: `AI analyzing: ${(item.title || "").slice(0, 40)}...` });
+      try {
+        const contextParts = [
+          `Brand: ${item.channel || ""}`,
+          transcript ? `Transcript: ${transcript.slice(0, 1500)}` : "",
+          notes ? `Analyst Notes: ${notes}` : "",
+        ].filter(Boolean);
+
+        const analyzeRes = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: item.thumbnail, context: contextParts.join("\n") }),
+        });
+        const analysis = await analyzeRes.json();
+        if (analysis.success && analysis.analysis) {
+          const updates = {};
+          const a = analysis.analysis;
+          const fields = ["insight", "idea", "primary_territory", "secondary_territory",
+            "synopsis", "communication_intent", "entry_door", "experience_reflected", "portrait", "richness_definition",
+            "journey_phase", "client_lifecycle", "moment_acquisition", "moment_deepening",
+            "moment_unexpected", "bank_role", "pain_point_type", "pain_point",
+            "language_register", "main_vp", "brand_attributes", "emotional_benefit",
+            "rational_benefit", "r2b", "channel", "cta", "tone_of_voice", "representation",
+            "industry_shown", "business_size", "brand_archetype", "diff_claim",
+            "execution_style", "main_slogan", "rating", "funnel"];
+          fields.forEach(f => { if (a[f]) updates[f] = a[f]; });
+          if (Object.keys(updates).length > 0) {
+            await supabase.from(table).update(updates).eq("id", entry.id);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    setImporting(false);
+    setImportCount(1);
+    setImportDone(true);
+    showToast("Imported from saved!");
+  };
+
   // ─── SEARCH ───
   const handleSearch = async () => {
     if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
@@ -268,7 +428,7 @@ Rules:
     if (category.trim()) parts.push(category.trim());
     if (keywords.trim()) {
       keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
-        parts.push(k.includes(" ") ? `"${k}"` : k);
+        parts.push(k);
       });
     }
     if (contentType === "official") parts.push("official ad commercial campaign");
@@ -466,8 +626,8 @@ Rules:
 
   const filteredVideos = minScore > 0 ? videos.filter(v => (v.score || 0) >= minScore) : videos;
 
-  const showEmptyState = videos.length === 0 && !searching && !ranking && !importing && !importDone;
-  const showResults = videos.length > 0 && !searching && !importing && !importDone;
+  const showEmptyState = videos.length === 0 && !searching && !ranking && !importing && !importDone && !savedTab;
+  const showResults = (videos.length > 0 || savedTab) && !searching && !importing && !importDone;
 
   // ─── RENDER ───
   return (
@@ -593,8 +753,77 @@ Rules:
           {/* ─── RESULTS ─── */}
           {showResults && (
             <div>
+              {/* Results / Saved toggle */}
+              <div className="flex items-center gap-2 mb-4">
+                <button onClick={() => setSavedTab(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!savedTab ? "bg-[#0019FF] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
+                  Results ({filteredVideos.length})
+                </button>
+                <button onClick={() => setSavedTab(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${savedTab ? "bg-[#0019FF] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={savedTab ? "white" : "none"} stroke={savedTab ? "white" : "currentColor"} strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                  Saved ({savedItems.length})
+                </button>
+              </div>
+
+              {/* ─── SAVED VIEW ─── */}
+              {savedTab && (
+                <div className="space-y-3 mb-6">
+                  {savedItems.length === 0 && (
+                    <div className="text-center py-12 text-sm text-muted">No saved items yet. Click the bookmark icon on any result to save it.</div>
+                  )}
+                  {savedItems.map(item => (
+                    <div key={item.id} className="bg-surface border border-main rounded-xl p-4 flex gap-4">
+                      {/* Thumbnail */}
+                      <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
+                        onClick={() => setPreview({ videoId: item.video_id, title: item.title })}>
+                        {item.thumbnail && <img src={item.thumbnail} className="w-full h-full object-cover" alt="" />}
+                        <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover/thumb:opacity-100 transition">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-main leading-snug line-clamp-2">{item.title}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-muted">{item.channel}</p>
+                          <span className="text-xs text-hint">&middot; {formatViews(item.view_count)} views &middot; {item.year}</span>
+                        </div>
+
+                        {/* Notes textarea */}
+                        <div className="mt-2">
+                          <textarea
+                            value={savedNotes[item.id] || ""}
+                            onChange={e => handleUpdateSavedNotes(item.id, e.target.value)}
+                            rows={2}
+                            placeholder="Add notes about this video..."
+                            className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
+                          />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <button onClick={() => handleImportSaved(item)}
+                            className="px-3 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition"
+                            style={{ background: "#0019FF" }}>
+                            Import {autoAnalyze ? "+ AI Analyze" : ""}
+                          </button>
+                          <button onClick={() => handleRemoveSaved(item.id)}
+                            className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition">
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Results header */}
-              <div className="flex items-center justify-between mb-4">
+              {!savedTab && <><div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-main font-medium">Found {filteredVideos.length} pieces</p>
                   {videos.some(v => v.score !== null) && (
@@ -628,12 +857,18 @@ Rules:
                         isDuplicate ? "opacity-50 border-main cursor-not-allowed" :
                         isSelected ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-main hover:border-[var(--accent)]"
                       }`}>
-                      {/* Checkbox */}
-                      <div className="flex items-start pt-1">
+                      {/* Checkbox + Save */}
+                      <div className="flex flex-col items-center gap-2 pt-1">
                         <input type="checkbox" checked={isSelected} disabled={isDuplicate}
                           onChange={() => toggleSelect(v.videoId)}
                           onClick={e => e.stopPropagation()}
                           className="rounded border-gray-300 text-accent" />
+                        <button
+                          title={savedVideoIds.has(v.videoId) ? "Saved" : "Save for later"}
+                          onClick={e => { e.stopPropagation(); if (!savedVideoIds.has(v.videoId)) handleSaveItem(v); }}
+                          className={`w-6 h-6 flex items-center justify-center rounded transition ${savedVideoIds.has(v.videoId) ? "text-[#0019FF]" : "text-gray-400 hover:text-[#0019FF]"}`}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={savedVideoIds.has(v.videoId) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                        </button>
                       </div>
 
                       {/* Thumbnail */}
@@ -662,6 +897,9 @@ Rules:
                           <p className="text-xs text-muted">{v.channel}</p>
                           {v.isOfficial && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Official</span>
+                          )}
+                          {savedVideoIds.has(v.videoId) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold">Saved</span>
                           )}
                           <span className="text-xs text-hint">&middot; {formatViews(v.viewCount)} views &middot; {v.year}</span>
                         </div>
@@ -743,6 +981,7 @@ Rules:
                   </button>
                 </div>
               )}
+              </>}
             </div>
           )}
 
@@ -779,6 +1018,17 @@ Rules:
                   New search
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Saved items shortcut from empty state */}
+          {showEmptyState && savedItems.length > 0 && (
+            <div className="text-center mb-6">
+              <button onClick={() => setSavedTab(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] transition">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                View saved items ({savedItems.length})
+              </button>
             </div>
           )}
 
