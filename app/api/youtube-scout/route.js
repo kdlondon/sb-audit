@@ -64,46 +64,49 @@ export async function POST(request) {
       let officialChannelName = null;
 
       // ─── PHASE 1: Find the brand's official YouTube channel ───
+      // Wrapped in try-catch so channel search failure doesn't kill the whole search
       if (brandName) {
-        const channelParams = new URLSearchParams({
-          part: "snippet",
-          q: brandName,
-          type: "channel",
-          maxResults: "5",
-          key: apiKey,
-        });
-        const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
-        const channelData = await channelRes.json();
-        const channels = channelData.items || [];
-
-        // Find best matching channel (prefer exact name match or verified)
-        const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const bestChannel = channels.find(ch => {
-          const chName = (ch.snippet.channelTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-          return chName.includes(brandLower) || brandLower.includes(chName);
-        }) || channels[0];
-
-        if (bestChannel) {
-          officialChannelId = bestChannel.id.channelId;
-          officialChannelName = bestChannel.snippet.channelTitle;
-
-          // Search WITHIN the official channel (clean query, no "ad commercial" noise)
-          const channelSearchParams = new URLSearchParams({
+        try {
+          const channelParams = new URLSearchParams({
             part: "snippet",
-            channelId: officialChannelId,
-            q: query.replace(/official\s*ad\s*commercial/gi, "").trim() || "",
-            type: "video",
-            maxResults: String(Math.min(maxResults, 50)),
+            q: brandName,
+            type: "channel",
+            maxResults: "5",
             key: apiKey,
-            order: "date",
           });
-          if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
-          if (regionCode) channelSearchParams.set("regionCode", regionCode);
-          if (videoDuration) channelSearchParams.set("videoDuration", videoDuration);
+          const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
+          const channelData = await channelRes.json();
+          const channels = (channelData.items || []).filter(ch => ch.id?.channelId);
 
-          const channelVids = await ytSearch(channelSearchParams);
-          channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
-          allVideos.push(...channelVids);
+          if (channels.length > 0) {
+            const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const bestChannel = channels.find(ch => {
+              const chName = (ch.snippet.channelTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+              return chName.includes(brandLower) || brandLower.includes(chName);
+            }) || channels[0];
+
+            officialChannelId = bestChannel.id.channelId;
+            officialChannelName = bestChannel.snippet.channelTitle;
+
+            // Search WITHIN the official channel
+            const channelSearchParams = new URLSearchParams({
+              part: "snippet",
+              channelId: officialChannelId,
+              type: "video",
+              maxResults: String(Math.min(maxResults, 50)),
+              key: apiKey,
+              order: "date",
+            });
+            if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
+            if (regionCode) channelSearchParams.set("regionCode", regionCode);
+            if (videoDuration) channelSearchParams.set("videoDuration", videoDuration);
+
+            const channelVids = await ytSearch(channelSearchParams);
+            channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
+            allVideos.push(...channelVids);
+          }
+        } catch (channelErr) {
+          console.error("Channel search failed (continuing with general):", channelErr.message);
         }
       }
 

@@ -304,6 +304,7 @@ Rules:
     } catch (err) {
       showToast("Search failed: " + err.message);
       setSearching(false);
+      setRanking(false);
     }
   };
 
