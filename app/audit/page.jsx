@@ -977,7 +977,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   }
                   if(editing&&opts){
                     return(<td className={"px-1 py-1 "+className} onClick={ev=>ev.stopPropagation()}>
-                      <select autoFocus value={e[field]||""} onChange={ev=>{inlineSave(e.id,field,ev.target.value);}} onBlur={()=>setTimeout(()=>setInlineEdit(null),150)}
+                      <select autoFocus value={e[field]||""} onChange={ev=>{inlineSave(e.id,field,ev.target.value);}}
+                        onBlur={ev=>{if(ev.relatedTarget&&ev.currentTarget.parentElement.contains(ev.relatedTarget))return;setTimeout(()=>setInlineEdit(null),250);}}
                         className="w-full px-1 py-1 bg-surface border border-[var(--accent)] rounded text-xs text-main focus:outline-none">
                         <option value="">—</option>
                         {opts.map(o=><option key={o} value={o}>{o}</option>)}
