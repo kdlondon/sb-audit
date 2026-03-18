@@ -96,7 +96,6 @@ export default function ScoutPage() {
   const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
   const [videoScopes, setVideoScopes] = useState({}); // { videoId: "local"|"global" }
   const [videoIntents, setVideoIntents] = useState({}); // { videoId: "Brand Hero" etc }
-  const [analystNotes, setAnalystNotes] = useState({}); // { videoId: "notes" }
   const INTENT_OPTIONS = ["Brand Hero","Brand Tactical","Client Testimonials","Product","Innovation","Beyond Banking"];
 
   // Results
@@ -185,42 +184,6 @@ Rules:
     setAssistLoading(false);
   };
 
-  // Dynamic suggestions — generated from project data + AI
-  const [suggestions, setSuggestions] = useState([]);
-  useEffect(() => {
-    if (!projectId) return;
-    (async () => {
-      const supabaseClient = createClient();
-      const [{ data: local }, { data: global }] = await Promise.all([
-        supabaseClient.from("audit_entries").select("competitor").eq("project_id", projectId),
-        supabaseClient.from("audit_global").select("brand, country").eq("project_id", projectId),
-      ]);
-      const brands = new Set();
-      (local || []).forEach(e => { if (e.competitor) brands.add(e.competitor); });
-      (global || []).forEach(e => { if (e.brand) brands.add(e.brand); });
-      const countries = new Set();
-      (global || []).forEach(e => { if (e.country) countries.add(e.country); });
-
-      // Build smart suggestions from existing data + variations
-      const s = [];
-      const brandArr = [...brands];
-      // Suggest existing brands (pick random 2)
-      const shuffled = brandArr.sort(() => 0.5 - Math.random());
-      shuffled.slice(0, 2).forEach(b => s.push(b));
-      // Suggest brand + context
-      if (shuffled[0]) s.push(`${shuffled[0]} small business`);
-      // Suggest market exploration
-      const countryArr = [...countries];
-      if (countryArr.length > 0) s.push(`business banking ${countryArr[Math.floor(Math.random() * countryArr.length)]}`);
-      else s.push("business banking UK");
-      // Always add a discovery suggestion
-      const discoveries = ["neobank business account", "SME fintech ads", "challenger bank commercial", "business banking innovation", "small business testimonials"];
-      s.push(discoveries[Math.floor(Math.random() * discoveries.length)]);
-
-      setSuggestions(s.slice(0, 5));
-    })();
-  }, [projectId]);
-
   // Existing URLs for duplicate detection
   const [existingUrls, setExistingUrls] = useState(new Set());
   useEffect(() => {
@@ -234,23 +197,18 @@ Rules:
 
   // ─── SEARCH ───
   const handleSearch = async () => {
-    if (searching) return;
-    const searchBrand = brand.trim();
-    const searchKeywords = keywords.trim();
-    const searchCategory = category.trim();
-    if (!searchBrand && !searchKeywords && !searchCategory) { showToast("Enter a brand, category, or keywords"); return; }
+    if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
     setSearching(true);
     setVideos([]);
-    setScoutMessage(SEARCH_MESSAGES[Math.floor(Math.random() * SEARCH_MESSAGES.length)]);
     setSelected(new Set());
     setImportDone(false);
 
-    // Build query — use local vars captured at start to avoid stale state
+    // Build query — clean, no "ad commercial" noise (server handles official channel search)
     const parts = [];
-    if (searchBrand) parts.push(searchBrand);
-    if (searchCategory) parts.push(searchCategory);
-    if (searchKeywords) {
-      searchKeywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
+    if (brand.trim()) parts.push(brand.trim());
+    if (category.trim()) parts.push(category.trim());
+    if (keywords.trim()) {
+      keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
         parts.push(k.includes(" ") ? `"${k}"` : k);
       });
     }
@@ -272,50 +230,42 @@ Rules:
       const data = await res.json();
       if (data.error) { showToast("Error: " + data.error); setSearching(false); return; }
 
-      const vids = data.videos || [];
-      if (vids.length === 0) { showToast("No results found"); setSearching(false); return; }
-
+      let vids = data.videos || [];
       setVideos(vids.map(v => ({ ...v, score: null, reason: "" })));
       setSearching(false);
 
-
-      // Rank with AI in background — don't block results display
-      setRanking(true);
-      try {
+      // Now rank with AI
+      if (vids.length > 0) {
+        setRanking(true);
         const market = REGION_CODES.find(r => r.code === region)?.label || "";
         const rankRes = await fetch("/api/youtube-scout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "rank", brand: searchBrand || searchCategory, keywords: searchKeywords || searchCategory, market, videos: vids }),
+          body: JSON.stringify({ action: "rank", brand: brand || category, keywords: keywords || category, market, videos: vids }),
         });
         const rankData = await rankRes.json();
         const rankings = rankData.rankings || [];
 
-        if (rankings.length > 0) {
-          setVideos(prev => {
-            const updated = [...prev];
-            rankings.forEach(r => {
-              const idx = (r.index || r.videoIndex || 0) - 1;
-              if (idx >= 0 && idx < updated.length) {
-                updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
-              }
-            });
-            return updated.sort((a, b) => {
-              if (a.isOfficial && !b.isOfficial) return -1;
-              if (!a.isOfficial && b.isOfficial) return 1;
-              return (b.score || 0) - (a.score || 0);
-            });
+        setVideos(prev => {
+          const updated = [...prev];
+          rankings.forEach(r => {
+            const idx = (r.index || r.videoIndex || 0) - 1;
+            if (idx >= 0 && idx < updated.length) {
+              updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
+            }
           });
-        }
-      } catch (rankErr) {
-        // Ranking failed — results still show unranked
+          // Sort: official first, then by score
+          return updated.sort((a, b) => {
+            if (a.isOfficial && !b.isOfficial) return -1;
+            if (!a.isOfficial && b.isOfficial) return 1;
+            return (b.score || 0) - (a.score || 0);
+          });
+        });
+        setRanking(false);
       }
-      setRanking(false);
     } catch (err) {
-      showToast("Search failed — please try again");
+      showToast("Search failed: " + err.message);
       setSearching(false);
-      setRanking(false);
-
     }
   };
 
@@ -367,11 +317,9 @@ Rules:
         transcript,
       };
 
-      // Add communication intent and analyst notes if set
+      // Add communication intent if set
       const vidIntent = videoIntents[v.videoId];
       if (vidIntent) entry.communication_intent = vidIntent;
-      const vidNotes = analystNotes[v.videoId];
-      if (vidNotes) entry.analyst_comment = vidNotes;
 
       if (vidScope === "global") {
         entry.brand = v.channel || "";
@@ -397,7 +345,6 @@ Rules:
               context: [
                 `Brand: ${v.channel || ""}`,
                 transcript ? `Transcript: ${transcript.slice(0, 1500)}` : "",
-                vidNotes ? `Analyst observations: ${vidNotes}` : "",
               ].filter(Boolean).join("\n"),
             }),
           });
@@ -466,7 +413,23 @@ Rules:
   ];
   const randomMsg = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+  // Conversational search — parse natural language
+  const [searchInput, setSearchInput] = useState("");
   const [scoutMessage, setScoutMessage] = useState("");
+
+  const doSearch = () => {
+    const q = searchInput.trim();
+    if (!q) return;
+    // Parse natural language into search params
+    setBrand(q);
+    setKeywords("");
+    setCategory("");
+    setScoutMessage(randomMsg(SEARCH_MESSAGES));
+    handleSearch();
+  };
+
+  // Override handleSearch to use searchInput if brand/keywords/category are empty
+  const originalSearch = handleSearch;
 
   // ─── RENDER ───
   return (
@@ -477,20 +440,19 @@ Rules:
 
         <div className="max-w-5xl mx-auto p-6">
 
-          {/* ─── HEADER + SEARCH (always visible, sticky) ─── */}
-          <div className="max-w-2xl mx-auto sticky top-[52px] z-30 pt-4 pb-6 mb-4">
-            {/* Background + shadow mask */}
-            <div className="absolute inset-0 -top-2 -left-8 -right-8 -bottom-2 -z-10" style={{ background: "var(--bg)", boxShadow: "0 12px 24px -4px rgba(0,0,0,0.12)", borderRadius: "0 0 24px 24px" }} />
-            {/* Scout branding — compact when results, full when empty */}
-            <div className={`text-center ${videos.length > 0 || searching || ranking || importing || importDone ? "mb-3" : "pt-8 pb-4 mb-4"}`}>
-              <div className={`mx-auto rounded-full flex items-center justify-center ${videos.length > 0 || searching || ranking || importing || importDone ? "w-8 h-8 mb-1" : "w-16 h-16 mb-4"}`} style={{ background: "#0a0f3c" }}>
-                <svg width={videos.length > 0 || searching || ranking ? "14" : "28"} height={videos.length > 0 || searching || ranking ? "14" : "28"} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {/* ─── CONVERSATIONAL HEADER ─── */}
+          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+            <div className="text-center pt-12 pb-8" style={{ animation: "fadeIn 0.5s" }}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </div>
-              <h1 className={`font-bold text-main ${videos.length > 0 || searching || ranking || importing || importDone ? "text-sm" : "text-2xl mb-2"}`}>Scout</h1>
-              {!(videos.length > 0 || searching || ranking || importing || importDone) && (
-                <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
-              )}
+              <h1 className="text-2xl font-bold text-main mb-2">Scout</h1>
+              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
             </div>
+          )}
+
+          {/* ─── SEARCH INPUT (chat-style) ─── */}
+          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
             <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -572,25 +534,18 @@ Rules:
           </div>
 
           {/* ─── SEARCHING STATE ─── */}
-          {searching && (
+          {(searching || ranking) && (
             <div className="text-center py-12" style={{ animation: "fadeIn 0.3s" }}>
               <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none"/><path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
               </div>
-              <p className="text-sm font-medium text-main">{scoutMessage}</p>
-            </div>
-          )}
-
-          {/* Ranking indicator — shown above results, not replacing them */}
-          {ranking && videos.length > 0 && (
-            <div className="flex items-center gap-3 bg-accent-soft border border-[var(--accent)] rounded-xl px-4 py-3 mb-4" style={{ animation: "fadeIn 0.3s" }}>
-              <svg className="animate-spin h-4 w-4 text-accent flex-shrink-0" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              <p className="text-xs text-accent font-medium">Ranking {videos.length} results by relevance...</p>
+              <p className="text-sm font-medium text-main">{ranking ? randomMsg(RANKING_MESSAGES) : randomMsg(SEARCH_MESSAGES)}</p>
+              {ranking && <p className="text-xs text-muted mt-1">Scoring {videos.length} videos</p>}
             </div>
           )}
 
           {/* Results */}
-          {videos.length > 0 && !searching && !importing && !importDone && (
+          {videos.length > 0 && !searching && !ranking && !importing && !importDone && (
             <div>
               {/* Conversational results header */}
               <div className="flex items-center justify-between mb-4">
@@ -709,20 +664,6 @@ Rules:
                                 className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
                               />
                             </div>
-                            {/* Analyst Notes */}
-                            <div>
-                              <div className="flex justify-between items-center mb-1">
-                                <label className="text-[10px] text-muted uppercase font-semibold">Analyst Notes</label>
-                                <span className="text-[9px] text-hint">Your observations — sent to AI</span>
-                              </div>
-                              <textarea
-                                value={analystNotes[v.videoId] || ""}
-                                onChange={e => setAnalystNotes(prev => ({ ...prev, [v.videoId]: e.target.value }))}
-                                rows={2}
-                                placeholder="What stands out? Strategic observations..."
-                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
-                              />
-                            </div>
                           </div>
                         )}
                       </div>
@@ -782,11 +723,11 @@ Rules:
           )}
 
           {/* Quick suggestions when no results */}
-          {videos.length === 0 && !searching && !ranking && !importing && !importDone && suggestions.length > 0 && (
+          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
             <div className="max-w-2xl mx-auto">
               <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-2 text-center">Try searching for</p>
               <div className="flex flex-wrap justify-center gap-2">
-                {suggestions.map(q => (
+                {["Starling Bank", "Tide business", "RBC small business", "Monzo business account", "BBVA SME"].map(q => (
                   <button key={q} onClick={() => { setBrand(q); setTimeout(() => handleSearch(), 100); }}
                     className="px-3 py-1.5 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] transition">{q}</button>
                 ))}
@@ -811,7 +752,7 @@ Rules:
                 <div className="text-center py-4">
                   <p className="text-xs text-muted mb-3">Try asking:</p>
                   <div className="space-y-1.5">
-                    {["Who competes in SME banking here?","Top fintechs for small business","Neobanks worth exploring","What brands should I look at next?"].map(q => (
+                    {["Banks competing in SME in Spain","Top fintechs for small business UK","Who are the main neobanks in Latin America","Business banking players in Australia"].map(q => (
                       <button key={q} onClick={() => { setAssistQuery(q); }} className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
                     ))}
                   </div>
