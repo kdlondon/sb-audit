@@ -561,18 +561,25 @@ Rules:
           </div>
 
           {/* ─── SEARCHING STATE ─── */}
-          {(searching || ranking) && (
+          {searching && (
             <div className="text-center py-12" style={{ animation: "fadeIn 0.3s" }}>
               <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none"/><path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
               </div>
-              <p className="text-sm font-medium text-main">{ranking ? "Ranking results by relevance..." : scoutMessage}</p>
-              {ranking && <p className="text-xs text-muted mt-1">Scoring {videos.length} videos</p>}
+              <p className="text-sm font-medium text-main">{scoutMessage}</p>
+            </div>
+          )}
+
+          {/* Ranking indicator — shown above results, not replacing them */}
+          {ranking && videos.length > 0 && (
+            <div className="flex items-center gap-3 bg-accent-soft border border-[var(--accent)] rounded-xl px-4 py-3 mb-4" style={{ animation: "fadeIn 0.3s" }}>
+              <svg className="animate-spin h-4 w-4 text-accent flex-shrink-0" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <p className="text-xs text-accent font-medium">Ranking {videos.length} results by relevance...</p>
             </div>
           )}
 
           {/* Results */}
-          {videos.length > 0 && !searching && !ranking && !importing && !importDone && (
+          {videos.length > 0 && !searching && !importing && !importDone && (
             <div>
               {/* Conversational results header */}
               <div className="flex items-center justify-between mb-4">
