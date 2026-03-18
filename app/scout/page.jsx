@@ -271,6 +271,7 @@ Rules:
         parts.push(k.includes(" ") ? `"${k}"` : k);
       });
     }
+    if (contentType === "official") parts.push("official ad commercial campaign");
     const query = parts.join(" ");
     const publishedAfter = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : undefined;
 
