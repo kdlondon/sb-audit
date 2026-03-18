@@ -772,53 +772,95 @@ Rules:
                   {savedItems.length === 0 && (
                     <div className="text-center py-12 text-sm text-muted">No saved items yet. Click the bookmark icon on any result to save it.</div>
                   )}
-                  {savedItems.map(item => (
-                    <div key={item.id} className="bg-surface border border-main rounded-xl p-4 flex gap-4">
-                      {/* Thumbnail */}
-                      <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
-                        onClick={() => setPreview({ videoId: item.video_id, title: item.title })}>
-                        {item.thumbnail && <img src={item.thumbnail} className="w-full h-full object-cover" alt="" />}
-                        <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover/thumb:opacity-100 transition">
-                            <svg width="14" height="14" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
+                  {savedItems.map(item => {
+                    const isExpanded = selected.has(item.video_id);
+                    return (
+                      <div key={item.id} onClick={() => toggleSelect(item.video_id)}
+                        className={`bg-surface border rounded-xl p-4 flex gap-4 cursor-pointer transition ${isExpanded ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-main hover:border-[var(--accent)]"}`}>
+                        {/* Thumbnail */}
+                        <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
+                          onClick={e => { e.stopPropagation(); setPreview({ videoId: item.video_id, title: item.title }); }}>
+                          {item.thumbnail && <img src={item.thumbnail} className="w-full h-full object-cover" alt="" />}
+                          <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover/thumb:opacity-100 transition">
+                              <svg width="14" height="14" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
+                            </div>
                           </div>
+                          {item.duration && (
+                            <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                              {formatDuration(item.duration)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-semibold text-main leading-snug line-clamp-2">{item.title}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-muted">{item.channel}</p>
+                            <span className="text-xs text-hint">&middot; {formatViews(item.view_count)} views &middot; {item.year}</span>
+                          </div>
+                          {item.notes && <p className="text-[11px] text-hint mt-1 italic">{item.notes}</p>}
+                          <button onClick={e => { e.stopPropagation(); setPreview({ videoId: item.video_id, title: item.title }); }}
+                            className="text-[11px] text-accent hover:underline mt-1 inline-block">Watch video</button>
+
+                          {/* Expanded settings — same as search results */}
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-main space-y-3" onClick={e => e.stopPropagation()}>
+                              {/* Scope */}
+                              <div className="flex items-center gap-3">
+                                <label className="text-[10px] text-muted uppercase font-semibold">Import to:</label>
+                                <div className="flex bg-surface2 rounded-lg p-0.5">
+                                  <button onClick={() => setVideoScopes(prev => ({ ...prev, [item.video_id]: "local" }))}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[item.video_id] || scope) === "local" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>Local</button>
+                                  <button onClick={() => setVideoScopes(prev => ({ ...prev, [item.video_id]: "global" }))}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[item.video_id] || scope) === "global" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>Global</button>
+                                </div>
+                              </div>
+                              {/* Intent */}
+                              <div className="flex items-center gap-3">
+                                <label className="text-[10px] text-muted uppercase font-semibold">Intent:</label>
+                                <select value={videoIntents[item.video_id] || ""} onChange={ev => setVideoIntents(prev => ({ ...prev, [item.video_id]: ev.target.value }))}
+                                  className="px-2 py-1 bg-surface border border-main rounded text-xs text-main">
+                                  <option value="">— Select —</option>
+                                  {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              </div>
+                              {/* Transcript */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label>
+                                  <span className="text-[9px] text-hint">Paste here for better AI analysis</span>
+                                </div>
+                                <textarea value={transcripts[item.video_id] || ""} onChange={e => setTranscripts(prev => ({ ...prev, [item.video_id]: e.target.value }))}
+                                  rows={3} placeholder="Paste the video transcript or ad copy here..."
+                                  className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]" />
+                              </div>
+                              {/* Analyst Notes */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="text-[10px] text-muted uppercase font-semibold">Analyst Notes</label>
+                                  <span className="text-[9px] text-hint">Your observations, sent to AI on import</span>
+                                </div>
+                                <textarea value={savedNotes[item.id] || ""} onChange={e => handleUpdateSavedNotes(item.id, e.target.value)}
+                                  rows={2} placeholder="Add your notes about this video..."
+                                  className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]" />
+                              </div>
+                              {/* Actions */}
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleImportSaved(item)}
+                                  className="px-3 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition" style={{ background: "#0019FF" }}>
+                                  Import {autoAnalyze ? "+ AI Analyze" : ""}
+                                </button>
+                                <button onClick={() => handleRemoveSaved(item.id)}
+                                  className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition">Remove</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-main leading-snug line-clamp-2">{item.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-muted">{item.channel}</p>
-                          <span className="text-xs text-hint">&middot; {formatViews(item.view_count)} views &middot; {item.year}</span>
-                        </div>
-
-                        {/* Notes textarea */}
-                        <div className="mt-2">
-                          <textarea
-                            value={savedNotes[item.id] || ""}
-                            onChange={e => handleUpdateSavedNotes(item.id, e.target.value)}
-                            rows={2}
-                            placeholder="Add notes about this video..."
-                            className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
-                          />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 mt-2">
-                          <button onClick={() => handleImportSaved(item)}
-                            className="px-3 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition"
-                            style={{ background: "#0019FF" }}>
-                            Import {autoAnalyze ? "+ AI Analyze" : ""}
-                          </button>
-                          <button onClick={() => handleRemoveSaved(item.id)}
-                            className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition">
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
