@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
@@ -26,8 +26,34 @@ const TIMEFRAMES = [
   { label: "Last 2 years", days: 730 }, { label: "All time", days: 0 },
 ];
 
+const INTENT_OPTIONS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation", "Beyond Banking"];
+
+const SEARCH_MESSAGES = [
+  "Digging into the content library...",
+  "Searching across YouTube...",
+  "Looking for interesting campaigns...",
+  "Hunting for competitive intelligence...",
+];
+
+const RANKING_MESSAGES = [
+  "Found some pieces! Let me rank them by relevance...",
+  "Scoring each video for strategic value...",
+  "Almost there — picking the best ones...",
+];
+
+const CONTENT_TYPES = [
+  { value: "official", label: "Official content", hint: "Ads, campaigns, brand videos" },
+  { value: "all", label: "All content", hint: "Everything including commentary, tutorials" },
+];
+
+/* ─── HELPERS ─── */
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function formatViews(n) {
-  if (!n) return "—";
+  if (!n) return "\u2014";
   if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
   if (n >= 1000) return (n / 1000).toFixed(0) + "K";
   return String(n);
@@ -59,7 +85,7 @@ function VideoPreview({ videoId, title, onClose }) {
   if (!videoId) return null;
   return (
     <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center" onClick={onClose}>
-      <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>×</button>
+      <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>\u00d7</button>
       <div className="w-[85vw] max-w-[1000px]" onClick={e => e.stopPropagation()}>
         <iframe width="100%" style={{ aspectRatio: "16/9" }} src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
           frameBorder="0" allowFullScreen allow="autoplay; encrypted-media" className="rounded-xl" />
@@ -69,11 +95,7 @@ function VideoPreview({ videoId, title, onClose }) {
   );
 }
 
-const CONTENT_TYPES = [
-  { value: "official", label: "Official content", hint: "Ads, campaigns, brand videos" },
-  { value: "all", label: "All content", hint: "Everything including commentary, tutorials" },
-];
-
+/* ─── MAIN COMPONENT ─── */
 export default function ScoutPage() {
   const { projectId, projectName } = useProject();
   const { role } = useRole();
@@ -88,15 +110,16 @@ export default function ScoutPage() {
   const [timeframe, setTimeframe] = useState(365);
   const [maxResults, setMaxResults] = useState(15);
   const [contentType, setContentType] = useState("official");
-  const [durationFilter, setDurationFilter] = useState("commercial"); // commercial | short | any
+  const [durationFilter, setDurationFilter] = useState("commercial");
 
   // Preview
-  const [preview, setPreview] = useState(null); // { videoId, title }
-  // Per-video settings (transcript + scope)
-  const [transcripts, setTranscripts] = useState({}); // { videoId: "text" }
-  const [videoScopes, setVideoScopes] = useState({}); // { videoId: "local"|"global" }
-  const [videoIntents, setVideoIntents] = useState({}); // { videoId: "Brand Hero" etc }
-  const INTENT_OPTIONS = ["Brand Hero","Brand Tactical","Client Testimonials","Product","Innovation","Beyond Banking"];
+  const [preview, setPreview] = useState(null);
+
+  // Per-video settings
+  const [transcripts, setTranscripts] = useState({});
+  const [videoScopes, setVideoScopes] = useState({});
+  const [videoIntents, setVideoIntents] = useState({});
+  const [analystNotes, setAnalystNotes] = useState({});
 
   // Results
   const [videos, setVideos] = useState([]);
@@ -115,7 +138,10 @@ export default function ScoutPage() {
 
   // Toast
   const [toast, setToast] = useState("");
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
+  const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(""), 4000); }, []);
+
+  // FIX #1: Store status messages in state — set ONCE, never call randomMsg during render
+  const [statusMessage, setStatusMessage] = useState("");
 
   // Scout Assistant
   const [assistOpen, setAssistOpen] = useState(false);
@@ -123,6 +149,10 @@ export default function ScoutPage() {
   const assistEndRef = useRef(null);
   const [assistLoading, setAssistLoading] = useState(false);
   const [assistMessages, setAssistMessages] = useState([]);
+
+  // UI state
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchInputRef = useRef(null);
 
   const askAssistant = async () => {
     if (!assistQuery.trim() || assistLoading) return;
@@ -174,7 +204,7 @@ Rules:
       let parsed = null;
       try { parsed = JSON.parse(raw); } catch {
         const m2 = raw.match(/\{[\s\S]*\}/);
-        if (m2) try { parsed = JSON.parse(m2[0]); } catch {}
+        if (m2) try { parsed = JSON.parse(m2[0]); } catch { /* ignore */ }
       }
       setAssistMessages(prev => [...prev, { role: "assistant", text: raw, parsed, isNew: true }]);
       setTimeout(() => { setAssistMessages(prev => prev.map(m => ({ ...m, isNew: false }))); assistEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, 100);
@@ -196,14 +226,16 @@ Rules:
   }, [projectId, scope]);
 
   // ─── SEARCH ───
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
+
+    // FIX #1: Set status message in state ONCE at search start
+    setStatusMessage(pickRandom(SEARCH_MESSAGES));
     setSearching(true);
     setVideos([]);
     setSelected(new Set());
     setImportDone(false);
 
-    // Build query — clean, no "ad commercial" noise (server handles official channel search)
     const parts = [];
     if (brand.trim()) parts.push(brand.trim());
     if (category.trim()) parts.push(category.trim());
@@ -236,38 +268,46 @@ Rules:
 
       // Now rank with AI
       if (vids.length > 0) {
+        // FIX #1: Set ranking message in state ONCE
+        setStatusMessage(pickRandom(RANKING_MESSAGES));
         setRanking(true);
-        const market = REGION_CODES.find(r => r.code === region)?.label || "";
-        const rankRes = await fetch("/api/youtube-scout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "rank", brand: brand || category, keywords: keywords || category, market, videos: vids }),
-        });
-        const rankData = await rankRes.json();
-        const rankings = rankData.rankings || [];
+        try {
+          const market = REGION_CODES.find(r => r.code === region)?.label || "";
+          const rankRes = await fetch("/api/youtube-scout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "rank", brand: brand || category, keywords: keywords || category, market, videos: vids }),
+          });
+          const rankData = await rankRes.json();
+          const rankings = rankData.rankings || [];
 
-        setVideos(prev => {
-          const updated = [...prev];
-          rankings.forEach(r => {
-            const idx = (r.index || r.videoIndex || 0) - 1;
-            if (idx >= 0 && idx < updated.length) {
-              updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
-            }
+          setVideos(prev => {
+            const updated = [...prev];
+            rankings.forEach(r => {
+              const idx = (r.index || r.videoIndex || 0) - 1;
+              if (idx >= 0 && idx < updated.length) {
+                updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
+              }
+            });
+            return updated.sort((a, b) => {
+              if (a.isOfficial && !b.isOfficial) return -1;
+              if (!a.isOfficial && b.isOfficial) return 1;
+              return (b.score || 0) - (a.score || 0);
+            });
           });
-          // Sort: official first, then by score
-          return updated.sort((a, b) => {
-            if (a.isOfficial && !b.isOfficial) return -1;
-            if (!a.isOfficial && b.isOfficial) return 1;
-            return (b.score || 0) - (a.score || 0);
-          });
-        });
-        setRanking(false);
+        } catch (err) {
+          showToast("Ranking failed: " + err.message);
+        } finally {
+          // FIX #4: Always clear ranking even on failure
+          setRanking(false);
+        }
       }
     } catch (err) {
       showToast("Search failed: " + err.message);
       setSearching(false);
+      setRanking(false);
     }
-  };
+  }, [brand, keywords, category, timeframe, maxResults, durationFilter, region, showToast]);
 
   // ─── IMPORT ───
   const handleImport = async () => {
@@ -281,7 +321,6 @@ Rules:
 
     for (let i = 0; i < toImport.length; i++) {
       const v = toImport[i];
-      // Per-video scope (falls back to global scope selector)
       const vidScope = videoScopes[v.videoId] || scope;
       const table = vidScope === "global" ? "audit_global" : "audit_entries";
 
@@ -299,7 +338,7 @@ Rules:
           });
           const tData = await tRes.json();
           transcript = tData.transcript || "";
-        } catch {}
+        } catch { /* ignore */ }
       }
 
       // Build entry
@@ -321,6 +360,10 @@ Rules:
       const vidIntent = videoIntents[v.videoId];
       if (vidIntent) entry.communication_intent = vidIntent;
 
+      // FIX #3: Add analyst notes as analyst_comment
+      const note = analystNotes[v.videoId];
+      if (note) entry.analyst_comment = note;
+
       if (vidScope === "global") {
         entry.brand = v.channel || "";
         entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
@@ -337,20 +380,23 @@ Rules:
       if (autoAnalyze && (v.thumbnail || transcript)) {
         setImportProgress({ current: i + 1, total: toImport.length, label: `AI analyzing: ${v.title.slice(0, 40)}...` });
         try {
+          // FIX #3: Include analyst notes in AI analysis context
+          const contextParts = [
+            `Brand: ${v.channel || ""}`,
+            transcript ? `Transcript: ${transcript.slice(0, 1500)}` : "",
+            note ? `Analyst Notes: ${note}` : "",
+          ].filter(Boolean);
+
           const analyzeRes = await fetch("/api/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               imageUrl: v.thumbnail,
-              context: [
-                `Brand: ${v.channel || ""}`,
-                transcript ? `Transcript: ${transcript.slice(0, 1500)}` : "",
-              ].filter(Boolean).join("\n"),
+              context: contextParts.join("\n"),
             }),
           });
           const analysis = await analyzeRes.json();
           if (analysis.success && analysis.analysis) {
-            // Update the entry with AI-generated fields
             const updates = {};
             const a = analysis.analysis;
             const fields = ["insight", "idea", "primary_territory", "secondary_territory",
@@ -366,14 +412,14 @@ Rules:
               await supabase.from(table).update(updates).eq("id", entry.id);
             }
           }
-        } catch {}
+        } catch { /* ignore */ }
       }
     }
 
     setImporting(false);
     setImportCount(imported);
     setImportDone(true);
-    showToast(`✓ ${imported} entries imported`);
+    showToast(`\u2713 ${imported} entries imported`);
   };
 
   // ─── TOGGLE ───
@@ -391,45 +437,9 @@ Rules:
   };
 
   const filteredVideos = minScore > 0 ? videos.filter(v => (v.score || 0) >= minScore) : videos;
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const searchInputRef = useRef(null);
 
-  // Search messages for conversational UI
-  const SEARCH_MESSAGES = [
-    "Digging into the content library...",
-    "Searching across YouTube...",
-    "Looking for interesting campaigns...",
-    "Hunting for competitive intelligence...",
-  ];
-  const RANKING_MESSAGES = [
-    "Found some pieces! Let me rank them by relevance...",
-    "Scoring each video for strategic value...",
-    "Almost there — picking the best ones...",
-  ];
-  const RESULT_MESSAGES = [
-    "Here's what I found! 👇",
-    "Take a look at these — some interesting stuff!",
-    "Got results! The best ones are at the top.",
-  ];
-  const randomMsg = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-  // Conversational search — parse natural language
-  const [searchInput, setSearchInput] = useState("");
-  const [scoutMessage, setScoutMessage] = useState("");
-
-  const doSearch = () => {
-    const q = searchInput.trim();
-    if (!q) return;
-    // Parse natural language into search params
-    setBrand(q);
-    setKeywords("");
-    setCategory("");
-    setScoutMessage(randomMsg(SEARCH_MESSAGES));
-    handleSearch();
-  };
-
-  // Override handleSearch to use searchInput if brand/keywords/category are empty
-  const originalSearch = handleSearch;
+  const showEmptyState = videos.length === 0 && !searching && !ranking && !importing && !importDone;
+  const showResults = videos.length > 0 && !searching && !importing && !importDone;
 
   // ─── RENDER ───
   return (
@@ -441,18 +451,18 @@ Rules:
         <div className="max-w-5xl mx-auto p-6">
 
           {/* ─── CONVERSATIONAL HEADER ─── */}
-          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+          {showEmptyState && (
             <div className="text-center pt-12 pb-8" style={{ animation: "fadeIn 0.5s" }}>
               <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </div>
               <h1 className="text-2xl font-bold text-main mb-2">Scout</h1>
-              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I'll find the competitive content for you</p>
+              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I&apos;ll find the competitive content for you</p>
             </div>
           )}
 
           {/* ─── SEARCH INPUT (chat-style) ─── */}
-          <div className={`${videos.length > 0 || searching || ranking ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
+          <div className={`${!showEmptyState ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
             <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -533,24 +543,32 @@ Rules:
             </div>
           </div>
 
-          {/* ─── SEARCHING STATE ─── */}
-          {(searching || ranking) && (
+          {/* ─── SEARCHING STATE (only when no results yet) ─── */}
+          {searching && videos.length === 0 && (
             <div className="text-center py-12" style={{ animation: "fadeIn 0.3s" }}>
               <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="3" fill="none"/><path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
               </div>
-              <p className="text-sm font-medium text-main">{ranking ? randomMsg(RANKING_MESSAGES) : randomMsg(SEARCH_MESSAGES)}</p>
-              {ranking && <p className="text-xs text-muted mt-1">Scoring {videos.length} videos</p>}
+              <p className="text-sm font-medium text-main">{statusMessage}</p>
             </div>
           )}
 
-          {/* Results */}
-          {videos.length > 0 && !searching && !ranking && !importing && !importDone && (
+          {/* FIX #2: Ranking banner — shown above results while ranking is in progress */}
+          {ranking && videos.length > 0 && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-surface border border-main rounded-xl" style={{ animation: "fadeIn 0.3s" }}>
+              <svg className="animate-spin h-4 w-4 text-accent flex-shrink-0" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <p className="text-sm font-medium text-main">{statusMessage}</p>
+              <p className="text-xs text-muted">Scoring {videos.length} videos</p>
+            </div>
+          )}
+
+          {/* ─── RESULTS ─── */}
+          {showResults && (
             <div>
-              {/* Conversational results header */}
+              {/* Results header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-main font-medium">Found {filteredVideos.length} pieces 👇</p>
+                  <p className="text-sm text-main font-medium">Found {filteredVideos.length} pieces</p>
                   {videos.some(v => v.score !== null) && (
                     <div className="flex items-center gap-2">
                       <label className="text-[10px] text-muted">Min score:</label>
@@ -590,7 +608,7 @@ Rules:
                           className="rounded border-gray-300 text-accent" />
                       </div>
 
-                      {/* Thumbnail — click to preview */}
+                      {/* Thumbnail */}
                       <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
                         onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}>
                         {v.thumbnail && <img src={v.thumbnail} className="w-full h-full object-cover" alt="" />}
@@ -617,7 +635,7 @@ Rules:
                           {v.isOfficial && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Official</span>
                           )}
-                          <span className="text-xs text-hint">· {formatViews(v.viewCount)} views · {v.year}</span>
+                          <span className="text-xs text-hint">&middot; {formatViews(v.viewCount)} views &middot; {v.year}</span>
                         </div>
                         {v.reason && <p className="text-[11px] text-hint mt-1 italic">{v.reason}</p>}
                         <button onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}
@@ -661,6 +679,20 @@ Rules:
                                 onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
                                 rows={3}
                                 placeholder="Paste the video transcript or ad copy here..."
+                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
+                              />
+                            </div>
+                            {/* FIX #3: Analyst Notes */}
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] text-muted uppercase font-semibold">Analyst Notes</label>
+                                <span className="text-[9px] text-hint">Your observations, sent to AI on import</span>
+                              </div>
+                              <textarea
+                                value={analystNotes[v.videoId] || ""}
+                                onChange={e => setAnalystNotes(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                                rows={2}
+                                placeholder="Add your notes about this video..."
                                 className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
                               />
                             </div>
@@ -723,7 +755,7 @@ Rules:
           )}
 
           {/* Quick suggestions when no results */}
-          {videos.length === 0 && !searching && !ranking && !importing && !importDone && (
+          {showEmptyState && (
             <div className="max-w-2xl mx-auto">
               <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-2 text-center">Try searching for</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -736,6 +768,7 @@ Rules:
           )}
         </div>
       </div>
+
       {/* ─── SCOUT ASSISTANT BUBBLE ─── */}
       <div className="fixed bottom-6 right-6 z-50">
         {assistOpen && (
@@ -745,7 +778,7 @@ Rules:
                 <h3 className="text-sm font-bold text-white">Scout Assistant</h3>
                 <p className="text-[9px] text-white/40">Ask me who to search for</p>
               </div>
-              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
+              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">\u00d7</button>
             </div>
             <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: "calc(60vh - 110px)" }}>
               {assistMessages.length === 0 && (
@@ -771,10 +804,10 @@ Rules:
                           <div className="space-y-1">
                             {(g.brands || []).map((b, bi) => (
                               <div key={bi} className="flex items-start gap-2 pl-1">
-                                <span className="text-accent mt-0.5">•</span>
+                                <span className="text-accent mt-0.5">&bull;</span>
                                 <div>
                                   <a href={b.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-main hover:text-accent transition underline underline-offset-2 decoration-dotted">{b.name}</a>
-                                  <span className="text-muted ml-1">— {b.desc}</span>
+                                  <span className="text-muted ml-1">&mdash; {b.desc}</span>
                                 </div>
                               </div>
                             ))}
@@ -799,9 +832,8 @@ Rules:
                   ) : (
                     <div className="bg-surface2 rounded-xl rounded-bl-sm px-3 py-2 text-xs text-main leading-relaxed">
                       {m.text.split("\n").map((line, li) => {
-                        // Bold **text**
                         const formatted = line.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-                        const isBullet = /^[\s]*[-•·]/.test(line);
+                        const isBullet = /^[\s]*[-\u2022\u00b7]/.test(line);
                         return <p key={li} className={`${isBullet ? "pl-2" : ""} ${li > 0 ? "mt-1" : ""}`} dangerouslySetInnerHTML={{ __html: formatted || "&nbsp;" }} />;
                       })}
                     </div>
