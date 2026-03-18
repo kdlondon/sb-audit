@@ -105,7 +105,7 @@ function VideoPreview({ videoId, title, onClose }) {
   if (!videoId) return null;
   return (
     <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center" onClick={onClose}>
-      <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>\u00d7</button>
+      <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={onClose}>×</button>
       <div className="w-[85vw] max-w-[1000px]" onClick={e => e.stopPropagation()}>
         <iframe width="100%" style={{ aspectRatio: "16/9" }} src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
           frameBorder="0" allowFullScreen allow="autoplay; encrypted-media" className="rounded-xl" />
@@ -1108,7 +1108,7 @@ Rules:
                 <h3 className="text-sm font-bold text-white">Scout Assistant</h3>
                 <p className="text-[9px] text-white/40">Ask me who to search for</p>
               </div>
-              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">\u00d7</button>
+              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
             </div>
             <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: "calc(60vh - 110px)" }}>
               {assistMessages.length === 0 && (
