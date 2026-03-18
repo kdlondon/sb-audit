@@ -234,19 +234,22 @@ Rules:
 
   // ─── SEARCH ───
   const handleSearch = async () => {
-    if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
+    const searchBrand = brand.trim();
+    const searchKeywords = keywords.trim();
+    const searchCategory = category.trim();
+    if (!searchBrand && !searchKeywords && !searchCategory) { showToast("Enter a brand, category, or keywords"); return; }
     setSearching(true);
     setVideos([]);
     setScoutMessage(SEARCH_MESSAGES[Math.floor(Math.random() * SEARCH_MESSAGES.length)]);
     setSelected(new Set());
     setImportDone(false);
 
-    // Build query — clean, no "ad commercial" noise (server handles official channel search)
+    // Build query — use local vars captured at start to avoid stale state
     const parts = [];
-    if (brand.trim()) parts.push(brand.trim());
-    if (category.trim()) parts.push(category.trim());
-    if (keywords.trim()) {
-      keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
+    if (searchBrand) parts.push(searchBrand);
+    if (searchCategory) parts.push(searchCategory);
+    if (searchKeywords) {
+      searchKeywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
         parts.push(k.includes(" ") ? `"${k}"` : k);
       });
     }
@@ -281,7 +284,7 @@ Rules:
         const rankRes = await fetch("/api/youtube-scout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "rank", brand: brand || category, keywords: keywords || category, market, videos: vids }),
+          body: JSON.stringify({ action: "rank", brand: searchBrand || searchCategory, keywords: searchKeywords || searchCategory, market, videos: vids }),
         });
         const rankData = await rankRes.json();
         const rankings = rankData.rankings || [];
