@@ -3,7 +3,8 @@ import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 export async function POST(request) {
   const body = await request.json();
   const { action } = body;
-  const apiKey = process.env.YOUTUBE_API_KEY;
+  const apiKeys = [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2].filter(Boolean);
+  let apiKey = apiKeys[0];
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) return Response.json({ error: "YouTube API key not configured" }, { status: 500 });
@@ -102,10 +103,38 @@ export async function POST(request) {
 
       return Response.json({ videos, totalResults: videos.length });
     } catch (err) {
-      // Return clear error message for quota issues
       const msg = err.message || "";
+      // If quota exceeded and we have a backup key, retry with it
+      if (msg.includes("quota") && apiKeys.length > 1 && apiKey === apiKeys[0]) {
+        apiKey = apiKeys[1];
+        try {
+          let videos = await ytSearch(new URLSearchParams({
+            part: "snippet", q: query, type: "video",
+            maxResults: String(Math.min(maxResults * 2, 50)),
+            key: apiKey, order: "relevance",
+            ...(publishedAfter ? { publishedAfter } : {}),
+            ...(regionCode ? { regionCode } : {}),
+            ...(videoDuration ? { videoDuration } : {}),
+          }));
+          const brandName2 = query.split(/\s/)[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+          videos.forEach(v => {
+            const chName = (v.channel || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            v.isOfficial = chName.includes(brandName2) || brandName2.includes(chName);
+            v.source = v.isOfficial ? "official" : "general";
+          });
+          videos = await enrichWithStats(videos);
+          if (minSeconds || maxSeconds) {
+            videos = videos.filter(v => v.durationSeconds >= (minSeconds||0) && v.durationSeconds <= (maxSeconds||999999));
+          }
+          videos.sort((a, b) => a.isOfficial && !b.isOfficial ? -1 : !a.isOfficial && b.isOfficial ? 1 : (b.viewCount||0)-(a.viewCount||0));
+          videos = videos.slice(0, maxResults);
+          return Response.json({ videos, totalResults: videos.length });
+        } catch (err2) {
+          return Response.json({ error: "YouTube API daily limit reached on all keys." }, { status: 429 });
+        }
+      }
       if (msg.includes("quota")) {
-        return Response.json({ error: "YouTube API daily limit reached. Try again tomorrow or reduce search frequency." }, { status: 429 });
+        return Response.json({ error: "YouTube API daily limit reached." }, { status: 429 });
       }
       return Response.json({ error: msg }, { status: 500 });
     }
