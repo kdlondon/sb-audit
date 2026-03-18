@@ -1064,7 +1064,7 @@ RULES:
             {!viewerEntry&&<input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setViewerEntry(null);}} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>}
           </div>
           {viewerEntry
-            ?<><EntryViewer entry={viewerEntry} onClose={()=>setViewerEntry(null)}/></>
+            ?<div className="flex-1 overflow-hidden"><EntryViewer entry={viewerEntry} onClose={()=>setViewerEntry(null)}/></div>
             :(
               <div className="flex-1 overflow-auto">
                 {searchQuery.length<=1?<div className="p-4 text-center text-hint text-sm">Type to search {allData.length} entries</div>
