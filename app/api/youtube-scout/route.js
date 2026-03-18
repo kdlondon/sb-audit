@@ -1,5 +1,8 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export async function POST(request) {
   const body = await request.json();
   const { action } = body;
