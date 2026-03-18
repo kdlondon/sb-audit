@@ -37,7 +37,7 @@ export async function POST(request) {
   async function ytSearch(params) {
     const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     return (data.items || []).filter(item => item.id?.videoId).map(item => ({
       videoId: item.id.videoId,
       title: item.snippet.title,
@@ -52,7 +52,7 @@ export async function POST(request) {
 
   // ─── SEARCH (2-phase: official channel + general) ───
   if (action === "search") {
-    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
+    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds, skipChannelSearch } = body;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
     // Extract brand name (first part of query, before keywords)
@@ -64,8 +64,8 @@ export async function POST(request) {
       let officialChannelName = null;
 
       // ─── PHASE 1: Find the brand's official YouTube channel ───
-      // Wrapped in try-catch so channel search failure doesn't kill the whole search
-      if (brandName) {
+      // Skip if explicitly disabled (saves quota) or no clear brand name
+      if (brandName && !skipChannelSearch) {
         try {
           const channelParams = new URLSearchParams({
             part: "snippet",
