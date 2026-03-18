@@ -253,7 +253,7 @@ Rules:
   }, [projectId, scope]);
 
   // ─── SEARCH ───
-  const handleSearch = useCallback(async () => {
+  const handleSearch = async () => {
     if (!brand.trim() && !keywords.trim() && !category.trim()) { showToast("Enter a brand, category, or keywords"); return; }
 
     // FIX #1: Set status message in state ONCE at search start
@@ -335,7 +335,7 @@ Rules:
       setSearching(false);
       setRanking(false);
     }
-  }, [brand, keywords, category, timeframe, maxResults, durationFilter, region, showToast]);
+  };
 
   // ─── IMPORT ───
   const handleImport = async () => {
