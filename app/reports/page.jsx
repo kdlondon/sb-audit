@@ -395,17 +395,30 @@ function CampaignMap({ entries, onEntryClick, activeView: extActiveView, setActi
 function EntryViewer({entry,onClose}){
   if(!entry)return null;const e=entry;
   return(<div className="h-full flex flex-col">
-    <div className="p-3 border-b border-main flex justify-between items-center flex-shrink-0"><b className="text-sm text-main truncate">{e.description||e.competitor||e.brand}</b><span onClick={onClose} className="cursor-pointer text-lg text-hint hover:text-main ml-2">×</span></div>
+    {/* Fixed header */}
+    <div className="p-3 border-b border-main flex justify-between items-center flex-shrink-0">
+      <b className="text-sm text-main truncate">{e.description||e.competitor||e.brand}</b>
+      <span onClick={onClose} className="cursor-pointer text-lg text-hint hover:text-main ml-2">×</span>
+    </div>
+    {/* Scrollable content */}
     <div className="flex-1 overflow-auto">
       {ytId(e.url)&&<div className="px-3 pt-2"><iframe width="100%" height="180" src={`https://www.youtube.com/embed/${ytId(e.url)}`} frameBorder="0" allowFullScreen className="rounded-md"/></div>}
       {e.image_url&&!ytId(e.url)&&<div className="px-3 pt-2"><img src={e.image_url} className="w-full rounded-md"/></div>}
       <div className="p-3">
         <div className="flex gap-1 flex-wrap mb-2">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{e.brand}</span>}{e.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{e.year}</span>}</div>
-        {[["Portrait",e.portrait],["Phase",e.journey_phase],["Door",e.entry_door],["Archetype",e.brand_archetype],["Tone",e.tone_of_voice],["Territory",e.primary_territory],["Slogan",e.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>))}
+        {[["Intent",e.communication_intent],["Portrait",e.portrait],["Phase",e.journey_phase],["Door",e.entry_door],["Archetype",e.brand_archetype],["Tone",e.tone_of_voice],["Territory",e.primary_territory],["Execution",e.execution_style],["Slogan",e.main_slogan],["Rating",e.rating?"★".repeat(Number(e.rating)):null]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main font-medium">{v}</span></div>))}
       </div>
       {e.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.synopsis}</div></div>}
       {e.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.insight}</div></div>}
+      {e.idea&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Creative Idea</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.idea}</div></div>}
+      {e.emotional_benefit&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Emotional Benefit</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.emotional_benefit}</div></div>}
       {e.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.analyst_comment}</div></div>}
+    </div>
+    {/* Fixed footer with actions */}
+    <div className="p-3 border-t border-main flex-shrink-0 flex gap-2">
+      <a href={`/audit?edit=${e.id}`} className="flex-1 text-center px-3 py-2 text-xs text-white rounded-lg font-semibold hover:opacity-90 transition" style={{background:"#0019FF"}}>Edit entry</a>
+      <a href={`/audit?entry=${e.id}`} className="flex-1 text-center px-3 py-2 text-xs border border-main rounded-lg text-muted hover:text-main transition">View in Audit</a>
+      {e.url&&<a href={e.url} target="_blank" rel="noopener noreferrer" className="px-3 py-2 text-xs border border-main rounded-lg text-muted hover:text-main transition">Open ↗</a>}
     </div>
   </div>);
 }
