@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!rawData) return;
     const { projects, localEntries, globalEntries, reports: allReports, showcases: allShowcases, users } = rawData;
+    const computeStats = () => {
 
     // Apply project filter
     const filterByProject = (arr) => selectedProject === "all" ? arr : arr.filter(e => e.project_id === selectedProject);
@@ -162,7 +163,8 @@ export default function AdminDashboard() {
         projects,
       });
       setLoading(false);
-    })();
+    };
+    computeStats();
   }, [rawData, timeframe, selectedProject]);
 
   if (loading) return (
