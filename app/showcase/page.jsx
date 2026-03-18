@@ -1077,6 +1077,10 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     ? (theme.isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)")
     : (theme.isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)");
 
+  // Safe helpers for CS slides — prevent crashes from unexpected AI data
+  const safeArr = (v) => Array.isArray(v) ? v : [];
+  const safeStr = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "") || "";
+
   const mdC = {
     p: ({ children }) => <p className="text-base leading-relaxed mb-3" style={{ color: m }}>{children}</p>,
     strong: ({ children }) => <strong className="font-semibold" style={{ color: t }}>{children}</strong>,
@@ -1114,7 +1118,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     );
   };
 
-  switch (slide.type) {
+  try { switch (slide.type) {
     case "title":
       return (
         <div className="py-8 animate-fadeIn">
@@ -1380,14 +1384,14 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                       <p className="text-base font-semibold text-white">{slide.brand_territory}</p>
                     </div>
                   )}
-                  {(Array.isArray(slide.key_differentiators) ? slide.key_differentiators : []).length > 0 && (
+                  {safeArr(slide.key_differentiators).length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Key Differentiators</span>
                       </div>
                       <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      {(Array.isArray(slide.key_differentiators) ? slide.key_differentiators : []).map((d, i) => (
+                      {safeArr(slide.key_differentiators).map((d, i) => (
                         <p key={i} className="text-sm flex gap-2 items-start text-white/90">
                           <span className="text-white/40">•</span> {d}
                         </p>
@@ -1402,8 +1406,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       );
 
     case "cs_proof_points": {
-      const secProofs = Array.isArray(slide.secondary_proofs) ? slide.secondary_proofs : [];
-      const toneVoice = Array.isArray(slide.tone_voice) ? slide.tone_voice : [];
+      const secProofs = safeArr(slide.secondary_proofs);
+      const toneVoice = safeArr(slide.tone_voice);
       return (
         <div className="animate-fadeIn -mx-4">
           <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Proof Points and Communication Strategy</h2>
@@ -1449,7 +1453,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     }
 
     case "cs_product": {
-      const keyMsgs = Array.isArray(slide.key_messages) ? slide.key_messages : [];
+      const keyMsgs = safeArr(slide.key_messages);
       return (
         <div className="animate-fadeIn -mx-4">
           <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Product Communication</h2>
@@ -1533,11 +1537,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#16A34A" }} />
                 <div className="space-y-4">
-                  {(Array.isArray(slide.strengths) ? slide.strengths : []).map((s, i) => (
+                  {safeArr(slide.strengths).map((s, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
-                        <span><strong className="font-bold">{s.label}:</strong> {s.explanation}</span>
+                        <span><strong className="font-bold">{typeof s === "object" ? s.label : s}:</strong> {typeof s === "object" ? s.explanation : ""}</span>
                       </p>
                     </div>
                   ))}
@@ -1551,11 +1555,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#EA580C" }} />
                 <div className="space-y-4">
-                  {(Array.isArray(slide.weaknesses) ? slide.weaknesses : []).map((w, i) => (
+                  {safeArr(slide.weaknesses).map((w, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
-                        <span><strong className="font-bold">{w.label}:</strong> {w.explanation}</span>
+                        <span><strong className="font-bold">{typeof w === "object" ? w.label : w}:</strong> {typeof w === "object" ? w.explanation : ""}</span>
                       </p>
                     </div>
                   ))}
@@ -1580,11 +1584,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#16A34A" }} />
                 <div className="space-y-4">
-                  {(Array.isArray(slide.strengths) ? slide.strengths : []).map((s, i) => (
+                  {safeArr(slide.strengths).map((s, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
-                        <span><strong className="font-bold">{s.label}:</strong> {s.explanation}</span>
+                        <span><strong className="font-bold">{typeof s === "object" ? s.label : s}:</strong> {typeof s === "object" ? s.explanation : ""}</span>
                       </p>
                     </div>
                   ))}
@@ -1598,11 +1602,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-5" style={{ backgroundColor: "#EA580C" }} />
                 <div className="space-y-4">
-                  {(Array.isArray(slide.weaknesses) ? slide.weaknesses : []).map((w, i) => (
+                  {safeArr(slide.weaknesses).map((w, i) => (
                     <div key={i}>
                       <p className="text-sm flex gap-2 items-start" style={{ color: t }}>
                         <span className="mt-1">•</span>
-                        <span><strong className="font-bold">{w.label}:</strong> {w.explanation}</span>
+                        <span><strong className="font-bold">{typeof w === "object" ? w.label : w}:</strong> {typeof w === "object" ? w.explanation : ""}</span>
                       </p>
                     </div>
                   ))}
@@ -1645,5 +1649,14 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
           </div>
         </div>
       );
+  } } catch (err) {
+    console.error("Slide render error:", err, slide);
+    return (
+      <div className="animate-fadeIn text-center py-8">
+        <p className="text-lg font-bold mb-2" style={{ color: t }}>{slide.title || slide.type || "Slide"}</p>
+        <p className="text-sm" style={{ color: m }}>This slide could not be rendered. Try editing it or regenerating the showcase.</p>
+        <p className="text-[10px] mt-2" style={{ color: f }}>Error: {err.message}</p>
+      </div>
+    );
   }
 }
