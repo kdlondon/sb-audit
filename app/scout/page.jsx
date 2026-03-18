@@ -667,7 +667,8 @@ Rules:
         created_by: session?.user?.email || "",
         updated_at: new Date().toISOString(),
         url: `https://www.youtube.com/watch?v=${v.videoId}`,
-        image_url: v.thumbnail,
+        image_url: (capturedImages[v.videoId]?.length > 0) ? capturedImages[v.videoId][0] : v.thumbnail,
+        image_urls: (capturedImages[v.videoId]?.length > 1) ? JSON.stringify(capturedImages[v.videoId].slice(1)) : null,
         description: v.title,
         year: v.year || "",
         type: "Video",
@@ -1169,6 +1170,54 @@ Rules:
                                 <option value="">— Select —</option>
                                 {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                               </select>
+                            </div>
+                            {/* Video embed + Screenshot capture */}
+                            <div>
+                              <label className="text-[10px] text-muted uppercase font-semibold mb-1 block">Video & Screenshot Capture</label>
+                              <iframe ref={captureActive === v.videoId ? videoIframeRef : undefined}
+                                width="100%" height="260" style={{ maxWidth: 520, display: "block" }}
+                                src={`https://www.youtube.com/embed/${v.videoId}?rel=0`}
+                                frameBorder="0" allowFullScreen className="rounded-lg" />
+                              <div className="flex items-center gap-2 mt-2">
+                                {captureActive === v.videoId ? (
+                                  <>
+                                    <button onClick={() => captureFrame(v.videoId)} disabled={uploading}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition disabled:opacity-50 hover:opacity-90"
+                                      style={{ background: "#dc2626" }}>
+                                      <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                      {uploading ? "Saving..." : "Capture frame"}
+                                    </button>
+                                    {captureCount > 0 && <span className="text-[10px] text-muted">{captureCount} captured</span>}
+                                    <button onClick={stopCapture} className="px-3 py-1.5 text-xs text-muted hover:text-main border border-main rounded-lg transition">Stop</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button onClick={() => startCapture(v.videoId)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition">
+                                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+                                      Capture stills
+                                    </button>
+                                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition cursor-pointer">
+                                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 10v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3M11 5l-3-3-3 3M8 2v8"/></svg>
+                                      Upload images
+                                      <input type="file" accept="image/*" multiple onChange={e => handleCaptureFileUpload(v.videoId, [...e.target.files])} className="hidden" />
+                                    </label>
+                                  </>
+                                )}
+                              </div>
+                              {(capturedImages[v.videoId] || []).length > 0 && (
+                                <div className="flex gap-2 items-center mt-2 overflow-x-auto pb-1">
+                                  {capturedImages[v.videoId].map((url, i) => (
+                                    <div key={i} className="relative group flex-shrink-0">
+                                      <img src={url} className="w-16 h-16 object-cover rounded cursor-pointer opacity-80 hover:opacity-100 transition border border-white/10" alt=""
+                                        onClick={() => window.open(url, "_blank")} />
+                                      <button onClick={() => removeCapturedImage(v.videoId, i)}
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button>
+                                    </div>
+                                  ))}
+                                  <span className="text-[10px] text-hint flex-shrink-0">{capturedImages[v.videoId].length} stills</span>
+                                </div>
+                              )}
                             </div>
                             {/* Transcript */}
                             <div>
