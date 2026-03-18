@@ -233,11 +233,14 @@ Rules:
   }, [projectId, scope]);
 
   // ─── SEARCH ───
+  const searchingRef = useRef(false);
   const handleSearch = async () => {
+    if (searchingRef.current) return;
     const searchBrand = brand.trim();
     const searchKeywords = keywords.trim();
     const searchCategory = category.trim();
     if (!searchBrand && !searchKeywords && !searchCategory) { showToast("Enter a brand, category, or keywords"); return; }
+    searchingRef.current = true;
     setSearching(true);
     setVideos([]);
     setScoutMessage(SEARCH_MESSAGES[Math.floor(Math.random() * SEARCH_MESSAGES.length)]);
@@ -269,13 +272,14 @@ Rules:
         }),
       });
       const data = await res.json();
-      if (data.error) { showToast("Error: " + data.error); setSearching(false); return; }
+      if (data.error) { showToast("Error: " + data.error); setSearching(false); searchingRef.current = false; return; }
 
       const vids = data.videos || [];
-      if (vids.length === 0) { showToast("No results found"); setSearching(false); return; }
+      if (vids.length === 0) { showToast("No results found"); setSearching(false); searchingRef.current = false; return; }
 
       setVideos(vids.map(v => ({ ...v, score: null, reason: "" })));
       setSearching(false);
+      searchingRef.current = false;
 
       // Rank with AI in background — don't block results display
       setRanking(true);
@@ -313,6 +317,7 @@ Rules:
       showToast("Search failed — please try again");
       setSearching(false);
       setRanking(false);
+      searchingRef.current = false;
     }
   };
 
