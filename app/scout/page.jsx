@@ -102,6 +102,33 @@ export default function ScoutPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Dynamic suggestions from project data
+  const [suggestions, setSuggestions] = useState([]);
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const s = createClient();
+      const [{ data: local }, { data: global }] = await Promise.all([
+        s.from("audit_entries").select("competitor").eq("project_id", projectId),
+        s.from("audit_global").select("brand, country").eq("project_id", projectId),
+      ]);
+      const brands = new Set();
+      (local || []).forEach(e => { if (e.competitor) brands.add(e.competitor); });
+      (global || []).forEach(e => { if (e.brand) brands.add(e.brand); });
+      const countries = new Set();
+      (global || []).forEach(e => { if (e.country) countries.add(e.country); });
+      const arr = [];
+      const brandArr = [...brands].sort(() => 0.5 - Math.random());
+      brandArr.slice(0, 2).forEach(b => arr.push(b));
+      if (brandArr[0]) arr.push(`${brandArr[0]} small business`);
+      const countryArr = [...countries];
+      arr.push(countryArr.length > 0 ? `business banking ${countryArr[Math.floor(Math.random() * countryArr.length)]}` : "business banking UK");
+      const disc = ["neobank business account", "SME fintech ads", "challenger bank commercial", "business banking innovation", "small business testimonials"];
+      arr.push(disc[Math.floor(Math.random() * disc.length)]);
+      setSuggestions(arr.slice(0, 5));
+    })();
+  }, [projectId]);
+
   // Search form
   const [brand, setBrand] = useState("");
   const [keywords, setKeywords] = useState("");
@@ -754,18 +781,28 @@ Rules:
             </div>
           )}
 
-          {/* Quick suggestions when no results */}
-          {showEmptyState && (
-            <div className="max-w-2xl mx-auto">
-              <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-2 text-center">Try searching for</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {["Starling Bank", "Tide business", "RBC small business", "Monzo business account", "BBVA SME"].map(q => (
-                  <button key={q} onClick={() => { setBrand(q); setTimeout(() => handleSearch(), 100); }}
-                    className="px-3 py-1.5 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] transition">{q}</button>
-                ))}
+          {/* Quick suggestions carousel when no results */}
+          {showEmptyState && (() => {
+            const items = suggestions.length > 0 ? suggestions : ["Starling Bank", "Tide business", "RBC small business", "Monzo business account", "BBVA SME"];
+            const looped = [...items, ...items, ...items];
+            return (
+              <div className="max-w-2xl mx-auto">
+                <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-3 text-center">Try searching for</p>
+                <div className="relative overflow-hidden group/carousel">
+                  <div className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to right, var(--bg), transparent)" }} />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to left, var(--bg), transparent)" }} />
+                  <div className="flex gap-2.5 py-1 group-hover/carousel:[animation-play-state:paused]"
+                    style={{ animation: "scoutCarousel 25s linear infinite", width: "max-content" }}>
+                    {looped.map((q, i) => (
+                      <button key={`${q}-${i}`} onClick={() => { setBrand(q); setTimeout(() => handleSearch(), 150); }}
+                        className="px-4 py-2 bg-surface border border-main rounded-full text-xs text-muted hover:text-accent hover:border-[var(--accent)] hover:bg-accent-soft transition whitespace-nowrap flex-shrink-0">{q}</button>
+                    ))}
+                  </div>
+                </div>
+                <style>{`@keyframes scoutCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(-33.33%); } }`}</style>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -785,7 +822,7 @@ Rules:
                 <div className="text-center py-4">
                   <p className="text-xs text-muted mb-3">Try asking:</p>
                   <div className="space-y-1.5">
-                    {["Banks competing in SME in Spain","Top fintechs for small business UK","Who are the main neobanks in Latin America","Business banking players in Australia"].map(q => (
+                    {["Who competes in SME banking here?","Top fintechs for small business","Neobanks worth exploring","What brands should I look at next?"].map(q => (
                       <button key={q} onClick={() => { setAssistQuery(q); }} className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
                     ))}
                   </div>
