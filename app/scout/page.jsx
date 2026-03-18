@@ -192,6 +192,15 @@ export default function ScoutPage() {
   const [savedTab, setSavedTab] = useState(false);
   const [savedNotes, setSavedNotes] = useState({});
 
+  // Screenshot capture for saved items
+  const [capturedImages, setCapturedImages] = useState({}); // keyed by video_id, each an array of URLs
+  const [captureActive, setCaptureActive] = useState(null); // video_id or null
+  const [captureCount, setCaptureCount] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const captureStreamRef = useRef(null);
+  const captureVideoRef = useRef(null);
+  const videoIframeRef = useRef(null);
+
   // FIX #1: Store status messages in state — set ONCE, never call randomMsg during render
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -293,6 +302,117 @@ Rules:
 
   const savedVideoIds = new Set(savedItems.map(s => s.video_id));
 
+  // ─── UPLOAD & CAPTURE FUNCTIONS ───
+  const uploadFile = async (file) => {
+    if (!file) return null;
+    const ext = file.name?.split(".").pop() || "jpg";
+    const path = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+    const { error } = await supabase.storage.from("media").upload(path, file);
+    if (error) { console.error("Upload error:", error); return null; }
+    const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(path);
+    return publicUrl;
+  };
+
+  const startCapture = async (videoId) => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: "browser" },
+        preferCurrentTab: true,
+      });
+      captureStreamRef.current = stream;
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+      captureVideoRef.current = video;
+      setCaptureActive(videoId);
+      setCaptureCount(0);
+      showToast("Capture mode active — click Capture frame anytime");
+      stream.getVideoTracks()[0].onended = () => stopCapture();
+    } catch (err) {
+      if (err.name !== "NotAllowedError") showToast("Could not start capture: " + err.message);
+    }
+  };
+
+  const stopCapture = () => {
+    if (captureStreamRef.current) {
+      captureStreamRef.current.getTracks().forEach(t => t.stop());
+      captureStreamRef.current = null;
+    }
+    if (captureVideoRef.current) {
+      captureVideoRef.current.pause();
+      captureVideoRef.current.srcObject = null;
+      captureVideoRef.current = null;
+    }
+    setCaptureActive(null);
+  };
+
+  const captureFrame = async (videoId) => {
+    const video = captureVideoRef.current;
+    if (!video || video.readyState < 2) return;
+    const iframe = videoIframeRef.current;
+    if (!iframe) return;
+    const rect = iframe.getBoundingClientRect();
+    const fullCanvas = document.createElement("canvas");
+    fullCanvas.width = video.videoWidth;
+    fullCanvas.height = video.videoHeight;
+    fullCanvas.getContext("2d").drawImage(video, 0, 0);
+    const scaleX = video.videoWidth / window.innerWidth;
+    const scaleY = video.videoHeight / window.innerHeight;
+    const cropX = Math.round(rect.left * scaleX);
+    const cropY = Math.round(rect.top * scaleY);
+    const cropW = Math.round(rect.width * scaleX);
+    const cropH = Math.round(rect.height * scaleY);
+    const canvas = document.createElement("canvas");
+    canvas.width = cropW;
+    canvas.height = cropH;
+    canvas.getContext("2d").drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.92));
+    const file = new File([blob], `capture_${Date.now()}.jpg`, { type: "image/jpeg" });
+    setUploading(true);
+    const url = await uploadFile(file);
+    if (url) {
+      setCapturedImages(prev => ({
+        ...prev,
+        [videoId]: [...(prev[videoId] || []), url],
+      }));
+      setCaptureCount(c => c + 1);
+      showToast("Frame captured (" + (captureCount + 1) + ")");
+    }
+    setUploading(false);
+  };
+
+  const handleCaptureFileUpload = async (videoId, files) => {
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      const url = await uploadFile(file);
+      if (url) {
+        setCapturedImages(prev => ({
+          ...prev,
+          [videoId]: [...(prev[videoId] || []), url],
+        }));
+      }
+    }
+    setUploading(false);
+    showToast(files.length + " image" + (files.length > 1 ? "s" : "") + " added");
+  };
+
+  const removeCapturedImage = (videoId, index) => {
+    setCapturedImages(prev => ({
+      ...prev,
+      [videoId]: (prev[videoId] || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  // Clean up capture on unmount
+  useEffect(() => {
+    return () => { if (captureStreamRef.current) captureStreamRef.current.getTracks().forEach(t => t.stop()); };
+  }, []);
+
+  // Stop capture when leaving saved tab
+  useEffect(() => { if (!savedTab) stopCapture(); }, [savedTab]);
+
   const handleSaveItem = async (v) => {
     const { data: { session } } = await supabase.auth.getSession();
     const entry = {
@@ -345,13 +465,19 @@ Rules:
       transcript = tData.transcript || "";
     } catch { /* ignore */ }
 
+    // Use captured images if available, otherwise fall back to thumbnail
+    const captures = capturedImages[item.video_id] || [];
+    const primaryImage = captures.length > 0 ? captures[0] : item.thumbnail;
+    const extraImages = captures.length > 1 ? captures.slice(1) : [];
+
     const entry = {
       id: String(Date.now()) + "_saved",
       project_id: projectId,
       created_by: session?.user?.email || "",
       updated_at: new Date().toISOString(),
       url: item.url,
-      image_url: item.thumbnail,
+      image_url: primaryImage,
+      image_urls: extraImages.length > 0 ? JSON.stringify(extraImages) : null,
       description: item.title,
       year: item.year || "",
       type: "Video",
@@ -826,6 +952,69 @@ Rules:
                                   {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                                 </select>
                               </div>
+                              {/* Video embed + Screenshot capture */}
+                              {item.video_id && (
+                                <div>
+                                  <label className="text-[10px] text-muted uppercase font-semibold mb-1 block">Video & Screenshot Capture</label>
+                                  <iframe ref={captureActive === item.video_id ? videoIframeRef : undefined}
+                                    width="100%" height="280" style={{ maxWidth: 560, display: "block" }}
+                                    src={`https://www.youtube.com/embed/${item.video_id}?rel=0`}
+                                    frameBorder="0" allowFullScreen className="rounded-lg" />
+                                  {/* Capture tools bar */}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    {captureActive === item.video_id ? (
+                                      <>
+                                        <button onClick={() => captureFrame(item.video_id)} disabled={uploading}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition disabled:opacity-50 hover:opacity-90"
+                                          style={{ background: "#dc2626" }}>
+                                          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                          {uploading ? "Saving..." : "Capture frame"}
+                                        </button>
+                                        {captureCount > 0 && <span className="text-[10px] text-muted">{captureCount} captured</span>}
+                                        <button onClick={stopCapture}
+                                          className="px-3 py-1.5 text-xs text-muted hover:text-main border border-main rounded-lg transition">
+                                          Stop
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button onClick={() => startCapture(item.video_id)}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition">
+                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+                                          Capture stills
+                                        </button>
+                                        <div className="h-4 w-px bg-surface2" />
+                                        <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition cursor-pointer">
+                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 10v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3M11 5l-3-3-3 3M8 2v8"/></svg>
+                                          Upload images
+                                          <input type="file" accept="image/*" multiple onChange={e => handleCaptureFileUpload(item.video_id, [...e.target.files])} className="hidden" />
+                                        </label>
+                                      </>
+                                    )}
+                                  </div>
+                                  {captureActive === item.video_id && (
+                                    <p className="text-[10px] text-muted mt-1">
+                                      Play the video and click <strong>Capture frame</strong> at the moments you want. Each click saves a still.
+                                    </p>
+                                  )}
+                                  {/* Filmstrip of captured screenshots */}
+                                  {(capturedImages[item.video_id] || []).length > 0 && (
+                                    <div className="flex gap-2 items-center mt-2 overflow-x-auto pb-1">
+                                      {capturedImages[item.video_id].map((url, i) => (
+                                        <div key={i} className="relative group flex-shrink-0">
+                                          <img src={url} className="w-16 h-16 object-cover rounded cursor-pointer opacity-80 hover:opacity-100 transition border border-white/10" alt=""
+                                            onClick={() => window.open(url, "_blank")} />
+                                          <button onClick={() => removeCapturedImage(item.video_id, i)}
+                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                            x
+                                          </button>
+                                        </div>
+                                      ))}
+                                      <span className="text-[10px] text-hint flex-shrink-0">{capturedImages[item.video_id].length} still{capturedImages[item.video_id].length !== 1 ? "s" : ""}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               {/* Transcript */}
                               <div>
                                 <div className="flex justify-between items-center mb-1">
