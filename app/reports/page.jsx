@@ -905,7 +905,7 @@ RULES:
           {/* REPORT CONTENT */}
           {activeContent&&(
             <div className="bg-surface rounded-lg border border-main overflow-hidden">
-              <div className="flex justify-between items-center px-5 py-3 border-b border-main flex-wrap gap-2">
+              <div className="flex justify-between items-center px-5 py-3 border-b border-main flex-wrap gap-2 sticky top-[52px] z-20 bg-surface rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <button onClick={()=>{router.push("/reports",{scroll:false});setReport("");setSelectedTemplate(null);}} className="text-xs text-muted hover:text-main">← Back</button>
                   <h3 className="text-sm font-semibold text-main">{viewingReport?.title||reportTitle||"Generated report"}</h3>
