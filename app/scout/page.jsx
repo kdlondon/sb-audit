@@ -268,13 +268,15 @@ Rules:
       const data = await res.json();
       if (data.error) { showToast("Error: " + data.error); setSearching(false); return; }
 
-      let vids = data.videos || [];
+      const vids = data.videos || [];
+      if (vids.length === 0) { showToast("No results found"); setSearching(false); return; }
+
       setVideos(vids.map(v => ({ ...v, score: null, reason: "" })));
       setSearching(false);
 
-      // Now rank with AI
-      if (vids.length > 0) {
-        setRanking(true);
+      // Rank with AI in background — don't block results display
+      setRanking(true);
+      try {
         const market = REGION_CODES.find(r => r.code === region)?.label || "";
         const rankRes = await fetch("/api/youtube-scout", {
           method: "POST",
@@ -284,25 +286,28 @@ Rules:
         const rankData = await rankRes.json();
         const rankings = rankData.rankings || [];
 
-        setVideos(prev => {
-          const updated = [...prev];
-          rankings.forEach(r => {
-            const idx = (r.index || r.videoIndex || 0) - 1;
-            if (idx >= 0 && idx < updated.length) {
-              updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
-            }
+        if (rankings.length > 0) {
+          setVideos(prev => {
+            const updated = [...prev];
+            rankings.forEach(r => {
+              const idx = (r.index || r.videoIndex || 0) - 1;
+              if (idx >= 0 && idx < updated.length) {
+                updated[idx] = { ...updated[idx], score: r.score, reason: r.reason || r.rationale || "" };
+              }
+            });
+            return updated.sort((a, b) => {
+              if (a.isOfficial && !b.isOfficial) return -1;
+              if (!a.isOfficial && b.isOfficial) return 1;
+              return (b.score || 0) - (a.score || 0);
+            });
           });
-          // Sort: official first, then by score
-          return updated.sort((a, b) => {
-            if (a.isOfficial && !b.isOfficial) return -1;
-            if (!a.isOfficial && b.isOfficial) return 1;
-            return (b.score || 0) - (a.score || 0);
-          });
-        });
-        setRanking(false);
+        }
+      } catch (rankErr) {
+        // Ranking failed — results still show unranked
       }
+      setRanking(false);
     } catch (err) {
-      showToast("Search failed: " + err.message);
+      showToast("Search failed — please try again");
       setSearching(false);
       setRanking(false);
     }
