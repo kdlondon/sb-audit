@@ -41,7 +41,7 @@ export async function POST(request) {
   async function ytSearch(params) {
     const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    if (data.error) throw new Error(data.error.message);
     return (data.items || []).filter(item => item.id?.videoId).map(item => ({
       videoId: item.id.videoId,
       title: item.snippet.title,
@@ -54,91 +54,147 @@ export async function POST(request) {
     }));
   }
 
-  // ─── SEARCH (single-phase, quota-efficient) ───
+  // ─── SEARCH (2-phase: official channel + general) ───
   if (action === "search") {
-    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, videoDuration, minSeconds, maxSeconds } = body;
+    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
+    // Extract brand name (first part of query, before keywords)
+    const brandName = query.split(/\s+(ad|commercial|campaign|banking|business|small|sme|official)/i)[0].trim();
+
     try {
-      // Single search call — saves quota (was using 4 calls before, now just 2: search + stats)
-      const params = new URLSearchParams({
+      let allVideos = [];
+      let officialChannelId = null;
+      let officialChannelName = null;
+
+      // ─── PHASE 1: Find the brand's official YouTube channel ───
+      // Wrapped in try-catch — if fails, Phase 2 still runs
+      if (brandName) { try {
+        const channelParams = new URLSearchParams({
+          part: "snippet",
+          q: brandName,
+          type: "channel",
+          maxResults: "5",
+          key: apiKey,
+        });
+        const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
+        const channelData = await channelRes.json();
+        const channels = channelData.items || [];
+
+        // Find best matching channel (prefer exact name match or verified)
+        const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const bestChannel = channels.find(ch => {
+          const chName = (ch.snippet.channelTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          return chName.includes(brandLower) || brandLower.includes(chName);
+        }) || channels[0];
+
+        if (bestChannel) {
+          officialChannelId = bestChannel.id.channelId;
+          officialChannelName = bestChannel.snippet.channelTitle;
+
+          // Search WITHIN the official channel (clean query, no "ad commercial" noise)
+          const channelSearchParams = new URLSearchParams({
+            part: "snippet",
+            channelId: officialChannelId,
+            q: query.replace(/official\s*ad\s*commercial/gi, "").trim() || "",
+            type: "video",
+            maxResults: String(Math.min(maxResults, 50)),
+            key: apiKey,
+            order: "date",
+          });
+          if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
+          if (regionCode) channelSearchParams.set("regionCode", regionCode);
+          if (videoDuration) channelSearchParams.set("videoDuration", videoDuration);
+
+          const channelVids = await ytSearch(channelSearchParams);
+          channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
+          allVideos.push(...channelVids);
+        }
+      } catch(e) { console.error("Phase 1 failed:", e.message); } }
+
+      // ─── PHASE 2: General search (for media coverage, ad industry, third-party) ───
+      const generalParams = new URLSearchParams({
         part: "snippet",
         q: query,
         type: "video",
-        maxResults: String(Math.min(maxResults * 2, 50)), // fetch extra to filter by duration
+        maxResults: String(Math.min(maxResults, 50)),
         key: apiKey,
         order: "relevance",
       });
-      if (publishedAfter) params.set("publishedAfter", publishedAfter);
-      if (publishedBefore) params.set("publishedBefore", publishedBefore);
-      if (regionCode) params.set("regionCode", regionCode);
-      if (videoDuration) params.set("videoDuration", videoDuration);
+      if (publishedAfter) generalParams.set("publishedAfter", publishedAfter);
+      if (publishedBefore) generalParams.set("publishedBefore", publishedBefore);
+      if (regionCode) generalParams.set("regionCode", regionCode);
+      if (videoDuration) generalParams.set("videoDuration", videoDuration);
 
-      let videos = await ytSearch(params);
+      const generalVids = await ytSearch(generalParams);
+      generalVids.forEach(v => {
+        // Mark as official if channel matches
+        if (officialChannelId && v.channelId === officialChannelId) {
+          v.isOfficial = true;
+          v.source = "official";
+        } else {
+          v.isOfficial = false;
+          v.source = "general";
+        }
+      });
+      allVideos.push(...generalVids);
 
-      // Detect official channel — match brand name against channel names
-      const brandName = query.split(/\s/)[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-      videos.forEach(v => {
-        const chName = (v.channel || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        v.isOfficial = chName.includes(brandName) || brandName.includes(chName);
-        v.source = v.isOfficial ? "official" : "general";
+      // ─── DEDUPLICATE by videoId ───
+      const seen = new Set();
+      let videos = [];
+      allVideos.forEach(v => {
+        if (!seen.has(v.videoId)) { seen.add(v.videoId); videos.push(v); }
       });
 
-      // Enrich with stats (1 API call for batch)
+      // ─── ENRICH with stats ───
       videos = await enrichWithStats(videos);
 
-      // Filter by duration
+      // ─── FILTER by duration ───
       if (minSeconds || maxSeconds) {
         const min = minSeconds || 0;
         const max = maxSeconds || 999999;
         videos = videos.filter(v => v.durationSeconds >= min && v.durationSeconds <= max);
       }
 
-      // Sort: official first, then by views
+      // ─── SORT: official first, then by views ───
       videos.sort((a, b) => {
         if (a.isOfficial && !b.isOfficial) return -1;
         if (!a.isOfficial && b.isOfficial) return 1;
         return (b.viewCount || 0) - (a.viewCount || 0);
       });
 
-      // Trim to requested max
+      // Trim to maxResults
       videos = videos.slice(0, maxResults);
 
-      return Response.json({ videos, totalResults: videos.length });
+      return Response.json({
+        videos,
+        officialChannel: officialChannelName ? { name: officialChannelName, id: officialChannelId } : null,
+        totalResults: videos.length,
+      });
     } catch (err) {
       const msg = err.message || "";
-      // If quota exceeded and we have a backup key, retry with it
       if (msg.includes("quota") && apiKeys.length > 1 && apiKey === apiKeys[0]) {
+        // Retry with backup key
         apiKey = apiKeys[1];
         try {
-          let videos = await ytSearch(new URLSearchParams({
+          const retryParams = new URLSearchParams({
             part: "snippet", q: query, type: "video",
-            maxResults: String(Math.min(maxResults * 2, 50)),
+            maxResults: String(Math.min(maxResults, 50)),
             key: apiKey, order: "relevance",
-            ...(publishedAfter ? { publishedAfter } : {}),
-            ...(regionCode ? { regionCode } : {}),
-            ...(videoDuration ? { videoDuration } : {}),
-          }));
-          const brandName2 = query.split(/\s/)[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-          videos.forEach(v => {
-            const chName = (v.channel || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-            v.isOfficial = chName.includes(brandName2) || brandName2.includes(chName);
-            v.source = v.isOfficial ? "official" : "general";
           });
+          if (publishedAfter) retryParams.set("publishedAfter", publishedAfter);
+          if (regionCode) retryParams.set("regionCode", regionCode);
+          if (videoDuration) retryParams.set("videoDuration", videoDuration);
+          let videos = await ytSearch(retryParams);
           videos = await enrichWithStats(videos);
-          if (minSeconds || maxSeconds) {
-            videos = videos.filter(v => v.durationSeconds >= (minSeconds||0) && v.durationSeconds <= (maxSeconds||999999));
-          }
-          videos.sort((a, b) => a.isOfficial && !b.isOfficial ? -1 : !a.isOfficial && b.isOfficial ? 1 : (b.viewCount||0)-(a.viewCount||0));
+          if (minSeconds || maxSeconds) videos = videos.filter(v => v.durationSeconds >= (minSeconds||0) && v.durationSeconds <= (maxSeconds||999999));
           videos = videos.slice(0, maxResults);
           return Response.json({ videos, totalResults: videos.length });
-        } catch (err2) {
+        } catch(e2) {
           return Response.json({ error: "YouTube API daily limit reached on all keys." }, { status: 429 });
         }
       }
-      if (msg.includes("quota")) {
-        return Response.json({ error: "YouTube API daily limit reached." }, { status: 429 });
-      }
+      if (msg.includes("quota")) return Response.json({ error: "YouTube API daily limit reached." }, { status: 429 });
       return Response.json({ error: msg }, { status: 500 });
     }
   }
