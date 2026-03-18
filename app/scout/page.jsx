@@ -453,17 +453,20 @@ Rules:
     const { data: { session } } = await supabase.auth.getSession();
     const table = scope === "global" ? "audit_global" : "audit_entries";
 
-    let transcript = "";
-    setImportProgress({ current: 1, total: 1, label: `Fetching transcript: ${(item.title || "").slice(0, 40)}...` });
-    try {
-      const tRes = await fetch("/api/youtube-scout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "transcript", videoId: item.video_id }),
-      });
-      const tData = await tRes.json();
-      transcript = tData.transcript || "";
-    } catch { /* ignore */ }
+    // Use user-provided transcript first, then try auto-fetch
+    let transcript = transcripts[item.video_id] || "";
+    if (!transcript) {
+      setImportProgress({ current: 1, total: 1, label: `Fetching transcript: ${(item.title || "").slice(0, 40)}...` });
+      try {
+        const tRes = await fetch("/api/youtube-scout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "transcript", videoId: item.video_id }),
+        });
+        const tData = await tRes.json();
+        transcript = tData.transcript || "";
+      } catch { /* ignore */ }
+    }
 
     // Use captured images if available, otherwise fall back to thumbnail
     const captures = capturedImages[item.video_id] || [];
@@ -492,8 +495,10 @@ Rules:
       entry.competitor = item.channel || "";
     }
 
-    const notes = savedNotes[item.id] || "";
+    const notes = savedNotes[item.id] || analystNotes[item.video_id] || "";
     if (notes) entry.analyst_comment = notes;
+    const vidIntent = videoIntents[item.video_id];
+    if (vidIntent) entry.communication_intent = vidIntent;
 
     const { error } = await supabase.from(table).insert(entry);
     if (error) { showToast("Import error: " + error.message); setImporting(false); return; }
