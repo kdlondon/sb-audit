@@ -20,11 +20,14 @@ function StatCard({ label, value, sub, accent }) {
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+  const [rawData, setRawData] = useState(null);
+  const [timeframe, setTimeframe] = useState(30);
+  const [selectedProject, setSelectedProject] = useState("all");
   const supabase = createClient();
 
+  // Load raw data once
   useEffect(() => {
     (async () => {
-      // Fetch all data in parallel
       const [
         { data: projects },
         { data: localEntries },
@@ -40,8 +43,31 @@ export default function AdminDashboard() {
         supabase.from("saved_showcases").select("id, created_by, created_at, project_id, slides"),
         supabase.from("user_roles").select("email, role, project_id"),
       ]);
+      setRawData({ projects: projects || [], localEntries: localEntries || [], globalEntries: globalEntries || [], reports: reports || [], showcases: showcases || [], users: users || [] });
+    })();
+  }, []);
 
-      const allEntries = [...(localEntries || []), ...(globalEntries || [])];
+  // Recompute stats when filters change
+  useEffect(() => {
+    if (!rawData) return;
+    const { projects, localEntries, globalEntries, reports: allReports, showcases: allShowcases, users } = rawData;
+
+    // Apply project filter
+    const filterByProject = (arr) => selectedProject === "all" ? arr : arr.filter(e => e.project_id === selectedProject);
+    const filteredLocal = filterByProject(localEntries);
+    const filteredGlobal = filterByProject(globalEntries);
+    const reports = filterByProject(allReports);
+    const showcases = filterByProject(allShowcases);
+
+    // Apply timeframe filter
+    const cutoff = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : "";
+    const filterByTime = (arr) => cutoff ? arr.filter(e => (e.created_at || "") >= cutoff) : arr;
+
+    const localFiltered = filterByTime(filteredLocal);
+    const globalFiltered = filterByTime(filteredGlobal);
+    const reportsFiltered = filterByTime(reports);
+    const showcasesFiltered = filterByTime(showcases);
+    const allEntries = [...localFiltered, ...globalFiltered];
 
       // Users activity
       const userMap = {};
@@ -51,28 +77,29 @@ export default function AdminDashboard() {
         userMap[e.created_by].entries++;
         if (e.updated_at > (userMap[e.created_by].lastActive || "")) userMap[e.created_by].lastActive = e.updated_at;
       });
-      (reports || []).forEach(r => {
+      reportsFiltered.forEach(r => {
         if (!r.created_by) return;
         if (!userMap[r.created_by]) userMap[r.created_by] = { entries: 0, reports: 0, showcases: 0, lastActive: "" };
         userMap[r.created_by].reports++;
         if (r.created_at > (userMap[r.created_by].lastActive || "")) userMap[r.created_by].lastActive = r.created_at;
       });
-      (showcases || []).forEach(s => {
+      showcasesFiltered.forEach(s => {
         if (!s.created_by) return;
         if (!userMap[s.created_by]) userMap[s.created_by] = { entries: 0, reports: 0, showcases: 0, lastActive: "" };
         userMap[s.created_by].showcases++;
       });
       const activeUsers = Object.entries(userMap).map(([email, data]) => ({ email, ...data })).sort((a, b) => b.entries - a.entries);
 
-      // Activity over time (last 30 days)
+      // Activity over time
       const now = new Date();
       const days = [];
-      for (let i = 29; i >= 0; i--) {
+      const chartDays = Math.min(timeframe || 30, 90);
+      for (let i = chartDays - 1; i >= 0; i--) {
         const d = new Date(now); d.setDate(d.getDate() - i);
         const key = d.toISOString().slice(0, 10);
         const label = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
         const entries = allEntries.filter(e => e.created_at?.startsWith(key)).length;
-        const reps = (reports || []).filter(r => r.created_at?.startsWith(key)).length;
+        const reps = reportsFiltered.filter(r => r.created_at?.startsWith(key)).length;
         days.push({ date: label, entries, reports: reps });
       }
 
@@ -88,7 +115,7 @@ export default function AdminDashboard() {
 
       // Report types
       const reportTypes = {};
-      (reports || []).forEach(r => {
+      reportsFiltered.forEach(r => {
         const t = r.template_type || "unknown";
         reportTypes[t] = (reportTypes[t] || 0) + 1;
       });
@@ -112,14 +139,14 @@ export default function AdminDashboard() {
       const classified = allEntries.filter(e => e.rating).length;
 
       // Showcase slides count
-      const totalSlides = (showcases || []).reduce((s, sc) => s + (sc.slides?.length || 0), 0);
+      const totalSlides = showcasesFiltered.reduce((s, sc) => s + (sc.slides?.length || 0), 0);
 
       setStats({
         totalEntries: allEntries.length,
-        localEntries: (localEntries || []).length,
-        globalEntries: (globalEntries || []).length,
-        totalReports: (reports || []).length,
-        totalShowcases: (showcases || []).length,
+        localEntries: localFiltered.length,
+        globalEntries: globalFiltered.length,
+        totalReports: reportsFiltered.length,
+        totalShowcases: showcasesFiltered.length,
         totalSlides,
         totalBrands: brandSet.size,
         totalProjects: (projects || []).length,
@@ -131,11 +158,12 @@ export default function AdminDashboard() {
         projectData,
         reportTypeData,
         intentData,
-        roles: (users || []),
+        roles: users,
+        projects,
       });
       setLoading(false);
     })();
-  }, []);
+  }, [rawData, timeframe, selectedProject]);
 
   if (loading) return (
     <AuthGuard><Nav />
@@ -160,7 +188,21 @@ export default function AdminDashboard() {
             <h2 className="text-lg font-bold text-main">Platform Analytics</h2>
             <span className="text-[10px] text-hint bg-accent-soft px-2 py-0.5 rounded-full font-semibold">Admin</span>
           </div>
-          <p className="text-[10px] text-hint">Last updated: {new Date().toLocaleString()}</p>
+          <div className="flex items-center gap-3">
+            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+              className="px-2 py-1 bg-surface border border-main rounded-lg text-xs text-main">
+              <option value="all">All projects</option>
+              {(rawData?.projects || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))}
+              className="px-2 py-1 bg-surface border border-main rounded-lg text-xs text-main">
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+              <option value={365}>Last year</option>
+              <option value={0}>All time</option>
+            </select>
+          </div>
         </div>
 
         <div className="p-5 max-w-6xl mx-auto space-y-5">
