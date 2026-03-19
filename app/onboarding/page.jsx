@@ -48,7 +48,18 @@ function AIBubble({ children, typing }) {
             <span className="w-1.5 h-1.5 rounded-full bg-hint animate-pulse" style={{ animationDelay: "0.3s" }} />
           </span>
         ) : (
-          <div className="text-sm text-main leading-relaxed whitespace-pre-wrap">{children}</div>
+          <div className="text-sm text-main leading-relaxed">
+            {String(children).split("\n").map((line, li) => {
+              const formatted = line
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+                .replace(/`([^`]+)`/g, "<code class='px-1 py-0.5 bg-surface2 rounded text-xs'>$1</code>");
+              const isBullet = /^\s*[-•–]\s/.test(line);
+              const isNumbered = /^\s*\d+[\.\)]\s/.test(line);
+              return <p key={li} className={`${isBullet || isNumbered ? "pl-3" : ""} ${li > 0 && line ? "mt-1.5" : !line ? "mt-2" : ""}`}
+                dangerouslySetInnerHTML={{ __html: formatted || "&nbsp;" }} />;
+            })}
+          </div>
         )}
       </div>
     </div>
