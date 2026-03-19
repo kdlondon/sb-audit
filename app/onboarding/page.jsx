@@ -561,17 +561,18 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         });
       }
 
-      // Copy default dropdown_options from template
-      const { data: defaults } = await supabase
-        .from("dropdown_options")
-        .select("category, value, sort_order")
-        .eq("project_id", "proj_sb_bb");
-
-      if (defaults && defaults.length > 0) {
-        await supabase.from("dropdown_options").insert(
-          defaults.map(d => ({ ...d, project_id: projectId }))
-        );
-      }
+      // Create universal default dropdown_options (NOT copied from any template)
+      const defaultOpts = [
+        ...["Brand Hero","Brand Tactical","Client Testimonials","Product","Innovation","Beyond Banking"].map((v,i) => ({category:"communicationIntent",value:v,sort_order:i})),
+        ...["Innocent","Explorer","Sage","Hero","Outlaw","Magician","Regular Guy","Lover","Jester","Caregiver","Creator","Ruler"].map((v,i) => ({category:"brandArchetype",value:v,sort_order:i})),
+        ...["Authoritative","Empathetic","Aspirational","Peer-level","Institutional","Playful","Urgent"].map((v,i) => ({category:"toneOfVoice",value:v,sort_order:i})),
+        ...["Testimonial","Documentary","Manifesto","Product demo","Humor","Slice of life","Animation","Data-driven"].map((v,i) => ({category:"executionStyle",value:v,sort_order:i})),
+        ...["Awareness","Consideration","Conversion","Retention","Advocacy"].map((v,i) => ({category:"funnel",value:v,sort_order:i})),
+        ...["Video","Print","Digital","Social","OOH","Website","Blog","Event"].map((v,i) => ({category:"type",value:v,sort_order:i})),
+      ];
+      await supabase.from("dropdown_options").insert(
+        defaultOpts.map(d => ({ ...d, project_id: projectId }))
+      );
 
       // Save competitors to dropdown_options
       const selectedLocal = localCompetitors.filter(c => c.selected).map(c => c.name);

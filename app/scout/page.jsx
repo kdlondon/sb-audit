@@ -819,7 +819,7 @@ Rules:
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Category / Keywords</label>
-                        <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., business banking, SME"
+                        <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., commercial, campaign, ad"
                           className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main focus:outline-none" />
                       </div>
                       <div>
