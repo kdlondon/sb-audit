@@ -8,8 +8,9 @@ import { useEffect, useState, useRef } from "react";
 
 const mainTabs = [
   { name: "Audit", href: "/audit", module: "audit" },
-  { name: "Showcase", href: "/showcase", module: "showcase" },
+  { name: "Scout", href: "/scout", module: "scout" },
   { name: "Reports", href: "/reports", module: "reports" },
+  { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
 
 const ROLE_LABELS = { full_admin: "Admin", analyst: "Analyst", client: "Client" };
@@ -114,16 +115,6 @@ export default function Nav() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* Scout — blue */}
-          {canAccess(role, "scout") && (
-            <button onClick={() => router.push("/scout")}
-              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
-              style={{ background: "#0019FF" }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><circle cx="7" cy="7" r="4"/><line x1="12.5" y1="12.5" x2="10" y2="10"/></svg>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-white overflow-hidden max-w-0 group-hover:max-w-[50px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Scout</span>
-            </button>
           )}
 
           {/* Chat — blue */}

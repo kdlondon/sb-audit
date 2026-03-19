@@ -1102,7 +1102,7 @@ Rules:
                           className="rounded border-gray-300 text-accent" />
                         <button
                           title={savedVideoIds.has(v.videoId) ? "Saved" : "Save for later"}
-                          onClick={e => { e.stopPropagation(); if (!savedVideoIds.has(v.videoId)) handleSaveItem(v); }}
+                          onClick={e => { e.stopPropagation(); if (savedVideoIds.has(v.videoId)) { const si = savedItems.find(s => s.video_id === v.videoId); if (si) handleRemoveSaved(si.id); } else handleSaveItem(v); }}
                           className={`w-6 h-6 flex items-center justify-center rounded transition ${savedVideoIds.has(v.videoId) ? "text-[#0019FF]" : "text-gray-400 hover:text-[#0019FF]"}`}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill={savedVideoIds.has(v.videoId) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
                         </button>
