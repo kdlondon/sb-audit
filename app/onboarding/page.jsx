@@ -55,12 +55,19 @@ function AIBubble({ children, typing }) {
   );
 }
 
-function UserBubble({ text }) {
+function UserBubble({ text, isFile, fileName }) {
   return (
     <div className="flex justify-end animate-fadeIn">
       <div className="rounded-2xl rounded-tr-md px-4 py-3 max-w-[420px]"
-        style={{ background: "rgba(0,25,255,0.08)" }}>
-        <p className="text-sm text-main leading-relaxed whitespace-pre-wrap">{text}</p>
+        style={{ background: isFile ? "rgba(0,25,255,0.12)" : "rgba(0,25,255,0.08)" }}>
+        {isFile ? (
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span className="text-sm text-main font-medium">{fileName || text}</span>
+          </div>
+        ) : (
+          <p className="text-sm text-main leading-relaxed whitespace-pre-wrap">{text}</p>
+        )}
       </div>
     </div>
   );
@@ -639,6 +646,75 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
     if (step === 1) handleStep1Send();
   };
 
+  // File upload handler — analyze with AI and extract brand info
+  const handleFileUpload = async (files) => {
+    if (!files.length || loading) return;
+    const file = files[0];
+    setLoading(true);
+
+    // Show file in chat
+    const isImage = file.type.startsWith("image/");
+    const fileName = file.name;
+    setMessages(prev => [...prev, { role: "user", text: `📎 ${fileName}`, isFile: true, fileName }]);
+
+    try {
+      let body = { context: `Analyze this file and extract brand information. Return a brief summary of what you found about the brand: name, market, category, proposition, differentiator, tone, target audience. Be conversational.` };
+
+      if (isImage) {
+        // Convert image to base64
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = ""; for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        body.imageBase64 = btoa(binary);
+      } else if (file.type === "application/pdf") {
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = ""; for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        body.documentBase64 = btoa(binary);
+        body.documentMediaType = "application/pdf";
+      } else {
+        // Text files
+        const text = await file.text();
+        body.context += `\n\nDocument content:\n${text.slice(0, 4000)}`;
+      }
+
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await res.json();
+
+      if (result.success && result.analysis) {
+        const a = result.analysis;
+        // Auto-fill brand profile from extracted data
+        setBrandProfile(prev => {
+          const updated = { ...prev };
+          if (a.description && !prev.name) updated.name = a.description.split(" ").slice(0, 3).join(" ");
+          if (a.main_vp && !prev.proposition) updated.proposition = a.main_vp;
+          if (a.tone_of_voice && !prev.tone) updated.tone = a.tone_of_voice;
+          if (a.insight && !prev.differentiator) updated.differentiator = a.insight;
+          return updated;
+        });
+
+        // AI summarizes what it found
+        const summary = [];
+        if (a.description) summary.push(`**Description:** ${a.description}`);
+        if (a.synopsis) summary.push(`**Synopsis:** ${a.synopsis}`);
+        if (a.main_vp) summary.push(`**Value Proposition:** ${a.main_vp}`);
+        if (a.tone_of_voice) summary.push(`**Tone:** ${a.tone_of_voice}`);
+        if (a.insight) summary.push(`**Key Insight:** ${a.insight}`);
+
+        addAI(`I analyzed your file. Here's what I found:\n\n${summary.join("\n")}\n\nDoes this look right? Feel free to correct anything or tell me more about your brand.`);
+      } else {
+        addAI(`I received your file but couldn't extract detailed information. Could you tell me more about your brand in your own words?`);
+      }
+    } catch (err) {
+      addAI(`I had trouble processing that file. No worries — just describe your brand and I'll take it from there.`);
+    }
+    setLoading(false);
+  };
+
   // Textarea keydown
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -688,7 +764,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
             {messages.map((msg, i) => (
               msg.role === "ai"
                 ? <AIBubble key={i}>{msg.text}</AIBubble>
-                : <UserBubble key={i} text={msg.text} />
+                : <UserBubble key={i} text={msg.text} isFile={msg.isFile} fileName={msg.fileName} />
             ))}
             {loading && <AIBubble typing />}
 
@@ -949,13 +1025,17 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         <div className="flex-shrink-0 border-t border-main px-6 py-4" style={{ background: "var(--bg)" }}>
           <div className="max-w-3xl mx-auto">
             {step === 1 ? (
-              <div className="flex gap-3 items-end">
+              <div className="flex gap-2 items-end">
+                <label className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border border-main bg-surface hover:bg-surface2 cursor-pointer transition" title="Upload file or image">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                  <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={e => handleFileUpload([...e.target.files])} className="hidden" />
+                </label>
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Tell me about your brand..."
+                  placeholder="Tell me about your brand, or upload a brief/doc..."
                   disabled={loading}
                   rows={1}
                   className="flex-1 px-4 py-2.5 bg-surface border border-main rounded-xl text-sm text-main focus:outline-none focus:border-[#0019FF] disabled:opacity-50 resize-none"
