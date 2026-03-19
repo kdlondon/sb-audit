@@ -663,18 +663,18 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
     setGeneratingShowcase(true);
 
     const isAgnostic = rpt.template_type === "agnostic_snapshot";
-    const brandName = rpt.competitors || "";
+    const brandNames = (rpt.competitors || "").split(",").map(s => s.trim()).filter(Boolean);
     const scope = rpt.scope || "local";
 
-    // Get the original entries for this brand — same data the report was built from
+    // Get the original entries — match any of the report's brands, or all if no brands specified
     let entries = [];
     if (scope === "local" || isAgnostic) {
       const { data } = await supabase.from("audit_entries").select("*").eq("project_id", projectId);
-      if (data) entries.push(...(brandName ? data.filter(e => e.competitor === brandName) : data));
+      if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.competitor)) : data));
     }
     if (scope === "global" || isAgnostic) {
       const { data } = await supabase.from("audit_global").select("*").eq("project_id", projectId);
-      if (data) entries.push(...(brandName ? data.filter(e => e.brand === brandName) : data));
+      if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.brand)) : data));
     }
     // Apply year filters if the report had them
     if (rpt.year_from) entries = entries.filter(e => e.year >= rpt.year_from);
