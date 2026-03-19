@@ -481,10 +481,8 @@ function ReportsContent(){
       const el=node?.nodeType===3?node.parentElement:node;
       const inReport=el&&el.closest&&el.closest("[data-report-content]");
       if(text.length>10&&inReport){
-        const range=sel.getRangeAt(0);
-        const rect=range.getBoundingClientRect();
-        setSelectionPos({top:rect.top+window.scrollY-40,left:rect.left+rect.width/2});
         setAssistSelection(text);
+        setSelectionPos(true);
       }else{
         // Small delay to allow clicking the button before it disappears
         setTimeout(()=>{if(!assistOpen)setSelectionPos(null);},200);
@@ -1013,13 +1011,14 @@ RULES:
                 <Signature/>
               </div>
 
-              {/* Selection tooltip — "Ask about this" */}
+              {/* "Ask about this" button — fixed bottom-left when text selected */}
               {selectionPos&&!assistOpen&&(
                 <button onClick={()=>{setAssistOpen(true);setAssistMessages([]);setSelectionPos(null);}}
-                  className="fixed z-50 px-3 py-1.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-lg shadow-xl hover:opacity-90 transition flex items-center gap-1.5"
-                  style={{top:selectionPos.top,left:selectionPos.left,transform:"translateX(-50%)"}}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  className="fixed bottom-6 left-6 z-50 px-4 py-2.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2"
+                  style={{animation:"fadeIn 0.2s"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                   Ask about this
+                  <span className="text-white/50 font-normal ml-1 max-w-[150px] truncate">"{assistSelection.slice(0,30)}..."</span>
                 </button>
               )}
 
