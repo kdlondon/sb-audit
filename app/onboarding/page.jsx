@@ -668,10 +668,19 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
     if (step === 1) handleStep1Send();
   };
 
+  // Drag & drop state
+  const [dragOver, setDragOver] = useState(false);
+
   // File upload handler — analyze with AI and extract brand info
   const handleFileUpload = async (files) => {
     if (!files.length || loading) return;
-    const file = files[0];
+    // Process all files
+    for (const file of files) {
+      await processSingleFile(file);
+    }
+  };
+
+  const processSingleFile = async (file) => {
     setLoading(true);
 
     // Show file in chat
@@ -770,7 +779,10 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         </div>
 
         {/* Messages area - scrollable */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8">
+        <div ref={scrollRef} className={`flex-1 overflow-y-auto px-6 py-8 transition ${dragOver ? "ring-2 ring-[#0019FF] ring-inset bg-[rgba(0,25,255,0.03)]" : ""}`}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); const files = [...e.dataTransfer.files]; if (files.length > 0) handleFileUpload(files); }}
           <div className="max-w-3xl mx-auto space-y-4">
             {messages.map((msg, i) => (
               msg.role === "ai"
@@ -1039,7 +1051,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
               <div className="flex gap-2 items-end">
                 <label className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border border-main bg-surface hover:bg-surface2 cursor-pointer transition" title="Upload file or image">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-                  <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={e => handleFileUpload([...e.target.files])} className="hidden" />
+                  <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" multiple onChange={e => handleFileUpload([...e.target.files])} className="hidden" />
                 </label>
                 <textarea
                   ref={textareaRef}
