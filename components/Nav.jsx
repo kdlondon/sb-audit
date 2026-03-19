@@ -7,8 +7,8 @@ import { useRole, canAccess } from "@/lib/role-context";
 import { useEffect, useState, useRef } from "react";
 
 const mainTabs = [
-  { name: "Audit", href: "/audit", module: "audit" },
   { name: "Scout", href: "/scout", module: "scout" },
+  { name: "Audit", href: "/audit", module: "audit" },
   { name: "Reports", href: "/reports", module: "reports" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
