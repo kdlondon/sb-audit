@@ -658,57 +658,45 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
     setMessages(prev => [...prev, { role: "user", text: `📎 ${fileName}`, isFile: true, fileName }]);
 
     try {
-      let body = { context: `Analyze this file and extract brand information. Return a brief summary of what you found about the brand: name, market, category, proposition, differentiator, tone, target audience. Be conversational.` };
-
+      // Read file content
+      let fileContent = "";
       if (isImage) {
-        // Convert image to base64
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = ""; for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-        body.imageBase64 = btoa(binary);
-      } else if (file.type === "application/pdf") {
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = ""; for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-        body.documentBase64 = btoa(binary);
-        body.documentMediaType = "application/pdf";
+        fileContent = "[Image uploaded — analyzing visually]";
       } else {
-        // Text files
-        const text = await file.text();
-        body.context += `\n\nDocument content:\n${text.slice(0, 4000)}`;
+        try { fileContent = await file.text(); } catch { fileContent = ""; }
       }
 
-      const res = await fetch("/api/analyze", {
+      // Use /api/ai (generic, no Scotiabank context) instead of /api/analyze
+      const systemPrompt = `You are a brand strategy assistant helping a user set up their competitive benchmark. They uploaded a document about their brand. Extract and summarize the key brand information you can find: brand name, market, category, value proposition, differentiator, tone of voice, target audience. Be conversational and friendly. If you can't find specific information, say so and ask them to fill in the gaps.`;
+
+      const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          max_tokens: 1500,
+          system: systemPrompt,
+          messages: [{ role: "user", content: `Here is the content from a file called "${fileName}":\n\n${fileContent.slice(0, 6000)}\n\nPlease extract brand information and also return a JSON block with any fields you can identify: {"name":"...","market":"...","category":"...","proposition":"...","differentiator":"...","tone":"...","target":"..."}` }],
+        }),
       });
       const result = await res.json();
+      const aiText = result.content?.[0]?.text || "";
 
-      if (result.success && result.analysis) {
-        const a = result.analysis;
-        // Auto-fill brand profile from extracted data
-        setBrandProfile(prev => {
-          const updated = { ...prev };
-          if (a.description && !prev.name) updated.name = a.description.split(" ").slice(0, 3).join(" ");
-          if (a.main_vp && !prev.proposition) updated.proposition = a.main_vp;
-          if (a.tone_of_voice && !prev.tone) updated.tone = a.tone_of_voice;
-          if (a.insight && !prev.differentiator) updated.differentiator = a.insight;
-          return updated;
-        });
-
-        // AI summarizes what it found
-        const summary = [];
-        if (a.description) summary.push(`**Description:** ${a.description}`);
-        if (a.synopsis) summary.push(`**Synopsis:** ${a.synopsis}`);
-        if (a.main_vp) summary.push(`**Value Proposition:** ${a.main_vp}`);
-        if (a.tone_of_voice) summary.push(`**Tone:** ${a.tone_of_voice}`);
-        if (a.insight) summary.push(`**Key Insight:** ${a.insight}`);
-
-        addAI(`I analyzed your file. Here's what I found:\n\n${summary.join("\n")}\n\nDoes this look right? Feel free to correct anything or tell me more about your brand.`);
-      } else {
-        addAI(`I received your file but couldn't extract detailed information. Could you tell me more about your brand in your own words?`);
+      // Try to extract JSON from response
+      const jsonMatch = aiText.match(/\{[\s\S]*?\}/);
+      if (jsonMatch) {
+        try {
+          const extracted = JSON.parse(jsonMatch[0]);
+          setBrandProfile(prev => {
+            const updated = { ...prev };
+            Object.entries(extracted).forEach(([k, v]) => { if (v && !prev[k]) updated[k] = v; });
+            return updated;
+          });
+        } catch {}
       }
+
+      // Show AI response (remove JSON block for cleaner display)
+      const cleanText = aiText.replace(/```json[\s\S]*?```/g, "").replace(/\{[\s\S]*?\}/g, "").trim();
+      addAI(cleanText || "I analyzed your file. Tell me more about your brand to fill in any gaps.");
     } catch (err) {
       addAI(`I had trouble processing that file. No worries — just describe your brand and I'll take it from there.`);
     }
