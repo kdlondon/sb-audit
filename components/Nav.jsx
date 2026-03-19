@@ -66,8 +66,8 @@ export default function Nav() {
           <span className="text-[10px] font-bold text-white/60 uppercase tracking-[0.15em]">Groundwork</span>
         </div>
         <div className="border-l border-white/10 pl-4">
-          <button onClick={() => router.push("/dashboard")} className="text-xs text-white/70 font-medium hover:text-white transition">
-            {projectName || "Select project"}
+          <button onClick={() => router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/reports")} className="text-xs text-white/70 font-medium hover:text-white transition">
+            {pathname.startsWith("/admin") ? "Platform Admin" : (projectName || "Select project")}
           </button>
         </div>
         <div className="flex gap-0.5 ml-2">
