@@ -124,17 +124,21 @@ export default function ScoutPage() {
 
   // Dynamic suggestions from project data
   const [suggestions, setSuggestions] = useState([]);
+  const [projectCompetitors, setProjectCompetitors] = useState([]);
   useEffect(() => {
     if (!projectId) return;
     (async () => {
       const s = createClient();
-      const [{ data: local }, { data: global }] = await Promise.all([
+      const [{ data: local }, { data: global }, { data: opts }] = await Promise.all([
         s.from("audit_entries").select("competitor").eq("project_id", projectId),
         s.from("audit_global").select("brand, country").eq("project_id", projectId),
+        s.from("dropdown_options").select("value").eq("project_id", projectId).eq("category", "competitor"),
       ]);
       const brands = new Set();
       (local || []).forEach(e => { if (e.competitor) brands.add(e.competitor); });
       (global || []).forEach(e => { if (e.brand) brands.add(e.brand); });
+      if (opts) opts.forEach(o => { if (o.value && o.value !== "Other") brands.add(o.value); });
+      setProjectCompetitors([...brands]);
       const countries = new Set();
       (global || []).forEach(e => { if (e.country) countries.add(e.country); });
       const arr = [];
@@ -228,9 +232,15 @@ export default function ScoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           max_tokens: 1500,
-          system: `You are a competitive intelligence research assistant for a brand strategy team. The user is using a YouTube Scout tool to find and analyze competitor communications in financial services / banking.
+          system: `You are a competitive intelligence research assistant for a brand strategy team. The user is using a YouTube Scout tool to find and analyze competitor communications.
 
-Help them by suggesting specific brands, banks, fintechs, or financial institutions to search for, with context on why each is relevant.
+PROJECT CONTEXT:
+- Project: "${projectName || "Unknown"}"
+${projectCompetitors.length > 0 ? `- Configured competitors: ${projectCompetitors.join(", ")}` : "- No competitors configured yet"}
+
+Use this context to give relevant, project-specific suggestions. Focus on competitors and brands related to this project rather than generic recommendations. If competitors are configured, suggest related brands in the same market or adjacent categories.
+
+Help them by suggesting specific brands or companies to search for, with context on why each is relevant to their competitive landscape.
 
 RESPONSE FORMAT — CRITICAL:
 Return a JSON object with this structure:
@@ -1358,7 +1368,10 @@ Rules:
                 <div className="text-center py-4">
                   <p className="text-xs text-muted mb-3">Try asking:</p>
                   <div className="space-y-1.5">
-                    {["Who competes in SME banking here?","Top fintechs for small business","Neobanks worth exploring","What brands should I look at next?"].map(q => (
+                    {(projectCompetitors.length > 0
+                      ? [`Who competes with ${projectCompetitors[0]}?`, `What brands are similar to ${projectCompetitors.slice(0, 2).join(" and ")}?`, "What adjacent competitors should I explore?", "What brands should I look at next?"]
+                      : ["Who are the main competitors in this space?", "Top brands worth exploring", "What adjacent competitors should I explore?", "What brands should I look at next?"]
+                    ).map(q => (
                       <button key={q} onClick={() => { setAssistQuery(q); }} className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
                     ))}
                   </div>
