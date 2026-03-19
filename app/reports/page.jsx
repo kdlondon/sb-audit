@@ -435,7 +435,7 @@ function ReportsContent(){
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
-  const view=reportParam?"generate":(tabParam||"generate");
+  const view=reportParam?"generate":(tabParam||"dashboard");
   const[journeyBrand,setJourneyBrand]=useState("");
   const[journeyView,setJourneyView]=useState("funnel");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
@@ -851,16 +851,23 @@ RULES:
       {/* TOP BAR */}
       <div className="section-bar px-5 py-3 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-main">Reports</h2>
+          <h2 className="text-lg font-bold text-main">Report</h2>
           <div className="flex bg-surface2 rounded-lg p-0.5">
-            <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
+            <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="dashboard"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Dashboard</button>
+            <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
             <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Journey Map</button>
             <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
-            <button onClick={()=>router.push("/dashboard")} className="px-3 py-1 rounded-md text-xs font-medium transition text-muted hover:text-accent">Dashboard</button>
           </div>
         </div>
         {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
       </div>
+
+      {/* DASHBOARD VIEW — embedded */}
+      {view==="dashboard"&&(
+        <div style={{height:"calc(100vh - 100px)",overflow:"hidden"}}>
+          <iframe src="/dashboard?embedded=1" style={{width:"100%",height:"100%",border:"none"}} />
+        </div>
+      )}
 
       {/* JOURNEY MAP VIEW */}
       {view==="journey"&&(

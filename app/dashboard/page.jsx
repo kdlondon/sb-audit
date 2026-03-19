@@ -597,4 +597,10 @@ function DashboardContent() {
   );
 }
 
-export default function DashboardPage() { return <AuthGuard><ProjectGuard><Nav /><DashboardContent /></ProjectGuard></AuthGuard>; }
+export default function DashboardPage() {
+  // When embedded in Report tab via iframe, hide Nav wrapper
+  const [embedded, setEmbedded] = useState(false);
+  useEffect(() => { if (typeof window !== "undefined" && window.location.search.includes("embedded=1")) setEmbedded(true); }, []);
+  if (embedded) return <AuthGuard><ProjectGuard><DashboardContent /></ProjectGuard></AuthGuard>;
+  return <AuthGuard><ProjectGuard><Nav /><DashboardContent /></ProjectGuard></AuthGuard>;
+}
