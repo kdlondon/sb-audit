@@ -492,26 +492,37 @@ function ReportsContent(){
     return()=>document.removeEventListener("mouseup",handler);
   },[assistOpen]);
 
-  const askAssistant=async()=>{
-    if(!assistQuery.trim()&&!assistSelection)return;
-    const q=assistQuery.trim()||"Explain this in more detail";
+  const askAssistant=async(directQuestion)=>{
+    const q=directQuestion||assistQuery.trim()||"Explain this in more detail";
+    if(!q||!assistSelection)return;
     setAssistMessages(prev=>[...prev,{role:"user",text:q}]);
     setAssistQuery("");
     setAssistLoading(true);
     setTimeout(()=>assistEndRef.current?.scrollIntoView({behavior:"smooth"}),50);
     try{
+      const sysPrompt=[
+        "You are a senior brand strategist explaining findings from a competitive intelligence report.",
+        "",
+        "The user selected this text from the report:",
+        `"${assistSelection}"`,
+        "",
+        "Full report for context:",
+        (activeContent||"").slice(0,4000),
+        "",
+        "Explain the strategic reasoning. Be specific, reference data from the report, provide actionable insight. Professional and concise."
+      ].join("\n");
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         max_tokens:1500,
         skip_framework:true,
-        system:`You are a senior brand strategist explaining a finding from a competitive intelligence report. The user selected this text from the report:\n\n"${assistSelection}"\n\nFull report context (use for reference but focus on the selected text):\n${(activeContent||"").slice(0,3000)}\n\nExplain the strategic reasoning behind this finding. Be specific, reference the data, and provide actionable insight. Be professional and concise.`,
-        messages:assistMessages.concat({role:"user",content:q}).map(m=>({role:m.role,content:m.text})),
+        system:sysPrompt,
+        messages:[{role:"user",content:q}],
       })});
       const data=await res.json();
-      const reply=data.content?.[0]?.text||"Could not generate a response.";
+      const reply=data.content?.[0]?.text||"I couldn't analyze that section. Try selecting a different part of the report.";
       setAssistMessages(prev=>[...prev,{role:"assistant",text:reply}]);
       setTimeout(()=>assistEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
-    }catch{
-      setAssistMessages(prev=>[...prev,{role:"assistant",text:"Error generating response."}]);
+    }catch(err){
+      setAssistMessages(prev=>[...prev,{role:"assistant",text:"Error: "+(err.message||"Could not connect to AI.")}]);
     }
     setAssistLoading(false);
   };
@@ -1036,7 +1047,7 @@ RULES:
                     {assistMessages.length===0&&(
                       <div className="space-y-1.5">
                         {["Why was this conclusion reached?","What data supports this?","How could this insight be applied?","What are the implications?"].map(q=>(
-                          <button key={q} onClick={()=>{setAssistQuery(q);setTimeout(()=>askAssistant(),50);}}
+                          <button key={q} onClick={()=>askAssistant(q)}
                             className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
                         ))}
                       </div>
