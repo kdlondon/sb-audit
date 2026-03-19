@@ -1,12 +1,12 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 
 export async function POST(request) {
-  const { messages, system, max_tokens, use_opus } = await request.json();
+  const { messages, system, max_tokens, use_opus, skip_framework } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
-  
+
   const model = use_opus ? "claude-opus-4-20250514" : "claude-sonnet-4-20250514";
-  const enrichedSystem = `${system || ""}\n\n${FRAMEWORK_CONTEXT}`;
+  const enrichedSystem = skip_framework ? (system || "") : `${system || ""}\n\n${FRAMEWORK_CONTEXT}`;
   
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

@@ -221,6 +221,7 @@ export default function OnboardingPage() {
         system: systemPrompt,
         messages: [{ role: "user", content: userMessage }],
         max_tokens: 1500,
+        skip_framework: true,
       }),
     });
     const data = await res.json();
@@ -303,7 +304,7 @@ If nothing extractable, return {}`;
 
     if (isDone || newExchangeCount >= 7 || !nextQuestion) {
       // Generate acknowledging response then move on
-      const ackPrompt = `You are the onboarding assistant for Groundwork. The user just told you about their brand. Briefly acknowledge what they said (1-2 sentences, warm and professional). Don't ask any more questions.`;
+      const ackPrompt = `You are a professional brand strategist onboarding a new client. Acknowledge what they said in 1 sentence — be direct and professional, not enthusiastic or congratulatory. No exclamation marks. No "Great!" or "Wonderful!" or "That's interesting!". Just note what you understood and move on.`;
       const ack = await callAI(ackPrompt, text);
       setLoading(false);
       if (ack && !isSkip) {
@@ -320,10 +321,10 @@ If nothing extractable, return {}`;
       setLoading(false);
       addAI("No problem, skipping that one.\n\n" + nextQuestion.question);
     } else {
-      const responsePrompt = `You are the onboarding assistant for Groundwork. The user just answered a question about their brand.
-Briefly acknowledge their answer (1 SHORT sentence, warm), then ask this next question naturally:
+      const responsePrompt = `You are a professional brand strategist onboarding a new client. The user just answered a question.
+Acknowledge briefly (1 short sentence — professional, not enthusiastic, no "Great!" or "Wonderful!" or exclamation marks), then ask this next question:
 "${nextQuestion.question}"
-Keep your total response under 3 sentences. Don't use bullet points.`;
+Keep total response under 3 sentences. Be direct and sophisticated.`;
       const response = await callAI(responsePrompt, text);
       setLoading(false);
       if (response) {
@@ -695,6 +696,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           max_tokens: 1500,
+          skip_framework: true,
           system: systemPrompt,
           messages: [{ role: "user", content: `Here is the content from a file called "${fileName}":\n\n${fileContent.slice(0, 6000)}\n\nPlease extract brand information and also return a JSON block with any fields you can identify: {"name":"...","market":"...","category":"...","proposition":"...","differentiator":"...","tone":"...","target":"..."}` }],
         }),
