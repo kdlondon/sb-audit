@@ -70,7 +70,7 @@ export default function Nav() {
             {pathname.startsWith("/admin") ? "Platform Admin" : (projectName || "Select project")}
           </button>
         </div>
-        <div className="flex gap-0.5 ml-2">
+        {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-2">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
               className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition ${
@@ -80,7 +80,7 @@ export default function Nav() {
               {t.name}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       <div className="flex items-center gap-2" ref={menuRef}>
