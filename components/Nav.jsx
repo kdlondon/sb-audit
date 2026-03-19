@@ -149,7 +149,7 @@ export default function Nav() {
               <p className="text-sm font-medium text-main truncate">{userEmail}</p>
               <p className="text-[10px] text-muted uppercase tracking-wider mt-0.5">{ROLE_LABELS[role] || role}</p>
             </div>
-            <button onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}
+            <button onClick={() => { setMenuOpen(false); router.push("/reports"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Dashboard</button>
             {canAccess(role, "settings") && (
               <button onClick={() => { setMenuOpen(false); router.push("/settings"); }}

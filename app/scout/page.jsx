@@ -1346,12 +1346,12 @@ Rules:
       <div className="fixed bottom-6 right-6 z-50">
         {assistOpen && (
           <div className="absolute bottom-16 right-0 w-[360px] bg-surface border border-main rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: "60vh" }}>
-            <div className="px-4 py-3 flex justify-between items-center" style={{ background: "#0a0f3c" }}>
+            <div className="px-4 py-3 flex justify-between items-center cursor-pointer" style={{ background: "#0a0f3c" }} onClick={() => setAssistOpen(false)}>
               <div>
                 <h3 className="text-sm font-bold text-white">Scout Assistant</h3>
                 <p className="text-[9px] text-white/40">Ask me who to search for</p>
               </div>
-              <button onClick={() => setAssistOpen(false)} className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
+              <span className="text-white/40 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-lg">&times;</span>
             </div>
             <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: "calc(60vh - 110px)" }}>
               {assistMessages.length === 0 && (
