@@ -97,8 +97,8 @@ function Chip({ label, selected, onClick }) {
   );
 }
 
-function VideoCard({ video, onAccept, onSkip, accepted, skipped }) {
-  const [showVideo, setShowVideo] = useState(false);
+function VideoCard({ video, brandName, brandScope, onAccept, onSkip, accepted, skipped }) {
+  const [expanded, setExpanded] = useState(false);
   const formatDuration = (iso) => {
     if (!iso) return "";
     const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -114,41 +114,36 @@ function VideoCard({ video, onAccept, onSkip, accepted, skipped }) {
   };
   const done = accepted || skipped;
   return (
-    <div className={`border border-main rounded-xl overflow-hidden transition ${done ? "opacity-50" : ""}`}>
-      {/* Video player — toggle on click */}
-      {showVideo ? (
-        <div className="relative">
-          <iframe width="100%" height="220" src={`https://www.youtube.com/embed/${video.videoId}?autoplay=1&rel=0`}
-            frameBorder="0" allowFullScreen allow="autoplay" className="w-full" />
-          <button onClick={() => setShowVideo(false)}
-            className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-black/80">&times;</button>
+    <div className={`border border-main rounded-xl overflow-hidden transition ${done ? "opacity-40" : ""}`}>
+      {/* Compact view — click to expand */}
+      <div className={`flex gap-3 p-3 cursor-pointer hover:bg-surface2 transition ${expanded ? "border-b border-main" : ""}`} onClick={() => !done && setExpanded(!expanded)}>
+        <div className="w-20 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative">
+          {video.thumbnail && <img src={video.thumbnail} alt="" className="w-full h-full object-cover" />}
+          {video.duration && <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[8px] px-1 py-0.5 rounded font-mono">{formatDuration(video.duration)}</span>}
         </div>
-      ) : (
-        <div className="relative cursor-pointer group" onClick={() => setShowVideo(true)}>
-          {video.thumbnail && <img src={video.thumbnail} alt="" className="w-full h-[180px] object-cover" />}
-          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg>
-            </div>
-          </div>
-          {video.duration && <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">{formatDuration(video.duration)}</span>}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-main line-clamp-1">{video.title}</p>
+          <p className="text-[10px] text-muted">{brandName} &middot; {video.year || ""} &middot; {brandScope === "global" ? "Global" : "Local"}</p>
+          <p className="text-[10px] text-hint">{video.channel} &middot; {formatViews(video.viewCount)} views</p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!done && <>
+            <button onClick={e => { e.stopPropagation(); onAccept(); }}
+              className="px-2 py-1 rounded text-[10px] font-semibold text-white hover:opacity-90" style={{ background: "#0019FF" }}>&#10003;</button>
+            <button onClick={e => { e.stopPropagation(); onSkip(); }}
+              className="px-2 py-1 rounded text-[10px] text-muted border border-main hover:text-main">&times;</button>
+          </>}
+          {accepted && <span className="text-[10px] text-green-600 font-semibold">Added</span>}
+          {skipped && <span className="text-[10px] text-hint">Skipped</span>}
+        </div>
+      </div>
+      {/* Expanded — video player */}
+      {expanded && !done && (
+        <div className="p-3">
+          <iframe width="100%" height="240" src={`https://www.youtube.com/embed/${video.videoId}?rel=0`}
+            frameBorder="0" allowFullScreen className="rounded-lg w-full" />
         </div>
       )}
-      <div className="p-3">
-        <p className="text-sm font-medium text-main line-clamp-2">{video.title}</p>
-        <p className="text-[11px] text-muted mt-0.5">{video.channel} &middot; {formatViews(video.viewCount)} views</p>
-        {!done && (
-          <div className="flex gap-2 mt-2">
-            <button onClick={onAccept}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition hover:opacity-90"
-              style={{ background: "#0019FF" }}>Accept</button>
-            <button onClick={onSkip}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted border border-main hover:border-[#0019FF]/40 transition">Skip</button>
-          </div>
-        )}
-        {accepted && <p className="text-[11px] text-green-600 mt-1 font-medium">&#10003; Accepted</p>}
-        {skipped && <p className="text-[11px] text-hint mt-1">Skipped</p>}
-      </div>
     </div>
   );
 }
@@ -444,12 +439,12 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
       return;
     }
 
-    // Limit to max 10 local + 10 global brands
-    const localBrands = allBrands.filter(b => b.scope === "local").slice(0, 10);
-    const globalBrandsLimited = allBrands.filter(b => b.scope === "global").slice(0, 10);
+    // Limit to max 5 local + 5 global brands, 1 best piece each = max 10 total
+    const localBrands = allBrands.filter(b => b.scope === "local").slice(0, 5);
+    const globalBrandsLimited = allBrands.filter(b => b.scope === "global").slice(0, 5);
     const limitedBrands = [...localBrands, ...globalBrandsLimited];
     setScoutBrands(limitedBrands);
-    addAI(`Starting Auto-Scout for ${limitedBrands.length} brands. I'll find the top 3 pieces from each.\n\nThis may take a minute...`);
+    addAI(`Searching ${limitedBrands.length} brands for their best content...`);
     setScoutRunning(true);
 
     let totalImported = 0;
@@ -466,11 +461,11 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
           body: JSON.stringify({
             action: "search",
             query: searchQuery.trim(),
-            maxResults: 3,
+            maxResults: 1,
           }),
         });
         const data = await res.json();
-        const videos = (data.videos || []).slice(0, 3);
+        const videos = (data.videos || []).slice(0, 1);
 
         setScoutResults(prev => ({ ...prev, [brand.name]: videos }));
         setScoutProgress(prev => ({ ...prev, [brand.name]: `found ${videos.length}` }));
@@ -607,23 +602,29 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
       }
 
       // Import accepted videos
-      for (const vid of acceptedVideos) {
+      for (let vi = 0; vi < acceptedVideos.length; vi++) {
+        const vid = acceptedVideos[vi];
         const table = vid.scope === "global" ? "audit_global" : "audit_entries";
         const entry = {
+          id: String(Date.now()) + "_" + vi,
           project_id: projectId,
+          created_by: userEmail,
+          updated_at: new Date().toISOString(),
           url: `https://www.youtube.com/watch?v=${vid.videoId}`,
           image_url: vid.thumbnail || "",
           description: vid.title || "",
           year: vid.year || "",
           type: "Video",
+          synopsis: vid.description || "",
         };
         if (vid.scope === "global") {
           entry.brand = vid.brandName;
-          entry.country = vid.market || "";
+          entry.country = vid.market || brandProfile.market || "";
         } else {
           entry.competitor = vid.brandName;
         }
-        await supabase.from(table).insert(entry);
+        const { error } = await supabase.from(table).insert(entry);
+        if (error) console.error("Insert error:", error);
       }
 
       // Grant access
@@ -983,6 +984,8 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
                           <VideoCard
                             key={key}
                             video={video}
+                            brandName={brand.name}
+                            brandScope={brand.scope}
                             accepted={status === "accepted"}
                             skipped={status === "skipped"}
                             onAccept={() => handleAcceptVideo(brand.name, video, brand.scope)}
