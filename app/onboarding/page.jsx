@@ -87,6 +87,7 @@ function Chip({ label, selected, onClick }) {
 }
 
 function VideoCard({ video, onAccept, onSkip, accepted, skipped }) {
+  const [showVideo, setShowVideo] = useState(false);
   const formatDuration = (iso) => {
     if (!iso) return "";
     const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -102,23 +103,39 @@ function VideoCard({ video, onAccept, onSkip, accepted, skipped }) {
   };
   const done = accepted || skipped;
   return (
-    <div className={`flex gap-3 border border-main rounded-xl p-3 transition ${done ? "opacity-50" : ""}`}>
-      {video.thumbnail && (
-        <img src={video.thumbnail} alt="" className="w-32 h-20 object-cover rounded-lg flex-shrink-0" />
+    <div className={`border border-main rounded-xl overflow-hidden transition ${done ? "opacity-50" : ""}`}>
+      {/* Video player — toggle on click */}
+      {showVideo ? (
+        <div className="relative">
+          <iframe width="100%" height="220" src={`https://www.youtube.com/embed/${video.videoId}?autoplay=1&rel=0`}
+            frameBorder="0" allowFullScreen allow="autoplay" className="w-full" />
+          <button onClick={() => setShowVideo(false)}
+            className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-black/80">&times;</button>
+        </div>
+      ) : (
+        <div className="relative cursor-pointer group" onClick={() => setShowVideo(true)}>
+          {video.thumbnail && <img src={video.thumbnail} alt="" className="w-full h-[180px] object-cover" />}
+          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg>
+            </div>
+          </div>
+          {video.duration && <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">{formatDuration(video.duration)}</span>}
+        </div>
       )}
-      <div className="flex-1 min-w-0">
+      <div className="p-3">
         <p className="text-sm font-medium text-main line-clamp-2">{video.title}</p>
-        <p className="text-[11px] text-muted mt-0.5">{video.channel} &middot; {formatDuration(video.duration)} &middot; {formatViews(video.viewCount)} views</p>
+        <p className="text-[11px] text-muted mt-0.5">{video.channel} &middot; {formatViews(video.viewCount)} views</p>
         {!done && (
           <div className="flex gap-2 mt-2">
             <button onClick={onAccept}
-              className="px-3 py-1 rounded-lg text-[11px] font-semibold text-white transition hover:opacity-90"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition hover:opacity-90"
               style={{ background: "#0019FF" }}>Accept</button>
             <button onClick={onSkip}
-              className="px-3 py-1 rounded-lg text-[11px] font-medium text-muted border border-main hover:border-[#0019FF]/40 transition">Skip</button>
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted border border-main hover:border-[#0019FF]/40 transition">Skip</button>
           </div>
         )}
-        {accepted && <p className="text-[11px] text-green-600 mt-1 font-medium">Accepted</p>}
+        {accepted && <p className="text-[11px] text-green-600 mt-1 font-medium">&#10003; Accepted</p>}
         {skipped && <p className="text-[11px] text-hint mt-1">Skipped</p>}
       </div>
     </div>
@@ -421,14 +438,18 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
       return;
     }
 
-    setScoutBrands(allBrands);
-    addAI(`Starting Auto-Scout for ${allBrands.length} brands. I'll search YouTube for content from each one.\n\nThis may take a minute...`);
+    // Limit to max 10 local + 10 global brands
+    const localBrands = allBrands.filter(b => b.scope === "local").slice(0, 10);
+    const globalBrandsLimited = allBrands.filter(b => b.scope === "global").slice(0, 10);
+    const limitedBrands = [...localBrands, ...globalBrandsLimited];
+    setScoutBrands(limitedBrands);
+    addAI(`Starting Auto-Scout for ${limitedBrands.length} brands. I'll find the top 3 pieces from each.\n\nThis may take a minute...`);
     setScoutRunning(true);
 
     let totalImported = 0;
 
-    for (let i = 0; i < allBrands.length; i++) {
-      const brand = allBrands[i];
+    for (let i = 0; i < limitedBrands.length; i++) {
+      const brand = limitedBrands[i];
       setScoutProgress(prev => ({ ...prev, [brand.name]: "searching" }));
 
       try {
@@ -439,11 +460,11 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
           body: JSON.stringify({
             action: "search",
             query: searchQuery.trim(),
-            maxResults: 5,
+            maxResults: 3,
           }),
         });
         const data = await res.json();
-        const videos = (data.videos || []).slice(0, 5);
+        const videos = (data.videos || []).slice(0, 3);
 
         setScoutResults(prev => ({ ...prev, [brand.name]: videos }));
         setScoutProgress(prev => ({ ...prev, [brand.name]: `found ${videos.length}` }));
