@@ -689,16 +689,26 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
     setMessages(prev => [...prev, { role: "user", text: `📎 ${fileName}`, isFile: true, fileName }]);
 
     try {
-      // Read file content
-      let fileContent = "";
-      if (isImage) {
-        fileContent = "[Image uploaded — analyzing visually]";
-      } else {
-        try { fileContent = await file.text(); } catch { fileContent = ""; }
-      }
+      const systemPrompt = `You are a professional brand strategist helping set up a competitive benchmark. Analyze the uploaded content and extract brand information: name, market, category, value proposition, differentiator, tone, target audience. Be direct and professional. Also return a JSON block: {"name":"...","market":"...","category":"...","proposition":"...","differentiator":"...","tone":"...","target":"..."}`;
 
-      // Use /api/ai (generic, no Scotiabank context) instead of /api/analyze
-      const systemPrompt = `You are a brand strategy assistant helping a user set up their competitive benchmark. They uploaded a document about their brand. Extract and summarize the key brand information you can find: brand name, market, category, value proposition, differentiator, tone of voice, target audience. Be conversational and friendly. If you can't find specific information, say so and ask them to fill in the gaps.`;
+      let messageContent;
+      if (isImage) {
+        // Send image as base64 to Claude (vision capability)
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = ""; for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        const mediaType = file.type || "image/png";
+        messageContent = [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
+          { type: "text", text: `This is an image file called "${fileName}". Extract any brand information visible in it.` },
+        ];
+      } else {
+        // Text/PDF — read as text
+        let fileContent = "";
+        try { fileContent = await file.text(); } catch { fileContent = ""; }
+        messageContent = `Here is the content from "${fileName}":\n\n${fileContent.slice(0, 6000)}\n\nExtract brand information.`;
+      }
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -707,7 +717,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
           max_tokens: 1500,
           skip_framework: true,
           system: systemPrompt,
-          messages: [{ role: "user", content: `Here is the content from a file called "${fileName}":\n\n${fileContent.slice(0, 6000)}\n\nPlease extract brand information and also return a JSON block with any fields you can identify: {"name":"...","market":"...","category":"...","proposition":"...","differentiator":"...","tone":"...","target":"..."}` }],
+          messages: [{ role: "user", content: messageContent }],
         }),
       });
       const result = await res.json();
