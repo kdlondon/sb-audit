@@ -8,7 +8,7 @@ export default function Home() {
     (async () => {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      router.replace(session ? "/projects" : "/login");
+      router.replace(session ? "/scout" : "/login");
     })();
   }, [router]);
   return <div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading...</p></div>;

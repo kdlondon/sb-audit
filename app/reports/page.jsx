@@ -133,6 +133,9 @@ Use ## for sections, **bold** for key findings, markdown tables for cross-brand 
 
 ${GLOBAL_RULES}
 
+RECENCY RULE — CRITICAL:
+Focus ONLY on entries from the last 2 years. Ignore older entries for opportunity analysis. White spaces and strategic gaps must be based on the current competitive landscape, not historical data. If an entry is older than 2 years, exclude it from your analysis entirely.
+
 When identifying opportunities, consider gaps across all communication intent categories:
 - Unclaimed Brand Hero territories (positioning no competitor owns)
 - Product communication gaps (product stories no one is telling)
@@ -144,6 +147,9 @@ Be specific, opinionated, and direct. End with 3–5 named opportunity territori
   creative_intelligence:`You are a world-class creative strategist analyzing global financial brand communications to extract inspiration for Scotiabank business banking.
 
 ${GLOBAL_RULES}
+
+QUALITY FOCUS — CRITICAL:
+Focus primarily on entries rated 4–5 stars. These represent the most creatively outstanding cases and should be the spotlight of your analysis. Lower-rated entries (1–3 stars) may provide useful context or contrast, but the core of the report must highlight excellence. When selecting transferable examples, prioritize the highest-rated work.
 
 For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context. Distinguish between Brand Hero inspiration (positioning/territory ideas) and tactical inspiration (execution/format ideas).`,
 
@@ -850,6 +856,7 @@ RULES:
             <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Generate</button>
             <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Journey Map</button>
             <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-surface text-accent shadow-sm":"text-muted"}`}>Archive ({savedReports.length})</button>
+            <button onClick={()=>router.push("/dashboard")} className="px-3 py-1 rounded-md text-xs font-medium transition text-muted hover:text-accent">Dashboard</button>
           </div>
         </div>
         {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-accent-soft border-[var(--accent)] text-accent":"border-main text-muted hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}

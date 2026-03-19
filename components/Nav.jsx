@@ -9,7 +9,7 @@ import { useEffect, useState, useRef } from "react";
 const mainTabs = [
   { name: "Scout", href: "/scout", module: "scout" },
   { name: "Audit", href: "/audit", module: "audit" },
-  { name: "Reports", href: "/reports", module: "reports" },
+  { name: "Report", href: "/reports", module: "reports" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
 
@@ -158,6 +158,10 @@ export default function Nav() {
             {canAccess(role, "users") && (
               <button onClick={() => { setMenuOpen(false); router.push("/users"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">User Management</button>
+            )}
+            {canAccess(role, "clients") && (
+              <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
+                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client Management</button>
             )}
             <div className="border-t border-main my-1" />
             <button onClick={() => { toggleDark(); setMenuOpen(false); }}
