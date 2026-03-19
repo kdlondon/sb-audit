@@ -462,6 +462,58 @@ function ReportsContent(){
   const[saving,setSaving]=useState(false);
   const reportRef=useRef(null);
   const supabase=createClient();
+
+  // Report contextual assistant
+  const[assistOpen,setAssistOpen]=useState(false);
+  const[assistSelection,setAssistSelection]=useState("");
+  const[assistMessages,setAssistMessages]=useState([]);
+  const[assistQuery,setAssistQuery]=useState("");
+  const[assistLoading,setAssistLoading]=useState(false);
+  const[selectionPos,setSelectionPos]=useState(null);
+  const assistEndRef=useRef(null);
+
+  // Detect text selection in report
+  useEffect(()=>{
+    const handler=()=>{
+      const sel=window.getSelection();
+      const text=(sel?.toString()||"").trim();
+      if(text.length>10&&reportRef.current?.contains(sel?.anchorNode)){
+        const range=sel.getRangeAt(0);
+        const rect=range.getBoundingClientRect();
+        setSelectionPos({top:rect.top+window.scrollY-40,left:rect.left+rect.width/2});
+        setAssistSelection(text);
+      }else{
+        // Small delay to allow clicking the button before it disappears
+        setTimeout(()=>{if(!assistOpen)setSelectionPos(null);},200);
+      }
+    };
+    document.addEventListener("mouseup",handler);
+    return()=>document.removeEventListener("mouseup",handler);
+  },[assistOpen]);
+
+  const askAssistant=async()=>{
+    if(!assistQuery.trim()&&!assistSelection)return;
+    const q=assistQuery.trim()||"Explain this in more detail";
+    setAssistMessages(prev=>[...prev,{role:"user",text:q}]);
+    setAssistQuery("");
+    setAssistLoading(true);
+    setTimeout(()=>assistEndRef.current?.scrollIntoView({behavior:"smooth"}),50);
+    try{
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        max_tokens:1500,
+        skip_framework:true,
+        system:`You are a senior brand strategist explaining a finding from a competitive intelligence report. The user selected this text from the report:\n\n"${assistSelection}"\n\nFull report context (use for reference but focus on the selected text):\n${(activeContent||"").slice(0,3000)}\n\nExplain the strategic reasoning behind this finding. Be specific, reference the data, and provide actionable insight. Be professional and concise.`,
+        messages:assistMessages.concat({role:"user",content:q}).map(m=>({role:m.role,content:m.text})),
+      })});
+      const data=await res.json();
+      const reply=data.content?.[0]?.text||"Could not generate a response.";
+      setAssistMessages(prev=>[...prev,{role:"assistant",text:reply}]);
+      setTimeout(()=>assistEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+    }catch{
+      setAssistMessages(prev=>[...prev,{role:"assistant",text:"Error generating response."}]);
+    }
+    setAssistLoading(false);
+  };
   const router=useRouter();
   const[generatingShowcase,setGeneratingShowcase]=useState(false);
 
@@ -957,6 +1009,56 @@ RULES:
 
                 <Signature/>
               </div>
+
+              {/* Selection tooltip — "Ask about this" */}
+              {selectionPos&&!assistOpen&&(
+                <button onClick={()=>{setAssistOpen(true);setAssistMessages([]);setSelectionPos(null);}}
+                  className="fixed z-50 px-3 py-1.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-lg shadow-xl hover:opacity-90 transition flex items-center gap-1.5"
+                  style={{top:selectionPos.top,left:selectionPos.left,transform:"translateX(-50%)"}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  Ask about this
+                </button>
+              )}
+
+              {/* Contextual assistant panel */}
+              {assistOpen&&(
+                <div className="fixed bottom-6 right-6 w-[380px] bg-surface border border-main rounded-2xl shadow-2xl z-50 flex flex-col" style={{maxHeight:"50vh"}}>
+                  <div className="px-4 py-3 flex justify-between items-center border-b border-main flex-shrink-0" style={{background:"#0a0f3c",borderRadius:"16px 16px 0 0"}}>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Report Assistant</h3>
+                      <p className="text-[9px] text-white/40 truncate max-w-[250px]">"{assistSelection.slice(0,60)}..."</p>
+                    </div>
+                    <button onClick={()=>{setAssistOpen(false);setAssistMessages([]);}} className="text-white/40 hover:text-white text-lg">&times;</button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                    {assistMessages.length===0&&(
+                      <div className="space-y-1.5">
+                        {["Why was this conclusion reached?","What data supports this?","How could this insight be applied?","What are the implications?"].map(q=>(
+                          <button key={q} onClick={()=>{setAssistQuery(q);setTimeout(()=>askAssistant(),50);}}
+                            className="block w-full text-left px-3 py-2 rounded-lg bg-surface2 text-xs text-main hover:bg-accent-soft transition">{q}</button>
+                        ))}
+                      </div>
+                    )}
+                    {assistMessages.map((m,i)=>(
+                      <div key={i} className={m.role==="user"?"text-right":""}>
+                        <div className={`inline-block max-w-[90%] px-3 py-2 rounded-xl text-xs leading-relaxed ${m.role==="user"?"bg-[#0019FF] text-white rounded-br-sm":"bg-surface2 text-main rounded-bl-sm"}`}>
+                          <div className="whitespace-pre-wrap">{m.text}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {assistLoading&&<div className="flex gap-1 px-3 py-2"><span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay:"0ms"}}/><span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay:"150ms"}}/><span className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay:"300ms"}}/></div>}
+                    <div ref={assistEndRef}/>
+                  </div>
+                  <div className="border-t border-main p-2 flex gap-2 flex-shrink-0">
+                    <input value={assistQuery} onChange={e=>setAssistQuery(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter")askAssistant();}}
+                      placeholder="Ask a follow-up question..."
+                      className="flex-1 px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-[var(--accent)]"/>
+                    <button onClick={askAssistant} disabled={assistLoading}
+                      className="px-3 py-2 bg-[#0019FF] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">Send</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
