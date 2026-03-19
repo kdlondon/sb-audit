@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo, use } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/role-context";
@@ -35,8 +36,8 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-export default function ClientDetailPage({ params }) {
-  const { id } = use(params);
+export default function ClientDetailPage() {
+  const { id } = useParams();
   const { role } = useRole();
   const router = useRouter();
   const supabase = createClient();
