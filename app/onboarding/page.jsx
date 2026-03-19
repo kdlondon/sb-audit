@@ -314,28 +314,22 @@ If nothing extractable, return {}`;
     }
 
     if (isDone || newExchangeCount >= 7 || !nextQuestion) {
-      // Generate acknowledging response then move on
-      const ackPrompt = `You are a professional brand strategist onboarding a new client. Acknowledge what they said in 1 sentence — be direct and professional, not enthusiastic or congratulatory. No exclamation marks. No "Great!" or "Wonderful!" or "That's interesting!". Just note what you understood and move on.`;
-      const ack = await callAI(ackPrompt, text);
       setLoading(false);
-      if (ack && !isSkip) {
-        const cleanAck = ack.replace(/###.*?###/g, "").trim();
-        addAI(cleanAck + "\n\nWe have enough to get started. Click [Next] when you're ready.");
-      } else {
-        addAI("Got it! We have enough to get started. Click [Next] when you're ready.");
-      }
+      addAI("Noted. We have a solid picture of your brand now — click Next to continue.");
       return;
     }
 
     // Generate conversational acknowledgment + ask next question
     if (isSkip) {
       setLoading(false);
-      addAI("No problem, skipping that one.\n\n" + nextQuestion.question);
+      addAI(nextQuestion.question);
     } else {
-      const responsePrompt = `You are a professional brand strategist onboarding a new client. The user just answered a question.
-Acknowledge briefly (1 short sentence — professional, not enthusiastic, no "Great!" or "Wonderful!" or exclamation marks), then ask this next question:
-"${nextQuestion.question}"
-Keep total response under 3 sentences. Be direct and sophisticated.`;
+      const responsePrompt = `You are a brand strategist onboarding a new client. The user just answered a question about their brand.
+Respond in EXACTLY 2 sentences:
+1. A brief note connecting their answer to the strategic context (DO NOT start with "I understand" or "Noted" — vary your openings, e.g. "That positions you in...", "A 3-year track record suggests...", "Eco-friendly premium is a clear differentiator in...")
+2. Then ask: "${nextQuestion.question}"
+
+No exclamation marks. No congratulations. Direct and analytical.`;
       const response = await callAI(responsePrompt, text);
       setLoading(false);
       if (response) {
