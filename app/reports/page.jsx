@@ -477,7 +477,10 @@ function ReportsContent(){
     const handler=()=>{
       const sel=window.getSelection();
       const text=(sel?.toString()||"").trim();
-      if(text.length>10&&reportRef.current?.contains(sel?.anchorNode)){
+      const node=sel?.anchorNode||sel?.focusNode;
+      const el=node?.nodeType===3?node.parentElement:node;
+      const inReport=el&&el.closest&&el.closest("[data-report-content]");
+      if(text.length>10&&inReport){
         const range=sel.getRangeAt(0);
         const rect=range.getBoundingClientRect();
         setSelectionPos({top:rect.top+window.scrollY-40,left:rect.left+rect.width/2});
@@ -1004,8 +1007,8 @@ RULES:
                   <button onClick={downloadPDF} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.pdf</button>
                 </div>
               </div>
-              <div className="px-8 py-6" ref={reportRef}>
-                <div>{renderContent(activeContent)}</div>
+              <div className="px-8 py-6" ref={reportRef} data-report-content>
+                <div data-report-content>{renderContent(activeContent)}</div>
 
                 <Signature/>
               </div>
