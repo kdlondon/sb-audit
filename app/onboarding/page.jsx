@@ -744,7 +744,12 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
 
       // Show AI response (remove JSON block for cleaner display)
       const cleanText = aiText.replace(/```json[\s\S]*?```/g, "").replace(/\{[\s\S]*?\}/g, "").trim();
-      addAI(cleanText || "I analyzed your file. Tell me more about your brand to fill in any gaps.");
+      // Find next unanswered question to continue the conversation
+      const unanswered = BRAND_QUESTIONS.find(q => !brandProfile[q.key]);
+      const followUp = unanswered
+        ? `\n\nDoes this look right? Feel free to correct anything, or let's continue — ${unanswered.question.toLowerCase()}`
+        : "\n\nDoes this look accurate? Correct anything that needs adjusting, or click Next to continue.";
+      addAI((cleanText || "I analyzed your file.") + followUp);
     } catch (err) {
       addAI(`I had trouble processing that file. No worries — just describe your brand and I'll take it from there.`);
     }
