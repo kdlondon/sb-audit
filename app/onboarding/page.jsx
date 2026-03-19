@@ -462,6 +462,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
             action: "search",
             query: searchQuery.trim(),
             maxResults: 1,
+            publishedAfter: new Date(Date.now() - 730 * 86400000).toISOString(),
           }),
         });
         const data = await res.json();
@@ -742,14 +743,23 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         } catch {}
       }
 
-      // Show AI response (remove JSON block for cleaner display)
-      const cleanText = aiText.replace(/```json[\s\S]*?```/g, "").replace(/\{[\s\S]*?\}/g, "").trim();
-      // Find next unanswered question to continue the conversation
+      // Don't repeat the full analysis — just confirm and move on
+      const fieldsFound = [];
+      if (brandProfile.name || jsonMatch) fieldsFound.push("name");
+      if (brandProfile.market) fieldsFound.push("market");
+      if (brandProfile.category) fieldsFound.push("category");
+      if (brandProfile.proposition) fieldsFound.push("proposition");
+      if (brandProfile.differentiator) fieldsFound.push("differentiator");
+      if (brandProfile.tone) fieldsFound.push("tone");
+      if (brandProfile.target) fieldsFound.push("target");
+
       const unanswered = BRAND_QUESTIONS.find(q => !brandProfile[q.key]);
-      const followUp = unanswered
-        ? `\n\nDoes this look right? Feel free to correct anything, or let's continue — ${unanswered.question.toLowerCase()}`
-        : "\n\nDoes this look accurate? Correct anything that needs adjusting, or click Next to continue.";
-      addAI((cleanText || "I analyzed your file.") + followUp);
+      if (unanswered) {
+        addAI(`Got it — extracted ${fieldsFound.length} data points from your file. Moving on: ${unanswered.question}`);
+        setQuestionIndex(BRAND_QUESTIONS.indexOf(unanswered) + 1);
+      } else {
+        addAI(`Got it — I have a complete picture from your file. Click Next to continue.`);
+      }
     } catch (err) {
       addAI(`I had trouble processing that file. No worries — just describe your brand and I'll take it from there.`);
     }

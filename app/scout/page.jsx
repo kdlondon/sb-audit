@@ -144,10 +144,10 @@ export default function ScoutPage() {
       const arr = [];
       const brandArr = [...brands].sort(() => 0.5 - Math.random());
       brandArr.slice(0, 2).forEach(b => arr.push(b));
-      if (brandArr[0]) arr.push(`${brandArr[0]} small business`);
+      if (brandArr[0]) arr.push(`${brandArr[0]} commercial`);
       const countryArr = [...countries];
-      arr.push(countryArr.length > 0 ? `business banking ${countryArr[Math.floor(Math.random() * countryArr.length)]}` : "business banking UK");
-      const disc = ["neobank business account", "SME fintech ads", "challenger bank commercial", "business banking innovation", "small business testimonials"];
+      if (countryArr.length > 0) arr.push(`advertising ${countryArr[Math.floor(Math.random() * countryArr.length)]}`);
+      const disc = ["brand campaign", "product launch ad", "commercial campaign", "brand film", "testimonial ad"];
       arr.push(disc[Math.floor(Math.random() * disc.length)]);
       setSuggestions(arr.slice(0, 5));
     })();
