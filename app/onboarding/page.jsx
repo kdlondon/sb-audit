@@ -782,7 +782,7 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         <div ref={scrollRef} className={`flex-1 overflow-y-auto px-6 py-8 transition ${dragOver ? "ring-2 ring-[#0019FF] ring-inset bg-[rgba(0,25,255,0.03)]" : ""}`}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); const files = [...e.dataTransfer.files]; if (files.length > 0) handleFileUpload(files); }}
+          onDrop={e => { e.preventDefault(); setDragOver(false); const files = [...e.dataTransfer.files]; if (files.length > 0) handleFileUpload(files); }}>
           <div className="max-w-3xl mx-auto space-y-4">
             {messages.map((msg, i) => (
               msg.role === "ai"
