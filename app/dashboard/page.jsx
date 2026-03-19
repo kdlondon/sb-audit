@@ -398,49 +398,49 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex" style={{ background: "var(--bg)" }}>
       {drill && <DrillPanel entries={drill.entries} title={drill.title} onClose={() => setDrill(null)} />}
 
-      <div className="section-bar px-5 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-main">Dashboard</h2>
-          <div className="flex bg-surface2 rounded-lg p-0.5">
-            {[["all", "All"], ["local", "Local"], ["global", "Global"]].map(([k, l]) => (
-              <button key={k} onClick={() => setScope(k)} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope === k ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>{l}</button>
+      {/* ─── LEFT SIDEBAR: Filters ─── */}
+      <div className="w-[220px] flex-shrink-0 bg-surface border-r border-main h-[calc(100vh-52px)] sticky top-[52px] overflow-y-auto p-4 space-y-5">
+        <div>
+          <p className="text-[10px] text-muted uppercase font-semibold tracking-wider mb-2">Scope</p>
+          <div className="space-y-1">
+            {[["all", "All entries"], ["local", "Local audit"], ["global", "Global benchmark"]].map(([k, l]) => (
+              <button key={k} onClick={() => setScope(k)}
+                className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition ${scope === k ? "bg-accent-soft text-accent border border-[var(--accent)]" : "text-muted hover:text-main hover:bg-surface2"}`}>{l}</button>
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative" ref={brandFilterRef}>
-            <button onClick={() => setBrandFilterOpen(!brandFilterOpen)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition flex items-center gap-1.5 ${selectedBrands.length > 0 ? "border-[var(--accent)] bg-accent-soft text-accent" : "border-main text-muted hover:text-main"}`}>
-              {selectedBrands.length > 0 ? `${selectedBrands.length} brand${selectedBrands.length > 1 ? "s" : ""} selected` : "All brands"}
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition ${brandFilterOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3" /></svg>
-            </button>
-            {brandFilterOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-xl py-2 max-h-[300px] overflow-y-auto" style={{ zIndex: 50 }}>
-                <div className="px-3 pb-2 mb-1 border-b border-main flex justify-between">
-                  <button onClick={() => setSelectedBrands(allBrands)} className="text-[10px] text-accent hover:underline">Select all</button>
-                  <button onClick={() => setSelectedBrands([])} className="text-[10px] text-muted hover:text-main">Clear</button>
-                </div>
-                {groupedBrands.map(g => (
-                  <div key={g.cat}>
-                    <p className="px-3 pt-2 pb-1 text-[9px] text-hint uppercase font-semibold tracking-wider">{g.cat}</p>
-                    {g.brands.map(b => (
-                      <label key={b} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface2 cursor-pointer">
-                        <input type="checkbox" checked={selectedBrands.includes(b)} onChange={() => setSelectedBrands(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b])} className="rounded border-gray-300 text-accent" />
-                        <span className="text-xs text-main">{b}</span>
-                      </label>
-                    ))}
-                  </div>
+
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-[10px] text-muted uppercase font-semibold tracking-wider">Brands</p>
+            <div className="flex gap-1">
+              <button onClick={() => setSelectedBrands(allBrands)} className="text-[9px] text-accent hover:underline">All</button>
+              <span className="text-[9px] text-hint">|</span>
+              <button onClick={() => setSelectedBrands([])} className="text-[9px] text-muted hover:text-main">Clear</button>
+            </div>
+          </div>
+          {selectedBrands.length > 0 && <p className="text-[9px] text-accent font-semibold mb-2">{selectedBrands.length} selected</p>}
+          <div className="space-y-0.5 max-h-[calc(100vh-300px)] overflow-y-auto">
+            {groupedBrands.map(g => (
+              <div key={g.cat}>
+                <p className="text-[8px] text-hint uppercase font-semibold tracking-wider pt-2 pb-1">{g.cat}</p>
+                {g.brands.map(b => (
+                  <label key={b} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-surface2 cursor-pointer">
+                    <input type="checkbox" checked={selectedBrands.includes(b)} onChange={() => setSelectedBrands(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b])} className="rounded border-gray-300 text-accent w-3 h-3" />
+                    <span className="text-[11px] text-main">{b}</span>
+                  </label>
                 ))}
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="p-5 max-w-5xl mx-auto space-y-4">
+      {/* ─── MAIN CONTENT ─── */}
+      <div className="flex-1 p-5 max-w-5xl mx-auto space-y-4 overflow-y-auto">
         {/* ─── STATS ─── */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard label="Total entries" value={data.length} sub={`${localData.length} local · ${globalData.length} global`} />
