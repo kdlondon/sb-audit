@@ -461,6 +461,7 @@ function ReportsContent(){
   const[savedReports,setSavedReports]=useState([]);
   const[viewingReport,setViewingReport]=useState(null);
   const[saving,setSaving]=useState(false);
+  const[downloadMenu,setDownloadMenu]=useState(false);
   const reportRef=useRef(null);
   const supabase=createClient();
 
@@ -999,23 +1000,41 @@ RULES:
 
           {/* REPORT CONTENT */}
           {activeContent&&(
-            <div className="bg-surface rounded-lg border border-main overflow-hidden">
-              <div className="flex justify-between items-center px-5 py-3 border-b border-main flex-wrap gap-2 sticky top-[52px] z-20 bg-surface rounded-t-lg">
-                <div className="flex items-center gap-2">
+            <div className="bg-surface rounded-lg border border-main">
+              <div className="sticky top-[52px] z-20 bg-surface border-b border-main" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
+                <div className="flex items-center gap-2 px-5 pt-3 pb-1">
                   <button onClick={()=>{router.push("/reports",{scroll:false});setReport("");setSelectedTemplate(null);}} className="text-xs text-muted hover:text-main">← Back</button>
-                  <h3 className="text-sm font-semibold text-main">{viewingReport?.title||reportTitle||"Generated report"}</h3>
+                  <h3 className="text-sm font-semibold text-main flex-1 truncate">{viewingReport?.title||reportTitleRef.current||reportTitle||"Generated report"}</h3>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 px-5 pb-3 pt-1 flex-wrap">
+                  {/* Save */}
+                  {report&&!viewingReport&&<button onClick={()=>saveReport(false)} disabled={saving} className="px-4 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#0019FF"}}>{saving?"Saving...":"Save"}</button>}
+                  {/* Copy */}
+                  <button onClick={copyReport} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main">{copied?"Copied!":"Copy"}</button>
+                  {/* Download dropdown */}
+                  <div className="relative">
+                    <button onClick={()=>setDownloadMenu(!downloadMenu)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main flex items-center gap-1">
+                      Download <span className="text-[9px]">▾</span>
+                    </button>
+                    {downloadMenu&&<>
+                      <div className="fixed inset-0 z-30" onClick={()=>setDownloadMenu(false)}/>
+                      <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[100px]">
+                        <button onClick={()=>{downloadMD();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">.md</button>
+                        <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft border-t border-main">.pdf</button>
+                      </div>
+                    </>}
+                  </div>
+                  {/* Divider */}
+                  <div className="w-px h-5 bg-main mx-1"/>
+                  {/* Save & Edit / Save & Showcase */}
                   {report&&!viewingReport&&<>
-                    <button onClick={()=>saveReport(true)} disabled={saving} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#0019FF"}}>{saving?"Saving...":"Save & Edit"}</button>
-                    <button onClick={()=>saveReport(false)} disabled={saving} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:text-main">Skip editing</button>
-                    <button onClick={async()=>{const saved=await saveReport(false);if(saved)generateShowcaseFromReport(saved);}} disabled={saving||generatingShowcase} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Save & Showcase"}</button>
+                    <button onClick={()=>saveReport(true)} disabled={saving} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2 disabled:opacity-50">{saving?"...":"Save & Edit"}</button>
+                    <button onClick={async()=>{const saved=await saveReport(false);if(saved)generateShowcaseFromReport(saved);}} disabled={saving||generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Save & Showcase"}</button>
                   </>}
-                  {viewingReport&&<button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90" style={{background:"#0019FF"}}>Edit</button>}
-                  {viewingReport&&<button onClick={generateShowcaseFromReport} disabled={generatingShowcase} className="px-3 py-1 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>}
-                  <button onClick={copyReport} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">{copied?"Copied!":"Copy"}</button>
-                  <button onClick={downloadMD} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.md</button>
-                  <button onClick={downloadPDF} className="px-3 py-1 text-xs border border-main rounded-lg text-muted hover:bg-surface2">.pdf</button>
+                  {viewingReport&&<>
+                    <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
+                    <button onClick={generateShowcaseFromReport} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
+                  </>}
                 </div>
               </div>
               <div className="px-8 py-6" ref={reportRef} data-report-content>
