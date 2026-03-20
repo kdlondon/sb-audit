@@ -120,28 +120,30 @@ export default function UsersPage() {
     if (!inviteEmail.trim() || !invitePassword.trim()) return;
     setInviting(true);
 
-    try {
-      // Create user via server-side API (doesn't affect current session)
-      const res = await fetch("/api/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim(), password: invitePassword.trim(), role: inviteRole }),
-      });
-      const result = await res.json();
+    // Create user via server-side API (doesn't affect current session)
+    const res = await fetch("/api/create-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail.trim(), password: invitePassword.trim(), role: inviteRole }),
+    });
 
-      if (result.error) {
-        showToast("Error: " + result.error);
-        setInviting(false);
-        return;
-      }
+    let result;
+    try { result = await res.json(); } catch { result = { error: "Invalid response from server" }; }
 
+    if (result.error) {
+      showToast("Error: " + result.error);
+      setInviting(false);
+      return;
+    }
+
+    if (result.success && result.user) {
       setNewUserId(result.user.id);
       setNewUserProjects([]);
-      setInviteStep(2); // Move to project assignment step
-      showToast(`User created — now assign project access`);
-      await loadData();
-    } catch (err) {
-      showToast("Error: " + err.message);
+      setInviteStep(2);
+      showToast("User created — now assign project access");
+      loadData();
+    } else {
+      showToast("Unexpected response — please try again");
     }
     setInviting(false);
   };
