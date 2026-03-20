@@ -547,7 +547,12 @@ Return a JSON array of objects: [{"name":"Brand","market":"Country/Region"}]. No
         name: projectName,
         client_name: brandProfile.name || "",
         client_id: clientId,
-        description: JSON.stringify(brandProfile),
+        description: [
+          brandProfile.category && `${brandProfile.category}`,
+          brandProfile.market && `Market: ${brandProfile.market}`,
+          brandProfile.proposition && `Proposition: ${brandProfile.proposition}`,
+          brandProfile.target && `Target: ${brandProfile.target}`,
+        ].filter(Boolean).join(" · ") || "",
         created_by: userEmail,
       });
 
