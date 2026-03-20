@@ -478,6 +478,7 @@ function ReportsContent(){
   const[comments,setComments]=useState([]);
   const[commentDraft,setCommentDraft]=useState(null); // {quote, rect}
   const[activeComment,setActiveComment]=useState(null); // id of focused comment
+  const[hoverComment,setHoverComment]=useState(null); // {comment, rect} for inline popup
 
   // Detect text selection in report
   useEffect(()=>{
@@ -498,6 +499,45 @@ function ReportsContent(){
     document.addEventListener("mouseup",handler);
     return()=>document.removeEventListener("mouseup",handler);
   },[assistOpen]);
+
+  // Highlight commented text in report DOM
+  useEffect(()=>{
+    const container=reportRef.current;
+    if(!container||comments.length===0)return;
+    // Clear old highlights
+    container.querySelectorAll("mark[data-comment-id]").forEach(m=>{
+      const parent=m.parentNode;
+      parent.replaceChild(document.createTextNode(m.textContent),m);
+      parent.normalize();
+    });
+    // Apply highlights
+    comments.forEach(c=>{
+      if(!c.quote)return;
+      const walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,null);
+      const searchText=c.quote.slice(0,80); // match first 80 chars to be robust
+      let node;
+      while(node=walker.nextNode()){
+        const idx=node.textContent.indexOf(searchText);
+        if(idx===-1)continue;
+        const range=document.createRange();
+        range.setStart(node,idx);
+        range.setEnd(node,Math.min(idx+c.quote.length,node.textContent.length));
+        const mark=document.createElement("mark");
+        mark.setAttribute("data-comment-id",c.id);
+        mark.style.cssText="background:rgba(251,191,36,0.25);border-bottom:2px solid #F59E0B;cursor:pointer;border-radius:2px;padding:0 1px;";
+        mark.addEventListener("mouseenter",(e)=>{
+          const rect=mark.getBoundingClientRect();
+          setHoverComment({comment:c,rect:{top:rect.top,left:rect.right,bottom:rect.bottom}});
+        });
+        mark.addEventListener("mouseleave",(e)=>{
+          setTimeout(()=>setHoverComment(prev=>prev?.comment?.id===c.id?null:prev),200);
+        });
+        mark.addEventListener("click",()=>setActiveComment(c.id));
+        range.surroundContents(mark);
+        break; // only first occurrence
+      }
+    });
+  },[comments,activeContent]);
 
   const askAssistant=async(directQuestion)=>{
     const q=directQuestion||assistQuery.trim()||"Explain this in more detail";
@@ -1132,6 +1172,27 @@ RULES:
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
                     Comment
                   </button>
+                </div>
+              )}
+
+              {/* Inline comment popup on hover */}
+              {hoverComment&&!activeComment&&(
+                <div className="fixed z-50 w-[260px] bg-surface border border-amber-300 rounded-xl shadow-xl"
+                  style={{top:Math.max(60,hoverComment.rect.top-10),left:Math.min(hoverComment.rect.left+12,window.innerWidth-280),animation:"fadeIn 0.15s"}}
+                  onMouseEnter={()=>setHoverComment(hoverComment)}
+                  onMouseLeave={()=>setHoverComment(null)}>
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                        {(hoverComment.comment.author||"U")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-main">{(hoverComment.comment.author||"").split("@")[0]}</p>
+                        <p className="text-[9px] text-hint">{new Date(hoverComment.comment.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(hoverComment.comment.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-main leading-relaxed">{hoverComment.comment.text||<span className="text-hint italic">No comment</span>}</p>
+                  </div>
                 </div>
               )}
 
