@@ -8,13 +8,15 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import dynamic from "next/dynamic";
+const ImageCropper = dynamic(() => import("@/components/ImageCropper"), { ssr: false });
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
 function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);return m?m[1]:null;}
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
-function ImageViewer({src}){
+function ImageViewer({src,onCrop}){
   const [scale,setScale]=useState(1);
   const [pos,setPos]=useState({x:0,y:0});
   const [dragging,setDragging]=useState(false);
@@ -47,6 +49,7 @@ function ImageViewer({src}){
         <span className="text-white/60 text-[10px] font-mono w-10 text-center">{Math.round(scale*100)}%</span>
         <button onClick={()=>setScale(s=>Math.min(5,s+0.25))} className="text-white/70 hover:text-white w-6 h-6 flex items-center justify-center text-lg rounded-full hover:bg-white/10">+</button>
         {scale!==1&&<button onClick={reset} className="text-white/50 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10">Reset</button>}
+        {onCrop&&<button onClick={onCrop} className="text-white/70 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10 border border-white/20" title="Crop image">Crop</button>}
       </div>
     </div>
   );
@@ -232,6 +235,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [dragOver,setDragOver]=useState(false);
   const [zoomImg,setZoomImg]=useState(null);
   const [viewingImg,setViewingImg]=useState(null); // which image is shown in viewer
+  const [cropSrc,setCropSrc]=useState(null); // image URL being cropped
+  const [cropTarget,setCropTarget]=useState(null); // "primary" | "sidebar" | index for extras
   const [materialType,setMaterialType]=useState("none");
   const [highlighted,setHighlighted]=useState(new Set());
   const [listMode,setListMode]=useState("list");
@@ -701,6 +706,39 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     existing.splice(idx,1);
     setCur(prev=>({...prev,image_urls:JSON.stringify(existing)}));
   };
+  // ─── CROP HANDLER ───
+  const handleCropped=async(blob)=>{
+    setUploading(true);
+    setToast({message:"Uploading cropped image..."});
+    const file=new File([blob],`cropped_${Date.now()}.jpg`,{type:"image/jpeg"});
+    const url=await uploadSingleImage(file);
+    if(!url){setToast({message:"Upload failed"});setUploading(false);setCropSrc(null);setCropTarget(null);return;}
+
+    if(cropTarget==="primary"){
+      // Replace primary image in form
+      setCur(prev=>({...prev,image_url:url}));
+      if(viewingImg===cropSrc)setViewingImg(url);
+    }else if(cropTarget==="sidebar"){
+      // Replace primary image on saved entry via DB update
+      const entryId=sb?.id;
+      if(entryId){
+        await supabase.from(getTableName(scope)).update({image_url:url,updated_at:new Date().toISOString()}).eq("id",entryId);
+        setData(prev=>prev.map(e=>e.id===entryId?{...e,image_url:url}:e));
+        setSbRaw(prev=>prev?{...prev,image_url:url}:prev);
+      }
+    }else if(typeof cropTarget==="number"){
+      // Replace extra image at index
+      const extras=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];
+      extras[cropTarget]=url;
+      setCur(prev=>({...prev,image_urls:JSON.stringify(extras)}));
+      if(viewingImg===cropSrc)setViewingImg(url);
+    }
+    setUploading(false);
+    setCropSrc(null);
+    setCropTarget(null);
+    setToast({message:"Image cropped"});
+  };
+
   const uploadExtraImage=async(file)=>{
     if(!file)return;
     setUploading(true);
@@ -805,7 +843,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   </div>
                 )
                 :materialType==="image"&&imgUrl&&isImgUrl(imgUrl)?<div className="w-full">
-                  <ImageViewer src={viewingImg||imgUrl} />
+                  <ImageViewer src={viewingImg||imgUrl} onCrop={()=>{const activeSrc=viewingImg||imgUrl;const extras=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];const extraIdx=extras.indexOf(activeSrc);setCropSrc(activeSrc);setCropTarget(activeSrc===imgUrl?"primary":extraIdx>=0?extraIdx:"primary");}} />
                   {/* Filmstrip — primary + extras */}
                   {(()=>{const extras=cur.image_urls?JSON.parse(cur.image_urls||"[]"):[];const allImgs=[imgUrl,...extras].filter(Boolean);return allImgs.length>0?(
                     <div className="flex gap-2 items-center mt-2 px-2 overflow-x-auto pb-1"
@@ -1052,8 +1090,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       {sb&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
-        {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2">
+        {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2 relative group/sb">
           <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
+          <button onClick={()=>{setCropSrc(sb.image_url);setCropTarget("sidebar");}} className="absolute top-3 right-4 bg-black/60 text-white/80 hover:text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/sb:opacity-100 transition backdrop-blur-sm" title="Crop image">Crop</button>
           {sb.image_urls&&JSON.parse(sb.image_urls||"[]").length>0&&(
             <div className="flex gap-1.5 mt-1.5 flex-wrap">
               {JSON.parse(sb.image_urls||"[]").map((url,i)=>(
@@ -1082,10 +1121,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
       {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
 
+      {/* Image crop modal */}
+      {cropSrc&&typeof window!=="undefined"&&createPortal(
+        <ImageCropper src={cropSrc} onCropped={handleCropped} onCancel={()=>{setCropSrc(null);setCropTarget(null);}} />,
+        document.body
+      )}
+
       {/* Image zoom modal — via portal to escape stacking contexts */}
       {zoomImg&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center cursor-pointer animate-fadeIn" style={{zIndex:99999}} onClick={()=>setZoomImg(null)}>
-          <button className="absolute top-5 right-5 text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
+          <div className="absolute top-5 right-5 flex items-center gap-2">
+            <button className="text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-lg hover:bg-white/10 border border-white/20 transition" onClick={(e)=>{e.stopPropagation();setCropSrc(zoomImg);setCropTarget(sb?"sidebar":"primary");setZoomImg(null);}}>Crop</button>
+            <button className="text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
+          </div>
           <img src={zoomImg} className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" onClick={e=>e.stopPropagation()} alt="" />
         </div>,
         document.body
