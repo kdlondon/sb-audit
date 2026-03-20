@@ -431,7 +431,7 @@ function EntryViewer({entry,onClose}){
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
-  const{projectId,projectName}=useProject();
+  const{projectId,projectName}=useProject()||{};
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
