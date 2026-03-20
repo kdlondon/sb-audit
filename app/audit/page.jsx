@@ -44,12 +44,12 @@ function ImageViewer({src,onCrop}){
         className="max-w-full max-h-[500px] rounded-lg transition-transform duration-100"
         style={{transform:`translate(${pos.x}px,${pos.y}px) scale(${scale})`,transformOrigin:"center center"}} />
       {/* Zoom controls */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1" onMouseDown={e=>e.stopPropagation()}>
         <button onClick={()=>setScale(s=>Math.max(0.5,s-0.25))} className="text-white/70 hover:text-white w-6 h-6 flex items-center justify-center text-lg rounded-full hover:bg-white/10">−</button>
         <span className="text-white/60 text-[10px] font-mono w-10 text-center">{Math.round(scale*100)}%</span>
         <button onClick={()=>setScale(s=>Math.min(5,s+0.25))} className="text-white/70 hover:text-white w-6 h-6 flex items-center justify-center text-lg rounded-full hover:bg-white/10">+</button>
         {scale!==1&&<button onClick={reset} className="text-white/50 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10">Reset</button>}
-        {onCrop&&<button onClick={onCrop} className="text-white/70 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10 border border-white/20" title="Crop image">Crop</button>}
+        {onCrop&&<button onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onCrop();}} className="text-white/70 hover:text-white text-[9px] ml-1 px-1.5 py-0.5 rounded hover:bg-white/10 border border-white/20" title="Crop image">Crop</button>}
       </div>
     </div>
   );
