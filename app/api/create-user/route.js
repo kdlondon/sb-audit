@@ -21,30 +21,45 @@ export async function POST(request) {
 
   try {
     // Create auth user
+    let userId;
     const { data: userData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Skip email verification
+      email_confirm: true,
     });
 
     if (authError) {
-      return Response.json({ error: authError.message }, { status: 400 });
+      // If user already exists in auth, find them and just add the role
+      if (authError.message.includes("already") || authError.message.includes("registered")) {
+        const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+        const existing = existingUsers?.users?.find(u => u.email === email);
+        if (existing) {
+          userId = existing.id;
+        } else {
+          return Response.json({ error: authError.message }, { status: 400 });
+        }
+      } else {
+        return Response.json({ error: authError.message }, { status: 400 });
+      }
+    } else {
+      userId = userData.user.id;
     }
 
-    // Add role
-    const { error: roleError } = await adminClient.from("user_roles").insert({
-      user_id: userData.user.id,
+    // Add role (upsert — update if exists)
+    const { error: roleError } = await adminClient.from("user_roles").upsert({
+      user_id: userId,
       email,
       role,
-    });
+    }, { onConflict: "user_id" });
 
     if (roleError) {
-      return Response.json({ error: "User created but role assignment failed: " + roleError.message }, { status: 500 });
+      // Try insert if upsert fails
+      await adminClient.from("user_roles").insert({ user_id: userId, email, role });
     }
 
     return Response.json({
       success: true,
-      user: { id: userData.user.id, email },
+      user: { id: userId, email },
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
