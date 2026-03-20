@@ -729,6 +729,8 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
     setGeneratingShowcase(true);
 
     const isAgnostic = rpt.template_type === "agnostic_snapshot";
+    const isCompetitorSnapshot = rpt.template_type === "competitor_snapshot";
+    const useCSFormat = isAgnostic || isCompetitorSnapshot;
     const brandNames = (rpt.competitors || "").split(",").map(s => s.trim()).filter(Boolean);
     const scope = rpt.scope || "local";
 
@@ -762,29 +764,30 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
 
     // Also pass the report content so AI can extract the exact findings
     const reportContent = rpt.content || "";
+    const brandName = brandNames[0] || "Unknown";
     const scopeLabel = scope === "local" ? "Local Audit" : scope === "global" ? "Global Benchmark" : "Local + Global";
     const dateStr = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
     const fullDateStr = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
     let systemPrompt, userMsg;
 
-    if (isAgnostic) {
-      systemPrompt = `You are reformatting an Agnostic Competitor Snapshot report into a structured slide deck.
+    if (useCSFormat) {
+      systemPrompt = `You are reformatting a Competitor Snapshot report about "${brandName}" into a structured slide deck.
 
 CRITICAL: The report content is provided below. EXTRACT the content from each section and map it to the corresponding slide fields. Do NOT generate new analysis — use what the report already says, shortened for visual scannability.
 
+The brand being analyzed is: ${brandName}. ALL slides must be about this brand only.
+
 The original audit entries are also provided so you can include image_url and media_url (video URLs) for relevant entries.
 
-This is framework-agnostic. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle.
-
-MAPPING — Report section → Slide:
-- "## 01 — Understanding the Audience" → SLIDE 2: extract Demographic, Psychographic, Tension, Human Insight
-- "## 02 — The Brand Response" → SLIDE 3: extract Creative Proposition, Brand Archetype, Brand Role, Emotional/Rational Positioning, Brand Territory, Key Differentiators
-- "## 03 — Proof Points & Communication Strategy" → SLIDE 4: extract Primary/Secondary Proof Points, Communication Focus, Tone & Voice
-- "## 04 — Product Communication" → SLIDE 5: extract Approach, Key Product Messages, Channels & Formats, Gap
-- "## 05 — Beyond Banking & Innovation" → SLIDE 6: extract Beyond Banking, Innovation, White Space
-- "## 06 — Brand Assessment" → SLIDE 7: extract Strengths and Weaknesses (brand-focused)
-- "## 07 — Communication Assessment" → SLIDE 8: extract Strengths and Weaknesses (communication-focused)
+MAPPING — Look for report sections matching these patterns and extract their content:
+- Audience / Understanding the Audience → SLIDE 2: extract Demographic, Psychographic, Tension, Human Insight
+- Brand Response / Brand Positioning → SLIDE 3: extract Creative Proposition, Brand Archetype, Brand Role, Emotional/Rational Positioning, Brand Territory, Key Differentiators
+- Proof Points / Communication Strategy → SLIDE 5: extract Primary/Secondary Proof Points, Communication Focus, Tone & Voice
+- Product Communication → SLIDE 6: extract Approach, Key Product Messages, Channels & Formats, Gap
+- Beyond Banking / Innovation → SLIDE 7: extract Beyond Banking, Innovation, White Space
+- Brand Assessment → SLIDE 8: extract Strengths and Weaknesses (brand-focused)
+- Communication Assessment → SLIDE 9: extract Strengths and Weaknesses (communication-focused)
 
 Return EXACTLY 10 slides as JSON:
 
@@ -849,7 +852,8 @@ RULES:
         created_by: session?.user?.email || "",
         filters: {
           source_report_id: rpt.id,
-          ...(isAgnostic ? { showcaseType: "competitor_snapshot" } : {}),
+          brand: brandName,
+          ...(useCSFormat ? { showcaseType: "competitor_snapshot" } : {}),
         },
       }).select().single();
 
