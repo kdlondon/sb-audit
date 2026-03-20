@@ -934,6 +934,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           </div>
         </div>
         {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
+        {/* Image crop modal (form view) */}
+        {cropSrc&&typeof window!=="undefined"&&createPortal(
+          <ImageCropper src={cropSrc} onCropped={handleCropped} onCancel={()=>{setCropSrc(null);setCropTarget(null);}} />,
+          document.body
+        )}
       </div>
     );
   }
