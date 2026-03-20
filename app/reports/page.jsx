@@ -474,6 +474,11 @@ function ReportsContent(){
   const[selectionPos,setSelectionPos]=useState(null);
   const assistEndRef=useRef(null);
 
+  // Comments / highlights
+  const[comments,setComments]=useState([]);
+  const[commentDraft,setCommentDraft]=useState(null); // {quote, rect}
+  const[activeComment,setActiveComment]=useState(null); // id of focused comment
+
   // Detect text selection in report
   useEffect(()=>{
     const handler=()=>{
@@ -546,11 +551,42 @@ function ReportsContent(){
   })();},[projectId]);
 
   useEffect(()=>{
-    if(!reportParam){setViewingReport(null);return;}
+    if(!reportParam){setViewingReport(null);setComments([]);return;}
     if(viewingReport?.id===reportParam)return;
     const found=savedReports.find(r=>r.id===reportParam);
-    if(found)setViewingReport(found);
+    if(found){
+      setViewingReport(found);
+      const dbComments=found.comments||[];
+      const lsComments=typeof window!=="undefined"?JSON.parse(localStorage.getItem(`report_comments_${found.id}`)||"[]"):[];
+      setComments(dbComments.length>0?dbComments:lsComments);
+    }
   },[reportParam,savedReports]);
+
+  const saveComment=async(newComments)=>{
+    setComments(newComments);
+    const reportId=viewingReport?.id;
+    if(reportId){
+      const{error}=await supabase.from("saved_reports").update({comments:newComments}).eq("id",reportId);
+      if(error&&error.message?.includes("comments")){
+        // Column doesn't exist yet — store in localStorage as fallback
+        localStorage.setItem(`report_comments_${reportId}`,JSON.stringify(newComments));
+      }
+    }
+  };
+  const addComment=async(quote,text)=>{
+    const{data:{session}}=await supabase.auth.getSession();
+    const c={id:String(Date.now()),quote,text,author:session?.user?.email||"Unknown",created_at:new Date().toISOString()};
+    await saveComment([...comments,c]);
+    setCommentDraft(null);
+    setActiveComment(c.id);
+  };
+  const deleteComment=async(id)=>{
+    await saveComment(comments.filter(c=>c.id!==id));
+    if(activeComment===id)setActiveComment(null);
+  };
+  const editComment=async(id,text)=>{
+    await saveComment(comments.map(c=>c.id===id?{...c,text,edited_at:new Date().toISOString()}:c));
+  };
 
   useEffect(()=>{
     if(!selectedTemplate)return;
@@ -1041,21 +1077,83 @@ RULES:
                   </>}
                 </div>
               </div>
-              <div className="px-8 py-6" ref={reportRef} data-report-content>
-                <div data-report-content>{renderContent(activeContent)}</div>
+              <div className="flex">
+                <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
+                  <div data-report-content>{renderContent(activeContent)}</div>
+                  <Signature/>
+                </div>
 
-                <Signature/>
+                {/* Comments sidebar */}
+                {comments.length > 0 && (
+                  <div className="w-[280px] flex-shrink-0 border-l border-main p-4 space-y-3 overflow-y-auto" style={{maxHeight:"calc(100vh - 120px)"}}>
+                    <p className="text-[10px] text-hint uppercase font-semibold tracking-wider">{comments.length} Comment{comments.length!==1?"s":""}</p>
+                    {comments.map(c => (
+                      <div key={c.id}
+                        className={`rounded-lg border p-3 transition cursor-pointer ${activeComment===c.id?"border-amber-400 bg-amber-50 dark:bg-amber-950/20 shadow-sm":"border-main hover:border-amber-300"}`}
+                        onClick={()=>setActiveComment(activeComment===c.id?null:c.id)}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                            {(c.author||"U")[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-main truncate">{(c.author||"").split("@")[0]}</p>
+                            <p className="text-[9px] text-hint">{new Date(c.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(c.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</p>
+                          </div>
+                          <button onClick={(e)=>{e.stopPropagation();deleteComment(c.id);}} className="text-hint hover:text-red-400 text-xs opacity-0 group-hover:opacity-100" style={{opacity:activeComment===c.id?1:undefined}}>×</button>
+                        </div>
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded italic mb-1.5 leading-relaxed line-clamp-2">&ldquo;{c.quote}&rdquo;</p>
+                        {activeComment===c.id ? (
+                          <textarea defaultValue={c.text} rows={2}
+                            onBlur={(e)=>editComment(c.id,e.target.value)}
+                            className="w-full text-xs text-main bg-surface border border-main rounded p-1.5 focus:outline-none focus:border-amber-400 resize-none"
+                            placeholder="Add your comment..."
+                            autoFocus
+                          />
+                        ) : (
+                          <p className="text-xs text-main leading-relaxed">{c.text||<span className="text-hint italic">No comment text</span>}</p>
+                        )}
+                        {c.edited_at && <p className="text-[8px] text-hint mt-1">edited</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* "Ask about this" button — fixed bottom-left when text selected */}
-              {selectionPos&&!assistOpen&&(
-                <button onClick={()=>{setAssistOpen(true);setAssistMessages([]);setSelectionPos(null);}}
-                  className="fixed bottom-6 left-6 z-50 px-4 py-2.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2"
-                  style={{animation:"fadeIn 0.2s"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  Ask about this
-                  <span className="text-white/50 font-normal ml-1 max-w-[150px] truncate">"{assistSelection.slice(0,30)}..."</span>
-                </button>
+              {/* Selection toolbar — Ask + Comment */}
+              {selectionPos&&!assistOpen&&!commentDraft&&(
+                <div className="fixed bottom-6 left-6 z-50 flex gap-2" style={{animation:"fadeIn 0.2s"}}>
+                  <button onClick={()=>{setAssistOpen(true);setAssistMessages([]);setSelectionPos(null);}}
+                    className="px-4 py-2.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    Ask about this
+                  </button>
+                  <button onClick={()=>{setCommentDraft({quote:assistSelection});setSelectionPos(null);}}
+                    className="px-4 py-2.5 bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                    Comment
+                  </button>
+                </div>
+              )}
+
+              {/* Comment draft popup */}
+              {commentDraft&&(
+                <div className="fixed bottom-6 left-6 z-50 w-[340px] bg-surface border border-amber-300 rounded-2xl shadow-2xl" style={{animation:"fadeIn 0.2s"}}>
+                  <div className="px-4 py-3 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2" style={{background:"#FEF3C7",borderRadius:"16px 16px 0 0"}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                    <span className="text-xs font-semibold text-amber-800">Add comment</span>
+                    <button onClick={()=>setCommentDraft(null)} className="ml-auto text-amber-600 hover:text-amber-800">&times;</button>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[10px] text-amber-700 bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5 rounded italic mb-3 leading-relaxed line-clamp-3">&ldquo;{commentDraft.quote}&rdquo;</p>
+                    <textarea id="comment-input" rows={2} placeholder="Your comment..." autoFocus
+                      className="w-full text-sm text-main bg-surface border border-main rounded-lg px-3 py-2 focus:outline-none focus:border-amber-400 resize-none mb-2"/>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={()=>setCommentDraft(null)} className="px-3 py-1.5 text-xs text-muted hover:text-main">Cancel</button>
+                      <button onClick={()=>{const t=document.getElementById("comment-input")?.value||"";addComment(commentDraft.quote,t);}}
+                        className="px-4 py-1.5 text-xs bg-amber-500 text-white rounded-lg font-semibold hover:opacity-90">Comment</button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Contextual assistant panel */}
