@@ -884,26 +884,36 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
 
       userMsg = `REPORT CONTENT:\n${reportContent}\n\nORIGINAL ENTRIES (${entries.length} entries — use for image_url/url references):\n${JSON.stringify(entryData.slice(0, 30), null, 1)}`;
     } else {
-      // Creative showcase from non-agnostic reports
+      // Creative showcase from non-CS reports (landscape, opportunity, etc.)
+      const reportTitle = rpt.title || "Report";
+      const brandList = brandNames.length > 0 ? brandNames.join(", ") : "all brands in the category";
       systemPrompt = `You are a senior creative strategist at Knots & Dots. Transform this report into a cinematic showcase presentation.
+
+CRITICAL CONTEXT:
+- Report title: "${reportTitle}"
+- Brands covered: ${brandList}
+- Report type: ${rpt.template_type || "analysis"}
+- The showcase MUST faithfully represent the findings from the report below. Do NOT invent new analysis or change the subject.
+- The title slide should reflect the report's actual title/topic, NOT a generic title.
 
 The original audit entries are provided so you can include image_url and media_url for relevant findings.
 
 STRUCTURE:
-1. type:"title" — Fields: title, subtitle, client, objective
-2. type:"key_findings" — Fields: title, findings (array of {number, heading, summary})
-3. Multiple type:"finding" — One per key insight. Fields: title, body (markdown 3-5 sentences), brand, year, country, territory, image_url (from entry), media_url (YouTube URL from entry), media_type ("Video"/"Image"), entry_id
-4. type:"takeaways" — Fields: title, takeaways (array of 4-6 strings)
+1. type:"title" — Fields: title (use the report's actual title or a direct derivative), subtitle (one-line summary from the report), client ("${projectName}"), objective (from the report's focus)
+2. type:"key_findings" — Fields: title, findings (array of {number, heading, summary}) — extract the KEY findings from the report
+3. Multiple type:"finding" — One per key insight FROM THE REPORT. Fields: title, body (markdown 3-5 sentences from the report), brand, year, country, territory, image_url (from matching entry), media_url (YouTube URL from matching entry), media_type ("Video"/"Image"), entry_id
+4. type:"takeaways" — Fields: title, takeaways (array of 4-6 strings FROM the report's conclusions)
 5. type:"closing" — Fields: title, subtitle
 
 RULES:
-- Extract findings from the report — use the original entries for image_url and media_url
-- CRITICAL: For each finding, match it to the relevant entry and include its image_url and url (as media_url if YouTube)
-- Bold, provocative slide headlines
+- EXTRACT findings from the report content — do NOT create new analysis
+- The showcase must be about the SAME topic as the report
+- For each finding, match it to the relevant entry and include its image_url and url (as media_url if YouTube)
+- Bold, provocative slide headlines but based on actual report content
 - ALL output in English
 - Return ONLY valid JSON: {"title":"...","slides":[...]}`;
 
-      userMsg = `REPORT CONTENT:\n${reportContent}\n\nORIGINAL ENTRIES (use for images/videos):\n${JSON.stringify(entryData, null, 1)}`;
+      userMsg = `REPORT TITLE: ${reportTitle}\n\nREPORT CONTENT:\n${reportContent.slice(0, 6000)}\n\nORIGINAL ENTRIES (use for images/videos):\n${JSON.stringify(entryData.slice(0, 25), null, 1)}`;
     }
 
     try {
