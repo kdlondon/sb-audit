@@ -25,12 +25,15 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [toast, setToast] = useState("");
 
-  // New user form
+  // New user form — 2 steps: create user, then assign projects
   const [showInvite, setShowInvite] = useState(false);
+  const [inviteStep, setInviteStep] = useState(1); // 1=create, 2=assign projects
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePassword, setInvitePassword] = useState("");
   const [inviteRole, setInviteRole] = useState("analyst");
   const [inviting, setInviting] = useState(false);
+  const [newUserId, setNewUserId] = useState(null);
+  const [newUserProjects, setNewUserProjects] = useState([]);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -117,31 +120,54 @@ export default function UsersPage() {
     if (!inviteEmail.trim() || !invitePassword.trim()) return;
     setInviting(true);
 
-    // Create user via Supabase auth (sign up)
-    const { data, error } = await supabase.auth.signUp({
-      email: inviteEmail.trim(),
-      password: invitePassword.trim(),
-    });
-
-    if (error) {
-      showToast("Error: " + error.message);
-      setInviting(false);
-      return;
-    }
-
-    if (data.user) {
-      // Add role
-      await supabase.from("user_roles").insert({
-        user_id: data.user.id,
-        email: inviteEmail.trim(),
-        role: inviteRole,
+    try {
+      // Create user via server-side API (doesn't affect current session)
+      const res = await fetch("/api/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), password: invitePassword.trim(), role: inviteRole }),
       });
-      showToast(`User ${inviteEmail} created as ${inviteRole}`);
+      const result = await res.json();
+
+      if (result.error) {
+        showToast("Error: " + result.error);
+        setInviting(false);
+        return;
+      }
+
+      setNewUserId(result.user.id);
+      setNewUserProjects([]);
+      setInviteStep(2); // Move to project assignment step
+      showToast(`User created — now assign project access`);
+      await loadData();
+    } catch (err) {
+      showToast("Error: " + err.message);
+    }
+    setInviting(false);
+  };
+
+  const handleAssignProjects = async () => {
+    if (!newUserId) return;
+    setInviting(true);
+
+    // Grant access to selected projects
+    if (newUserProjects.length > 0) {
+      await supabase.from("project_access").insert(
+        newUserProjects.map(pid => ({
+          user_id: newUserId,
+          email: inviteEmail.trim(),
+          project_id: pid,
+        }))
+      );
     }
 
+    showToast(`${inviteEmail} now has access to ${newUserProjects.length} project${newUserProjects.length !== 1 ? "s" : ""}`);
     setInviteEmail("");
     setInvitePassword("");
     setInviteRole("analyst");
+    setInviteStep(1);
+    setNewUserId(null);
+    setNewUserProjects([]);
     setShowInvite(false);
     setInviting(false);
     loadData();
@@ -177,41 +203,71 @@ export default function UsersPage() {
             {/* INVITE FORM */}
             {showInvite && (
               <div className="bg-surface border border-main rounded-xl p-5 mb-6">
-                <h3 className="text-sm font-semibold text-main mb-3">Add new user</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Email *</label>
-                    <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" type="email"
-                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Password *</label>
-                    <input value={invitePassword} onChange={e => setInvitePassword(e.target.value)} placeholder="Min 6 characters" type="text"
-                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Role *</label>
-                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                {inviteStep === 1 ? (
+                  <>
+                    <h3 className="text-sm font-semibold text-main mb-3">Step 1: Create user</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Email *</label>
+                        <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" type="email"
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Password *</label>
+                        <input value={invitePassword} onChange={e => setInvitePassword(e.target.value)} placeholder="Min 6 characters" type="text"
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Role *</label>
+                        <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                          {ROLE_OPTIONS.map(r => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || !invitePassword.trim()}
+                          className="w-full px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                          {inviting ? "Creating..." : "Create user →"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex gap-4">
                       {ROLE_OPTIONS.map(r => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
+                        <p key={r.value} className="text-[10px] text-hint">
+                          <span className="font-semibold">{r.label}:</span> {r.desc}
+                        </p>
                       ))}
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || !invitePassword.trim()}
-                      className="w-full px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
-                      {inviting ? "Creating..." : "Create user"}
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-2 flex gap-4">
-                  {ROLE_OPTIONS.map(r => (
-                    <p key={r.value} className="text-[10px] text-hint">
-                      <span className="font-semibold">{r.label}:</span> {r.desc}
-                    </p>
-                  ))}
-                </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-semibold text-main mb-1">Step 2: Assign project access</h3>
+                    <p className="text-xs text-muted mb-4">Select which projects <strong>{inviteEmail}</strong> ({inviteRole}) can access:</p>
+                    <div className="space-y-1.5 mb-4">
+                      {projects.map(p => (
+                        <label key={p.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface2 cursor-pointer border border-main">
+                          <input type="checkbox" checked={newUserProjects.includes(p.id)}
+                            onChange={() => setNewUserProjects(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id])}
+                            className="rounded border-gray-300 text-accent" />
+                          <span className="text-sm text-main">{p.name}</span>
+                        </label>
+                      ))}
+                      {projects.length === 0 && <p className="text-sm text-hint">No projects available</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleAssignProjects} disabled={inviting}
+                        className="px-5 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                        {inviting ? "Saving..." : `Assign ${newUserProjects.length} project${newUserProjects.length !== 1 ? "s" : ""} & finish`}
+                      </button>
+                      <button onClick={handleAssignProjects}
+                        className="px-5 py-2 border border-main rounded-lg text-sm text-muted hover:text-main">
+                        Skip — no project access
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
