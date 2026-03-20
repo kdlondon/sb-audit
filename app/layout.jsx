@@ -4,6 +4,7 @@ import { RoleProvider } from "@/lib/role-context";
 export const metadata = {
   title: "Groundwork — Competitive Intelligence Platform",
   description: "Groundwork — Competitive Intelligence Platform by Knots & Dots",
+  icons: { icon: "/knots-dots-logo.png" },
 };
 export default function RootLayout({ children }) {
   return (
