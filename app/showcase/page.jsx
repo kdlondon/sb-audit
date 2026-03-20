@@ -62,6 +62,7 @@ function getThemeForSlide(slide, index) {
     case "cs_title":           return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_audience":        return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_brand_response":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_hero_gallery":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_proof_points":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_product":         return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_beyond_banking":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
@@ -1442,6 +1443,87 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
           <EntryStrip entries={slide.entries} />
         </div>
       );
+
+    case "cs_hero_gallery": {
+      const heroEntries = safeArr(slide.entries);
+      const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
+      return (
+        <div className="animate-fadeIn -mx-4">
+          <div className="flex items-center gap-4 mb-2 px-4">
+            <h2 className="text-xl font-bold" style={{ color: theme.accent }}>{slide.title || "Brand Hero Content"}</h2>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: theme.accent, color: "#fff" }}>{heroEntries.length} pieces</span>
+          </div>
+          {slide.subtitle && <p className="text-sm mb-5 px-4" style={{ color: m }}>{slide.subtitle}</p>}
+          {heroEntries.length <= 2 ? (
+            /* 1-2 entries: side by side, large */
+            <div className={`grid gap-4 ${heroEntries.length === 1 ? "grid-cols-1 max-w-2xl mx-auto" : "grid-cols-2"}`}>
+              {heroEntries.map((e, i) => {
+                const yt = ytId(e.url);
+                const thumb = yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : e.image_url;
+                const isVideo = yt || (e.url && /vimeo/i.test(e.url));
+                return (
+                  <div key={i} className="bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer group/hero"
+                    style={{ border: "1px solid rgba(0,0,0,0.04)" }}
+                    onClick={() => { if (e.url) onMediaClick({ src: e.url, type: isVideo ? "Video" : "Image" }); else if (e.image_url) onMediaClick({ src: e.image_url, type: "Image" }); }}>
+                    {thumb && (
+                      <div className="relative overflow-hidden" style={{ maxHeight: "45vh" }}>
+                        <img src={thumb} className="w-full h-full object-contain" alt="" />
+                        {isVideo && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/hero:bg-black/10 transition">
+                            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg"><svg width="16" height="16" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <p className="text-sm font-semibold leading-snug mb-1" style={{ color: t }}>{e.description || "—"}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {e.year && <span className="text-[10px]" style={{ color: f }}>{e.year}</span>}
+                        {e.type && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.05)", color: m }}>{e.type}</span>}
+                        {e.rating && <span className="text-[10px]" style={{ color: "#D97706" }}>{"★".repeat(Number(e.rating))}</span>}
+                      </div>
+                      {e.main_slogan && <p className="text-xs italic mt-2" style={{ color: m, fontFamily: "Georgia, serif" }}>&ldquo;{e.main_slogan}&rdquo;</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* 3+ entries: grid of cards */
+            <div className="grid grid-cols-3 gap-3">
+              {heroEntries.map((e, i) => {
+                const yt = ytId(e.url);
+                const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
+                const isVideo = yt || (e.url && /vimeo/i.test(e.url));
+                return (
+                  <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer group/hero"
+                    style={{ border: "1px solid rgba(0,0,0,0.04)" }}
+                    onClick={() => { if (e.url) onMediaClick({ src: e.url, type: isVideo ? "Video" : "Image" }); else if (e.image_url) onMediaClick({ src: e.image_url, type: "Image" }); }}>
+                    {thumb && (
+                      <div className="relative overflow-hidden" style={{ height: 160 }}>
+                        <img src={thumb} className="w-full h-full object-cover" alt="" />
+                        {isVideo && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/hero:bg-black/10 transition">
+                            <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <p className="text-xs font-semibold leading-snug truncate" style={{ color: t }}>{e.description || "—"}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {e.year && <span className="text-[9px]" style={{ color: f }}>{e.year}</span>}
+                        {e.rating && <span className="text-[9px]" style={{ color: "#D97706" }}>{"★".repeat(Number(e.rating))}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     case "cs_proof_points": {
       const secProofs = safeArr(slide.secondary_proofs);
