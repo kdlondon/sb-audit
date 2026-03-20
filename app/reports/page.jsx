@@ -431,7 +431,7 @@ function EntryViewer({entry,onClose}){
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
-  const{projectId}=useProject();
+  const{projectId,projectName}=useProject();
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
@@ -502,41 +502,45 @@ function ReportsContent(){
 
   // Highlight commented text in report DOM
   useEffect(()=>{
-    const container=reportRef.current;
-    if(!container||comments.length===0)return;
-    // Clear old highlights
-    container.querySelectorAll("mark[data-comment-id]").forEach(m=>{
-      const parent=m.parentNode;
-      parent.replaceChild(document.createTextNode(m.textContent),m);
-      parent.normalize();
-    });
-    // Apply highlights
-    comments.forEach(c=>{
-      if(!c.quote)return;
-      const walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,null);
-      const searchText=c.quote.slice(0,80); // match first 80 chars to be robust
-      let node;
-      while(node=walker.nextNode()){
-        const idx=node.textContent.indexOf(searchText);
-        if(idx===-1)continue;
-        const range=document.createRange();
-        range.setStart(node,idx);
-        range.setEnd(node,Math.min(idx+c.quote.length,node.textContent.length));
-        const mark=document.createElement("mark");
-        mark.setAttribute("data-comment-id",c.id);
-        mark.style.cssText="background:rgba(251,191,36,0.25);border-bottom:2px solid #F59E0B;cursor:pointer;border-radius:2px;padding:0 1px;";
-        mark.addEventListener("mouseenter",(e)=>{
-          const rect=mark.getBoundingClientRect();
-          setHoverComment({comment:c,rect:{top:rect.top,left:rect.right,bottom:rect.bottom}});
-        });
-        mark.addEventListener("mouseleave",(e)=>{
-          setTimeout(()=>setHoverComment(prev=>prev?.comment?.id===c.id?null:prev),200);
-        });
-        mark.addEventListener("click",()=>setActiveComment(c.id));
-        range.surroundContents(mark);
-        break; // only first occurrence
-      }
-    });
+    try{
+      const container=reportRef.current;
+      if(!container||!comments||comments.length===0)return;
+      // Clear old highlights
+      container.querySelectorAll("mark[data-comment-id]").forEach(m=>{
+        try{const parent=m.parentNode;parent.replaceChild(document.createTextNode(m.textContent),m);parent.normalize();}catch{}
+      });
+      // Apply highlights
+      comments.forEach(c=>{
+        try{
+          if(!c.quote||!c.id)return;
+          const walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,null);
+          const searchText=c.quote.slice(0,60);
+          let node;
+          while(node=walker.nextNode()){
+            const idx=node.textContent.indexOf(searchText);
+            if(idx===-1)continue;
+            // Only highlight within a single text node
+            const endIdx=Math.min(idx+c.quote.length,node.textContent.length);
+            const range=document.createRange();
+            range.setStart(node,idx);
+            range.setEnd(node,endIdx);
+            const mark=document.createElement("mark");
+            mark.setAttribute("data-comment-id",c.id);
+            mark.style.cssText="background:rgba(251,191,36,0.25);border-bottom:2px solid #F59E0B;cursor:pointer;border-radius:2px;padding:0 1px;";
+            mark.addEventListener("mouseenter",()=>{
+              const rect=mark.getBoundingClientRect();
+              setHoverComment({comment:c,rect:{top:rect.top,left:rect.right,bottom:rect.bottom}});
+            });
+            mark.addEventListener("mouseleave",()=>{
+              setTimeout(()=>setHoverComment(prev=>prev?.comment?.id===c.id?null:prev),200);
+            });
+            mark.addEventListener("click",()=>setActiveComment(c.id));
+            try{range.surroundContents(mark);}catch{/* range crosses elements — skip */}
+            break;
+          }
+        }catch{}
+      });
+    }catch(err){console.warn("Comment highlight error:",err);}
   },[comments,activeContent]);
 
   const askAssistant=async(directQuestion)=>{
@@ -596,8 +600,10 @@ function ReportsContent(){
     const found=savedReports.find(r=>r.id===reportParam);
     if(found){
       setViewingReport(found);
-      const dbComments=found.comments||[];
-      const lsComments=typeof window!=="undefined"?JSON.parse(localStorage.getItem(`report_comments_${found.id}`)||"[]"):[];
+      const dbComments=Array.isArray(found.comments)?found.comments:[];
+      let lsComments=[];
+      try{lsComments=typeof window!=="undefined"?JSON.parse(localStorage.getItem(`report_comments_${found.id}`)||"[]"):[];}catch{}
+      if(!Array.isArray(lsComments))lsComments=[];
       setComments(dbComments.length>0?dbComments:lsComments);
     }
   },[reportParam,savedReports]);
