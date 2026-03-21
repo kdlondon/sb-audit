@@ -565,14 +565,14 @@ Rules:
     setImportDone(false);
 
     const parts = [];
-    if (brand.trim()) parts.push(brand.trim());
+    if (brand.trim()) parts.push(`"${brand.trim()}"`);
     if (category.trim()) parts.push(category.trim());
     if (keywords.trim()) {
       keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
         parts.push(k);
       });
     }
-    if (contentType === "official") parts.push("official ad commercial campaign");
+    if (contentType === "official") parts.push("ad commercial");
     const query = parts.join(" ");
     const publishedAfter = timeframe > 0 ? new Date(Date.now() - timeframe * 86400000).toISOString() : undefined;
 
@@ -581,7 +581,9 @@ Rules:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "search", query, maxResults: durationFilter === "commercial" ? 50 : maxResults,
+          action: "search", query,
+          maxResults: durationFilter === "commercial" ? Math.max(maxResults * 2, 30) : maxResults,
+          finalLimit: maxResults,
           publishedAfter, regionCode: region || undefined,
           videoDuration: durationFilter === "any" ? undefined : "short",
           minSeconds: durationFilter === "commercial" ? 15 : undefined,

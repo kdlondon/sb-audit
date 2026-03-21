@@ -56,11 +56,12 @@ export async function POST(request) {
 
   // ─── SEARCH (2-phase: official channel + general) ───
   if (action === "search") {
-    const { query, maxResults = 15, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
+    const { query, maxResults = 15, finalLimit, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
+    const outputLimit = finalLimit || maxResults;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
-    // Extract brand name (first part of query, before keywords)
-    const brandName = query.split(/\s+(ad|commercial|campaign|banking|business|small|sme|official)/i)[0].trim();
+    // Extract brand name — remove quotes and ad keywords
+    const brandName = query.replace(/"/g, "").split(/\s+(ad|commercial|campaign|banking|business|small|sme|official)/i)[0].trim();
 
     try {
       let allVideos = [];
@@ -168,8 +169,8 @@ export async function POST(request) {
         return (b.viewCount || 0) - (a.viewCount || 0);
       });
 
-      // Trim to maxResults
-      videos = videos.slice(0, maxResults);
+      // Trim to output limit
+      videos = videos.slice(0, outputLimit);
 
       return Response.json({
         videos,
