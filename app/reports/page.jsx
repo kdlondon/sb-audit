@@ -448,6 +448,7 @@ function ReportsContent(){
   const[loading,setLoading]=useState(true);
   const[brandMetaMap,setBrandMetaMap]=useState({});
   const[competitors,setCompetitors]=useState([]);
+  const[countryFilter,setCountryFilter]=useState([]);
   const[sections,setSections]=useState([]);
   const[customInstructions,setCustomInstructions]=useState("");
   const[report,setReport]=useState("");
@@ -637,15 +638,17 @@ function ReportsContent(){
   useEffect(()=>{
     if(!selectedTemplate)return;
     setSections(selectedTemplate.sections.map(s=>s.id));
-    setCompetitors([]);setReport("");setViewingReport(null);
+    setCompetitors([]);setCountryFilter([]);setReport("");setViewingReport(null);
   },[selectedTemplate]);
 
   const currentData=selectedTemplate?.scopeAny?[...localData,...globalData]:selectedTemplate?.scope==="local"?localData:globalData;
+  const allCountries=[...new Set(currentData.map(e=>e.country).filter(Boolean))].sort();
   const filteredData=currentData.filter(e=>{
     const brand=e.competitor||e.brand||"";
     const matchBrand=competitors.length===0||competitors.includes(brand);
     const matchYear=(!yearFrom||!e.year||e.year>=yearFrom)&&(!yearTo||!e.year||e.year<=yearTo);
-    return matchBrand&&matchYear;
+    const matchCountry=countryFilter.length===0||countryFilter.includes(e.country);
+    return matchBrand&&matchYear&&matchCountry;
   });
   // Load brand metadata
   useEffect(()=>{(async()=>{
@@ -1320,6 +1323,20 @@ RULES:
                         </div>
                         <div className="mt-4 text-xs text-hint">{filteredData.length} entries in range</div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* COUNTRY FILTER */}
+                  {allCountries.length>1&&(
+                    <div className="bg-surface rounded-lg border border-main p-4 mb-3">
+                      <h3 className="text-sm font-semibold text-main mb-2">Country</h3>
+                      <div className="flex gap-2 flex-wrap">
+                        {allCountries.map(c=>(
+                          <button key={c} onClick={()=>setCountryFilter(prev=>prev.includes(c)?prev.filter(x=>x!==c):[...prev,c])}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${countryFilter.includes(c)?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{c}</button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-hint mt-1">{countryFilter.length===0?"All countries":`${countryFilter.length} selected`} — {filteredData.length} entries</p>
                     </div>
                   )}
 
