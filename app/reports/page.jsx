@@ -666,11 +666,14 @@ function ReportsContent(){
     const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
     return Object.entries(groups).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,brands])=>({cat,brands:brands.sort()}));
   };
+  // Filter data by country for brand list
+  const countryFilteredLocal=countryFilter.length>0?localData.filter(e=>countryFilter.includes(e.country)):localData;
+  const countryFilteredGlobal=countryFilter.length>0?globalData.filter(e=>countryFilter.includes(e.country)):globalData;
   const groupedBrands=selectedTemplate?.scopeAny
-    ?(()=>{const localG=buildGroupedBrands(localData,"competitor");const globalG=buildGroupedBrands(globalData,"brand");const merged={};[...localG,...globalG].forEach(g=>{if(!merged[g.cat])merged[g.cat]=new Set();g.brands.forEach(b=>merged[g.cat].add(b));});const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];return Object.entries(merged).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,set])=>({cat,brands:[...set].sort()}));})()
+    ?(()=>{const localG=buildGroupedBrands(countryFilteredLocal,"competitor");const globalG=buildGroupedBrands(countryFilteredGlobal,"brand");const merged={};[...localG,...globalG].forEach(g=>{if(!merged[g.cat])merged[g.cat]=new Set();g.brands.forEach(b=>merged[g.cat].add(b));});const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];return Object.entries(merged).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,set])=>({cat,brands:[...set].sort()}));})()
     :selectedTemplate?.scope==="local"
-      ?buildGroupedBrands(localData,"competitor")
-      :buildGroupedBrands(globalData,"brand");
+      ?buildGroupedBrands(countryFilteredLocal,"competitor")
+      :buildGroupedBrands(countryFilteredGlobal,"brand");
   const availableBrands=groupedBrands.flatMap(g=>g.brands);
   const allData=[...localData,...globalData];
 
@@ -1326,24 +1329,24 @@ RULES:
                     </div>
                   )}
 
-                  {/* COUNTRY FILTER */}
-                  {allCountries.length>1&&(
-                    <div className="bg-surface rounded-lg border border-main p-4 mb-3">
-                      <h3 className="text-sm font-semibold text-main mb-2">Country</h3>
-                      <div className="flex gap-2 flex-wrap">
-                        {allCountries.map(c=>(
-                          <button key={c} onClick={()=>setCountryFilter(prev=>prev.includes(c)?prev.filter(x=>x!==c):[...prev,c])}
-                            className={`px-3 py-1 rounded-full text-xs font-medium border transition ${countryFilter.includes(c)?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{c}</button>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-hint mt-1">{countryFilter.length===0?"All countries":`${countryFilter.length} selected`} — {filteredData.length} entries</p>
-                    </div>
-                  )}
-
-                  {/* BRANDS */}
+                  {/* BRANDS + COUNTRY */}
                   <div className="bg-surface rounded-lg border border-main p-4 mb-3">
                     <h3 className="text-sm font-semibold text-main mb-1">{selectedTemplate.singleBrand?"Brand — select one":"Brands"}</h3>
                     {selectedTemplate.singleBrand&&<p className="text-[10px] text-hint mb-2">This report analyses a single brand in depth</p>}
+                    {/* Country filter */}
+                    {allCountries.length>1&&(
+                      <div className="mb-3 pb-3 border-b border-main">
+                        <p className="text-[9px] text-hint uppercase font-semibold tracking-wider mb-1.5">Filter by country</p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          <button onClick={()=>{setCountryFilter([]);setCompetitors([]);}}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${countryFilter.length===0?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>All regions</button>
+                          {allCountries.map(c=>(
+                            <button key={c} onClick={()=>{setCountryFilter(prev=>{const next=prev.includes(c)?prev.filter(x=>x!==c):[...prev,c];return next;});setCompetitors([]);}}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${countryFilter.includes(c)?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{c}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-3">
                       {groupedBrands.map(g=>(
                         <div key={g.cat}>
