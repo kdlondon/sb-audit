@@ -541,7 +541,7 @@ function ReportsContent(){
         }catch{}
       });
     }catch(err){console.warn("Comment highlight error:",err);}
-  },[comments,activeContent]);
+  },[comments,viewingReport,report]);
 
   const askAssistant=async(directQuestion)=>{
     const q=directQuestion||assistQuery.trim()||"Explain this in more detail";
@@ -558,7 +558,7 @@ function ReportsContent(){
         `"${assistSelection}"`,
         "",
         "Full report for context:",
-        (activeContent||"").slice(0,4000),
+        (viewingReport?.content||report||"").slice(0,4000),
         "",
         "Explain the strategic reasoning. Be specific, reference data from the report, provide actionable insight. Professional and concise."
       ].join("\n");
