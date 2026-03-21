@@ -642,7 +642,7 @@ function ReportsContent(){
   },[selectedTemplate]);
 
   const currentData=selectedTemplate?.scopeAny?[...localData,...globalData]:selectedTemplate?.scope==="local"?localData:globalData;
-  const allCountries=[...new Set(currentData.map(e=>e.country).filter(Boolean))].sort();
+  const allCountries=[...new Set(currentData.map(e=>e.country).filter(c=>c&&c!=="All regions"))].sort();
   const filteredData=currentData.filter(e=>{
     const brand=e.competitor||e.brand||"";
     const matchBrand=competitors.length===0||competitors.includes(brand);
