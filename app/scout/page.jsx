@@ -566,6 +566,11 @@ Rules:
 
     const parts = [];
     if (brand.trim()) parts.push(`"${brand.trim()}"`);
+    // Add country/market name to query for geo-relevance
+    if (region) {
+      const regionName = REGION_CODES.find(r => r.code === region)?.label;
+      if (regionName) parts.push(regionName);
+    }
     if (category.trim()) parts.push(category.trim());
     if (keywords.trim()) {
       keywords.split(",").map(k => k.trim()).filter(Boolean).forEach(k => {
