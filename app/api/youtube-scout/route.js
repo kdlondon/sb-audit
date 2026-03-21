@@ -72,9 +72,9 @@ export async function POST(request) {
       if (brandName) { try {
         const channelParams = new URLSearchParams({
           part: "snippet",
-          q: brandName,
+          q: `${brandName} official`,
           type: "channel",
-          maxResults: "5",
+          maxResults: "10",
           key: apiKey,
         });
         const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
@@ -112,32 +112,37 @@ export async function POST(request) {
         }
       } catch(e) { console.error("Phase 1 failed:", e.message); } }
 
-      // ─── PHASE 2: General search (for media coverage, ad industry, third-party) ───
-      const generalParams = new URLSearchParams({
-        part: "snippet",
-        q: query,
-        type: "video",
-        maxResults: String(Math.min(maxResults, 50)),
-        key: apiKey,
-        order: "relevance",
-      });
-      if (publishedAfter) generalParams.set("publishedAfter", publishedAfter);
-      if (publishedBefore) generalParams.set("publishedBefore", publishedBefore);
-      if (regionCode) generalParams.set("regionCode", regionCode);
-      if (videoDuration) generalParams.set("videoDuration", videoDuration);
+      // ─── PHASE 2: Targeted search (brand + ad/commercial context) ───
+      // Only add general results if we don't have enough from the official channel
+      const officialCount = allVideos.length;
+      if (officialCount < maxResults) {
+        // Search with brand + ad context to avoid random results
+        const adQuery = `${brandName} ad commercial campaign`;
+        const generalParams = new URLSearchParams({
+          part: "snippet",
+          q: adQuery,
+          type: "video",
+          maxResults: String(Math.min(maxResults - officialCount + 5, 30)),
+          key: apiKey,
+          order: "relevance",
+        });
+        if (publishedAfter) generalParams.set("publishedAfter", publishedAfter);
+        if (publishedBefore) generalParams.set("publishedBefore", publishedBefore);
+        if (regionCode) generalParams.set("regionCode", regionCode);
+        if (videoDuration) generalParams.set("videoDuration", videoDuration);
 
-      const generalVids = await ytSearch(generalParams);
-      generalVids.forEach(v => {
-        // Mark as official if channel matches
-        if (officialChannelId && v.channelId === officialChannelId) {
-          v.isOfficial = true;
-          v.source = "official";
-        } else {
-          v.isOfficial = false;
-          v.source = "general";
-        }
-      });
-      allVideos.push(...generalVids);
+        const generalVids = await ytSearch(generalParams);
+        generalVids.forEach(v => {
+          if (officialChannelId && v.channelId === officialChannelId) {
+            v.isOfficial = true;
+            v.source = "official";
+          } else {
+            v.isOfficial = false;
+            v.source = "general";
+          }
+        });
+        allVideos.push(...generalVids);
+      }
 
       // ─── DEDUPLICATE by videoId ───
       const seen = new Set();
