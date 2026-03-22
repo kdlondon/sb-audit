@@ -71,6 +71,13 @@ function EditorContent() {
   // Audit data for copilot context
   const [auditSummary, setAuditSummary] = useState("");
 
+  // @ mention system
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
+  const [mentionStart, setMentionStart] = useState(-1); // cursor position of @
+  const [allEntries, setAllEntries] = useState([]);
+
   /* ─── LOAD REPORT ─── */
   useEffect(() => {
     if (!reportId || !projectId) return;
@@ -86,10 +93,18 @@ function EditorContent() {
       const { data: kFiles } = await supabase.from("report_knowledge").select("*").eq("report_id", reportId);
       setKnowledgeFiles(kFiles || []);
 
-      // Build audit summary for copilot
+      // Load all entries for @ mentions and copilot
       const scope = data?.scope || "local";
-      const table = scope === "global" ? "audit_global" : "audit_entries";
-      const { data: entries } = await supabase.from(table).select("competitor,brand,description,insight,idea,primary_territory,tone_of_voice,brand_archetype,portrait,journey_phase,rating,year,type,communication_intent").eq("project_id", projectId).limit(50);
+      const [localRes, globalRes] = await Promise.all([
+        supabase.from("audit_entries").select("id,competitor,description,year,type,rating,image_url,url,communication_intent,primary_territory,tone_of_voice,brand_archetype,portrait,journey_phase,insight,idea").eq("project_id", projectId),
+        supabase.from("audit_global").select("id,brand,description,year,type,rating,image_url,url,communication_intent,primary_territory,tone_of_voice,brand_archetype,portrait,journey_phase,insight,idea").eq("project_id", projectId),
+      ]);
+      const allE = [
+        ...(localRes.data || []).map(e => ({ ...e, brand: e.competitor })),
+        ...(globalRes.data || []),
+      ];
+      setAllEntries(allE);
+      const entries = allE;
       const summary = (entries || []).map(e =>
         `${e.competitor || e.brand}: "${e.description}" (${e.year}, ${e.type}) — Insight: ${e.insight || "N/A"}, Territory: ${e.primary_territory || "N/A"}, Portrait: ${e.portrait || "N/A"}, Intent: ${e.communication_intent || "N/A"}, Rating: ${e.rating || "N/A"}`
       ).join("\n");
@@ -414,16 +429,97 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
           {/* Editor / Preview */}
           <div className="flex-1 overflow-auto">
             {mode === "write" ? (
+              <div className="relative w-full h-full">
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={e => { setContent(e.target.value); setSaved(false); }}
+                onChange={e => {
+                  const val = e.target.value;
+                  setContent(val); setSaved(false);
+                  // Detect @ mention
+                  const pos = e.target.selectionStart;
+                  const textBefore = val.substring(0, pos);
+                  const atMatch = textBefore.match(/@([^\s@]*)$/);
+                  if (atMatch) {
+                    setMentionOpen(true);
+                    setMentionQuery(atMatch[1]);
+                    setMentionStart(pos - atMatch[0].length);
+                    // Position popup near cursor
+                    const ta = e.target;
+                    const lineHeight = 22;
+                    const lines = textBefore.split("\n");
+                    const lineNum = lines.length;
+                    const top = Math.min(lineNum * lineHeight + 8, ta.clientHeight - 200);
+                    setMentionPos({ top, left: 24 });
+                  } else {
+                    setMentionOpen(false);
+                  }
+                }}
+                onKeyDown={e => {
+                  if (mentionOpen && e.key === "Escape") { setMentionOpen(false); e.preventDefault(); }
+                }}
                 onKeyUp={handleCursorChange}
-                onClick={handleCursorChange}
+                onClick={e => { handleCursorChange(e); setMentionOpen(false); }}
                 className="w-full h-full p-6 bg-surface text-sm text-main font-mono leading-relaxed resize-none focus:outline-none"
-                placeholder="Start editing your report..."
+                placeholder="Start editing your report... Type @ to insert a case reference"
                 spellCheck={false}
               />
+              {/* @ Mention popup */}
+              {mentionOpen && (() => {
+                const q = mentionQuery.toLowerCase();
+                const results = allEntries.filter(e =>
+                  (e.description||"").toLowerCase().includes(q) ||
+                  (e.brand||"").toLowerCase().includes(q) ||
+                  (e.competitor||"").toLowerCase().includes(q) ||
+                  (e.type||"").toLowerCase().includes(q)
+                ).slice(0, 8);
+                if (results.length === 0 && q.length > 0) return null;
+                return (
+                  <div className="absolute bg-surface border border-main rounded-xl shadow-2xl z-50 w-[400px] max-h-[280px] overflow-y-auto"
+                    style={{ top: mentionPos.top, left: mentionPos.left }}>
+                    <p className="text-[9px] text-hint uppercase font-semibold px-3 pt-2 pb-1">Insert case reference</p>
+                    {(q.length === 0 ? allEntries.slice(0, 8) : results).map((entry, i) => {
+                      const ytMatch = (entry.url||"").match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);
+                      const thumb = ytMatch ? `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg` : entry.image_url;
+                      return (
+                        <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent-soft transition"
+                          onMouseDown={e => {
+                            e.preventDefault(); // prevent textarea blur
+                            const ta = textareaRef.current;
+                            if (!ta) return;
+                            // Build citation text
+                            const label = (entry.description || entry.brand || "source").slice(0, 50).replace(/[\[\]]/g, "");
+                            const citation = `[${label}](cite:${entry.id})`;
+                            // Replace @query with citation
+                            const before = content.substring(0, mentionStart);
+                            const after = content.substring(ta.selectionStart);
+                            const newContent = before + citation + after;
+                            setContent(newContent);
+                            setSaved(false);
+                            setMentionOpen(false);
+                            // Restore focus
+                            setTimeout(() => {
+                              ta.focus();
+                              const newPos = mentionStart + citation.length;
+                              ta.setSelectionRange(newPos, newPos);
+                            }, 50);
+                          }}>
+                          {thumb && <img src={thumb} className="w-10 h-8 object-cover rounded flex-shrink-0" alt="" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
+                            <div className="flex gap-2">
+                              {entry.brand && <span className="text-[10px] text-accent">{entry.brand}</span>}
+                              {entry.year && <span className="text-[10px] text-hint">{entry.year}</span>}
+                              {entry.communication_intent && <span className="text-[10px] text-hint">{entry.communication_intent}</span>}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+              </div>
             ) : (
               <div className="p-6 bg-surface prose prose-sm max-w-none">
                 <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
