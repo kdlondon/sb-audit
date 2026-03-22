@@ -1201,7 +1201,7 @@ RULES:
                       }
                     }} className="px-3 py-1.5 text-xs border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-50" title="Regenerate with latest data">Refresh</button>
                     <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
-                    <button onClick={generateShowcaseFromReport} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
+                    <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
                   </>}
                 </div>
               </div>
