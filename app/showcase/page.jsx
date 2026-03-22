@@ -160,6 +160,44 @@ function MediaModal({ src, type, onClose }) {
   );
 }
 
+/* ─── KEYBOARD HINTS (shown on first slide for 4s) ─── */
+function KeyboardHints({ theme }) {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!visible) return null;
+  const isDark = theme.isDark;
+  const bg = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+  const text = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)";
+  const kbd = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)";
+  return (
+    <div className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none"
+      style={{ animation: "fadeIn 0.3s ease-out, fadeOut 0.8s ease-in 3.2s forwards" }}>
+      <div className="flex flex-col items-center gap-5 px-10 py-8 rounded-2xl" style={{ backgroundColor: bg, backdropFilter: "blur(20px)" }}>
+        <div className="flex items-center gap-8">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex gap-1">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ backgroundColor: kbd, color: text }}>←</div>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ backgroundColor: kbd, color: text }}>→</div>
+            </div>
+            <span className="text-[10px] font-medium" style={{ color: text }}>Navigate slides</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ backgroundColor: kbd, color: text }}>↑</div>
+            <span className="text-[10px] font-medium" style={{ color: text }}>Back to list</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="px-4 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: kbd, color: text }}>Esc</div>
+            <span className="text-[10px] font-medium" style={{ color: text }}>Exit</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── NEXT EPISODE (Netflix-style autoplay) ─── */
 function NextEpisode({ next, theme, onPlay }) {
   const [countdown, setCountdown] = useState(5);
@@ -791,6 +829,7 @@ Return: {"title":"...","slides":[...slides...]}`;
     const handler = (e) => {
       if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); setCurrentSlide(s => Math.min(s + 1, slides.length - 1)); }
       if (e.key === "ArrowLeft") { e.preventDefault(); setCurrentSlide(s => Math.max(s - 1, 0)); }
+      if (e.key === "ArrowUp") { e.preventDefault(); nav({}); }
       if (e.key === "Escape") { if (mediaModal) setMediaModal(null); else nav({}); }
     };
     window.addEventListener("keydown", handler);
@@ -847,6 +886,7 @@ Return: {"title":"...","slides":[...slides...]}`;
     return (
       <div className="fixed inset-0 z-50" style={{ backgroundColor: theme.bg }} data-slide-content {...(pdfMode ? {"data-pdf-mode": true} : {})}>
         {!pdfMode && ToastEl}
+        {currentSlide === 0 && !pdfMode && <KeyboardHints key={currentShowcase.id} theme={theme} />}
         {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
         <KDLogo color={theme.text} opacity={theme.isDark ? 0.15 : 0.1} />
 
