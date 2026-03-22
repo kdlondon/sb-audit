@@ -448,7 +448,7 @@ function ReportsContent(){
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
-  const view=reportParam?"generate":(tabParam||"dashboard");
+  const view=reportParam?"archive":(tabParam||"dashboard");
   const[journeyBrand,setJourneyBrand]=useState("");
   const[journeyView,setJourneyView]=useState("funnel");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
@@ -1169,72 +1169,52 @@ RULES:
       )}
 
       {/* GENERATE / VIEW */}
-      {(view==="generate"||viewingReport)&&(
+      {(view==="generate"||(view==="archive"&&viewingReport))&&(
         <div className="px-5 py-5 w-full flex justify-center"><div className="w-full max-w-3xl" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
 
           {/* REPORT CONTENT */}
           {activeContent&&(
             <div className="bg-surface rounded-lg border border-main">
               <div className="sticky top-[52px] z-20 bg-surface border-b border-main" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
-                <div className="flex items-center gap-2 px-5 pt-3 pb-1">
-                  <button onClick={()=>{router.push("/reports",{scroll:false});setReport("");setSelectedTemplate(null);}} className="text-xs text-muted hover:text-main">← Back</button>
-                  <h3 className="text-sm font-semibold text-main flex-1 truncate">{viewingReport?.title||reportTitleRef.current||reportTitle||"Generated report"}</h3>
-                </div>
-                <div className="flex items-center gap-2 px-5 pb-3 pt-1 flex-wrap">
-                  {/* Copy */}
-                  <button onClick={copyReport} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main">{copied?"Copied!":"Copy"}</button>
-                  {/* Download dropdown */}
-                  <div className="relative">
-                    <button onClick={()=>setDownloadMenu(!downloadMenu)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main flex items-center gap-1">
-                      Download <span className="text-[9px]">▾</span>
-                    </button>
-                    {downloadMenu&&<>
-                      <div className="fixed inset-0 z-30" onClick={()=>setDownloadMenu(false)}/>
-                      <div className="absolute top-full left-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[100px]">
-                        <button onClick={()=>{downloadMD();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">.md</button>
-                        <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft border-t border-main">.pdf</button>
-                      </div>
+                <div className="flex items-center gap-3 px-5 py-4">
+                  <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main text-lg">←</button>
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-xl font-bold text-main truncate">{viewingReport?.title||reportTitleRef.current||reportTitle||"Generated report"}</h1>
+                    <div className="flex gap-3 text-[10px] text-hint mt-1">
+                      {viewingReport?.competitors && <span>{viewingReport.competitors}</span>}
+                      {viewingReport?.year_from && viewingReport?.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
+                      {viewingReport?.created_at && <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(viewingReport.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>}
+                      {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={copyReport} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main">{copied?"Copied!":"Copy"}</button>
+                    <div className="relative">
+                      <button onClick={()=>setDownloadMenu(!downloadMenu)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main flex items-center gap-1">
+                        Download <span className="text-[9px]">▾</span>
+                      </button>
+                      {downloadMenu&&<>
+                        <div className="fixed inset-0 z-30" onClick={()=>setDownloadMenu(false)}/>
+                        <div className="absolute top-full right-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[100px]">
+                          <button onClick={()=>{downloadMD();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">.md</button>
+                          <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft border-t border-main">.pdf</button>
+                        </div>
+                      </>}
+                    </div>
+                    {viewingReport&&<>
+                      <button onClick={async()=>{
+                        if(!confirm("Regenerate with latest data?"))return;
+                        const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
+                        if(tmpl){setSelectedTemplate(tmpl);setSections(tmpl.sections.map(s=>s.id));setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));setYearFrom(viewingReport.year_from||"");setYearTo(viewingReport.year_to||"");setCustomInstructions(viewingReport.custom_instructions||"");setReportTitle(viewingReport.title||"");reportTitleRef.current=viewingReport.title||"";setViewingReport(null);router.push("/reports?tab=generate",{scroll:false});setTimeout(()=>generate(),500);}
+                      }} className="px-3 py-1.5 text-xs border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-50">Refresh</button>
+                      <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
+                      <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
                     </>}
                   </div>
-                  {/* Divider */}
-                  <div className="w-px h-5 bg-main mx-1"/>
-                  {viewingReport&&<>
-                    <button onClick={async()=>{
-                      if(!confirm("Regenerate this report with the latest data?"))return;
-                      const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
-                      if(tmpl){
-                        setSelectedTemplate(tmpl);
-                        setSections(tmpl.sections.map(s=>s.id));
-                        setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));
-                        setYearFrom(viewingReport.year_from||"");
-                        setYearTo(viewingReport.year_to||"");
-                        setCustomInstructions(viewingReport.custom_instructions||"");
-                        setReportTitle(viewingReport.title||"");
-                        reportTitleRef.current=viewingReport.title||"";
-                        setViewingReport(null);
-                        router.push("/reports?tab=generate",{scroll:false});
-                        // Small delay for state to settle, then generate
-                        setTimeout(()=>generate(),500);
-                      }
-                    }} className="px-3 py-1.5 text-xs border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-50" title="Regenerate with latest data">Refresh</button>
-                    <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
-                    <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
-                  </>}
                 </div>
               </div>
               <div className="flex">
                 <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
-                  {/* Standard report header */}
-                  {viewingReport && (
-                    <div className="mb-8 pb-6 border-b border-main">
-                      <h1 className="text-2xl font-bold text-main mb-1">{viewingReport.title}</h1>
-                      <div className="flex gap-3 text-[10px] text-hint mt-2">
-                        {viewingReport.competitors && <span>{viewingReport.competitors}</span>}
-                        {viewingReport.year_from && viewingReport.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
-                        <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</span>
-                      </div>
-                    </div>
-                  )}
                   <div data-report-content>{renderContent(activeContent)}</div>
                   <Signature/>
                 </div>
