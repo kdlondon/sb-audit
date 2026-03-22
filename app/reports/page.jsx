@@ -105,22 +105,7 @@ Brands may have different numbers of entries in the data. Do NOT let volume bias
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPTS={
-  competitor_snapshot:`You are a world-class brand strategist analyzing Canadian business banking competitive communications for Scotiabank. Write a deep competitor snapshot.
-
-${GLOBAL_RULES}
-
-BRAND CONSISTENCY SECTION — when generating this section, evaluate:
-1. Tone consistency — does the emotional register stay coherent across channels and funnel stages?
-2. Territory consistency — does the creative territory hold or fragment across pieces?
-3. Value proposition evolution — how has the VP shifted or stayed stable over time?
-4. Archetype coherence — does the brand archetype hold across all touchpoints?
-5. Moment integrity — are there pieces that break the brand's own pattern? Which ones and why?
-Rate each dimension: Strong / Partial / Fragmented, with specific cited evidence.
-
-WEBSITE vs COMMUNICATION SECTION — when generating this section (only if BRAND WEBSITE PROFILE data is provided):
-Compare the brand's official website positioning with their actual advertising communications. Create a markdown table with columns: Dimension | Website Profile | Actual Communications | Alignment. Cover: Core Positioning, Archetype, Tone, Target, Value Proposition. Then analyze the consistency or disconnect in 2-3 sentences.
-
-Write with authority. Use ## for sections, ### for subsections, **bold** for key findings. Use markdown tables where useful. Be conclusive and opinionated.`,
+  competitor_snapshot: "DYNAMIC",
 
   category_landscape:`You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank.
 
@@ -768,6 +753,115 @@ ${structureParts.join("\n\n")}
 Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`;
   };
 
+  // Competitor Snapshot (with K&D framework) — section instructions
+  const CS_SECTION_PROMPTS={
+    positioning:`(CRITICAL: Focus on entries marked ★★★ BRAND HERO ★★★ for core positioning. You MUST cite every Brand Hero entry.)
+Analyze the brand's positioning using all framework dimensions:
+- **Creative Proposition:** 3–6 word campaign/brand idea from the most recent hero pieces
+- **Brand Archetype:** single archetype + one sentence explanation
+- **Brand Role:** what role the brand plays in the customer's life
+- **Emotional Positioning Statement:** short phrase (5–10 words)
+- **Rational Positioning Statement:** one sentence (15–25 words)
+- **Primary Territory & Secondary Territory:** with evidence
+- **Key Differentiators:** 3 bullet points
+- **Value Proposition:** the core VP as communicated
+- **Insight:** the human truth the brand responds to
+- **Idea:** the creative/strategic idea behind their positioning
+If multiple Brand Hero campaigns exist across years, include **Positioning Evolution** (3–5 sentences).`,
+    identity:`Analyze how the brand addresses entrepreneur identity through the K&D framework:
+- **Entry Door(s):** Which entry doors does the brand use to connect with business owners? (e.g., Growth, Efficiency, Innovation, Belonging)
+- **Experience Reflected:** What business experience does the brand mirror back?
+- **Portrait(s):** Which entrepreneur portraits does the brand target? (Dreamer, Builder, Sovereign, Architect) — with evidence
+- **Richness Definition:** How does the brand define "richness" or success for the entrepreneur?
+Use specific entries as evidence. Create a table if multiple portraits are addressed.`,
+    journey:`Map the brand's communication across the business journey:
+- **Journey Phase(s):** Which phases of the business journey does the brand address? (Starting, Growing, Scaling, Consolidating, Transforming)
+- **Client Lifecycle:** Where in the client relationship do they focus? (Acquisition, Onboarding, Deepening, Retention)
+- **Moments that Matter:** Which specific moments does the brand own?
+  - Acquisition moments (first contact, switching)
+  - Deepening moments (milestones, expansion)
+  - Unexpected moments (crisis, opportunity)
+Create a table mapping entries to journey phases.`,
+    comms:`Analyze communication patterns through the K&D lens:
+- **Bank Role:** What role does the bank play? (Advisor, Partner, Enabler, Platform, etc.)
+- **Pain Points:** What pain points does the brand address? Categorize by type (Operational, Financial, Emotional, Growth)
+- **Language Register:** Formal, conversational, technical, inspirational — with examples
+- **R2B (Right to Believe):** What gives the brand credibility? Evidence from communications
+Analyze the mix of communication intents: Brand Hero vs Brand Tactical vs Product vs Innovation.`,
+    execution:`Analyze execution patterns:
+- **Channel Mix:** Where do they communicate? (Social, TV, Digital, Events, OOH) — create a frequency table
+- **CTA Patterns:** What actions do they ask for? (Apply now, Learn more, Talk to advisor, etc.)
+- **Tone of Voice:** Primary tone labels with examples
+- **Representation:** Who appears in their communications? (Business owners, employees, community, abstract)
+- **Business Size Focus:** Micro, Small, Medium, Large — which segments get attention?`,
+    campaign:`Create a campaign map organizing all entries by:
+- **Funnel Stage:** Awareness → Consideration → Conversion → Loyalty
+- **Year:** Chronological view
+- **Communication Intent:** Brand Hero, Brand Tactical, Product, Innovation
+Create a markdown table with columns: Entry | Year | Intent | Funnel Stage | Rating
+Identify patterns: are they investing more in awareness or conversion? Hero or tactical?`,
+    consistency:`Evaluate brand consistency across all dimensions:
+| Dimension | Assessment | Evidence |
+|-----------|-----------|----------|
+| Tone consistency | Strong/Partial/Fragmented | specific examples |
+| Territory consistency | Strong/Partial/Fragmented | specific examples |
+| VP evolution | Coherent/Shifting/Fragmented | specific examples |
+| Archetype coherence | Strong/Partial/Fragmented | specific examples |
+| Moment integrity | Strong/Partial/Fragmented | specific examples |
+Write 2-3 sentences of overall consistency assessment.`,
+    strategic_read:`K&D Editorial Strategic Read:
+- **Overall Assessment:** One paragraph summarizing this brand's competitive position
+- **What They Do Well:** 3 key strengths with evidence
+- **What's Missing:** 3 gaps or weaknesses
+- **White Space Signal:** The most credible unclaimed territory for this brand
+- **Implication for Scotiabank:** 2-3 sentences on what this means for our client's strategy
+Be opinionated and conclusive.`,
+    website_vs_comms:`(Only generate if BRAND WEBSITE PROFILE data is provided. Skip entirely if not.)
+Compare official website positioning with actual advertising communications:
+| Dimension | Website Profile | Actual Communications | Alignment |
+|-----------|----------------|----------------------|-----------|
+| Core Positioning | | | |
+| Archetype | | | |
+| Tone | | | |
+| Target Audience | | | |
+| Value Proposition | | | |
+| Entry Door | | | |
+| Portrait | | | |
+Write 2-3 sentences analyzing consistency or disconnect.`,
+  };
+
+  const buildCompetitorPrompt=()=>{
+    let structureParts=[];
+    sections.forEach((secId,i)=>{
+      const ov=sectionOverrides[secId]||{};
+      const tmpl=selectedTemplate?.sections?.find(s=>s.id===secId);
+      const label=ov.label||tmpl?.label||secId;
+      const customDesc=ov.desc;
+      const defaultInstructions=CS_SECTION_PROMPTS[secId]||"";
+      const num=String(i+1).padStart(2,"0");
+      structureParts.push(`## ${num} — ${label}\n${customDesc&&customDesc!==tmpl?.desc?`CUSTOM INSTRUCTIONS: ${customDesc}\n`:""}${defaultInstructions}`);
+    });
+    return `You are a world-class brand strategist analyzing competitive communications using the Knots & Dots framework. Write a deep competitor snapshot.
+
+This report USES the K&D proprietary framework including: Portraits (Dreamer, Builder, Sovereign, Architect), Entry Doors, Journey Phases, Moments that Matter, Client Lifecycle, Richness Definitions, and Bank Roles.
+
+${GLOBAL_RULES}
+
+Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
+
+CITATION RULES — CRITICAL:
+- When you reference a specific piece of communication, make the descriptive name itself the citation link.
+- Format: [descriptive name](cite:ENTRY_ID)
+- Do NOT mention the piece name and then repeat it as a separate link. One mention only.
+- Include a ## Sources section at the end with [description](cite:ID) for each source.
+
+REPORT STRUCTURE — follow this EXACTLY in this order. ONLY generate the sections listed below:
+
+${structureParts.join("\n\n")}
+
+Use ## for sections, **bold** for labels, markdown tables where useful. Be conclusive and opinionated.`;
+  };
+
   const generate=async()=>{
     if(!selectedTemplate||generating)return;
     setGenerating(true);setReport("");setViewingReport(null);
@@ -787,7 +881,7 @@ Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write w
 
     // Build data string with IDs for citations
     let dataStr;
-    if(selectedTemplate.id==="agnostic_snapshot"){
+    if(selectedTemplate.id==="agnostic_snapshot"||selectedTemplate.id==="competitor_snapshot"){
       // Agnostic snapshot: aggregated counts + full text fields
       const fd=filteredData;
       const countField=(field)=>{const c={};fd.forEach(e=>{const v=e[field];if(v&&v!=="Other"&&!v.startsWith("Not ")&&!v.startsWith("None"))v.split(",").map(s=>s.trim()).forEach(s=>{c[s]=(c[s]||0)+1;});});return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} (${v})`).join(", ");};
@@ -844,7 +938,7 @@ BRAND HERO ENTRIES (core positioning pieces — these are the MOST IMPORTANT ent
 ${fd.filter(e=>(e.communication_intent||"").toLowerCase().includes("hero")).map(e=>`[ID:${e.id}] ★★★ BRAND HERO ★★★ [${e.year||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | Synopsis:${(e.synopsis||"").slice(0,200)} | Insight:${(e.insight||"").slice(0,200)}`).join("\n")||"No Brand Hero entries found"}
 
 ALL ENTRY DESCRIPTIONS (including Brand Hero + Brand Tactical + Product + other):
-${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communication_intent||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | URL:${e.url||""} | Image:${e.image_url||""}`).join("\n")}`;
+${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communication_intent||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Role:${e.bank_role||""} | Pain:${e.pain_point_type||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Size:${e.business_size||""} | Rating:${e.rating||""}`).join("\n")}`;
     }else{
       dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
     }
@@ -875,7 +969,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
       }
     }
 
-    const system=selectedTemplate.id==="agnostic_snapshot"?buildAgnosticPrompt():SYSTEM_PROMPTS[selectedTemplate.id];
+    const system=selectedTemplate.id==="agnostic_snapshot"?buildAgnosticPrompt():selectedTemplate.id==="competitor_snapshot"?buildCompetitorPrompt():SYSTEM_PROMPTS[selectedTemplate.id];
     const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
 - When you reference a specific piece of communication, make the descriptive name itself the citation link.
 - Format: [descriptive name](cite:ENTRY_ID) — e.g., [their AI adoption guide](cite:1773496163636)
