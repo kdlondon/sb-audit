@@ -870,7 +870,13 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
       setViewingReport(reportObj);
       setReport("");
       router.push(`/reports?report=${id}`,{scroll:false});
-    }catch(err){setReport("Error: "+err.message);}
+    }catch(err){
+      if(err.message?.includes("fetch")||err.message?.includes("network")){
+        setReport("Error: Network connection lost. Please check your internet and try again.");
+      }else{
+        setReport("Error: "+err.message);
+      }
+    }
     setGenerating(false);
   };
 
