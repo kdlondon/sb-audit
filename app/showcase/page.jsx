@@ -1438,7 +1438,7 @@ Return: {"title":"...","slides":[...slides...]}`;
         <div className="section-bar px-5 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-bold text-main">Showcase</h2>
-            <p className="text-xs text-muted">Cinematic presentations powered by AI</p>
+            <p className="text-xs text-muted">Cinematic presentations powered by Knots & Dots</p>
           </div>
           {canEdit && (
             <button onClick={() => nav({ new: 1 })} className="px-3 py-1.5 text-sm text-white rounded-lg font-semibold hover:opacity-90"
