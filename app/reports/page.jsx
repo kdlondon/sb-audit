@@ -382,6 +382,7 @@ function ReportsContent(){
   const[savedReports,setSavedReports]=useState([]);
   const[viewingReport,setViewingReport]=useState(null);
   const[saving,setSaving]=useState(false);
+  const[pendingGenerate,setPendingGenerate]=useState(false);
   const[downloadMenu,setDownloadMenu]=useState(false);
   const reportRef=useRef(null);
   const supabase=createClient();
@@ -572,6 +573,13 @@ function ReportsContent(){
     setCompetitors([]);setCountryFilter([]);setReport("");setViewingReport(null);
   },[selectedTemplate]);
 
+  // Regenerate: run generate() AFTER React has applied the new state (competitors, sections, etc.)
+  useEffect(()=>{
+    if(!pendingGenerate)return;
+    setPendingGenerate(false);
+    generate();
+  },[pendingGenerate,competitors,sections,yearFrom,yearTo]);
+
   const currentData=selectedTemplate?.scopeAny?[...localData,...globalData]:selectedTemplate?.scope==="local"?localData:globalData;
   const allCountries=[...new Set(currentData.map(e=>e.country).filter(c=>c&&c!=="All regions"))].sort();
   const filteredData=currentData.filter(e=>{
@@ -614,7 +622,14 @@ function ReportsContent(){
   };
   const toggleSec=(id)=>setSections(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const copyReport=()=>{navigator.clipboard.writeText(report||viewingReport?.content||"");setCopied(true);setTimeout(()=>setCopied(false),2000);};
-  const downloadMD=()=>{const title=viewingReport?.title||reportTitleRef.current||"report";const filename=title.replace(/[^a-zA-Z0-9\s\-_]/g,"").replace(/\s+/g,"_")+".md";const header=`# ${title}\n\n${[viewingReport?.competitors,viewingReport?.year_from&&viewingReport?.year_to?viewingReport.year_from+"–"+viewingReport.year_to:"",new Date(viewingReport?.created_at||Date.now()).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})].filter(Boolean).join(" · ")}\n\n---\n\n`;const content=header+(report||viewingReport?.content||"");const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);};
+  const resolveCiteLinks=(md)=>{
+    return md.replace(/\[([^\]]+)\]\(cite:([^)]+)\)/g,(match,label,id)=>{
+      const entry=allData.find(e=>e.id===id);
+      if(entry?.url)return`[${label}](${entry.url})`;
+      return label;
+    });
+  };
+  const downloadMD=()=>{const title=viewingReport?.title||reportTitleRef.current||"report";const filename=title.replace(/[^a-zA-Z0-9\s\-_]/g,"").replace(/\s+/g,"_")+".md";const header=`# ${title}\n\n${[viewingReport?.competitors,viewingReport?.year_from&&viewingReport?.year_to?viewingReport.year_from+"–"+viewingReport.year_to:"",new Date(viewingReport?.created_at||Date.now()).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})].filter(Boolean).join(" · ")}\n\n---\n\n`;const rawContent=report||viewingReport?.content||"";const content=header+resolveCiteLinks(rawContent);const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);};
   const downloadPDF=async()=>{
     if(!reportRef.current)return;
     const title=viewingReport?.title||reportTitleRef.current||"report";
@@ -631,12 +646,23 @@ function ReportsContent(){
     wrapper.appendChild(header);
     // Clone report content
     const content=reportRef.current.cloneNode(true);
-    // Convert cite links to text with URLs
+    // Convert cite spans to real links (or styled text if no URL)
     content.querySelectorAll("span[style*='dotted']").forEach(el=>{
-      const link=document.createElement("span");
-      link.textContent=el.textContent;
-      link.style.cssText="color:#0019FF;text-decoration:underline;";
-      el.replaceWith(link);
+      // Try to find the entry ID from the onclick or nearby data
+      const text=el.textContent||"";
+      const entry=allData.find(e=>(e.description||"").slice(0,50).includes(text.slice(0,30))||(e.competitor||e.brand||"")===text);
+      if(entry?.url){
+        const link=document.createElement("a");
+        link.href=entry.url;
+        link.textContent=text;
+        link.style.cssText="color:#0019FF;text-decoration:underline;";
+        el.replaceWith(link);
+      }else{
+        const span=document.createElement("span");
+        span.textContent=text;
+        span.style.cssText="color:#0019FF;font-weight:500;";
+        el.replaceWith(span);
+      }
     });
     wrapper.appendChild(content);
     document.body.appendChild(wrapper);
@@ -980,7 +1006,8 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     }
 
     const system=selectedTemplate.id==="agnostic_snapshot"?buildAgnosticPrompt():selectedTemplate.id==="competitor_snapshot"?buildCompetitorPrompt():SYSTEM_PROMPTS[selectedTemplate.id];
-    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
+    const brandLabel=competitors.length>0?competitors.join(", "):"all brands";
+    const userMsg=`SUBJECT BRAND: ${brandLabel}\n\nCRITICAL: This report is EXCLUSIVELY about ${brandLabel}. Every section must analyze ${brandLabel} only. Do NOT confuse with other brands that may appear in comparison data. If you mention other brands, it must be clearly framed as comparison context, not as the subject.\n\nAudit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
 - When you reference a specific piece of communication, make the descriptive name itself the citation link.
 - Format: [descriptive name](cite:ENTRY_ID) — e.g., [their AI adoption guide](cite:1773496163636)
 - Do NOT mention the piece name and then repeat it as a separate link. The name IS the link. One mention only.
@@ -1385,7 +1412,7 @@ RULES:
                       <button onClick={async()=>{
                         if(!confirm("Regenerate with latest data?"))return;
                         const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
-                        if(tmpl){setSelectedTemplate(tmpl);setSections(tmpl.sections.map(s=>s.id));setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));setYearFrom(viewingReport.year_from||"");setYearTo(viewingReport.year_to||"");setCustomInstructions(viewingReport.custom_instructions||"");setReportTitle(viewingReport.title||"");reportTitleRef.current=viewingReport.title||"";setViewingReport(null);router.push("/reports?tab=generate",{scroll:false});setTimeout(()=>generate(),500);}
+                        if(tmpl){setSelectedTemplate(tmpl);setSections(tmpl.sections.map(s=>s.id));setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));setYearFrom(viewingReport.year_from||"");setYearTo(viewingReport.year_to||"");setCustomInstructions(viewingReport.custom_instructions||"");setReportTitle(viewingReport.title||"");reportTitleRef.current=viewingReport.title||"";setViewingReport(null);router.push("/reports?tab=generate",{scroll:false});setPendingGenerate(true);}
                       }} className="w-8 h-8 flex items-center justify-center rounded-lg border border-amber-300 text-amber-500 hover:bg-amber-50 transition" title="Refresh">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                       </button>

@@ -117,7 +117,7 @@ function EditorContent2() {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-accent underline decoration-dotted cursor-pointer" } }),
+      Link.configure({ openOnClick: false, protocols: ["cite"], HTMLAttributes: { class: "text-accent underline decoration-dotted cursor-pointer" } }),
       Underline,
     ],
     editorProps: {
@@ -155,18 +155,31 @@ function EditorContent2() {
     })();
   }, [reportId, projectId, editor]);
 
+  const [saveError, setSaveError] = useState(null);
+
   /* ─── SAVE ─── */
   const saveContent = useCallback(async () => {
     if (!reportId) return;
     setSaving(true);
+    setSaveError(null);
     const md = markdownRef.current;
     const t = titleRef.current;
-    console.log("[Editor] Saving:", md.length, "chars, title:", t);
-    const { error } = await supabase.from("saved_reports").update({ content: md, title: t, updated_at: new Date().toISOString() }).eq("id", reportId);
-    if (error) console.error("[Editor] Save error:", error);
-    setSaving(false);
-    setSaved(true);
-  }, [reportId]);
+    try {
+      const { error } = await supabase.from("saved_reports").update({ content: md, title: t }).eq("id", reportId);
+      if (error) {
+        console.error("[Editor] Save error:", error);
+        setSaveError(error.message || "Save failed");
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      setSaved(true);
+    } catch (e) {
+      console.error("[Editor] Save exception:", e);
+      setSaveError(e.message || "Save crashed");
+      setSaving(false);
+    }
+  }, [reportId, supabase]);
 
   // Autosave every 8 seconds
   useEffect(() => {
@@ -221,6 +234,7 @@ function EditorContent2() {
             placeholder="Report title" />
           {!saved && <span className="text-[9px] text-hint">Unsaved</span>}
           {saving && <span className="text-[9px] text-accent">Saving...</span>}
+          {saveError && <span className="text-[9px] text-red-500 font-semibold">ERROR: {saveError}</span>}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={async () => { await saveContent(); router.push(`/reports?report=${reportId}`); }} disabled={saving}

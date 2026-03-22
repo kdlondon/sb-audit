@@ -19,6 +19,10 @@ export async function POST(request) {
       body: JSON.stringify({ model, max_tokens: max_tokens || 4000, system: enrichedSystem, messages }),
     });
     const data = await response.json();
+    if (!response.ok) {
+      const msg = data?.error?.message || data?.error || `API error (${response.status})`;
+      return Response.json({ error: typeof msg === "string" ? msg : JSON.stringify(msg) }, { status: response.status });
+    }
     return Response.json(data);
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
