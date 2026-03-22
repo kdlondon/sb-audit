@@ -217,6 +217,7 @@ export default function ProjectsPage() {
                       {p.client_name && <p className="text-xs text-muted mt-0.5">{p.client_name}</p>}
                       {p.description && <p className="text-xs text-hint mt-1">{p.description}</p>}
                       <p className="text-[10px] text-hint mt-3">{new Date(p.created_at).toLocaleDateString()}</p>
+                      <p className="text-[9px] text-hint mt-1 font-mono select-all cursor-text" title="Project ID — use in Chrome extension">ID: {p.id}</p>
                     </div>
 
                     {/* ACTION BUTTONS */}
