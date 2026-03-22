@@ -1175,42 +1175,59 @@ RULES:
           {/* REPORT CONTENT */}
           {activeContent&&(
             <div className="bg-surface rounded-lg border border-main">
-              <div className="sticky top-[52px] z-20 bg-surface border-b border-main" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
-                <div className="flex items-center gap-3 px-5 py-4">
-                  <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main text-lg">←</button>
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-xl font-bold text-main truncate">{viewingReport?.title||reportTitleRef.current||reportTitle||"Generated report"}</h1>
-                    <div className="flex gap-3 text-[10px] text-hint mt-1">
-                      {viewingReport?.competitors && <span>{viewingReport.competitors}</span>}
-                      {viewingReport?.year_from && viewingReport?.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
-                      {viewingReport?.created_at && <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(viewingReport.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>}
-                      {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={copyReport} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main">{copied?"Copied!":"Copy"}</button>
+              <div className="sticky top-[52px] z-20 bg-surface border-b border-main px-5 py-3" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
+                {/* Row 1: Back + Title + Icon buttons */}
+                <div className="flex items-center gap-3">
+                  <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main flex-shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  </button>
+                  <h1 className="text-2xl font-bold text-main flex-1 min-w-0">{viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}</h1>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Copy */}
+                    <button onClick={copyReport} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title={copied?"Copied!":"Copy"}>
+                      {copied?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                      :<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>}
+                    </button>
+                    {/* Download */}
                     <div className="relative">
-                      <button onClick={()=>setDownloadMenu(!downloadMenu)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main flex items-center gap-1">
-                        Download <span className="text-[9px]">▾</span>
+                      <button onClick={()=>setDownloadMenu(!downloadMenu)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title="Download">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       </button>
                       {downloadMenu&&<>
                         <div className="fixed inset-0 z-30" onClick={()=>setDownloadMenu(false)}/>
-                        <div className="absolute top-full right-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[100px]">
+                        <div className="absolute top-full right-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[80px]">
                           <button onClick={()=>{downloadMD();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">.md</button>
                           <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft border-t border-main">.pdf</button>
                         </div>
                       </>}
                     </div>
                     {viewingReport&&<>
+                      {/* Refresh */}
                       <button onClick={async()=>{
                         if(!confirm("Regenerate with latest data?"))return;
                         const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
                         if(tmpl){setSelectedTemplate(tmpl);setSections(tmpl.sections.map(s=>s.id));setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));setYearFrom(viewingReport.year_from||"");setYearTo(viewingReport.year_to||"");setCustomInstructions(viewingReport.custom_instructions||"");setReportTitle(viewingReport.title||"");reportTitleRef.current=viewingReport.title||"";setViewingReport(null);router.push("/reports?tab=generate",{scroll:false});setTimeout(()=>generate(),500);}
-                      }} className="px-3 py-1.5 text-xs border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-50">Refresh</button>
-                      <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
-                      <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
+                      }} className="w-8 h-8 flex items-center justify-center rounded-lg border border-amber-300 text-amber-500 hover:bg-amber-50 transition" title="Refresh">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                      </button>
+                      {/* Edit */}
+                      <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title="Edit">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      {/* Showcase */}
+                      <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="h-8 px-3 flex items-center gap-1.5 rounded-lg text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition" style={{background:"#1D9A42"}} title="Generate Showcase">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        {generatingShowcase?"...":"Showcase"}
+                      </button>
                     </>}
                   </div>
+                </div>
+                {/* Row 2: Metadata */}
+                <div className="flex gap-3 text-[10px] text-hint mt-1 ml-8">
+                  {viewingReport?.competitors && <span>{viewingReport.competitors}</span>}
+                  {viewingReport?.year_from && viewingReport?.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
+                  {viewingReport?.created_at && <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(viewingReport.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>}
+                  {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
                 </div>
               </div>
               <div className="flex">
