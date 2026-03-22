@@ -10,6 +10,11 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.12",
+    "@tiptap/extension-link": "^3.20.4",
+    "@tiptap/extension-underline": "^3.20.4",
+    "@tiptap/pm": "^3.20.4",
+    "@tiptap/react": "^3.20.4",
+    "@tiptap/starter-kit": "^3.20.4",
     "html2pdf.js": "^0.10.2",
     "next": "14.2.18",
     "react": "^18.3.1",
@@ -17,7 +22,8 @@
     "react-image-crop": "^11.0.10",
     "react-markdown": "^9.0.1",
     "recharts": "^2.13.3",
-    "remark-gfm": "^4.0.0"
+    "remark-gfm": "^4.0.0",
+    "turndown": "^7.2.2"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.15",
