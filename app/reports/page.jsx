@@ -843,8 +843,20 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     try{
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
-      if(result.error)setReport("Error: "+result.error);
-      else setReport(result.content?.map(c=>c.text||"").join("")||"No content.");
+      if(result.error){setReport("Error: "+result.error);setGenerating(false);return;}
+      const content=result.content?.map(c=>c.text||"").join("")||"No content.";
+      setReport(content);
+      // Auto-save immediately after generation
+      const{data:{session}}=await supabase.auth.getSession();
+      const rTitle=reportTitleRef.current||reportTitle||`${selectedTemplate?.label} — ${new Date().toLocaleDateString()}`;
+      const id=String(Date.now());
+      const reportObj={id,title:rTitle,scope:selectedTemplate?.scopeAny?"local":selectedTemplate?.scope||"local",template_type:selectedTemplate?.id||"",sections:sections.join(","),competitors:competitors.join(","),custom_instructions:customInstructions,year_from:yearFrom,year_to:yearTo,content,created_by:session?.user?.email||"",project_id:projectId};
+      await supabase.from("saved_reports").insert(reportObj);
+      const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+      setSavedReports(reports||[]);
+      setViewingReport(reportObj);
+      setReport("");
+      router.push(`/reports?report=${id}`,{scroll:false});
     }catch(err){setReport("Error: "+err.message);}
     setGenerating(false);
   };
@@ -1168,8 +1180,6 @@ RULES:
                   <h3 className="text-sm font-semibold text-main flex-1 truncate">{viewingReport?.title||reportTitleRef.current||reportTitle||"Generated report"}</h3>
                 </div>
                 <div className="flex items-center gap-2 px-5 pb-3 pt-1 flex-wrap">
-                  {/* Save */}
-                  {report&&!viewingReport&&<button onClick={()=>saveReport(false)} disabled={saving} className="px-4 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#0019FF"}}>{saving?"Saving...":"Save"}</button>}
                   {/* Copy */}
                   <button onClick={copyReport} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:bg-surface2 hover:text-main">{copied?"Copied!":"Copy"}</button>
                   {/* Download dropdown */}
@@ -1187,11 +1197,6 @@ RULES:
                   </div>
                   {/* Divider */}
                   <div className="w-px h-5 bg-main mx-1"/>
-                  {/* Save & Edit / Save & Showcase */}
-                  {report&&!viewingReport&&<>
-                    <button onClick={()=>saveReport(true)} disabled={saving} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2 disabled:opacity-50">{saving?"...":"Save & Edit"}</button>
-                    <button onClick={async()=>{const saved=await saveReport(false);if(saved)generateShowcaseFromReport(saved);}} disabled={saving||generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Save & Showcase"}</button>
-                  </>}
                   {viewingReport&&<>
                     <button onClick={async()=>{
                       if(!confirm("Regenerate this report with the latest data?"))return;
