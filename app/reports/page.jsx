@@ -1220,9 +1220,12 @@ RULES:
                   <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main flex-shrink-0">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                   </button>
-                  <h1 className="text-2xl font-bold text-main flex-1 min-w-0 cursor-text" contentEditable suppressContentEditableWarning
-                    onBlur={async(ev)=>{const v=ev.target.textContent.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
-                  >{viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}</h1>
+                  <input className="text-2xl font-bold text-main flex-1 min-w-0 bg-transparent focus:outline-none focus:bg-surface focus:px-2 focus:rounded-lg transition-all"
+                    defaultValue={viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}
+                    key={viewingReport?.id}
+                    onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
+                    onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();}}
+                  />
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* Copy */}
                     <button onClick={copyReport} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title={copied?"Copied!":"Copy"}>
