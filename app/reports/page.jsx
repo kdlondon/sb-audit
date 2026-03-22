@@ -833,13 +833,14 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
 
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
     const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
-- Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
-- Write a SHORT HUMAN-READABLE name for the piece in your prose, then add [ENTRY:id] right after.
-- Example: "Their AI adoption guide [ENTRY:1773496163636] positions CIBC as..."
-- NEVER put the numeric ID in your prose text. NEVER write "(ID: 883404)" or "Meta Ad Library creative (ID: 883404)".
-- Use short descriptive names like "their Instagram campaign", "the women entrepreneur series", "How I made it" — NOT the raw description field which may contain technical IDs.
-- The [ENTRY:id] token is invisible to the reader. It only appears in your output as [ENTRY:123456], nowhere else.
-- Do NOT place citations inside markdown table rows (| col | col |) — only use them in prose paragraphs and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
+- When you reference a specific piece of communication, make the descriptive name itself the citation link.
+- Format: [descriptive name](cite:ENTRY_ID) — e.g., [their AI adoption guide](cite:1773496163636)
+- Do NOT mention the piece name and then repeat it as a separate link. The name IS the link. One mention only.
+- WRONG: "The Small Business Saturday initiative 16th Annual Small Business Saturday" — this repeats the name.
+- RIGHT: "The [Small Business Saturday initiative](cite:123456) reinforces..." — name is the link, mentioned once.
+- Use short natural names: "their Instagram campaign", "the women entrepreneur series", "How I made it"
+- NEVER put raw IDs in prose. NEVER write "(ID: 883404)".
+- Do NOT place citations inside markdown table rows — only in prose and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
@@ -1046,17 +1047,19 @@ RULES:
       .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
       .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
 
-    // 2. Convert [ENTRY:id] to markdown links [label](cite:id) — inline, no line breaks
-    const withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    // 2. Convert citations to markdown links
+    // Handle old format [ENTRY:id] → [label](__cite__id)
+    let withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = allData.find(e => e.id === id);
       let label = entry
         ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)
         : "source";
       label = label.replace(/\s*\(?ID[:\s]+[\d\w]+\)?/gi, "").trim().slice(0, 50);
-      // Escape brackets in label for markdown safety
       label = label.replace(/[\[\]]/g, "");
       return `[${label}](__cite__${id})`;
     });
+    // Handle new format [name](cite:id) → [name](__cite__id)
+    withCiteLinks = withCiteLinks.replace(/\]\(cite:([^)]+)\)/g, "](__cite__$1)");
 
     const proseClass = "prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]";
 
