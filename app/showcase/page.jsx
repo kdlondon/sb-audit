@@ -1309,7 +1309,15 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
 
   // Safe helpers for CS slides — prevent crashes from unexpected AI data
   const safeArr = (v) => Array.isArray(v) ? v : [];
-  const safeStr = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "") || "";
+  const safeStr = (v) => {
+    if (typeof v === "string") return v;
+    if (typeof v === "number") return String(v);
+    if (v && typeof v === "object") {
+      // Handle {primary, secondary} or similar objects
+      return Object.values(v).filter(Boolean).join(" | ");
+    }
+    return "";
+  };
 
   // Entry thumbnails strip for CS slides
   const EntryStrip = ({ entries }) => {
@@ -1597,10 +1605,10 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
                 <div className="h-[3px] w-2/3 rounded-full mb-4" style={{ backgroundColor: theme.accent }} />
                 <h3 className="text-3xl md:text-4xl font-bold leading-[1.05] mb-4" style={{ color: t }}>
-                  &ldquo;{slide.creative_proposition}&rdquo;
+                  &ldquo;{safeStr(slide.creative_proposition)}&rdquo;
                 </h3>
                 {slide.proposition_description && (
-                  <p className="text-sm leading-relaxed" style={{ color: m }}>{slide.proposition_description}</p>
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{safeStr(slide.proposition_description)}</p>
                 )}
               </div>
               {/* Right — Strategic Positioning (green card) */}
@@ -1608,8 +1616,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 <h3 className="text-lg font-bold text-white mb-5">Strategic Positioning</h3>
                 <div className="space-y-4">
                   {[
-                    ["Brand Archetype", slide.brand_archetype],
-                    ["Brand Role", slide.brand_role],
+                    ["Brand Archetype", safeStr(slide.brand_archetype)],
+                    ["Brand Role", safeStr(slide.brand_role)],
                   ].map(([label, val]) => val && (
                     <div key={label}>
                       <div className="flex items-center gap-2 mb-0.5">
@@ -1623,8 +1631,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                   {/* Emotional + Rational side by side */}
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      ["Emotional Positioning", slide.emotional_positioning],
-                      ["Rational Positioning", slide.rational_positioning],
+                      ["Emotional Positioning", safeStr(slide.emotional_positioning)],
+                      ["Rational Positioning", safeStr(slide.rational_positioning)],
                     ].map(([label, val]) => val && (
                       <div key={label}>
                         <div className="flex items-center gap-2 mb-0.5">
@@ -1643,7 +1651,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                         <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Brand Territory</span>
                       </div>
                       <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      <p className="text-base font-semibold text-white">{slide.brand_territory}</p>
+                      <p className="text-base font-semibold text-white">{safeStr(slide.brand_territory)}</p>
                     </div>
                   )}
                   {safeArr(slide.key_differentiators).length > 0 && (
