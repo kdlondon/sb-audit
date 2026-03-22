@@ -37,9 +37,9 @@ function mdToHtml(md) {
 function htmlToMd(html) {
   if (!html) return "";
   return html
-    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "# $1\n\n")
-    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n\n")
-    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n\n")
+    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "\n\n# $1\n\n")
+    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "\n\n## $1\n\n")
+    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "\n\n### $1\n\n")
     .replace(/<strong>([\s\S]*?)<\/strong>/gi, "**$1**")
     .replace(/<b>([\s\S]*?)<\/b>/gi, "**$1**")
     .replace(/<em>([\s\S]*?)<\/em>/gi, "*$1*")
