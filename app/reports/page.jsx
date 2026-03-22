@@ -549,11 +549,11 @@ function ReportsContent(){
     setComments(newComments);
     const reportId=viewingReport?.id;
     if(reportId){
+      // Always save to localStorage as backup
+      try{localStorage.setItem(`report_comments_${reportId}`,JSON.stringify(newComments));}catch{}
+      // Try saving to DB
       const{error}=await supabase.from("saved_reports").update({comments:newComments}).eq("id",reportId);
-      if(error&&error.message?.includes("comments")){
-        // Column doesn't exist yet — store in localStorage as fallback
-        localStorage.setItem(`report_comments_${reportId}`,JSON.stringify(newComments));
-      }
+      if(error)console.warn("Comment save error:",error.message);
     }
   };
   const addComment=async(quote,text)=>{
