@@ -160,6 +160,65 @@ function MediaModal({ src, type, onClose }) {
   );
 }
 
+/* ─── NEXT EPISODE (Netflix-style autoplay) ─── */
+function NextEpisode({ next, theme, onPlay }) {
+  const [countdown, setCountdown] = useState(5);
+  const [cancelled, setCancelled] = useState(false);
+  const t = theme.text;
+  const isDark = theme.isDark;
+
+  useEffect(() => {
+    if (cancelled) return;
+    if (countdown <= 0) { onPlay(); return; }
+    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, cancelled]);
+
+  const progress = ((5 - countdown) / 5) * 100;
+  const r = 18; // radius
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (progress / 100) * circ;
+
+  return (
+    <div className="absolute right-7 bottom-5 flex items-center gap-4 pl-5 pr-6 py-3 rounded-2xl transition-all animate-fadeIn" data-pdf-hide
+      style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", backdropFilter: "blur(12px)" }}>
+      {/* Circular countdown */}
+      {!cancelled && (
+        <div className="relative flex items-center justify-center" style={{ width: 44, height: 44 }}>
+          <svg width="44" height="44" className="absolute -rotate-90">
+            <circle cx="22" cy="22" r={r} fill="none" stroke={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"} strokeWidth="3" />
+            <circle cx="22" cy="22" r={r} fill="none" stroke={theme.accent} strokeWidth="3"
+              strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+              style={{ transition: "stroke-dashoffset 1s linear" }} />
+          </svg>
+          <span className="text-sm font-bold" style={{ color: t }}>{countdown}</span>
+        </div>
+      )}
+      {/* Info */}
+      <div className="flex flex-col">
+        <span className="text-[9px] uppercase tracking-[0.2em] mb-0.5" style={{ color: t, opacity: 0.4 }}>Up next</span>
+        <span className="text-sm font-semibold" style={{ color: t }}>{next.title}</span>
+      </div>
+      {/* Actions */}
+      <div className="flex items-center gap-2 ml-2">
+        {!cancelled ? (
+          <button onClick={(e) => { e.stopPropagation(); setCancelled(true); }}
+            className="text-[10px] px-3 py-1.5 rounded-lg transition hover:opacity-80"
+            style={{ color: t, opacity: 0.5, border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}` }}>
+            Cancel
+          </button>
+        ) : null}
+        <button onClick={onPlay}
+          className="text-[10px] px-4 py-1.5 rounded-lg font-semibold transition hover:opacity-90 flex items-center gap-1.5"
+          style={{ backgroundColor: theme.accent, color: isDark ? "#000" : "#fff" }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Play Now
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── MAIN COMPONENT ─── */
 export default function ShowcasePageWrapper() {
   return (
@@ -869,15 +928,7 @@ Return: {"title":"...","slides":[...slides...]}`;
           const idx = showcases.findIndex(s => s.id === currentShowcase.id);
           const next = idx >= 0 && idx < showcases.length - 1 ? showcases[idx + 1] : null;
           if (!next) return null;
-          return (
-            <button onClick={() => { setCurrentShowcase(next); setCurrentSlide(0); nav({ id: next.id }); }}
-              className="absolute right-7 bottom-5 flex items-center gap-2 px-4 py-2 rounded-lg transition hover:opacity-80" data-pdf-hide
-              style={{ backgroundColor: theme.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)", color: theme.text }}>
-              <span className="text-[10px] uppercase tracking-wider opacity-50">Next</span>
-              <span className="text-xs font-semibold">{next.title}</span>
-              <span className="text-lg opacity-40">→</span>
-            </button>
-          );
+          return <NextEpisode key={next.id} next={next} theme={theme} onPlay={() => { setCurrentShowcase(next); setCurrentSlide(0); nav({ id: next.id }); }} />;
         })()}
 
         {/* Dots */}
