@@ -463,6 +463,7 @@ function ReportsContent(){
   const[competitors,setCompetitors]=useState([]);
   const[countryFilter,setCountryFilter]=useState([]);
   const[sections,setSections]=useState([]);
+  const[sectionOverrides,setSectionOverrides]=useState({}); // {sectionId: {label, desc}}
   const[customInstructions,setCustomInstructions]=useState("");
   const[report,setReport]=useState("");
   const[reportTitle,setReportTitle]=useState("");
@@ -660,7 +661,7 @@ function ReportsContent(){
     const brand=e.competitor||e.brand||"";
     const matchBrand=competitors.length===0||competitors.includes(brand);
     const matchYear=(!yearFrom||!e.year||e.year>=yearFrom)&&(!yearTo||!e.year||e.year<=yearTo);
-    const matchCountry=countryFilter.length===0||countryFilter.includes(e.country);
+    const matchCountry=countryFilter.length===0||!e.country||countryFilter.includes(e.country);
     return matchBrand&&matchYear&&matchCountry;
   });
   // Load brand metadata
@@ -742,7 +743,18 @@ function ReportsContent(){
     if(!selectedTemplate||generating)return;
     setGenerating(true);setReport("");setViewingReport(null);
     const timeRange=yearFrom&&yearTo?` (${yearFrom}–${yearTo})`:"";
-    const sectionNames=sections.map(id=>selectedTemplate.sections.find(s=>s.id===id)?.label).filter(Boolean).join(", ");
+    const sectionNames=sections.map(id=>{
+      const ov=sectionOverrides[id];
+      const tmpl=selectedTemplate.sections.find(s=>s.id===id);
+      return ov?.label||tmpl?.label||id;
+    }).filter(Boolean).join(", ");
+    const sectionDetails=sections.map(id=>{
+      const ov=sectionOverrides[id];
+      const tmpl=selectedTemplate.sections.find(s=>s.id===id);
+      const label=ov?.label||tmpl?.label||id;
+      const desc=ov?.desc||tmpl?.desc||"";
+      return `- ${label}: ${desc}`;
+    }).join("\n");
 
     // Build data string with IDs for citations
     let dataStr;
@@ -832,7 +844,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     }
 
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
-    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
+    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
 - When you reference a specific piece of communication, make the descriptive name itself the citation link.
 - Format: [descriptive name](cite:ENTRY_ID) — e.g., [their AI adoption guide](cite:1773496163636)
 - Do NOT mention the piece name and then repeat it as a separate link. The name IS the link. One mention only.
@@ -1456,13 +1468,38 @@ RULES:
                     {!selectedTemplate.singleBrand&&<p className="text-[10px] text-hint mt-1">{competitors.length===0?"All brands selected":`${competitors.length} brand${competitors.length>1?"s":""} selected`}</p>}
                   </div>
 
-                  {/* SECTIONS */}
+                  {/* SECTIONS — editable + reorderable */}
                   <div className="bg-surface rounded-lg border border-main p-4 mb-3">
                     <h3 className="text-sm font-semibold text-main mb-2">Sections</h3>
-                    {selectedTemplate.sections.map(s=>(
-                      <label key={s.id} className="flex items-start gap-2 mb-2 cursor-pointer">
-                        <input type="checkbox" checked={sections.includes(s.id)} onChange={()=>toggleSec(s.id)} className="mt-0.5"/>
-                        <div><div className="text-sm font-medium text-main">{s.label}</div><div className="text-xs text-hint">{s.desc}</div></div>
+                    <div className="space-y-1">
+                      {sections.map((secId,si)=>{
+                        const tmplSec=selectedTemplate.sections.find(s=>s.id===secId);
+                        if(!tmplSec)return null;
+                        const ov=sectionOverrides[secId]||{};
+                        const label=ov.label||tmplSec.label;
+                        const desc=ov.desc||tmplSec.desc;
+                        return(
+                          <div key={secId} className="flex items-start gap-2 bg-surface2 rounded-lg p-2 group">
+                            <input type="checkbox" checked={true} onChange={()=>setSections(prev=>prev.filter(x=>x!==secId))} className="mt-1.5 flex-shrink-0"/>
+                            <div className="flex-1 min-w-0">
+                              <input value={label} onChange={e=>setSectionOverrides(prev=>({...prev,[secId]:{...prev[secId],label:e.target.value}}))}
+                                className="text-sm font-medium text-main bg-transparent w-full focus:outline-none focus:bg-surface px-1 rounded"/>
+                              <input value={desc} onChange={e=>setSectionOverrides(prev=>({...prev,[secId]:{...prev[secId],desc:e.target.value}}))}
+                                className="text-xs text-hint bg-transparent w-full focus:outline-none focus:bg-surface px-1 rounded mt-0.5"/>
+                            </div>
+                            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+                              {si>0&&<button onClick={()=>setSections(prev=>{const n=[...prev];[n[si-1],n[si]]=[n[si],n[si-1]];return n;})} className="text-[10px] text-muted hover:text-main">↑</button>}
+                              {si<sections.length-1&&<button onClick={()=>setSections(prev=>{const n=[...prev];[n[si],n[si+1]]=[n[si+1],n[si]];return n;})} className="text-[10px] text-muted hover:text-main">↓</button>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Unchecked sections */}
+                    {selectedTemplate.sections.filter(s=>!sections.includes(s.id)).map(s=>(
+                      <label key={s.id} className="flex items-start gap-2 mt-1.5 cursor-pointer opacity-50 hover:opacity-80 transition px-2">
+                        <input type="checkbox" checked={false} onChange={()=>setSections(prev=>[...prev,s.id])} className="mt-0.5"/>
+                        <div><div className="text-sm font-medium text-main">{sectionOverrides[s.id]?.label||s.label}</div><div className="text-xs text-hint">{sectionOverrides[s.id]?.desc||s.desc}</div></div>
                       </label>
                     ))}
                   </div>
