@@ -515,6 +515,7 @@ function ReportsContent(){
   };
   const router=useRouter();
   const[generatingShowcase,setGeneratingShowcase]=useState(false);
+  const[renamingReport,setRenamingReport]=useState(null); // report id being renamed
 
   useEffect(()=>{(async()=>{
     const[{data:local},{data:global},{data:reports}]=await Promise.all([
@@ -1177,10 +1178,17 @@ RULES:
             ?<div className="text-center text-hint py-20">No saved reports yet.</div>
             :<div className="space-y-2">{savedReports.map(r=>(
               <div key={r.id} className="bg-surface border border-main rounded-lg p-4 flex justify-between items-center hover:border-[var(--accent)] transition cursor-pointer" onClick={()=>router.push(`/reports?report=${r.id}`,{scroll:false})}>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-medium text-main">{r.title}</p>
-                    {r.template_type&&<span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${BADGE[r.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===r.template_type)?.label||r.template_type}</span>}
+                    {renamingReport===r.id?(
+                      <input autoFocus defaultValue={r.title} className="text-sm font-medium text-main bg-surface border border-[var(--accent)] rounded px-2 py-0.5 w-full max-w-[400px] focus:outline-none"
+                        onClick={ev=>ev.stopPropagation()}
+                        onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&v!==r.title){await supabase.from("saved_reports").update({title:v}).eq("id",r.id);const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}setRenamingReport(null);}}
+                        onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();if(ev.key==="Escape")setRenamingReport(null);}}/>
+                    ):(
+                      <p className="text-sm font-medium text-main cursor-text" onDoubleClick={ev=>{ev.stopPropagation();setRenamingReport(r.id);}}>{r.title}</p>
+                    )}
+                    {r.template_type&&<span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold flex-shrink-0 ${BADGE[r.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===r.template_type)?.label||r.template_type}</span>}
                   </div>
                   <div className="flex gap-2">
                     {r.year_from&&r.year_to&&<span className="text-[10px] text-hint">{r.year_from}–{r.year_to}</span>}
@@ -1212,7 +1220,9 @@ RULES:
                   <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main flex-shrink-0">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                   </button>
-                  <h1 className="text-2xl font-bold text-main flex-1 min-w-0">{viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}</h1>
+                  <h1 className="text-2xl font-bold text-main flex-1 min-w-0 cursor-text" contentEditable suppressContentEditableWarning
+                    onBlur={async(ev)=>{const v=ev.target.textContent.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
+                  >{viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}</h1>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* Copy */}
                     <button onClick={copyReport} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title={copied?"Copied!":"Copy"}>
