@@ -755,10 +755,11 @@ function SettingsContent() {
                         {b.brand_name}
                       </span>
                       <input
-                        value={b.country || ""}
-                        onChange={(e) =>
+                        defaultValue={b.country || ""}
+                        onBlur={(e) =>
                           updateBrandCountry(b.id, e.target.value)
                         }
+                        onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
                         placeholder="Country"
                         className="w-[90px] px-2 py-1 border border-main rounded-lg text-xs text-main bg-surface focus:outline-none focus:border-[var(--accent)]"
                       />
