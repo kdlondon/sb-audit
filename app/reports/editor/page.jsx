@@ -156,19 +156,41 @@ function EditorContent2() {
   }, [reportId, projectId, editor]);
 
   const [saveError, setSaveError] = useState(null);
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   /* ─── SAVE ─── */
   const saveContent = useCallback(async () => {
     if (!reportId) return;
     setSaving(true);
     setSaveError(null);
+
+    // Always sync latest content from TipTap editor before saving
+    if (modeRef.current === "visual" && editorRef.current) {
+      const freshMd = htmlToMd(editorRef.current.getHTML());
+      markdownRef.current = freshMd;
+    }
+
     const md = markdownRef.current;
     const t = titleRef.current;
+
     try {
-      const { error } = await supabase.from("saved_reports").update({ content: md, title: t }).eq("id", reportId);
+      // Use a fresh client to avoid stale auth
+      const db = createClient();
+      const { error } = await db.from("saved_reports").update({ content: md, title: t }).eq("id", reportId);
       if (error) {
         console.error("[Editor] Save error:", error);
         setSaveError(error.message || "Save failed");
+        setSaving(false);
+        return;
+      }
+      // Verify the save actually persisted
+      const { data: check } = await db.from("saved_reports").select("content").eq("id", reportId).single();
+      if (!check || check.content !== md) {
+        console.error("[Editor] Save verification failed — content mismatch");
+        setSaveError("Save did not persist — check permissions");
         setSaving(false);
         return;
       }
@@ -179,7 +201,7 @@ function EditorContent2() {
       setSaveError(e.message || "Save crashed");
       setSaving(false);
     }
-  }, [reportId, supabase]);
+  }, [reportId]);
 
   // Autosave every 8 seconds
   useEffect(() => {

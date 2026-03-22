@@ -529,9 +529,9 @@ function ReportsContent(){
 
   useEffect(()=>{
     if(!reportParam){setViewingReport(null);setComments([]);return;}
-    if(viewingReport?.id===reportParam)return;
     const found=savedReports.find(r=>r.id===reportParam);
     if(found){
+      // Always update viewingReport with latest data from savedReports
       setViewingReport(found);
       const dbComments=Array.isArray(found.comments)?found.comments:[];
       let lsComments=[];
