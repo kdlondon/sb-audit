@@ -238,9 +238,9 @@ function EditorContent2() {
   if (!report) return <div className="min-h-screen flex items-center justify-center"><p className="text-hint">Report not found</p></div>;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
       {/* Top bar */}
-      <div className="section-bar px-5 py-2.5 flex justify-between items-center">
+      <div className="section-bar px-5 py-2.5 flex justify-between items-center flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={async () => { if (!saved) await saveContent(); router.push(`/reports?report=${reportId}`); }}
             className="text-muted hover:text-main text-sm">← Back to report</button>
@@ -265,7 +265,7 @@ function EditorContent2() {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center gap-3 sticky top-0 z-20">
+      <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center gap-3 flex-shrink-0">
         <div className="flex bg-surface2 rounded-lg p-0.5">
           <button onClick={switchToVisual}
             className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode === "visual" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
