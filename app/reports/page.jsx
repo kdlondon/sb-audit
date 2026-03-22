@@ -1158,7 +1158,7 @@ RULES:
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={ev=>{ev.stopPropagation();const blob=new Blob([r.content||""],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${r.title||"report"}.md`;a.click();}} className="text-xs text-muted hover:text-main px-2">Download</button>
+                  <button onClick={async(ev)=>{ev.stopPropagation();router.push(`/reports?report=${r.id}`,{scroll:false});setTimeout(async()=>{const el=document.querySelector("[data-report-content]");if(!el)return;const html2pdf=(await import("html2pdf.js")).default;html2pdf(el,{margin:[15,15,25,15],filename:`${r.title||"report"}.pdf`,image:{type:"jpeg",quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}});},1500);}} className="text-xs text-muted hover:text-main px-2">PDF</button>
                   <button onClick={ev=>{ev.stopPropagation();router.push(`/reports/editor?id=${r.id}`);}} className="text-xs text-accent hover:underline px-2">Edit</button>
                   <button onClick={ev=>{ev.stopPropagation();deleteReport(r.id);}} className="text-hint hover:text-red-400 text-sm px-2">×</button>
                 </div>
