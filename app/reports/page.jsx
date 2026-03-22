@@ -691,13 +691,13 @@ function ReportsContent(){
 
   // Agnostic snapshot — section instructions (used to build dynamic prompt)
   const AGNOSTIC_SECTION_PROMPTS={
-    audience:`(Focus ONLY on entries with Brand Hero communication intent — these are the core positioning pieces)
+    audience:`(CRITICAL: Focus ONLY on entries marked ★★★ BRAND HERO ★★★ in the data — these are the core positioning pieces. You MUST reference and cite the Brand Hero entries by name. If there is only one Brand Hero entry, analyze it deeply.)
 - **Demographic:** age range, financial profile, experience level inferred from the brand's hero communications
 - **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
 - **Tension:** the core unresolved need their brand addresses (1–2 sentences)
 - **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
 - **Audience Evolution:** If the brand's target audience has shifted across Brand Hero campaigns over time, describe the shift in 1–2 sentences. If consistent, state that.`,
-    brand_response:`(Focus ONLY on entries with Brand Hero communication intent — the core positioning pieces like manifestos, brand commercials, tagline-driven campaigns.)
+    brand_response:`(CRITICAL: Focus ONLY on entries marked ★★★ BRAND HERO ★★★ — manifestos, brand commercials, tagline-driven campaigns. You MUST cite every Brand Hero entry.)
 Present the CURRENT positioning (based on the most recent Brand Hero campaign):
 - **Creative Proposition:** 3–6 word campaign/brand idea label
 - **Brand Archetype:** single archetype + one sentence explanation
@@ -840,7 +840,10 @@ ${collectField("synopsis").join("\n")}
 ANALYST COMMENTS:
 ${collectField("analyst_comment").join("\n")}
 
-ENTRY DESCRIPTIONS:
+BRAND HERO ENTRIES (core positioning pieces — these are the MOST IMPORTANT entries for sections 01 and 02):
+${fd.filter(e=>(e.communication_intent||"").toLowerCase().includes("hero")).map(e=>`[ID:${e.id}] ★★★ BRAND HERO ★★★ [${e.year||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | Synopsis:${(e.synopsis||"").slice(0,200)} | Insight:${(e.insight||"").slice(0,200)}`).join("\n")||"No Brand Hero entries found"}
+
+ALL ENTRY DESCRIPTIONS (including Brand Hero + Brand Tactical + Product + other):
 ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communication_intent||""}] ${e.description||""} | Slogan:${e.main_slogan||""} | Territory:${e.primary_territory||""} | Tone:${e.tone_of_voice||""} | Archetype:${e.brand_archetype||""} | URL:${e.url||""} | Image:${e.image_url||""}`).join("\n")}`;
     }else{
       dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
