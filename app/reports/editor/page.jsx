@@ -239,7 +239,7 @@ function EditorContent2() {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
       {/* Top bar */}
-      <div className="section-bar px-5 py-2.5 flex justify-between items-center flex-shrink-0">
+      <div className="px-5 py-2.5 flex justify-between items-center flex-shrink-0 bg-surface border-b border-main">
         <div className="flex items-center gap-3">
           <button onClick={async () => { if (!saved) await saveContent(); router.push(`/reports?report=${reportId}`); }}
             className="text-muted hover:text-main text-sm">← Back to report</button>
