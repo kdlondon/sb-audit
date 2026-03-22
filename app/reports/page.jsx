@@ -164,86 +164,7 @@ ${GLOBAL_RULES}
 
 Focus on what breaks category norms. Identify emerging signals before they become mainstream. Note whether innovation appears in Brand Hero positioning (strategic innovation) or in tactical execution (format/channel innovation).`,
 
-  agnostic_snapshot:`You are a senior brand strategist writing a competitive communication audit.
-
-CRITICAL: This is framework-agnostic. Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit.
-
-${GLOBAL_RULES}
-
-Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
-
-CITATION RULES — CRITICAL:
-- Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
-- Citations must appear inline immediately after the claim.
-- Never make a specific claim about a piece without citing it.
-- Include a ## Sources section at the end.
-
-REPORT STRUCTURE — follow this EXACTLY:
-
-## 01 — Understanding the Audience
-(Focus ONLY on entries with Brand Hero communication intent — these are the core positioning pieces)
-- **Demographic:** age range, financial profile, experience level inferred from the brand's hero communications
-- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
-- **Tension:** the core unresolved need their brand addresses (1–2 sentences)
-- **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
-- **Audience Evolution:** If the brand's target audience has shifted across Brand Hero campaigns over time, describe the shift in 1–2 sentences. If consistent, state that.
-
-## 02 — The Brand Response
-(Focus ONLY on entries with Brand Hero communication intent — the core positioning pieces like manifestos, brand commercials, tagline-driven campaigns. Do NOT include Brand Tactical pieces like events, sponsorships, or cause marketing here.)
-
-First, present the CURRENT positioning (based on the most recent Brand Hero campaign):
-- **Creative Proposition:** 3–6 word campaign/brand idea label derived from the most recent hero pieces
-- **Brand Archetype:** single archetype + one sentence explanation
-- **Brand Role:** one sentence on what role the brand plays in the customer's life
-- **Emotional Positioning Statement:** short phrase (5–10 words)
-- **Rational Positioning Statement:** one sentence (15–25 words)
-- **Brand Territory:** primary + secondary if applicable
-- **Key Differentiators:** 3 bullet points
-Include references to specific Brand Hero cases that support the findings.
-
-Then, if multiple Brand Hero campaigns exist across different years:
-- **Positioning Evolution:** A brief chronological narrative (3–5 sentences) tracing how the brand's core proposition, archetype, and territory have evolved. Reference specific campaigns by name/slogan and year. End with an assessment: is the evolution coherent and building equity, or fragmented and diluting the brand?
-
-## 03 — Proof Points & Communication Strategy
-(Analyze how the brand proves its positioning across Brand Hero and Brand Tactical pieces)
-- **Primary Proof Point:** 1–2 sentences on the main proof of their positioning
-- **Secondary Proof Points:** 3 supporting points, one line each
-- **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
-- **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
-- **Brand Tactical Support:** 1–2 sentences on how tactical brand pieces (events, sponsorships, community initiatives) reinforce or diverge from the core positioning
-
-## 04 — Product Communication
-(Focus on entries with Product communication intent)
-- **Approach:** feature-led, outcome-led, or emotion-led — and one sentence explaining why
-- **Key Product Messages:** the 3 most recurring product claims from the communications
-- **Channels & Formats:** where and how product communication is primarily delivered
-- **Gap:** one sentence on what product story they are NOT telling
-
-## 05 — Beyond Banking & Innovation
-(Focus on entries with Innovation or Beyond Banking communication intent)
-- **Beyond Banking:** are they occupying lifestyle, community, aspiration, identity, or life-moment territories — and how genuinely? One paragraph.
-- **Innovation:** Does innovation appear as a stated claim, a demonstrated capability, or is it absent? One paragraph with evidence from the communications.
-- **White Space:** one sentence on the most credible territory this brand has not yet claimed
-
-## 06 — Brand Assessment
-Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces. Consider the positioning evolution in the assessment.
-- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
-- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation
-
-## 07 — Communication Assessment
-Assessment across the three communication areas: proof points & strategy (section 03), product communication (section 04), and beyond banking & innovation (section 05).
-- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
-- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
-
-## 08 — Website vs Communication
-(Only generate this section if BRAND WEBSITE PROFILE data is provided below. If no website profile data exists, skip this section entirely.)
-Compare the brand's official website positioning with their actual advertising communications:
-- Create a comparison table with columns: Dimension | Website Profile | Actual Communications | Alignment
-- Include rows for: Core Positioning, Archetype, Tone, Target Audience, Value Proposition, Key Differentiators
-- After the table, write 2-3 sentences analyzing the consistency or disconnect between what the brand says on its website vs how it actually communicates in ads and campaigns
-- Identify specific gaps where the website promises something the communications don't deliver, or vice versa
-
-Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`,
+  agnostic_snapshot: "DYNAMIC",
 };
 
 const BADGE={local:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",global:"bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"};
@@ -739,6 +660,85 @@ function ReportsContent(){
 
   const searchResults=searchQuery.length>1?allData.filter(e=>{const q=searchQuery.toLowerCase();return(e.description||"").toLowerCase().includes(q)||(e.competitor||"").toLowerCase().includes(q)||(e.brand||"").toLowerCase().includes(q)||(e.main_slogan||"").toLowerCase().includes(q);}).slice(0,10):[];
 
+  // Agnostic snapshot — section instructions (used to build dynamic prompt)
+  const AGNOSTIC_SECTION_PROMPTS={
+    audience:`(Focus ONLY on entries with Brand Hero communication intent — these are the core positioning pieces)
+- **Demographic:** age range, financial profile, experience level inferred from the brand's hero communications
+- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
+- **Tension:** the core unresolved need their brand addresses (1–2 sentences)
+- **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
+- **Audience Evolution:** If the brand's target audience has shifted across Brand Hero campaigns over time, describe the shift in 1–2 sentences. If consistent, state that.`,
+    brand_response:`(Focus ONLY on entries with Brand Hero communication intent — the core positioning pieces like manifestos, brand commercials, tagline-driven campaigns.)
+Present the CURRENT positioning (based on the most recent Brand Hero campaign):
+- **Creative Proposition:** 3–6 word campaign/brand idea label
+- **Brand Archetype:** single archetype + one sentence explanation
+- **Brand Role:** one sentence on what role the brand plays in the customer's life
+- **Emotional Positioning Statement:** short phrase (5–10 words)
+- **Rational Positioning Statement:** one sentence (15–25 words)
+- **Brand Territory:** primary + secondary if applicable
+- **Key Differentiators:** 3 bullet points
+Then, if multiple Brand Hero campaigns exist across different years:
+- **Positioning Evolution:** A brief chronological narrative (3–5 sentences) tracing how the brand's core proposition has evolved.`,
+    proof_points:`(Analyze how the brand proves its positioning across Brand Hero and Brand Tactical pieces)
+- **Primary Proof Point:** 1–2 sentences on the main proof of their positioning
+- **Secondary Proof Points:** 3 supporting points, one line each
+- **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
+- **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
+- **Brand Tactical Support:** 1–2 sentences on how tactical pieces reinforce or diverge from core positioning`,
+    product_comms:`(Focus on entries with Product communication intent)
+- **Approach:** feature-led, outcome-led, or emotion-led — and one sentence explaining why
+- **Key Product Messages:** the 3 most recurring product claims
+- **Channels & Formats:** where and how product communication is primarily delivered
+- **Gap:** one sentence on what product story they are NOT telling`,
+    beyond_banking:`(Focus on entries with Innovation or Beyond Banking communication intent)
+- **Beyond Banking:** are they occupying lifestyle, community, aspiration, identity, or life-moment territories — and how genuinely? One paragraph.
+- **Innovation:** Does innovation appear as a stated claim, a demonstrated capability, or is it absent? One paragraph.
+- **White Space:** one sentence on the most credible territory this brand has not yet claimed`,
+    brand_assessment:`Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces.
+- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
+- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation`,
+    comm_assessment:`Assessment across the three communication areas: proof points & strategy, product communication, and beyond banking & innovation.
+- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
+- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area`,
+    website_vs_comms:`(Only generate this section if BRAND WEBSITE PROFILE data is provided. If no website profile data exists, skip this section entirely.)
+Compare the brand's official website positioning with their actual advertising communications:
+- Create a comparison table with columns: Dimension | Website Profile | Actual Communications | Alignment
+- Include rows for: Core Positioning, Archetype, Tone, Target Audience, Value Proposition, Key Differentiators
+- After the table, write 2-3 sentences analyzing the consistency or disconnect`,
+  };
+
+  const buildAgnosticPrompt=()=>{
+    let structureParts=[];
+    sections.forEach((secId,i)=>{
+      const ov=sectionOverrides[secId]||{};
+      const tmpl=selectedTemplate?.sections?.find(s=>s.id===secId);
+      const label=ov.label||tmpl?.label||secId;
+      const customDesc=ov.desc;
+      const defaultInstructions=AGNOSTIC_SECTION_PROMPTS[secId]||"";
+      const num=String(i+1).padStart(2,"0");
+      structureParts.push(`## ${num} — ${label}\n${customDesc&&customDesc!==tmpl?.desc?`CUSTOM INSTRUCTIONS: ${customDesc}\n`:""}${defaultInstructions}`);
+    });
+    return `You are a senior brand strategist writing a competitive communication audit.
+
+CRITICAL: This is framework-agnostic. Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit.
+
+${GLOBAL_RULES}
+
+Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
+
+CITATION RULES — CRITICAL:
+- When you reference a specific piece of communication, make the descriptive name itself the citation link.
+- Format: [descriptive name](cite:ENTRY_ID)
+- Do NOT mention the piece name and then repeat it as a separate link. One mention only.
+- Include a ## Sources section at the end with [description](cite:ID) for each source.
+
+REPORT STRUCTURE — follow this EXACTLY in this order. ONLY generate the sections listed below. Do NOT add extra sections:
+
+${structureParts.join("\n\n")}
+
+Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`;
+  };
+
   const generate=async()=>{
     if(!selectedTemplate||generating)return;
     setGenerating(true);setReport("");setViewingReport(null);
@@ -843,7 +843,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
       }
     }
 
-    const system=SYSTEM_PROMPTS[selectedTemplate.id];
+    const system=selectedTemplate.id==="agnostic_snapshot"?buildAgnosticPrompt():SYSTEM_PROMPTS[selectedTemplate.id];
     const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
 - When you reference a specific piece of communication, make the descriptive name itself the citation link.
 - Format: [descriptive name](cite:ENTRY_ID) — e.g., [their AI adoption guide](cite:1773496163636)
@@ -1072,6 +1072,11 @@ RULES:
     });
     // Handle new format [name](cite:id) → [name](__cite__id)
     withCiteLinks = withCiteLinks.replace(/\]\(cite:([^)]+)\)/g, "](__cite__$1)");
+    // Handle Sources section: [ID:xxx] - description → clickable link
+    withCiteLinks = withCiteLinks.replace(/\[ID:([^\]]+)\]\s*[-–—]\s*(.+)/g, (match, id, desc) => {
+      const entry = allData.find(e => e.id === id);
+      return `[${desc.trim()}](__cite__${id})`;
+    });
 
     const proseClass = "prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 prose-table:text-sm prose-th:bg-[var(--surface2)] prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:border-[var(--border)]";
 
