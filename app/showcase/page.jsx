@@ -847,6 +847,20 @@ Return: {"title":"...","slides":[...slides...]}`;
           <button onClick={() => setCurrentSlide(s => s - 1)} className="absolute left-14 bottom-7 text-2xl transition" data-pdf-hide
             style={{ color: theme.text, opacity: 0.2 }}>←</button>
         )}
+        {currentSlide === 0 && !pdfMode && (() => {
+          const idx = showcases.findIndex(s => s.id === currentShowcase.id);
+          const prev = idx > 0 ? showcases[idx - 1] : null;
+          if (!prev) return null;
+          return (
+            <button onClick={() => { setCurrentShowcase(prev); setCurrentSlide((prev.slides||[]).length - 1); nav({ id: prev.id }); }}
+              className="absolute left-14 bottom-5 flex items-center gap-2 px-4 py-2 rounded-lg transition hover:opacity-80" data-pdf-hide
+              style={{ backgroundColor: theme.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)", color: theme.text }}>
+              <span className="text-lg opacity-40">←</span>
+              <span className="text-xs font-semibold">{prev.title}</span>
+              <span className="text-[10px] uppercase tracking-wider opacity-50">Prev</span>
+            </button>
+          );
+        })()}
         {currentSlide < slides.length - 1 && !pdfMode && (
           <button onClick={() => setCurrentSlide(s => s + 1)} className="absolute right-7 bottom-7 text-2xl transition" data-pdf-hide
             style={{ color: theme.text, opacity: 0.2 }}>→</button>
