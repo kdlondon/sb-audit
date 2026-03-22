@@ -117,6 +117,9 @@ BRAND CONSISTENCY SECTION — when generating this section, evaluate:
 5. Moment integrity — are there pieces that break the brand's own pattern? Which ones and why?
 Rate each dimension: Strong / Partial / Fragmented, with specific cited evidence.
 
+WEBSITE vs COMMUNICATION SECTION — when generating this section (only if BRAND WEBSITE PROFILE data is provided):
+Compare the brand's official website positioning with their actual advertising communications. Create a markdown table with columns: Dimension | Website Profile | Actual Communications | Alignment. Cover: Core Positioning, Archetype, Tone, Target, Value Proposition. Then analyze the consistency or disconnect in 2-3 sentences.
+
 Write with authority. Use ## for sections, ### for subsections, **bold** for key findings. Use markdown tables where useful. Be conclusive and opinionated.`,
 
   category_landscape:`You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank.
@@ -231,6 +234,14 @@ Assessment of the brand itself — its positioning, identity, proposition, and t
 Assessment across the three communication areas: proof points & strategy (section 03), product communication (section 04), and beyond banking & innovation (section 05).
 - **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
 - **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
+
+## 08 — Website vs Communication
+(Only generate this section if BRAND WEBSITE PROFILE data is provided below. If no website profile data exists, skip this section entirely.)
+Compare the brand's official website positioning with their actual advertising communications:
+- Create a comparison table with columns: Dimension | Website Profile | Actual Communications | Alignment
+- Include rows for: Core Positioning, Archetype, Tone, Target Audience, Value Proposition, Key Differentiators
+- After the table, write 2-3 sentences analyzing the consistency or disconnect between what the brand says on its website vs how it actually communicates in ads and campaigns
+- Identify specific gaps where the website promises something the communications don't deliver, or vice versa
 
 Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write with authority.`,
 };
@@ -728,7 +739,7 @@ function ReportsContent(){
   const searchResults=searchQuery.length>1?allData.filter(e=>{const q=searchQuery.toLowerCase();return(e.description||"").toLowerCase().includes(q)||(e.competitor||"").toLowerCase().includes(q)||(e.brand||"").toLowerCase().includes(q)||(e.main_slogan||"").toLowerCase().includes(q);}).slice(0,10):[];
 
   const generate=async()=>{
-    if(!selectedTemplate)return;
+    if(!selectedTemplate||generating)return;
     setGenerating(true);setReport("");setViewingReport(null);
     const timeRange=yearFrom&&yearTo?` (${yearFrom}–${yearTo})`:"";
     const sectionNames=sections.map(id=>selectedTemplate.sections.find(s=>s.id===id)?.label).filter(Boolean).join(", ");
