@@ -850,9 +850,24 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     const isAgnostic = rpt.template_type === "agnostic_snapshot";
     const isCompetitorSnapshot = rpt.template_type === "competitor_snapshot";
     const useCSFormat = isAgnostic || isCompetitorSnapshot;
-    const brandNames = (rpt.competitors || "").split(",").map(s => s.trim()).filter(Boolean);
+    let brandNames = (rpt.competitors || "").split(",").map(s => s.trim()).filter(Boolean);
+
+    // If competitors is empty, try to extract brand from report title
+    if (brandNames.length === 0 && rpt.title) {
+      // Try common patterns: "Brand Snapshot", "Snapshot - Brand", "Brand —", etc.
+      const titleBrand = rpt.title.replace(/^(Agnostic\s+)?Competitor\s+Snapshot\s*[-—]\s*/i, "")
+        .replace(/\s*[-—]\s*\d{4}.*$/, "")
+        .replace(/\s*[-—]\s*(Local|Global|Agnostic|Snapshot).*$/i, "")
+        .trim();
+      if (titleBrand && titleBrand.length > 1 && titleBrand.length < 50) {
+        brandNames = [titleBrand];
+        console.log("[Showcase] Extracted brand from title:", titleBrand);
+      }
+    }
+
     // For agnostic snapshots, search both scopes regardless of saved scope
     const scope = isAgnostic ? "both" : (rpt.scope || "local");
+    console.log("[Showcase] useCSFormat:", useCSFormat, "brands:", brandNames, "scope:", scope, "template_type:", rpt.template_type);
 
     // Get the original entries — ALWAYS search both tables for agnostic, otherwise use scope
     let entries = [];
@@ -927,7 +942,7 @@ CRITICAL — ENTRIES: For slides 2-6, include an "entries" array with REAL entri
 
 Return ONLY valid JSON: {"title":"...","slides":[...]}`;
 
-      userMsg = `REPORT CONTENT:\n${reportContent}\n\nORIGINAL ENTRIES (${entries.length} entries — use for image_url/url references):\n${JSON.stringify(entryData.slice(0, 30), null, 1)}`;
+      userMsg = `BRAND: ${brandName}\nREPORT TITLE: ${rpt.title || brandName}\n\nREPORT CONTENT (this is specifically about ${brandName} — ALL slides must be about ${brandName}):\n${reportContent}\n\nORIGINAL ENTRIES for ${brandName} (${entries.length} entries — use for image_url/url references):\n${JSON.stringify(entryData.slice(0, 30), null, 1)}`;
     } else {
       // Creative showcase from non-CS reports (landscape, opportunity, etc.)
       const reportTitle = rpt.title || "Report";
@@ -958,7 +973,7 @@ RULES:
 - ALL output in English
 - Return ONLY valid JSON: {"title":"...","slides":[...]}`;
 
-      userMsg = `REPORT TITLE: ${reportTitle}\n\nREPORT CONTENT:\n${reportContent.slice(0, 6000)}\n\nORIGINAL ENTRIES (use for images/videos):\n${JSON.stringify(entryData.slice(0, 25), null, 1)}`;
+      userMsg = `REPORT TITLE: ${reportTitle}\nBRANDS: ${brandNames.join(", ") || "see report content"}\n\nREPORT CONTENT (the showcase MUST be about THIS report only — do not change the subject):\n${reportContent.slice(0, 6000)}\n\nORIGINAL ENTRIES (use for images/videos):\n${JSON.stringify(entryData.slice(0, 25), null, 1)}`;
     }
 
     try {
