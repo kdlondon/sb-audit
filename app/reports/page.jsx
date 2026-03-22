@@ -830,7 +830,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
 - The [ENTRY:id] token is invisible to the reader. It only appears in your output as [ENTRY:123456], nowhere else.
 - Do NOT place citations inside markdown table rows (| col | col |) — only use them in prose paragraphs and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
-      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:8000,system,messages:[{role:"user",content:userMsg}]})});
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
       if(result.error)setReport("Error: "+result.error);
       else setReport(result.content?.map(c=>c.text||"").join("")||"No content.");
