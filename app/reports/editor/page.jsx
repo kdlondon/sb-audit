@@ -123,6 +123,8 @@ function EditorContent2() {
     },
     onUpdate: ({ editor }) => {
       setSaved(false);
+      // Sync HTML → markdown on every change
+      setMarkdownContent(htmlToMd(editor.getHTML()));
     },
   });
 
@@ -152,16 +154,10 @@ function EditorContent2() {
   const saveContent = useCallback(async () => {
     if (!reportId) return;
     setSaving(true);
-    // Get content from editor (HTML → markdown)
-    let md = markdownContent;
-    if (editor && mode === "visual") {
-      md = htmlToMd(editor.getHTML());
-      setMarkdownContent(md);
-    }
-    await supabase.from("saved_reports").update({ content: md, title, updated_at: new Date().toISOString() }).eq("id", reportId);
+    await supabase.from("saved_reports").update({ content: markdownContent, title, updated_at: new Date().toISOString() }).eq("id", reportId);
     setSaving(false);
     setSaved(true);
-  }, [editor, markdownContent, title, reportId, mode]);
+  }, [markdownContent, title, reportId]);
 
   // Autosave every 8 seconds
   useEffect(() => {
