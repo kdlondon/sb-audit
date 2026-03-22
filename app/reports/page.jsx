@@ -1226,11 +1226,11 @@ RULES:
                   </div>
                 </div>
                 {/* Row 2: Metadata */}
-                <div className="flex gap-3 text-[10px] text-hint mt-1 ml-8">
-                  {viewingReport?.competitors && <span>{viewingReport.competitors}</span>}
+                <div className="flex items-center gap-2 text-[10px] text-hint mt-1 ml-8 flex-wrap">
+                  {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
                   {viewingReport?.year_from && viewingReport?.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
                   {viewingReport?.created_at && <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(viewingReport.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>}
-                  {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
+                  {viewingReport?.competitors && <span className="truncate max-w-[300px]" title={viewingReport.competitors}>{viewingReport.competitors}</span>}
                 </div>
               </div>
               <div className="flex">
