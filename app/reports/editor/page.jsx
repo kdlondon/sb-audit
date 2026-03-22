@@ -363,7 +363,7 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
       {/* Section bar */}
       <div className="section-bar px-5 py-2.5 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/reports")} className="text-muted hover:text-main text-sm">← Reports</button>
+          <button onClick={async() => { if(!saved) await saveContent(); router.push(`/reports?report=${reportId}`); }} className="text-muted hover:text-main text-sm">← Back to report</button>
           <div className="w-px h-5 bg-main opacity-20" />
           <input value={title} onChange={e => { setTitle(e.target.value); setSaved(false); }}
             className="text-lg font-bold text-main bg-transparent border-none focus:outline-none w-[300px]"
@@ -372,9 +372,13 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
           {saving && <span className="text-[9px] text-accent">Saving...</span>}
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={async()=>{await saveContent();router.push(`/reports?report=${reportId}`);}} disabled={saving}
+            className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold hover:opacity-90 transition">
+            {saving?"Saving...":"Save & Close"}
+          </button>
           <button onClick={saveContent} disabled={saving}
             className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main transition">
-            Save
+            {saving?"Saving...":"Save"}
           </button>
           <button onClick={generateShowcase} disabled={generatingShowcase}
             className="px-3 py-1.5 text-xs text-white rounded-lg font-medium transition hover:opacity-90 disabled:opacity-50"
