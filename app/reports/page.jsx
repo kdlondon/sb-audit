@@ -841,25 +841,30 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
   /* ─── GENERATE SHOWCASE FROM REPORT (using original entry data) ─── */
   const generateShowcaseFromReport = async (reportOverride) => {
     const rpt = reportOverride || viewingReport;
-    if (!rpt) return;
+    if (!rpt) { alert("No report selected"); return; }
     setGeneratingShowcase(true);
+
+    // Debug: log what report we're working with
+    console.log("[Showcase] Report:", { id: rpt.id, title: rpt.title, template_type: rpt.template_type, competitors: rpt.competitors, scope: rpt.scope, contentLength: rpt.content?.length });
 
     const isAgnostic = rpt.template_type === "agnostic_snapshot";
     const isCompetitorSnapshot = rpt.template_type === "competitor_snapshot";
     const useCSFormat = isAgnostic || isCompetitorSnapshot;
     const brandNames = (rpt.competitors || "").split(",").map(s => s.trim()).filter(Boolean);
-    const scope = rpt.scope || "local";
+    // For agnostic snapshots, search both scopes regardless of saved scope
+    const scope = isAgnostic ? "both" : (rpt.scope || "local");
 
-    // Get the original entries — match any of the report's brands, or all if no brands specified
+    // Get the original entries — ALWAYS search both tables for agnostic, otherwise use scope
     let entries = [];
-    if (scope === "local" || isAgnostic) {
+    if (scope === "local" || scope === "both") {
       const { data } = await supabase.from("audit_entries").select("*").eq("project_id", projectId);
       if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.competitor)) : data));
     }
-    if (scope === "global" || isAgnostic) {
+    if (scope === "global" || scope === "both") {
       const { data } = await supabase.from("audit_global").select("*").eq("project_id", projectId);
       if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.brand)) : data));
     }
+    console.log("[Showcase] Entries found:", entries.length, "for brands:", brandNames, "scope:", scope);
     // Apply year filters if the report had them
     if (rpt.year_from) entries = entries.filter(e => e.year >= rpt.year_from);
     if (rpt.year_to) entries = entries.filter(e => e.year <= rpt.year_to);
@@ -1162,6 +1167,24 @@ RULES:
                     <button onClick={async()=>{const saved=await saveReport(false);if(saved)generateShowcaseFromReport(saved);}} disabled={saving||generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Save & Showcase"}</button>
                   </>}
                   {viewingReport&&<>
+                    <button onClick={async()=>{
+                      if(!confirm("Regenerate this report with the latest data?"))return;
+                      const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
+                      if(tmpl){
+                        setSelectedTemplate(tmpl);
+                        setSections(tmpl.sections.map(s=>s.id));
+                        setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));
+                        setYearFrom(viewingReport.year_from||"");
+                        setYearTo(viewingReport.year_to||"");
+                        setCustomInstructions(viewingReport.custom_instructions||"");
+                        setReportTitle(viewingReport.title||"");
+                        reportTitleRef.current=viewingReport.title||"";
+                        setViewingReport(null);
+                        router.push("/reports?tab=generate",{scroll:false});
+                        // Small delay for state to settle, then generate
+                        setTimeout(()=>generate(),500);
+                      }
+                    }} className="px-3 py-1.5 text-xs border border-amber-300 rounded-lg text-amber-600 hover:bg-amber-50" title="Regenerate with latest data">Refresh</button>
                     <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main hover:bg-surface2">Edit</button>
                     <button onClick={generateShowcaseFromReport} disabled={generatingShowcase} className="px-3 py-1.5 text-xs text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1D9A42"}}>{generatingShowcase?"Generating...":"Showcase"}</button>
                   </>}
