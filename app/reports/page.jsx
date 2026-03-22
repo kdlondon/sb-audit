@@ -619,7 +619,7 @@ function ReportsContent(){
   };
   const toggleSec=(id)=>setSections(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const copyReport=()=>{navigator.clipboard.writeText(report||viewingReport?.content||"");setCopied(true);setTimeout(()=>setCopied(false),2000);};
-  const downloadMD=()=>{const content=report||viewingReport?.content||"";const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="report.md";document.body.appendChild(a);a.click();document.body.removeChild(a);};
+  const downloadMD=()=>{const title=viewingReport?.title||reportTitleRef.current||"report";const filename=title.replace(/[^a-zA-Z0-9\s\-_]/g,"").replace(/\s+/g,"_")+".md";const header=`# ${title}\n\n${[viewingReport?.competitors,viewingReport?.year_from&&viewingReport?.year_to?viewingReport.year_from+"–"+viewingReport.year_to:"",new Date(viewingReport?.created_at||Date.now()).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})].filter(Boolean).join(" · ")}\n\n---\n\n`;const content=header+(report||viewingReport?.content||"");const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);};
   const downloadPDF=async()=>{
     if(!reportRef.current)return;
     const title=viewingReport?.title||reportTitleRef.current||"report";
