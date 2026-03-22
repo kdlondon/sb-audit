@@ -1223,6 +1223,17 @@ RULES:
               </div>
               <div className="flex">
                 <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
+                  {/* Standard report header */}
+                  {viewingReport && (
+                    <div className="mb-8 pb-6 border-b border-main">
+                      <h1 className="text-2xl font-bold text-main mb-1">{viewingReport.title}</h1>
+                      <div className="flex gap-3 text-[10px] text-hint mt-2">
+                        {viewingReport.competitors && <span>{viewingReport.competitors}</span>}
+                        {viewingReport.year_from && viewingReport.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
+                        <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</span>
+                      </div>
+                    </div>
+                  )}
                   <div data-report-content>{renderContent(activeContent)}</div>
                   <Signature/>
                 </div>
