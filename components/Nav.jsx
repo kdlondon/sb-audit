@@ -66,7 +66,7 @@ export default function Nav() {
           <span className="text-[10px] font-bold text-white/60 uppercase tracking-[0.15em]">Groundwork</span>
         </div>
         <div className="border-l border-white/10 pl-4">
-          <button onClick={() => router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/scout")} className="text-xs text-white/70 font-medium hover:text-white transition">
+          <button onClick={() => { if (role !== "client") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/scout"); }} className={`text-xs font-medium transition ${role === "client" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>
             {pathname.startsWith("/admin") ? "Platform Admin" : (projectName || "Select project")}
           </button>
         </div>
