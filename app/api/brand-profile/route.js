@@ -5,8 +5,9 @@ export async function POST(request) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
-  const { url, instructions, brandName, projectId } = await request.json();
+  const { url, extraUrls, instructions, brandName, projectId } = await request.json();
   if (!url) return Response.json({ error: "URL required" }, { status: 400 });
+  const allInputUrls = [url, ...(extraUrls || [])].filter(u => u && u.trim());
 
   try {
     // ─── PHASE 1: Crawl the site ───
@@ -16,7 +17,7 @@ export async function POST(request) {
 
     // Fetch a page and extract text + links
     async function fetchPage(pageUrl, label) {
-      if (visited.has(pageUrl) || pages.length >= 6) return;
+      if (visited.has(pageUrl) || pages.length >= 12) return;
       visited.add(pageUrl);
 
       try {
@@ -56,7 +57,7 @@ export async function POST(request) {
         while ((match = linkRegex.exec(html)) !== null) {
           let href = match[1];
           if (href.startsWith("/")) href = baseUrl + href;
-          if (href.startsWith(baseUrl) && !visited.has(href)) {
+          if (href.startsWith(baseUrl) && !visited.has(href) && !href.match(/\.(pdf|jpg|png|svg|css|js|woff|woff2|ttf|eot|ico|gif|webp|mp4|zip)/i) && !href.includes("/assets/") && !href.includes("/fonts/") && !href.includes("/static/")) {
             links.push(href);
           }
         }
@@ -78,8 +79,11 @@ export async function POST(request) {
       }
     }
 
-    // Start with the main URL
-    await fetchPage(url, "Main page");
+    // Start with all provided URLs
+    for (const inputUrl of allInputUrls) {
+      const label = inputUrl === url ? "Main page" : inputUrl.replace(baseUrl, "") || inputUrl;
+      await fetchPage(inputUrl, label);
+    }
 
     // Find and crawl key pages
     const mainLinks = pages[0]?.links || [];
@@ -100,7 +104,7 @@ export async function POST(request) {
     if (pages.length < 4) {
       for (const link of mainLinks.slice(0, 5)) {
         if (pages.length >= 5) break;
-        if (!visited.has(link) && !link.includes("#") && !link.match(/\.(pdf|jpg|png|svg|css|js)/i)) {
+        if (!visited.has(link) && !link.includes("#") && !link.match(/\.(pdf|jpg|png|svg|css|js|woff|woff2|ttf|eot|ico|gif|webp|mp4|mp3|zip)/i) && !link.includes("/assets/") && !link.includes("/fonts/") && !link.includes("/static/")) {
           await fetchPage(link, link.replace(baseUrl, ""));
         }
       }

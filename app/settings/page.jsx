@@ -466,6 +466,7 @@ function SettingsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: urls[0],
+          extraUrls: urls.slice(1),
           instructions: profileInstructions,
           brandName: brand.brand_name,
           projectId,
@@ -929,35 +930,36 @@ function SettingsContent() {
                       {/* URLs */}
                       <div>
                         <p className="text-[10px] text-muted uppercase font-semibold mb-2">
-                          URLs to crawl (up to 3)
+                          URLs to crawl
                         </p>
-                        <div className="space-y-2">
-                          {["Main website", "Business section", "Products page"].map(
-                            (label, i) => (
-                              <div key={i} className="flex items-center gap-2">
-                                <span className="text-[10px] text-hint w-[110px] flex-shrink-0">
-                                  {label}
-                                </span>
-                                <input
-                                  value={profileUrls[i]}
-                                  onChange={(e) => {
-                                    const next = [...profileUrls];
-                                    next[i] = e.target.value;
-                                    setProfileUrls(next);
-                                  }}
-                                  placeholder={`https://...`}
-                                  className="flex-1 px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
-                                />
-                              </div>
-                            )
-                          )}
+                        <div className="space-y-1.5">
+                          {profileUrls.map((url, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-[9px] text-hint w-5 text-right flex-shrink-0">{i+1}</span>
+                              <input
+                                value={url}
+                                onChange={(e) => {
+                                  const next = [...profileUrls];
+                                  next[i] = e.target.value;
+                                  setProfileUrls(next);
+                                }}
+                                placeholder="https://..."
+                                className="flex-1 px-3 py-1.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"
+                              />
+                              {profileUrls.length > 1 && (
+                                <button onClick={() => setProfileUrls(profileUrls.filter((_, j) => j !== i))}
+                                  className="text-red-400 hover:text-red-600 text-sm px-1">×</button>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <button
-                          onClick={() => saveUrls(brand.id)}
-                          className="mt-2 text-[10px] text-accent hover:underline font-medium"
-                        >
-                          Save URLs
-                        </button>
+                        <div className="flex items-center gap-3 mt-2">
+                          {profileUrls.length < 10 && (
+                            <button onClick={() => setProfileUrls([...profileUrls, ""])}
+                              className="text-[10px] text-accent hover:underline font-medium">+ Add URL</button>
+                          )}
+                          <span className="text-[9px] text-hint">{profileUrls.filter(u=>u.trim()).length} of 10 max</span>
+                        </div>
                       </div>
 
                       {/* Instructions */}
