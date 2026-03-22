@@ -53,7 +53,7 @@ function EditorContent() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState("write"); // write | preview
+  const [mode, setMode] = useState("visual"); // visual | source
   const [saved, setSaved] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -408,121 +408,129 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
         {/* Editor panel */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Toolbar */}
-          <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-0.5">
-              {toolbarActions.map(t => (
-                <ToolbarButton key={t.label} {...t} textareaRef={textareaRef} />
-              ))}
-            </div>
+          <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center gap-2">
             <div className="flex bg-surface2 rounded-lg p-0.5">
-              <button onClick={() => setMode("write")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode === "write" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
-                Write
+              <button onClick={() => setMode("visual")}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode !== "source" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
+                Visual
               </button>
-              <button onClick={() => setMode("preview")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode === "preview" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
-                Preview
+              <button onClick={() => setMode("source")}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode === "source" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
+                Source
               </button>
             </div>
+            <span className="text-[9px] text-hint">Type @ to insert case references</span>
           </div>
 
-          {/* Editor / Preview */}
+          {/* Editor */}
           <div className="flex-1 overflow-auto">
-            {mode === "write" ? (
-              <div className="relative w-full h-full">
+            {mode === "source" ? (
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={e => {
-                  const val = e.target.value;
-                  setContent(val); setSaved(false);
-                  // Detect @ mention
-                  const pos = e.target.selectionStart;
-                  const textBefore = val.substring(0, pos);
-                  const atMatch = textBefore.match(/@([^\s@]*)$/);
-                  if (atMatch) {
-                    setMentionOpen(true);
-                    setMentionQuery(atMatch[1]);
-                    setMentionStart(pos - atMatch[0].length);
-                    // Position popup near cursor
-                    const ta = e.target;
-                    const lineHeight = 22;
-                    const lines = textBefore.split("\n");
-                    const lineNum = lines.length;
-                    const top = Math.min(lineNum * lineHeight + 8, ta.clientHeight - 200);
-                    setMentionPos({ top, left: 24 });
-                  } else {
-                    setMentionOpen(false);
-                  }
-                }}
-                onKeyDown={e => {
-                  if (mentionOpen && e.key === "Escape") { setMentionOpen(false); e.preventDefault(); }
-                }}
-                onKeyUp={handleCursorChange}
-                onClick={e => { handleCursorChange(e); setMentionOpen(false); }}
+                onChange={e => { setContent(e.target.value); setSaved(false); }}
                 className="w-full h-full p-6 bg-surface text-sm text-main font-mono leading-relaxed resize-none focus:outline-none"
-                placeholder="Start editing your report... Type @ to insert a case reference"
                 spellCheck={false}
               />
-              {/* @ Mention popup */}
-              {mentionOpen && (() => {
-                const q = mentionQuery.toLowerCase();
-                const results = allEntries.filter(e =>
-                  (e.description||"").toLowerCase().includes(q) ||
-                  (e.brand||"").toLowerCase().includes(q) ||
-                  (e.competitor||"").toLowerCase().includes(q) ||
-                  (e.type||"").toLowerCase().includes(q)
-                ).slice(0, 8);
-                if (results.length === 0 && q.length > 0) return null;
-                return (
-                  <div className="absolute bg-surface border border-main rounded-xl shadow-2xl z-50 w-[400px] max-h-[280px] overflow-y-auto"
-                    style={{ top: mentionPos.top, left: mentionPos.left }}>
-                    <p className="text-[9px] text-hint uppercase font-semibold px-3 pt-2 pb-1">Insert case reference</p>
-                    {(q.length === 0 ? allEntries.slice(0, 8) : results).map((entry, i) => {
-                      const ytMatch = (entry.url||"").match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);
-                      const thumb = ytMatch ? `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg` : entry.image_url;
-                      return (
-                        <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent-soft transition"
-                          onMouseDown={e => {
-                            e.preventDefault(); // prevent textarea blur
-                            const ta = textareaRef.current;
-                            if (!ta) return;
-                            // Build citation text
-                            const label = (entry.description || entry.brand || "source").slice(0, 50).replace(/[\[\]]/g, "");
-                            const citation = `[${label}](cite:${entry.id})`;
-                            // Replace @query with citation
-                            const before = content.substring(0, mentionStart);
-                            const after = content.substring(ta.selectionStart);
-                            const newContent = before + citation + after;
-                            setContent(newContent);
-                            setSaved(false);
-                            setMentionOpen(false);
-                            // Restore focus
-                            setTimeout(() => {
-                              ta.focus();
-                              const newPos = mentionStart + citation.length;
-                              ta.setSelectionRange(newPos, newPos);
-                            }, 50);
-                          }}>
-                          {thumb && <img src={thumb} className="w-10 h-8 object-cover rounded flex-shrink-0" alt="" />}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
-                            <div className="flex gap-2">
-                              {entry.brand && <span className="text-[10px] text-accent">{entry.brand}</span>}
-                              {entry.year && <span className="text-[10px] text-hint">{entry.year}</span>}
-                              {entry.communication_intent && <span className="text-[10px] text-hint">{entry.communication_intent}</span>}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-              </div>
             ) : (
-              <div className="p-6 bg-surface prose prose-sm max-w-none">
-                <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+              <div className="p-8 bg-surface max-w-4xl mx-auto">
+                <div
+                  className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6 focus:outline-none"
+                  contentEditable
+                  suppressContentEditableWarning
+                  ref={textareaRef}
+                  onInput={e => {
+                    // Don't sync back to markdown on every keystroke — too complex
+                    // Just mark as unsaved; content syncs on save
+                    setSaved(false);
+                  }}
+                  onKeyDown={e => {
+                    // Detect @ for mentions
+                    if (e.key === "@") {
+                      setTimeout(() => {
+                        const sel = window.getSelection();
+                        if (!sel.rangeCount) return;
+                        const range = sel.getRangeAt(0);
+                        const rect = range.getBoundingClientRect();
+                        const container = e.target.closest(".overflow-auto");
+                        const containerRect = container?.getBoundingClientRect() || { top: 0, left: 0 };
+                        setMentionPos({ top: rect.bottom - containerRect.top + 4, left: rect.left - containerRect.left });
+                        setMentionOpen(true);
+                        setMentionQuery("");
+                        setMentionStart(sel.anchorOffset);
+                      }, 50);
+                    }
+                    if (mentionOpen) {
+                      if (e.key === "Escape") { setMentionOpen(false); e.preventDefault(); }
+                      else if (e.key !== "@" && e.key.length === 1) {
+                        setMentionQuery(prev => prev + e.key);
+                      } else if (e.key === "Backspace") {
+                        setMentionQuery(prev => { if (prev.length === 0) { setMentionOpen(false); return ""; } return prev.slice(0, -1); });
+                      }
+                    }
+                  }}
+                  dangerouslySetInnerHTML={{ __html: (() => {
+                    // Render markdown to HTML for visual editing
+                    let html = content
+                      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                      .replace(/^- (.+)$/gm, '<li>$1</li>')
+                      .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+                      .replace(/\[([^\]]+)\]\(cite:([^)]+)\)/g, '<a href="#" style="color:var(--accent);text-decoration:underline;text-decoration-style:dotted;cursor:pointer" data-cite="$2">$1</a>')
+                      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent)">$1</a>')
+                      .replace(/\n\n/g, '</p><p>')
+                      .replace(/\n/g, '<br>');
+                    if (!html.startsWith('<')) html = '<p>' + html + '</p>';
+                    return html;
+                  })() }}
+                />
+                {/* @ Mention popup for visual mode */}
+                {mentionOpen && (() => {
+                  const q = mentionQuery.toLowerCase();
+                  const results = q.length > 0
+                    ? allEntries.filter(e => (e.description||"").toLowerCase().includes(q) || (e.brand||"").toLowerCase().includes(q)).slice(0, 8)
+                    : allEntries.slice(0, 8);
+                  return (
+                    <div className="fixed bg-surface border border-main rounded-xl shadow-2xl z-50 w-[380px] max-h-[260px] overflow-y-auto"
+                      style={{ top: mentionPos.top + 80, left: mentionPos.left }}>
+                      <p className="text-[9px] text-hint uppercase font-semibold px-3 pt-2 pb-1">Insert case reference</p>
+                      {results.map((entry, i) => {
+                        const thumb = entry.image_url;
+                        return (
+                          <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent-soft transition"
+                            onMouseDown={e => {
+                              e.preventDefault();
+                              const label = (entry.description || entry.brand || "source").slice(0, 50).replace(/[\[\]]/g, "");
+                              const citation = `[${label}](cite:${entry.id})`;
+                              // Insert into markdown content
+                              // Find the @ in the current content and replace
+                              const newContent = content.replace(/@[^\s]*$/, citation);
+                              if (newContent === content) {
+                                // Fallback: append at end
+                                setContent(content + " " + citation);
+                              } else {
+                                setContent(newContent);
+                              }
+                              setSaved(false);
+                              setMentionOpen(false);
+                            }}>
+                            {thumb && <img src={thumb} className="w-10 h-8 object-cover rounded flex-shrink-0" alt="" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
+                              <div className="flex gap-2">
+                                {entry.brand && <span className="text-[10px] text-accent">{entry.brand}</span>}
+                                {entry.year && <span className="text-[10px] text-hint">{entry.year}</span>}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -547,8 +555,8 @@ Return ONLY valid JSON: {"title":"...","slides":[...]}`;
           </div>
         </div>
 
-        {/* Copilot sidebar */}
-        {copilotOpen && (
+        {/* Copilot sidebar — hidden for now */}
+        {false && copilotOpen && (
           <div className="w-[320px] bg-surface border-l border-main flex flex-col overflow-hidden flex-shrink-0">
             <div className="px-4 py-3 border-b border-main flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-2">
