@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
-import Nav from "@/components/Nav";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -349,7 +348,7 @@ function EditorContent2() {
 
 export default function EditorPage() {
   return (
-    <AuthGuard><ProjectGuard><Nav />
+    <AuthGuard><ProjectGuard>
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading...</p></div>}>
         <EditorContent2 />
       </Suspense>
