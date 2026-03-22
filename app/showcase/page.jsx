@@ -238,7 +238,7 @@ function ShowcasePage() {
       .from("saved_showcases")
       .select("*")
       .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
     setShowcases(data || []);
     setLoading(false);
   };
@@ -851,6 +851,20 @@ Return: {"title":"...","slides":[...slides...]}`;
           <button onClick={() => setCurrentSlide(s => s + 1)} className="absolute right-7 bottom-7 text-2xl transition" data-pdf-hide
             style={{ color: theme.text, opacity: 0.2 }}>→</button>
         )}
+        {currentSlide === slides.length - 1 && !pdfMode && (() => {
+          const idx = showcases.findIndex(s => s.id === currentShowcase.id);
+          const next = idx >= 0 && idx < showcases.length - 1 ? showcases[idx + 1] : null;
+          if (!next) return null;
+          return (
+            <button onClick={() => { setCurrentShowcase(next); setCurrentSlide(0); nav({ id: next.id }); }}
+              className="absolute right-7 bottom-5 flex items-center gap-2 px-4 py-2 rounded-lg transition hover:opacity-80" data-pdf-hide
+              style={{ backgroundColor: theme.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)", color: theme.text }}>
+              <span className="text-[10px] uppercase tracking-wider opacity-50">Next</span>
+              <span className="text-xs font-semibold">{next.title}</span>
+              <span className="text-lg opacity-40">→</span>
+            </button>
+          );
+        })()}
 
         {/* Dots */}
         {!pdfMode && (
