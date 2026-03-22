@@ -51,6 +51,14 @@ export default function ProjectsPage() {
     }
   }, [role, userId, roleLoading]);
 
+  // Auto-enter for clients with a single project
+  useEffect(() => {
+    if (role === "client" && projects.length === 1 && !loading) {
+      selectProject(projects[0].id, projects[0].name);
+      router.replace("/showcase");
+    }
+  }, [role, projects, loading]);
+
   const createProject = async () => {
     if (!newName.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -102,7 +110,7 @@ export default function ProjectsPage() {
 
   const enterProject = (p) => {
     selectProject(p.id, p.name);
-    router.push("/dashboard");
+    router.push(role === "client" ? "/showcase" : "/dashboard");
   };
 
   const startEdit = (p, e) => {
