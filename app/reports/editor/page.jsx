@@ -177,27 +177,21 @@ function EditorContent2() {
     const t = titleRef.current;
 
     try {
-      // Use a fresh client to avoid stale auth
-      const db = createClient();
-      const { error } = await db.from("saved_reports").update({ content: md, title: t }).eq("id", reportId);
-      if (error) {
-        console.error("[Editor] Save error:", error);
-        setSaveError(error.message || "Save failed");
-        setSaving(false);
-        return;
-      }
-      // Verify the save actually persisted
-      const { data: check } = await db.from("saved_reports").select("content").eq("id", reportId).single();
-      if (!check || check.content !== md) {
-        console.error("[Editor] Save verification failed — content mismatch");
-        setSaveError("Save did not persist — check permissions");
+      // Save via server API route (bypasses RLS)
+      const res = await fetch("/api/save-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: reportId, content: md, title: t }),
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        setSaveError(result.error || "Save failed");
         setSaving(false);
         return;
       }
       setSaving(false);
       setSaved(true);
     } catch (e) {
-      console.error("[Editor] Save exception:", e);
       setSaveError(e.message || "Save crashed");
       setSaving(false);
     }
