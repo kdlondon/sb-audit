@@ -19,7 +19,7 @@ export default function ProjectsPage() {
   const [editDesc, setEditDesc] = useState("");
   const router = useRouter();
   const { selectProject } = useProject();
-  const { role, userId } = useRole();
+  const { role, userId, loading: roleLoading } = useRole() || {};
   const supabase = createClient();
 
   const load = async () => {
@@ -43,7 +43,12 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (role && userId) load();
-  }, [role, userId]);
+    else if (!roleLoading && !role) {
+      // Role loading finished but no role found
+      setProjects([]);
+      setLoading(false);
+    }
+  }, [role, userId, roleLoading]);
 
   const createProject = async () => {
     if (!newName.trim()) return;
