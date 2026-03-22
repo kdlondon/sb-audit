@@ -409,7 +409,7 @@ function ReportsContent(){
       const node=sel?.anchorNode||sel?.focusNode;
       const el=node?.nodeType===3?node.parentElement:node;
       const inReport=el&&el.closest&&el.closest("[data-report-content]");
-      if(text.length>10&&inReport){
+      if(text.length>3&&inReport){
         setAssistSelection(text);
         setSelectionPos(true);
       }else{
@@ -430,34 +430,44 @@ function ReportsContent(){
       container.querySelectorAll("mark[data-comment-id]").forEach(m=>{
         try{const parent=m.parentNode;parent.replaceChild(document.createTextNode(m.textContent),m);parent.normalize();}catch{}
       });
-      // Apply highlights
+      // Apply highlights — try multiple search strategies
       comments.forEach(c=>{
         try{
           if(!c.quote||!c.id)return;
           const walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,null);
-          const searchText=c.quote.slice(0,60);
+          // Try progressively shorter search strings
+          const searchVariants=[
+            c.quote.slice(0,80),
+            c.quote.slice(0,40),
+            c.quote.slice(0,20),
+          ].filter(s=>s.length>=5);
+          let found=false;
           let node;
-          while(node=walker.nextNode()){
-            const idx=node.textContent.indexOf(searchText);
-            if(idx===-1)continue;
-            // Only highlight within a single text node
-            const endIdx=Math.min(idx+c.quote.length,node.textContent.length);
-            const range=document.createRange();
-            range.setStart(node,idx);
-            range.setEnd(node,endIdx);
-            const mark=document.createElement("mark");
-            mark.setAttribute("data-comment-id",c.id);
-            mark.style.cssText="background:rgba(251,191,36,0.25);border-bottom:2px solid #F59E0B;cursor:pointer;border-radius:2px;padding:0 1px;";
-            mark.addEventListener("mouseenter",()=>{
-              const rect=mark.getBoundingClientRect();
-              setHoverComment({comment:c,rect:{top:rect.top,left:rect.right,bottom:rect.bottom}});
-            });
-            mark.addEventListener("mouseleave",()=>{
-              setTimeout(()=>setHoverComment(prev=>prev?.comment?.id===c.id?null:prev),200);
-            });
-            mark.addEventListener("click",()=>setActiveComment(c.id));
-            try{range.surroundContents(mark);}catch{/* range crosses elements — skip */}
-            break;
+          for(const searchText of searchVariants){
+            if(found)break;
+            // Reset walker
+            const w=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,null);
+            while(node=w.nextNode()){
+              const idx=node.textContent.indexOf(searchText);
+              if(idx===-1)continue;
+              const endIdx=Math.min(idx+searchText.length,node.textContent.length);
+              const range=document.createRange();
+              range.setStart(node,idx);
+              range.setEnd(node,endIdx);
+              const mark=document.createElement("mark");
+              mark.setAttribute("data-comment-id",c.id);
+              mark.style.cssText="background:rgba(251,191,36,0.25);border-bottom:2px solid #F59E0B;cursor:pointer;border-radius:2px;padding:0 1px;";
+              mark.addEventListener("mouseenter",()=>{
+                const rect=mark.getBoundingClientRect();
+                setHoverComment({comment:c,rect:{top:rect.top,left:rect.right,bottom:rect.bottom}});
+              });
+              mark.addEventListener("mouseleave",()=>{
+                setTimeout(()=>setHoverComment(prev=>prev?.comment?.id===c.id?null:prev),200);
+              });
+              mark.addEventListener("click",()=>setActiveComment(c.id));
+              try{range.surroundContents(mark);found=true;}catch{/* range crosses elements */}
+              break;
+            }
           }
         }catch{}
       });
