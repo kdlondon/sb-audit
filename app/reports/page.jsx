@@ -1153,11 +1153,12 @@ RULES:
                   </div>
                   <div className="flex gap-2">
                     {r.year_from&&r.year_to&&<span className="text-[10px] text-hint">{r.year_from}–{r.year_to}</span>}
-                    <span className="text-[10px] text-hint">{new Date(r.created_at).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-hint">{new Date(r.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(r.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>
                     <span className="text-[10px] text-hint">{r.created_by}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={ev=>{ev.stopPropagation();const blob=new Blob([r.content||""],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${r.title||"report"}.md`;a.click();}} className="text-xs text-muted hover:text-main px-2">Download</button>
                   <button onClick={ev=>{ev.stopPropagation();router.push(`/reports/editor?id=${r.id}`);}} className="text-xs text-accent hover:underline px-2">Edit</button>
                   <button onClick={ev=>{ev.stopPropagation();deleteReport(r.id);}} className="text-hint hover:text-red-400 text-sm px-2">×</button>
                 </div>
