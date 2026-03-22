@@ -173,7 +173,7 @@ function KeyboardHints({ theme }) {
   const text = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)";
   const kbd = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)";
   return (
-    <div className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none"
+    <div className="absolute inset-0 z-[60] flex items-end justify-center pb-20 pointer-events-none"
       style={{ animation: "fadeIn 0.3s ease-out, fadeOut 0.8s ease-in 3.2s forwards" }}>
       <div className="flex flex-col items-center gap-5 px-10 py-8 rounded-2xl" style={{ backgroundColor: bg, backdropFilter: "blur(20px)" }}>
         <div className="flex items-center gap-8">
