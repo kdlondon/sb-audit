@@ -14,7 +14,14 @@ function SettingsContent() {
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [activeTab, setActiveTab] = useState("dropdowns"); // dropdowns | brands
+  const [activeTab, setActiveTab] = useState("dropdowns"); // dropdowns | brands | profiler
+  // Brand profiler state
+  const [profilerUrl, setProfilerUrl] = useState("");
+  const [profilerBrand, setProfilerBrand] = useState("");
+  const [profilerInstructions, setProfilerInstructions] = useState("");
+  const [profiling, setProfiling] = useState(false);
+  const [profileResult, setProfileResult] = useState(null);
+  const [profilePages, setProfilePages] = useState([]);
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
@@ -125,6 +132,7 @@ function SettingsContent() {
           <div className="flex bg-surface2 rounded-lg p-0.5">
             <button onClick={() => setActiveTab("dropdowns")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${activeTab === "dropdowns" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>Dropdowns</button>
             <button onClick={() => setActiveTab("brands")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${activeTab === "brands" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>Brand Classification</button>
+            <button onClick={() => setActiveTab("profiler")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${activeTab === "profiler" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>Brand Profiler</button>
           </div>
         </div>
       </div>
@@ -229,6 +237,164 @@ function SettingsContent() {
 
           {allBrandNames.length === 0 && (
             <p className="text-sm text-hint text-center py-10">No brands found. Add entries or competitors in Settings first.</p>
+          )}
+        </div>
+      )}
+
+      {/* BRAND PROFILER TAB */}
+      {activeTab === "profiler" && (
+        <div className="p-5 max-w-4xl mx-auto">
+          <div className="bg-surface rounded-xl border border-main p-5 mb-4">
+            <h3 className="text-sm font-bold text-main mb-1">Brand Profiler Agent</h3>
+            <p className="text-xs text-hint mb-4">Enter a competitor's website URL. The agent will crawl key pages and build a brand profile.</p>
+
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Website URL</label>
+                  <input value={profilerUrl} onChange={e => setProfilerUrl(e.target.value)}
+                    placeholder="https://www.competitor.com"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
+                <div className="w-[200px]">
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Brand name</label>
+                  <input value={profilerBrand} onChange={e => setProfilerBrand(e.target.value)}
+                    placeholder="e.g. Float"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Instructions (optional)</label>
+                <textarea value={profilerInstructions} onChange={e => setProfilerInstructions(e.target.value)}
+                  placeholder="e.g., Focus on the Business Banking section. Identify products for SMEs, pricing, and value proposition."
+                  rows={2}
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main resize-y focus:outline-none focus:border-[var(--accent)]" />
+              </div>
+
+              <button onClick={async () => {
+                if (!profilerUrl) return;
+                setProfiling(true); setProfileResult(null); setProfilePages([]);
+                try {
+                  const res = await fetch("/api/brand-profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: profilerUrl, instructions: profilerInstructions, brandName: profilerBrand, projectId }),
+                  });
+                  const data = await res.json();
+                  if (data.error) throw new Error(data.error);
+                  setProfileResult(data.profile);
+                  setProfilePages(data.pagesCrawled || []);
+
+                  // Auto-save brand metadata
+                  if (data.profile?.brand_name && data.profile?.category) {
+                    await setBrandCategory(data.profile.brand_name, data.profile.category);
+                  }
+                } catch (err) {
+                  setProfileResult({ error: err.message });
+                }
+                setProfiling(false);
+              }} disabled={profiling || !profilerUrl}
+                className="px-5 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                {profiling ? "Agent is crawling..." : "Run Brand Profiler"}
+              </button>
+            </div>
+          </div>
+
+          {/* Crawl progress */}
+          {profiling && (
+            <div className="bg-surface rounded-xl border border-main p-5 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                <div>
+                  <p className="text-sm font-medium text-main">Crawling website...</p>
+                  <p className="text-xs text-hint">The agent is visiting pages, extracting content, and analyzing with AI</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {profileResult && !profileResult.error && (
+            <div className="space-y-4">
+              {/* Pages crawled */}
+              {profilePages.length > 0 && (
+                <div className="bg-surface rounded-xl border border-main p-4">
+                  <p className="text-[10px] text-muted uppercase font-semibold mb-2">Pages crawled ({profilePages.length})</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {profilePages.map((p, i) => (
+                      <a key={i} href={p.url} target="_blank" rel="noopener"
+                        className="text-[10px] px-2 py-1 bg-surface2 rounded text-accent hover:underline">{p.label || p.title}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Brand Profile Card */}
+              <div className="bg-surface rounded-xl border border-main overflow-hidden">
+                <div className="px-5 py-4 border-b border-main" style={{ background: "#0a0f3c" }}>
+                  <h3 className="text-xl font-bold text-white">{profileResult.brand_name}</h3>
+                  {profileResult.tagline && <p className="text-sm text-white/60 mt-1 italic">{profileResult.tagline}</p>}
+                  <div className="flex gap-2 mt-2">
+                    {profileResult.category && <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/80 rounded-full">{profileResult.category}</span>}
+                    {profileResult.brand_archetype && <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/80 rounded-full">{profileResult.brand_archetype}</span>}
+                  </div>
+                </div>
+
+                <div className="p-5 grid grid-cols-2 gap-5">
+                  {[
+                    ["Description", profileResult.description],
+                    ["Target Audience", profileResult.target_audience],
+                    ["Value Proposition", profileResult.value_proposition],
+                    ["Positioning", profileResult.positioning],
+                    ["Emotional Benefit", profileResult.emotional_benefit],
+                    ["Rational Benefit", profileResult.rational_benefit],
+                    ["Tone of Voice", profileResult.tone_of_voice],
+                    ["Brand Personality", profileResult.brand_personality],
+                    ["Brand Territory", profileResult.brand_territory],
+                    ["Visual Identity", profileResult.visual_identity],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-[10px] text-muted uppercase font-semibold mb-1">{label}</p>
+                      <p className="text-xs text-main leading-relaxed">{value}</p>
+                    </div>
+                  ))}
+
+                  {/* Lists */}
+                  {[
+                    ["Key Products", profileResult.key_products],
+                    ["Key Messages", profileResult.key_messages],
+                    ["Differentiators", profileResult.differentiators],
+                    ["Content Themes", profileResult.content_themes],
+                    ["Strengths", profileResult.strengths],
+                    ["Weaknesses / Gaps", profileResult.weaknesses],
+                  ].filter(([, v]) => v?.length).map(([label, items]) => (
+                    <div key={label}>
+                      <p className="text-[10px] text-muted uppercase font-semibold mb-1">{label}</p>
+                      <ul className="space-y-0.5">
+                        {items.map((item, i) => (
+                          <li key={i} className="text-xs text-main flex gap-1.5"><span className="text-accent">•</span>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary */}
+                {profileResult.summary && (
+                  <div className="px-5 py-4 border-t border-main bg-surface2">
+                    <p className="text-[10px] text-muted uppercase font-semibold mb-1">Strategic Summary</p>
+                    <p className="text-sm text-main leading-relaxed">{profileResult.summary}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {profileResult?.error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-600">{profileResult.error}</p>
+            </div>
           )}
         </div>
       )}
