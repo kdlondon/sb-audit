@@ -100,7 +100,9 @@ function EditorContent2() {
 
   const [report, setReport] = useState(null);
   const [markdownContent, setMarkdownContent] = useState("");
+  const markdownRef = useRef("");
   const [title, setTitle] = useState("");
+  const titleRef = useRef("");
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -123,8 +125,9 @@ function EditorContent2() {
     },
     onUpdate: ({ editor }) => {
       setSaved(false);
-      // Sync HTML → markdown on every change
-      setMarkdownContent(htmlToMd(editor.getHTML()));
+      const md = htmlToMd(editor.getHTML());
+      setMarkdownContent(md);
+      markdownRef.current = md;
     },
   });
 
@@ -136,7 +139,9 @@ function EditorContent2() {
       if (data) {
         setReport(data);
         setMarkdownContent(data.content || "");
+        markdownRef.current = data.content || "";
         setTitle(data.title || "");
+        titleRef.current = data.title || "";
         // Set editor content
         if (editor) editor.commands.setContent(mdToHtml(data.content || ""));
       }
@@ -154,10 +159,14 @@ function EditorContent2() {
   const saveContent = useCallback(async () => {
     if (!reportId) return;
     setSaving(true);
-    await supabase.from("saved_reports").update({ content: markdownContent, title, updated_at: new Date().toISOString() }).eq("id", reportId);
+    const md = markdownRef.current;
+    const t = titleRef.current;
+    console.log("[Editor] Saving:", md.length, "chars, title:", t);
+    const { error } = await supabase.from("saved_reports").update({ content: md, title: t, updated_at: new Date().toISOString() }).eq("id", reportId);
+    if (error) console.error("[Editor] Save error:", error);
     setSaving(false);
     setSaved(true);
-  }, [markdownContent, title, reportId]);
+  }, [reportId]);
 
   // Autosave every 8 seconds
   useEffect(() => {
@@ -207,7 +216,7 @@ function EditorContent2() {
           <button onClick={async () => { if (!saved) await saveContent(); router.push(`/reports?report=${reportId}`); }}
             className="text-muted hover:text-main text-sm">← Back to report</button>
           <div className="w-px h-5 bg-main opacity-20" />
-          <input value={title} onChange={e => { setTitle(e.target.value); setSaved(false); }}
+          <input value={title} onChange={e => { setTitle(e.target.value); titleRef.current=e.target.value; setSaved(false); }}
             className="text-lg font-bold text-main bg-transparent border-none focus:outline-none w-[300px]"
             placeholder="Report title" />
           {!saved && <span className="text-[9px] text-hint">Unsaved</span>}
@@ -255,7 +264,7 @@ function EditorContent2() {
         ) : (
           <textarea
             value={markdownContent}
-            onChange={e => { setMarkdownContent(e.target.value); setSaved(false); }}
+            onChange={e => { setMarkdownContent(e.target.value); markdownRef.current=e.target.value; setSaved(false); }}
             className="w-full h-full p-6 bg-surface text-sm text-main font-mono leading-relaxed resize-none focus:outline-none"
             spellCheck={false}
           />
