@@ -427,8 +427,15 @@ function SettingsContent() {
         : ["", "", ""]
     );
     setProfileInstructions("");
-    setCrawlResult(null);
-    setCrawlPages([]);
+    // Auto-show existing profile
+    const existing = getLatestProfile(brand.brand_name);
+    if (existing) {
+      setCrawlResult(existing.profile_data);
+      setCrawlPages(existing.pages_crawled || []);
+    } else {
+      setCrawlResult(null);
+      setCrawlPages([]);
+    }
   };
 
   const saveUrls = async (brandId) => {

@@ -25,6 +25,7 @@ const TEMPLATES=[
     {id:"campaign",label:"Campaign map",desc:"Pieces organised by funnel stage and year"},
     {id:"consistency",label:"Brand consistency",desc:"Tone, territory, VP and archetype coherence across all pieces"},
     {id:"strategic_read",label:"K&D strategic read",desc:"Editorial synthesis and white space signal"},
+    {id:"website_vs_comms",label:"Website vs Communication",desc:"Compare official website positioning with actual advertising execution — consistency gaps and contradictions"},
   ]},
   {id:"category_landscape",label:"Category Landscape",scope:"local",badge:"Local",description:"Full category — patterns, white spaces, positioning map",singleBrand:false,sections:[
     {id:"overview",label:"Category overview",desc:"Entry count, brand coverage, year range"},
@@ -70,6 +71,7 @@ const TEMPLATES=[
     {id:"beyond_banking",label:"Beyond Banking & Innovation",desc:"Lifestyle, community, innovation, white space"},
     {id:"brand_assessment",label:"Brand Assessment",desc:"Strengths and weaknesses of the brand itself"},
     {id:"comm_assessment",label:"Communication Assessment",desc:"Strengths and weaknesses across communication areas"},
+    {id:"website_vs_comms",label:"Website vs Communication",desc:"Compare official website positioning with actual advertising execution — consistency gaps"},
   ]},
 ];
 
@@ -792,8 +794,34 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
       dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
     }
 
+    // Fetch brand profiles for context
+    let brandProfileContext="";
+    if(competitors.length>0){
+      const{data:bProfiles}=await supabase.from("brand_profiles").select("brand_name,profile_data").eq("project_id",projectId).in("brand_name",competitors).order("created_at",{ascending:false});
+      if(bProfiles&&bProfiles.length>0){
+        const seen=new Set();
+        const unique=bProfiles.filter(p=>{if(seen.has(p.brand_name))return false;seen.add(p.brand_name);return true;});
+        brandProfileContext="\n\nBRAND WEBSITE PROFILES (official website data — compare with communication data above):\n"+unique.map(p=>{
+          const pr=p.profile_data||{};
+          return`--- ${p.brand_name} (from website) ---
+Tagline: ${pr.tagline||""}
+Description: ${pr.description||""}
+Target Audience: ${pr.target_audience||""}
+Value Proposition: ${pr.value_proposition||""}
+Positioning: ${pr.positioning||""}
+Brand Archetype: ${pr.brand_archetype||""}
+Tone of Voice: ${pr.tone_of_voice||""}
+Key Products: ${(pr.key_products||[]).join(", ")}
+Key Messages: ${(pr.key_messages||[]).join(", ")}
+Differentiators: ${(pr.differentiators||[]).join(", ")}
+Strengths: ${(pr.strengths||[]).join(", ")}
+Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
+        }).join("\n\n");
+      }
+    }
+
     const system=SYSTEM_PROMPTS[selectedTemplate.id];
-    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
+    const userMsg=`Audit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections: ${sectionNames}\n\n${customInstructions?`Additional instructions: ${customInstructions}`:""}\n\nIMPORTANT — CITATION RULE:
 - Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
 - Write a SHORT HUMAN-READABLE name for the piece in your prose, then add [ENTRY:id] right after.
 - Example: "Their AI adoption guide [ENTRY:1773496163636] positions CIBC as..."
