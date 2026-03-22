@@ -54,58 +54,64 @@ export async function POST(request) {
     }));
   }
 
-  // ─── SEARCH (2-phase: official channel + general) ───
+  // ─── SEARCH (channel-first approach) ───
   if (action === "search") {
     const { query, maxResults = 15, finalLimit, publishedAfter, publishedBefore, regionCode, pageToken, videoDuration, minSeconds, maxSeconds } = body;
     const outputLimit = finalLimit || maxResults;
     if (!query) return Response.json({ error: "No query" }, { status: 400 });
 
-    // Extract brand name — remove quotes and ad keywords
-    const brandName = query.replace(/"/g, "").split(/\s+(ad|commercial|campaign|banking|business|small|sme|official)/i)[0].trim();
+    // Extract brand name — remove quotes, country names, and ad keywords
+    const cleanQuery = query.replace(/"/g, "");
+    const brandName = cleanQuery.split(/\s+(ad|commercial|campaign|banking|business|small|sme|official|canada|united|kingdom|states|australia|spain|france|uk|mexico)/i)[0].trim();
 
     try {
       let allVideos = [];
       let officialChannelId = null;
       let officialChannelName = null;
 
-      // ─── PHASE 1: Find the brand's official YouTube channel ───
-      // Wrapped in try-catch — if fails, Phase 2 still runs
+      // ─── PHASE 1: Find brand's YouTube channel and list its videos ───
       if (brandName) { try {
+        // Search for channel with full context (brand + keywords from query)
+        const channelSearchTerms = [brandName];
+        // Add non-generic words from query for context
+        cleanQuery.split(/\s+/).forEach(w => {
+          if (w.length > 3 && w.toLowerCase() !== brandName.toLowerCase() && !/^(ad|commercial|campaign|official)$/i.test(w))
+            channelSearchTerms.push(w);
+        });
+
         const channelParams = new URLSearchParams({
           part: "snippet",
-          q: `${brandName} official`,
+          q: channelSearchTerms.slice(0, 3).join(" "),
           type: "channel",
-          maxResults: "10",
+          maxResults: "15",
           key: apiKey,
         });
         const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelParams}`);
         const channelData = await channelRes.json();
         const channels = channelData.items || [];
 
-        // Find best matching channel (prefer exact name match or verified)
+        // Find best matching channel — strict matching
         const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
         const bestChannel = channels.find(ch => {
           const chName = (ch.snippet.channelTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-          return chName.includes(brandLower) || brandLower.includes(chName);
-        }) || channels[0];
+          // Exact match or brand is significant part of channel name
+          return chName === brandLower || chName.startsWith(brandLower) || (brandLower.length > 3 && chName.includes(brandLower));
+        });
 
         if (bestChannel) {
           officialChannelId = bestChannel.id.channelId;
           officialChannelName = bestChannel.snippet.channelTitle;
 
-          // Search WITHIN the official channel (clean query, no "ad commercial" noise)
+          // Get ALL recent videos from official channel (no query filter — just list them)
           const channelSearchParams = new URLSearchParams({
             part: "snippet",
             channelId: officialChannelId,
-            q: query.replace(/official\s*ad\s*commercial/gi, "").trim() || "",
             type: "video",
-            maxResults: String(Math.min(maxResults, 50)),
+            maxResults: String(Math.min(maxResults * 3, 50)),
             key: apiKey,
             order: "date",
           });
           if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
-          if (regionCode) channelSearchParams.set("regionCode", regionCode);
-          if (videoDuration) channelSearchParams.set("videoDuration", videoDuration);
 
           const channelVids = await ytSearch(channelSearchParams);
           channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
@@ -113,17 +119,14 @@ export async function POST(request) {
         }
       } catch(e) { console.error("Phase 1 failed:", e.message); } }
 
-      // ─── PHASE 2: Targeted search (brand + ad/commercial context) ───
-      // Only add general results if we don't have enough from the official channel
-      const officialCount = allVideos.length;
-      if (officialCount < maxResults) {
-        // Search with brand + ad context to avoid random results
-        const adQuery = `${brandName} ad commercial campaign`;
+      // ─── PHASE 2: Only if channel not found or very few results ───
+      if (allVideos.length < 3) {
+        // Use the full original query — this is the fallback
         const generalParams = new URLSearchParams({
           part: "snippet",
-          q: adQuery,
+          q: cleanQuery,
           type: "video",
-          maxResults: String(Math.min(maxResults - officialCount + 5, 30)),
+          maxResults: String(Math.min(maxResults, 25)),
           key: apiKey,
           order: "relevance",
         });
@@ -135,11 +138,9 @@ export async function POST(request) {
         const generalVids = await ytSearch(generalParams);
         generalVids.forEach(v => {
           if (officialChannelId && v.channelId === officialChannelId) {
-            v.isOfficial = true;
-            v.source = "official";
+            v.isOfficial = true; v.source = "official";
           } else {
-            v.isOfficial = false;
-            v.source = "general";
+            v.isOfficial = false; v.source = "general";
           }
         });
         allVideos.push(...generalVids);
