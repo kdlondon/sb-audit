@@ -1178,7 +1178,7 @@ RULES:
           {/* REPORT CONTENT */}
           {activeContent&&(
             <div className="bg-surface rounded-lg border border-main">
-              <div className="fixed left-0 right-0 z-20 bg-surface border-b border-main px-5 py-3" style={{top:"var(--nav-h,52px)"}}>
+              <div className="sticky top-0 z-20 bg-surface border-b border-main px-5 py-3" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
                 {/* Row 1: Back + Title + Icon buttons */}
                 <div className="flex items-center gap-3">
                   <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main flex-shrink-0">
@@ -1233,7 +1233,7 @@ RULES:
                   {viewingReport?.competitors && <span className="truncate max-w-[300px]" title={viewingReport.competitors}>{viewingReport.competitors}</span>}
                 </div>
               </div>
-              <div className="flex" style={{paddingTop:90}}>
+              <div className="flex">
                 <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
                   <div data-report-content>{renderContent(activeContent)}</div>
                   <Signature/>
