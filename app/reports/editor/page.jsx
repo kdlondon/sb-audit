@@ -265,7 +265,7 @@ function EditorContent2() {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center gap-3">
+      <div className="bg-surface border-b border-main px-4 py-1.5 flex items-center gap-3 sticky top-0 z-20">
         <div className="flex bg-surface2 rounded-lg p-0.5">
           <button onClick={switchToVisual}
             className={`px-3 py-1 rounded-md text-xs font-medium transition ${mode === "visual" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
