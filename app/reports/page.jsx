@@ -1093,6 +1093,11 @@ RULES:
         urlTransform={(url) => url}
         className={proseClass}
         components={{
+          table: ({children, ...props}) => (
+            <div className="overflow-x-auto -mx-2 px-2 mb-4">
+              <table {...props} className="min-w-full">{children}</table>
+            </div>
+          ),
           a: ({href, children}) => {
             if (href?.startsWith("__cite__")) {
               const id = href.replace("__cite__", "");
