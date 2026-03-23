@@ -1143,50 +1143,58 @@ Return: {"title":"...","slides":[...slides...]}`;
             await fetch("/api/save-report", { method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ action: "save_showcase_comments", showcase_id: currentShowcase.id, comments: updated }) });
           };
+          const cc = theme.isDark ? "rgba(255,255,255," : "rgba(0,0,0,";
           return (
-            <div className="absolute bottom-16 left-14 right-7 z-[60] flex flex-col items-end gap-3" data-pdf-hide>
-              {/* View existing comments */}
+            <div className="absolute bottom-4 left-14 right-7 z-[60]" data-pdf-hide>
+              {/* Comments centered */}
               {viewingComments && slideComms.length > 0 && (
-                <div className="flex gap-3 w-full overflow-x-auto pb-2 pt-3">
+                <div className="flex justify-center gap-3 mb-3 overflow-x-auto pb-1">
                   {slideComms.map((c, i) => (
-                    <div key={i} className="flex-shrink-0 max-w-[280px] rounded-2xl px-4 py-3 relative group/comment"
-                      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
+                    <div key={i} className="flex-shrink-0 max-w-[220px] rounded-xl px-4 py-3 relative group/comment"
+                      style={{ backgroundColor: cc+"0.15)", backdropFilter: "blur(4px)" }}>
                       <button onClick={() => deleteComment(i)}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg">×</button>
-                      <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{c.text}</p>
-                      <p className="text-[10px] text-white/40 mt-2">{c.author?.split("@")[0]} · {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg"
+                        style={{ backgroundColor: cc+"0.6)", color: theme.isDark?"#fff":"#fff", fontSize:12 }}>×</button>
+                      <p className="text-[11px] font-semibold" style={{ color: cc+"0.6)" }}>{c.author?.split("@")[0]}:</p>
+                      <p className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: cc+"0.7)" }}>{c.text}</p>
+                      <p className="text-[9px] mt-1.5" style={{ color: cc+"0.3)" }}>
+                        {new Date(c.created_at).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"2-digit"})} | {new Date(c.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
+                      </p>
                     </div>
                   ))}
                 </div>
               )}
-              {/* Comment input */}
-              {commentOpen && (
-                <div className="rounded-2xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }}>
-                  <textarea value={commentText} onChange={e => setCommentText(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveSlideComment(); if (e.key === "Escape") setCommentOpen(false); e.stopPropagation(); }}
-                    placeholder="Add a comment... (Cmd+Enter to send)"
-                    rows={2}
-                    className="bg-transparent text-sm text-white/90 placeholder-white/30 focus:outline-none w-[320px] resize-none"
-                    autoFocus />
-                  <button onClick={saveSlideComment} className="text-xs font-semibold text-white/60 hover:text-white transition px-2 mt-1">Send</button>
-                </div>
-              )}
-              {/* Bubble buttons */}
-              <div className="flex items-center gap-2">
+              {/* Controls: right-aligned */}
+              <div className="flex items-center justify-end gap-2">
                 {slideComms.length > 0 && (
                   <button onClick={() => { setViewingComments(!viewingComments); setCommentOpen(false); }}
-                    className="text-xs px-3.5 py-1.5 rounded-full transition"
-                    style={{ backgroundColor: "rgba(0,0,0,0.4)", color: "rgba(255,255,255,0.5)" }}>
-                    {viewingComments ? "Hide" : `${slideComms.length} comment${slideComms.length !== 1 ? "s" : ""}`}
+                    className="text-[11px] px-3 py-1.5 rounded-full transition"
+                    style={{ backgroundColor: cc+"0.15)", color: cc+"0.5)" }}>
+                    {viewingComments ? "Hide" : slideComms.length}
                   </button>
                 )}
                 <button onClick={() => { setCommentOpen(!commentOpen); setViewingComments(false); }}
-                  className="w-10 h-10 rounded-full flex items-center justify-center transition hover:scale-110"
-                  style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "rgba(255,255,255,0.45)" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition hover:scale-110"
+                  style={{ backgroundColor: cc+"0.12)", color: cc+"0.4)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                   </svg>
                 </button>
+                {commentOpen && (
+                  <div className="flex items-center gap-1 rounded-full px-3 py-1.5" style={{ backgroundColor: cc+"0.1)", backdropFilter: "blur(4px)" }}>
+                    <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                      onKeyDown={e => { if(e.key==="Enter"){e.preventDefault();saveSlideComment();}if(e.key==="Escape")setCommentOpen(false);e.stopPropagation(); }}
+                      placeholder="write your comment"
+                      className="bg-transparent text-[11px] focus:outline-none w-[150px] placeholder-current"
+                      style={{ color: cc+"0.6)" }}
+                      autoFocus />
+                    <button onClick={saveSlideComment}
+                      className="w-6 h-6 rounded-full flex items-center justify-center hover:scale-110 transition"
+                      style={{ color: cc+"0.5)" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );
