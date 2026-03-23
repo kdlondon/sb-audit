@@ -80,6 +80,7 @@ function getThemeForSlide(slide, index) {
     case "closing":      return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
     // Competitor Snapshot themes
     case "cs_title":           return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
+    case "cs_team_notes":      return { bg: KD.electric, text: "#fff", accent: "#fff", isDark: true };
     case "cs_audience":        return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
     case "cs_brand_response":  return { bg: "#5c4a4a", text: "#fff", accent: KD.chartreuse, isDark: true };
@@ -159,6 +160,71 @@ function MediaModal({ src, type, onClose }) {
           <img src={src} alt="" className="max-w-[92vw] max-h-[92vh] object-contain rounded-xl shadow-2xl" />
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── HERO GALLERY (video switcher) ─── */
+function HeroGallerySlide({ slide }) {
+  const entries = Array.isArray(slide.entries) ? slide.entries : [];
+  const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
+  const videoEntries = entries.filter(e => ytId(e.url)).slice(0, 3);
+  const allEntries = videoEntries.length > 0 ? videoEntries : entries.slice(0, 3);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const active = allEntries[activeIdx] || allEntries[0];
+  const activeYt = active ? ytId(active.url) : null;
+
+  return (
+    <div className="animate-fadeIn flex flex-col items-center justify-center h-full -mx-4">
+      {activeYt ? (
+        <div className="w-full max-w-4xl">
+          <div style={{ aspectRatio: "16/9" }} key={activeYt}>
+            <iframe
+              src={`https://www.youtube.com/embed/${activeYt}?autoplay=1&mute=1&rel=0&modestbranding=1`}
+              className="w-full h-full rounded-lg"
+              allow="autoplay; encrypted-media" allowFullScreen frameBorder="0" />
+          </div>
+          <p className="text-[10px] text-white/40 mt-2 text-center">
+            {[active.brand, active.year, active.description].filter(Boolean).join(" — ")}
+          </p>
+        </div>
+      ) : active?.image_url ? (
+        <div>
+          <img src={active.image_url} className="max-h-[70vh] rounded-lg object-contain" alt="" />
+          <p className="text-[10px] text-white/40 mt-2 text-center">
+            {[active.brand, active.year, active.description].filter(Boolean).join(" — ")}
+          </p>
+        </div>
+      ) : (
+        <p className="text-white/40 text-sm">No hero content available</p>
+      )}
+      {allEntries.length > 1 && (
+        <div className="flex items-start gap-4 mt-6">
+          {allEntries.map((e, i) => {
+            const yt = ytId(e.url);
+            const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
+            const isActive = i === activeIdx;
+            return (
+              <div key={i} className="flex flex-col items-center">
+                <button onClick={() => setActiveIdx(i)}
+                  className={`relative rounded-lg overflow-hidden transition ${isActive ? "ring-2 ring-white/60 scale-105" : "opacity-50 hover:opacity-80 hover:scale-105"}`}
+                  style={{ width: 140, height: 80 }}>
+                  {thumb && <img src={thumb} className="w-full h-full object-cover" alt="" />}
+                  {!isActive && yt && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 20 20" fill="#000"><polygon points="6,3 17,10 6,17"/></svg>
+                      </div>
+                    </div>
+                  )}
+                </button>
+                <p className="text-[9px] text-white/40 mt-1.5 text-center max-w-[140px] truncate">{e.description || ""}</p>
+                <p className="text-[8px] text-white/25">{[e.brand, e.year].filter(Boolean).join(" · ")}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -840,6 +906,11 @@ Return: {"title":"...","slides":[...slides...]}`;
   // Build effective slides with injected slides (insight, comm_strategy)
   const getEffectiveSlides = (showcase) => {
     let s = showcase?.slides || [];
+    // Inject cs_team_notes after cs_title
+    if (!s.some(sl => sl.type === "cs_team_notes") && s.some(sl => sl.type === "cs_title")) {
+      const idx = s.findIndex(sl => sl.type === "cs_title");
+      s = [...s.slice(0, idx + 1), { type: "cs_team_notes", body: "" }, ...s.slice(idx + 1)];
+    }
     if (!s.some(sl => sl.type === "cs_insight")) {
       const aud = s.find(sl => sl.type === "cs_audience");
       if (aud?.human_insight) {
@@ -1891,6 +1962,21 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
         </div>
       );
 
+    case "cs_team_notes":
+      return (
+        <div className="animate-fadeIn flex flex-col justify-center h-full">
+          {slide.body ? (
+            <div className="max-w-3xl">
+              <Markdown remarkPlugins={[remarkGfm]}
+                className="prose prose-sm prose-invert max-w-none prose-headings:text-white prose-p:text-white/80 prose-li:text-white/80 prose-strong:text-white"
+              >{slide.body}</Markdown>
+            </div>
+          ) : (
+            <p className="text-white/30 text-sm italic">Team notes — edit this slide in the showcase editor</p>
+          )}
+        </div>
+      );
+
     case "cs_audience":
       return (
         <div className="animate-fadeIn flex items-end h-full pb-16">
@@ -1953,64 +2039,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       );
 
     case "cs_hero_gallery": {
-      const heroEntries = safeArr(slide.entries);
-      const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
-      // Find video entries
-      const videoEntries = heroEntries.filter(e => ytId(e.url)).slice(0, 3);
-      const firstVideo = videoEntries[0];
-      const firstYt = firstVideo ? ytId(firstVideo.url) : null;
-      return (
-        <div className="animate-fadeIn flex flex-col items-center justify-center h-full -mx-4">
-          {firstYt ? (
-            <div className="w-full max-w-4xl">
-              <div style={{ aspectRatio: "16/9" }}>
-                <iframe
-                  src={`https://www.youtube.com/embed/${firstYt}?autoplay=1&mute=1&rel=0&modestbranding=1`}
-                  className="w-full h-full rounded-lg"
-                  allow="autoplay; encrypted-media" allowFullScreen frameBorder="0" />
-              </div>
-              {firstVideo && (
-                <p className="text-[10px] text-white/40 mt-2 text-center">
-                  {[firstVideo.brand, firstVideo.year, firstVideo.description].filter(Boolean).join(" — ")}
-                </p>
-              )}
-            </div>
-          ) : heroEntries[0]?.image_url ? (
-            <div>
-              <img src={heroEntries[0].image_url} className="max-h-[70vh] rounded-lg object-contain" alt="" />
-              <p className="text-[10px] text-white/40 mt-2 text-center">
-                {[heroEntries[0].brand, heroEntries[0].year, heroEntries[0].description].filter(Boolean).join(" — ")}
-              </p>
-            </div>
-          ) : (
-            <p className="text-white/40 text-sm">No hero content available</p>
-          )}
-          {/* Video thumbnails for additional entries */}
-          {videoEntries.length > 1 && (
-            <div className="flex items-start gap-4 mt-6">
-              {videoEntries.map((e, i) => {
-                const yt = ytId(e.url);
-                return (
-                  <div key={i} className="flex flex-col items-center">
-                    <button onClick={() => onMediaClick({ src: e.url, type: "Video" })}
-                      className="relative rounded-lg overflow-hidden group/vt transition hover:scale-105"
-                      style={{ width: 140, height: 80 }}>
-                      <img src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`} className="w-full h-full object-cover" alt="" />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/vt:bg-black/10 transition">
-                        <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
-                          <svg width="8" height="8" viewBox="0 0 20 20" fill="#000"><polygon points="6,3 17,10 6,17"/></svg>
-                        </div>
-                      </div>
-                    </button>
-                    <p className="text-[9px] text-white/40 mt-1.5 text-center max-w-[140px] truncate">{e.description || ""}</p>
-                    <p className="text-[8px] text-white/25">{[e.brand, e.year].filter(Boolean).join(" · ")}</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
+      return <HeroGallerySlide slide={slide} onMediaClick={onMediaClick} />;
     }
 
     case "cs_proof_points": {
