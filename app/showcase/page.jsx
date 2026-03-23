@@ -84,12 +84,12 @@ function getThemeForSlide(slide, index) {
     case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
     case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_hero_gallery":    return { bg: "#000000", text: "#fff", accent: KD.chartreuse, isDark: true };
-    case "cs_proof_points":    return { bg: "#e8e4de", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_comm_strategy":   return { bg: "#e8e4de", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_product":         return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_beyond_banking":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_brand_assessment":return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_comm_assessment": return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_proof_points":    return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_comm_strategy":   return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_product":         return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_beyond_banking":  return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_brand_assessment":return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_comm_assessment": return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_closing":         return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
     default:             return { bg: KD.charcoal, text: "#e5e0eb", accent: KD.chartreuse, isDark: true };
   }
