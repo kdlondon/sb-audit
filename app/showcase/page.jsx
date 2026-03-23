@@ -1213,17 +1213,25 @@ Return: {"title":"...","slides":[...slides...]}`;
           {ToastEl}
           {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
           {/* Full-screen preview modal */}
-          {previewSlide !== null && editSlides[previewSlide] && (
-            <div className="fixed inset-0 z-[70]" style={{ backgroundColor: getThemeForSlide(editSlides[previewSlide], previewSlide).bg }}>
-              <KDLogo color={getThemeForSlide(editSlides[previewSlide], previewSlide).text} opacity={0.1} />
-              <div className="h-full flex items-center justify-center">
-                <div className="max-w-5xl w-full mx-auto pl-20 pr-12">
-                  <SlideRenderer slide={editSlides[previewSlide].type==="cs_proof_points"?{...(editSlides.find(s=>s.type==="cs_brand_response")||{}),...editSlides[previewSlide]}:editSlides[previewSlide]} theme={getThemeForSlide(editSlides[previewSlide], previewSlide)} projectName={projectName} onMediaClick={()=>{}} />
+          {previewSlide !== null && editSlides[previewSlide] && (() => {
+            const pvTheme = getThemeForSlide(editSlides[previewSlide], previewSlide);
+            return (
+              <div className="fixed inset-0 z-[70]" style={{ backgroundColor: pvTheme.bg }}
+                onKeyDown={e => { if (e.key === "Escape") setPreviewSlide(null); }} tabIndex={0} ref={el => el?.focus()}>
+                <KDLogo color={pvTheme.text} opacity={0.1} />
+                <div className="h-full flex items-center justify-center">
+                  <div className="max-w-5xl w-full mx-auto pl-20 pr-12">
+                    <SlideRenderer slide={editSlides[previewSlide].type==="cs_proof_points"?{...(editSlides.find(s=>s.type==="cs_brand_response")||{}),...editSlides[previewSlide]}:editSlides[previewSlide]} theme={pvTheme} projectName={projectName} onMediaClick={()=>{}} />
+                  </div>
                 </div>
+                <button onClick={() => setPreviewSlide(null)}
+                  className="absolute top-5 right-5 w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold transition hover:scale-110 z-20"
+                  style={{ backgroundColor: pvTheme.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)", color: pvTheme.isDark ? "#fff" : "#1a1a2e" }}>
+                  ×
+                </button>
               </div>
-              <button onClick={() => setPreviewSlide(null)} className="absolute top-6 right-6 text-white/60 hover:text-white text-2xl z-10">×</button>
-            </div>
-          )}
+            );
+          })()}
           <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
             <div className="flex justify-between items-center mb-4 sticky top-[52px] z-30 py-3 -mx-4 px-4 lg:-mx-6 lg:px-6" style={{ background: "var(--bg)" }}>
               <div className="flex items-center gap-3">
