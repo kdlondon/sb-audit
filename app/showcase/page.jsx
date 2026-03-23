@@ -2115,7 +2115,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const keyMsgs = safeArr(slide.key_messages);
       return (
         <div className="animate-fadeIn -mx-4">
-          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Product Communication</h2>
+          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: t }}>Product Communication</h2>
           <div className="bg-white rounded-2xl shadow-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
             <div className="grid grid-cols-3 gap-5 mb-5">
               {[
@@ -2155,7 +2155,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_beyond_banking":
       return (
         <div className="animate-fadeIn -mx-4">
-          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Beyond Banking & Innovation</h2>
+          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: t }}>Beyond Banking & Innovation</h2>
           <div className="bg-white rounded-2xl shadow-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
             <div className="grid grid-cols-2 gap-5 mb-5">
               {[
