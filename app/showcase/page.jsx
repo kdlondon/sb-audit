@@ -2206,29 +2206,29 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const rest = audBlocks.slice(2, 5);
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Understanding the Audience</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Understanding the Audience</h2>
           {firstTwo.length > 0 && (
             <div className="grid grid-cols-2 gap-12 mb-6">
               {firstTwo.map((b, i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{b.label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{b.text}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{b.label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{b.text}</p>
                 </div>
               ))}
             </div>
           )}
           {rest.map((b, i) => (
             <div key={i} className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{b.label}</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-              <p className={`text-sm leading-relaxed ${b.label === "Tension" ? "font-bold" : ""}`} style={{ color: "#333" }}>{b.text}</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{b.label}</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+              <p className={`text-sm leading-relaxed ${b.label === "Tension" ? "font-bold" : ""}`} style={{ color: m }}>{b.text}</p>
             </div>
           ))}
           {(slide.entries || []).length > 0 && (
             <div className="mt-4">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Related Cases</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Related Cases</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               <EntryStrip entries={slide.entries} />
             </div>
           )}
@@ -2276,14 +2276,14 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const diffs = Array.isArray(slide.key_differentiators) ? slide.key_differentiators : [];
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Strategic Positioning</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Strategic Positioning</h2>
           {items.length >= 2 && (
             <div className="grid grid-cols-2 gap-12 mb-6">
               {items.slice(0, 2).map(([label, val], i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
                 </div>
               ))}
             </div>
@@ -2292,33 +2292,33 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
             <div className="grid grid-cols-2 gap-12 mb-6">
               {items.slice(2, 4).map(([label, val], i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
                 </div>
               ))}
             </div>
           )}
           {items.length >= 5 && (
             <div className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{items[4][0]}</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-              <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{items[4][1]}</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{items[4][0]}</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+              <p className="text-sm leading-relaxed" style={{ color: m }}>{items[4][1]}</p>
             </div>
           )}
           {diffs.length > 0 && (
             <div className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Key Differentiators</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Key Differentiators</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               {diffs.map((d, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: "#333" }}>• {d}</p>
+                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: m }}>• {d}</p>
               ))}
             </div>
           )}
           {(slide.entries || []).length > 0 && (
             <div className="mt-4">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Related Cases</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Related Cases</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               <EntryStrip entries={slide.entries} />
             </div>
           )}
@@ -2335,40 +2335,40 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const toneVoice = Array.isArray(slide.tone_voice) ? slide.tone_voice : [];
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Proof Points & Communication Strategy</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Proof Points & Communication Strategy</h2>
           {items.length >= 2 && (
             <div className="grid grid-cols-2 gap-12 mb-6">
               {items.map(([label, val], i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
                 </div>
               ))}
             </div>
           )}
           {secProofs.length > 0 && (
             <div className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Secondary Proofs</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Secondary Proofs</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               {secProofs.map((sp, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: "#333" }}>• {sp}</p>
+                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: m }}>• {sp}</p>
               ))}
             </div>
           )}
           {toneVoice.length > 0 && (
             <div className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Tone & Voice</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Tone & Voice</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               {toneVoice.map((tv, i) => (
-                <p key={i} className="text-base font-bold" style={{ color: "#0a0f3c" }}>{tv}</p>
+                <p key={i} className="text-base font-bold" style={{ color: t }}>{tv}</p>
               ))}
             </div>
           )}
           {(slide.entries || []).length > 0 && (
             <div className="mt-4">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Related Cases</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Related Cases</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               <EntryStrip entries={slide.entries} />
             </div>
           )}
@@ -2384,37 +2384,37 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       ].filter(([,v]) => v);
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Product Communication</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Product Communication</h2>
           {items.length >= 2 && (
             <div className="grid grid-cols-2 gap-12 mb-6">
               {items.map(([label, val], i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
                 </div>
               ))}
             </div>
           )}
           {keyMsgs.length > 0 && (
             <div className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Key Product Messages</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Key Product Messages</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               {keyMsgs.map((km, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: "#333" }}><span className="font-bold">{i+1}.</span> {km}</p>
+                <p key={i} className="text-sm leading-relaxed mb-1" style={{ color: m }}><span className="font-bold">{i+1}.</span> {km}</p>
               ))}
             </div>
           )}
           {slide.gap && (
             <div className="mb-6 p-4 rounded-xl border-l-4" style={{ borderColor: "#D97706", backgroundColor: "#FEF3C7" }}>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "#D97706" }}>Gap — Untold Product Story</p>
-              <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{slide.gap}</p>
+              <p className="text-sm leading-relaxed" style={{ color: m }}>{slide.gap}</p>
             </div>
           )}
           {(slide.entries || []).length > 0 && (
             <div className="mt-4">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Related Cases</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Related Cases</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               <EntryStrip entries={slide.entries} />
             </div>
           )}
@@ -2429,35 +2429,35 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       ].filter(([,v]) => v);
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Beyond Banking & Innovation</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Beyond Banking & Innovation</h2>
           {items.length >= 2 && (
             <div className="grid grid-cols-2 gap-12 mb-6">
               {items.map(([label, val], i) => (
                 <div key={i}>
-                  <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-                  <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-                  <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+                  <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+                  <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+                  <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
                 </div>
               ))}
             </div>
           )}
           {items.length === 1 && items.map(([label, val], i) => (
             <div key={i} className="mb-6">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>{label}</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
-              <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{val}</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{label}</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
+              <p className="text-sm leading-relaxed" style={{ color: m }}>{val}</p>
             </div>
           ))}
           {slide.white_space && (
             <div className="mb-6 p-4 rounded-xl border-l-4" style={{ borderColor: "#1D9A42", backgroundColor: "rgba(29,154,66,0.06)" }}>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "#1D9A42" }}>White Space — Unclaimed Territory</p>
-              <p className="text-sm leading-relaxed" style={{ color: "#333" }}>{slide.white_space}</p>
+              <p className="text-sm leading-relaxed" style={{ color: m }}>{slide.white_space}</p>
             </div>
           )}
           {(slide.entries || []).length > 0 && (
             <div className="mt-4">
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Related Cases</p>
-              <div className="border-t border-dotted mb-3" style={{ borderColor: "#ccc" }} />
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Related Cases</p>
+              <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
               <EntryStrip entries={slide.entries} />
             </div>
           )}
@@ -2470,23 +2470,23 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const weaknesses = Array.isArray(slide.weaknesses) ? slide.weaknesses : [];
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Brand Assessment</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Brand Assessment</h2>
           <div className="grid grid-cols-2 gap-12">
             <div>
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Strengths</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Strengths</p>
               <div className="border-t border-dotted mb-3" style={{ borderColor: "#1D9A42" }} />
               {strengths.map((s, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: "#333" }}>
-                  <span className="font-bold" style={{ color: "#0a0f3c" }}>{s.label}:</span> {s.explanation}
+                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: m }}>
+                  <span className="font-bold" style={{ color: t }}>{s.label}:</span> {s.explanation}
                 </p>
               ))}
             </div>
             <div>
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Weaknesses</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Weaknesses</p>
               <div className="border-t border-dotted mb-3" style={{ borderColor: "#D97706" }} />
               {weaknesses.map((w, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: "#333" }}>
-                  <span className="font-bold" style={{ color: "#0a0f3c" }}>{w.label}:</span> {w.explanation}
+                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: m }}>
+                  <span className="font-bold" style={{ color: t }}>{w.label}:</span> {w.explanation}
                 </p>
               ))}
             </div>
@@ -2500,23 +2500,23 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       const weaknesses = Array.isArray(slide.weaknesses) ? slide.weaknesses : [];
       return (
         <div className="animate-fadeIn -mx-4 px-4">
-          <h2 className="text-2xl font-bold mb-8" style={{ color: "#0a0f3c" }}>Communication Assessment</h2>
+          <h2 className="text-2xl font-bold mb-8" style={{ color: t }}>Communication Assessment</h2>
           <div className="grid grid-cols-2 gap-12">
             <div>
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Strengths</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Strengths</p>
               <div className="border-t border-dotted mb-3" style={{ borderColor: "#1D9A42" }} />
               {strengths.map((s, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: "#333" }}>
-                  <span className="font-bold" style={{ color: "#0a0f3c" }}>{s.label}:</span> {s.explanation}
+                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: m }}>
+                  <span className="font-bold" style={{ color: t }}>{s.label}:</span> {s.explanation}
                 </p>
               ))}
             </div>
             <div>
-              <p className="text-base font-semibold italic mb-1" style={{ color: "#0a0f3c", fontFamily: "Georgia, serif" }}>Weaknesses</p>
+              <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>Weaknesses</p>
               <div className="border-t border-dotted mb-3" style={{ borderColor: "#D97706" }} />
               {weaknesses.map((w, i) => (
-                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: "#333" }}>
-                  <span className="font-bold" style={{ color: "#0a0f3c" }}>{w.label}:</span> {w.explanation}
+                <p key={i} className="text-sm leading-relaxed mb-2" style={{ color: m }}>
+                  <span className="font-bold" style={{ color: t }}>{w.label}:</span> {w.explanation}
                 </p>
               ))}
             </div>
