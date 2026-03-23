@@ -1863,13 +1863,10 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_audience":
       return (
         <div className="animate-fadeIn -mx-4 -my-8 h-[calc(100%+4rem)] flex flex-col relative">
-          {/* Split background: white bottom half */}
-          <div className="absolute bottom-0 left-[-80px] right-[-80px] h-[55%] bg-white" />
-          {/* Dotted separator */}
-          <div className="absolute left-[-80px] right-[-80px] top-[45%] h-[2px] flex items-center justify-center">
-            <div className="w-full border-t-2 border-dotted" style={{ borderColor: "rgba(0,0,0,0.1)" }} />
-          </div>
-          {/* 3-column layout on white background at the bottom */}
+          {/* Smooth gradient: navy → white */}
+          <div className="absolute inset-0 left-[-80px] right-[-80px]"
+            style={{ background: "linear-gradient(to bottom, #0a0f3c 30%, #0a0f3c 40%, #faf5ee 60%, #faf5ee 100%)" }} />
+          {/* 3-column layout positioned at the bottom */}
           <div className="flex-1" />
           <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-16">
             {/* Demographic */}
