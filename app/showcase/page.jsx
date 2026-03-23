@@ -1368,7 +1368,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                       const fieldsByType = {
                         cs_title: ["brand","scope","date","entry_count"],
                         cs_team_notes: ["body"],
-                        cs_audience: ["demographic","psychographic","tension","human_insight"],
+                        cs_audience: ["demographic","psychographic","tension","audience_evolution","human_insight"],
                         cs_insight: ["human_insight"],
                         cs_brand_response: ["creative_proposition","proposition_description"],
                         cs_hero_gallery: [],
@@ -2153,15 +2153,15 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       return (
         <div className="animate-fadeIn -mx-4 flex flex-col justify-end h-full pb-8">
           <h2 className="text-xl font-bold mb-6 px-4" style={{ color: "#1a1a2e" }}>Understanding the Audience</h2>
-          <div className="grid grid-cols-3 gap-12 px-4">
+          <div className="grid grid-cols-2 gap-x-12 gap-y-6 px-4">
             {/* Demographic */}
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7"/></svg>
                 <span className="text-xs font-bold text-[#1a1a2e]">Demographic</span>
               </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#0019FF" }} />
-              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{slide.demographic}</p>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
+              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.demographic}</p>
             </div>
             {/* Psychographic */}
             <div>
@@ -2169,9 +2169,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <span className="text-xs font-bold text-[#1a1a2e]">Psychographic</span>
               </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1D9A42" }} />
-              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{(slide.psychographic || "").split(".")[0]}</p>
-              <p className="text-xs leading-relaxed text-[#666] mt-1">{(slide.psychographic || "").split(".").slice(1).join(".").trim()}</p>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
+              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.psychographic}</p>
             </div>
             {/* Tension */}
             <div>
@@ -2179,9 +2178,20 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                 <span className="text-xs font-bold text-[#1a1a2e]">Tension</span>
               </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#E11D48" }} />
-              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{slide.tension}</p>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
+              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.tension}</p>
             </div>
+            {/* Audience Evolution */}
+            {slide.audience_evolution && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  <span className="text-xs font-bold text-[#1a1a2e]">Audience Evolution</span>
+                </div>
+                <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
+                <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.audience_evolution}</p>
+              </div>
+            )}
           </div>
           <div className="px-4 mt-4"><EntryStrip entries={slide.entries} /></div>
         </div>
