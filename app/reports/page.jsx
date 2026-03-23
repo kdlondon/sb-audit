@@ -80,27 +80,80 @@ const GLOBAL_RULES = `
 GLOBAL ANALYSIS RULES — APPLY TO ALL REPORTS:
 
 1. COMMUNICATION INTENT HIERARCHY:
-The data classifies entries by communication intent. You MUST respect this hierarchy:
-- **Brand Hero**: Core brand positioning pieces — manifestos, brand commercials, major campaign films, tagline-driven ads. These define what the brand STANDS FOR. Use these as the primary source for positioning analysis (archetype, territory, proposition, emotional/rational positioning).
-- **Brand Tactical**: Brand-building pieces that support values but are NOT core positioning — events, sponsorships, community initiatives, cause marketing, employer branding, CSR. These build perception but don't define the central proposition. Analyze separately from hero pieces.
-- **Client Testimonials**: Real customer stories and case studies. These reveal what customers value in their own voice. Analyze for audience insights and proof points, not brand positioning.
-- **Product**: Drives a specific product/service/offer. Analyze for product communication strategy.
-- **Innovation**: Showcases new capability or technology. Analyze for innovation positioning.
-- **Beyond Banking**: Educational content, community building, financial literacy. Analyze for territory expansion.
+- **Brand Hero**: Core positioning — manifestos, brand commercials, tagline-driven campaigns. Use as PRIMARY source for positioning analysis (tension, insight, creative proposition, archetype, territory).
+- **Brand Tactical**: Brand-building support — events, sponsorships, CSR, community initiatives.
+- **Client Testimonials**: Customer stories, case studies.
+- **Product**: Product/service/offer driven communication.
+- **Innovation**: New capability/technology positioning.
+- **Beyond Banking**: Educational content, community programs, financial literacy, thought leadership.
 
-When analyzing brand positioning, archetype, territory, or proposition: use ONLY Brand Hero entries. Brand Tactical, Client Testimonials, and other intents provide supporting context but should not define the core positioning analysis.
+→ For audience, proof points, tone, and communication patterns: use full body of entries, weighted toward last 3 years.
 
-2. BRAND HERO EVOLUTION:
-When a brand has Brand Hero entries across different years, trace the positioning evolution chronologically. Use the MOST RECENT Brand Hero campaign as the current reference, but note shifts in archetype, territory, and proposition over time. Assess whether the evolution is coherent (building equity) or fragmented (diluting the brand).
+2. BRAND HERO RULES:
+- Trace chronological evolution across all Brand Hero entries. Most recent = current positioning reference.
+- When multiple Brand Hero campaigns exist (2+), the through-line or evolution is a finding worth naming.
+- When only one Brand Hero exists: positioning read carries moderate confidence. Note this explicitly. Use tactical/product consistency as corroborating evidence. Never treat a single hero piece as equivalent to a proven, repeated conviction.
 
-3. FAIR CROSS-BRAND COMPARISON:
-Brands may have different numbers of entries in the data. Do NOT let volume bias your analysis — a brand with 20 entries is not necessarily stronger than one with 5. Normalize your assessments by quality and strategic clarity, not quantity. When comparing brands, evaluate the strength of their positioning and communication, not how many pieces they produced.
+3. RECENCY WEIGHTING:
+- Demographic, psychographic, and communication pattern analysis: weight toward entries from the last 3 years (2023-2026).
+- Older entries contribute to Evolution narratives. Current snapshot is the headline. Historical trajectory is supporting context.
 
-4. CITATION RULES — CRITICAL:
-- Every time you reference a specific piece of communication, cite it using [ENTRY:entry_id].
-- Citations must appear inline immediately after the claim.
-- Never make a specific claim about a piece without citing it.
-- Include a ## Sources section at the end listing all cited entries.
+4. FAIR CROSS-BRAND COMPARISON:
+- Do not treat brands with more entries as "more strategic" than those with fewer.
+- Do not fabricate specificity to match higher-volume brands. If the data is thinner, say so — that itself is a finding.
+- Compare positioning quality, not communication volume.
+
+5. CITATION RULES:
+- Inline: [descriptive name](cite:ENTRY_ID) — renders as clickable links.
+- End of report: ## Sources section listing all cited entries.
+- Every claim about a specific piece must carry a citation. Pattern-level observations using pre-calculated distribution data do not require individual citations.
+
+6. DEMOGRAPHIC QUALITY GATE:
+- NEVER fabricate firmographic ranges (revenue bands, employee counts, years in business) unless entry metadata explicitly contains them.
+- Describe audience through observed signals: channels, tones, representation, business size where tagged.
+- When a brand's communications don't define their audience by size or revenue, say so — the absence is a finding.
+- When Brand Hero targets a different profile than tactical work, name both.
+
+7. INSIGHT QUALITY GATE:
+- Human Insight must be specific to this brand's emotional territory. Distinctiveness test: if the same insight could describe 3+ competitors, rewrite.
+- Must express the Tension in first person. Must feel like something a real business owner would say — raw, specific, slightly uncomfortable.
+- Must connect: Insight (what audience feels) → Tension (the conflict) → Brand Response (how brand resolves it). If this chain breaks, the analysis is wrong.
+- AVOID the "I don't need X, I need Y" construction — this is an AI writing pattern.
+
+8. VOICE RULES:
+You are a senior brand strategist. Write with precision, point of view, and economy. Every sentence earns its place.
+
+Anti-patterns — avoid systematically:
+- Negation-correction as reflex ("It's not about X. It's about Y.") — once per section max
+- False escalation ("But more importantly…" / "The real question is…")
+- Hedge-then-certainty ("While it's true that X, what we're actually seeing is Y.")
+- Colon-as-drumroll ("And this reveals something critical: [claim]")
+- Forced tripling — real analysis is messier than parallel threes
+- Empathy preambles ("It's worth noting…") — cut the cushion
+- Abstraction creep — if no concrete evidence attaches, cut it
+- Echo summarizing ("In other words…" / "Put simply…")
+
+Interchangeability test: if you could swap in any other brand name and the text still holds, the analysis is too generic.
+
+Tone: Direct, intelligent, with point of view. Clarity over cleverness. Economy of words. Short paragraphs, strong openings, clean endings.
+
+9. WEBSITE PROFILE DATA:
+Website data represents the brand's declared positioning — what the brand claims to be in its most controlled owned channel.
+Weight hierarchy: (1) Brand Hero campaigns > (2) Campaign body > (3) Website profile.
+- Section 02: Website provides declared baseline that campaigns confirm or contradict.
+- Section 04: Website reveals product priorities that may differ from campaign emphasis.
+- Section 08/09: Formal structured comparison between declared and executed positioning.
+- Do NOT use website data for: audience insight/tension, tone assessment, or proof points.
+- The gap between declared (website) and executed (campaigns) is one of the most valuable findings. Always diagnose: (1) website hasn't caught up, (2) internal silos, or (3) positioning that collapses under product reality.
+
+INTERNAL VERIFICATION (apply during generation):
+- No fabricated firmographics
+- Insight passes distinctiveness test, no "I don't need X / I need Y"
+- All strengths/weaknesses are diagnostic
+- No paragraph passes interchangeability swap
+- All anti-patterns avoided
+- Distribution ratios cited from pre-calculated data, not manual counting
+- Citation format: [descriptive name](cite:ENTRY_ID)
 `;
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
@@ -712,49 +765,98 @@ function ReportsContent(){
 
   // Agnostic snapshot — section instructions (used to build dynamic prompt)
   const AGNOSTIC_SECTION_PROMPTS={
-    audience:`(CRITICAL: Focus ONLY on entries marked ★★★ BRAND HERO ★★★ in the data — these are the core positioning pieces. You MUST reference and cite the Brand Hero entries by name. If there is only one Brand Hero entry, analyze it deeply.)
-- **Demographic:** age range, financial profile, experience level inferred from the brand's hero communications
-- **Psychographic:** mindset, motivations, self-image of the target audience as projected by the brand's core positioning
-- **Tension:** the core unresolved need their brand addresses (1–2 sentences)
-- **Human Insight:** a first-person quote (20–35 words) in italics, capturing the human truth the brand responds to
-- **Audience Evolution:** If the brand's target audience has shifted across Brand Hero campaigns over time, describe the shift in 1–2 sentences. If consistent, state that.`,
-    brand_response:`(CRITICAL: Focus ONLY on entries marked ★★★ BRAND HERO ★★★ — manifestos, brand commercials, tagline-driven campaigns. You MUST cite every Brand Hero entry.)
-Present the CURRENT positioning (based on the most recent Brand Hero campaign):
-- **Creative Proposition:** 3–6 word campaign/brand idea label
-- **Brand Archetype:** single archetype + one sentence explanation
-- **Brand Role:** one sentence on what role the brand plays in the customer's life
-- **Emotional Positioning Statement:** short phrase (5–10 words)
-- **Rational Positioning Statement:** one sentence (15–25 words)
-- **Brand Territory:** primary + secondary if applicable
-- **Key Differentiators:** 3 bullet points
-Then, if multiple Brand Hero campaigns exist across different years:
-- **Positioning Evolution:** A brief chronological narrative (3–5 sentences) tracing how the brand's core proposition has evolved.`,
-    proof_points:`(Analyze how the brand proves its positioning across Brand Hero and Brand Tactical pieces)
-- **Primary Proof Point:** 1–2 sentences on the main proof of their positioning
-- **Secondary Proof Points:** 3 supporting points, one line each
-- **Communication Focus:** what their ads consistently revolve around (1–2 sentences)
-- **Tone & Voice:** 3 labels (e.g., "Confident, Clear, Supportive")
-- **Brand Tactical Support:** 1–2 sentences on how tactical pieces reinforce or diverge from core positioning`,
-    product_comms:`(Focus on entries with Product communication intent)
-- **Approach:** feature-led, outcome-led, or emotion-led — and one sentence explaining why
-- **Key Product Messages:** the 3 most recurring product claims
-- **Channels & Formats:** where and how product communication is primarily delivered
-- **Gap:** one sentence on what product story they are NOT telling`,
-    beyond_banking:`(Focus on entries with Innovation or Beyond Banking communication intent)
-- **Beyond Banking:** are they occupying lifestyle, community, aspiration, identity, or life-moment territories — and how genuinely? One paragraph.
-- **Innovation:** Does innovation appear as a stated claim, a demonstrated capability, or is it absent? One paragraph.
-- **White Space:** one sentence on the most credible territory this brand has not yet claimed`,
-    brand_assessment:`Assessment of the brand itself — its positioning, identity, proposition, and territory. Base this primarily on Brand Hero pieces.
-- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation
-- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation`,
-    comm_assessment:`Assessment across the three communication areas: proof points & strategy, product communication, and beyond banking & innovation.
-- **Strengths:** 3 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area
-- **Weaknesses:** 2 bullets, each with a **bold label** + brief one-sentence explanation referencing the specific communication area`,
-    website_vs_comms:`(Only generate this section if BRAND WEBSITE PROFILE data is provided. If no website profile data exists, skip this section entirely.)
-Compare the brand's official website positioning with their actual advertising communications:
-- Create a comparison table with columns: Dimension | Website Profile | Actual Communications | Alignment
-- Include rows for: Core Positioning, Archetype, Tone, Target Audience, Value Proposition, Key Differentiators
-- After the table, write 2-3 sentences analyzing the consistency or disconnect`,
+    audience:`(Data sources: ALL entries weighted toward last 3 years for demographic; Brand Hero for tension/insight; full timeline for evolution)
+
+**Opening line:** One sentence framing who the brand targets and the defining characteristic. No preamble — start with the finding.
+
+**Demographic:** Who the brand addresses across all touchpoints. Describe through observed signals: channels, tones, representation, business size where tagged. Reference the pre-calculated distributions. When Brand Hero targets a narrower profile than the full body, state both. Never invent firmographic specifics the data doesn't contain.
+
+**Psychographic:** Anchored to Brand Hero and mass communication. What does this audience value, fear, aspire to? Describe the brand's character in plain strategic language (e.g., "nurturing-supportive," "premium-authority," "rebellious challenger"). Tactical work extends the psychographic — doesn't contradict it unless contradiction is the finding.
+
+**Tension:** From the most recent Brand Hero. The underlying conflict the brand claims to resolve. One sentence, sharp.
+
+**Human Insight:** First-person quote (20-35 words) from the Brand Hero's emotional territory. Must pass the distinctiveness test. Must express the tension. Must feel like something a specific person would say at 2am. AVOID "I don't need X, I need Y" construction.
+
+**Audience Evolution:** Full timeline for trajectory, emphasis on current state. Name the shift (if any). For single Brand Hero brands, include a confidence note.
+
+TERMINOLOGY BLACKLIST (agnostic only): Never use Portrait labels (Builder, Dreamer, Sovereign, Architect), Entry Doors, Journey Phases, Moments that Matter, Richness Definitions, Client Lifecycle labels, Bank Roles, or Archetype labels by name (Caregiver, Sage, Magician, etc.). Instead use plain descriptors: "nurturing-supportive brand character," "knowledge-authority positioning," "hands-on, established owner."`,
+
+    brand_response:`(Data sources: Brand Hero primary, all entries for evolution, website profile for declared baseline)
+
+**Opening line:** One sentence on the brand's current positioning.
+
+**Creative Proposition:** Current brand platform/tagline. Name it, cite the piece.
+
+**Brand Character:** What the brand consistently projects. Describe in plain language. Use the pre-calculated archetype distribution to cite consistency ratio. Also provide a short 2-3 word descriptor suitable for showcase display (e.g., "Supportive Partner," "Premium Authority"). When inconsistencies appear, diagnose strategic variation vs. identity confusion.
+
+**Brand Role:** What the brand is trying to be for the business owner. One sentence.
+
+**Emotional Positioning Statement:** What the brand wants the audience to feel. In quotes.
+
+**Rational Positioning Statement:** What the brand functionally delivers. One sentence.
+
+**Brand Territory:** Primary and secondary. Name whether each is owned or shared in the competitive set.
+
+**Key Differentiators:** 2-3, each anchored to specific pieces. Note whether genuinely differentiating or table stake disguised as advantage.
+
+**Positioning Evolution:** Chronological Brand Hero trace. Name what changed, what stayed, trajectory direction. For single Brand Hero, acknowledge limitation.`,
+
+    proof_points:`(Data sources: All entries, Brand Hero and Brand Tactical primary. Use r2b and diff_claim fields where populated.)
+
+**Opening line:** One sentence on how the brand proves its promises.
+
+**Primary Proof Point:** The single strongest proof of positioning. Cite the piece. Explain why it's strongest.
+
+**Secondary Proof Points:** 2-3, each cited. Distinguish demonstrated proof (actions, data) from declared proof (claims without evidence).
+
+**Communication Focus:** What communications consistently revolve around. Name the recurring theme across pieces.
+
+**Tone & Voice:** Reference the pre-calculated tone distribution. When tone varies across piece types, name the pattern. Note whether variation is strategic or inconsistent.
+
+**Brand Tactical Support:** How well do tactical pieces reinforce core positioning? Strong alignment = strategic discipline. Weak alignment = silo problem or positioning that doesn't hold under creative pressure.`,
+
+    product_comms:`(Data sources: Entries tagged Product + website profile for key products, key messages, differentiators)
+
+**Approach:** Feature-led, outcome-led, or benefit-led? With evidence.
+
+**Key Product Messages:** 2-3 core messages the brand repeats. In their language.
+
+**Channels & Formats:** Where and how product communication appears.
+
+**Gap:** The disconnect (if any) between product communication and brand positioning. Does product work reinforce the brand promise or live in a parallel universe?`,
+
+    beyond_banking:`(Data sources: Entries tagged Beyond Banking and Innovation)
+
+**Beyond Banking:** What territories outside functional banking? Evaluate credibility. Distinguish genuine initiatives (structural, sustained) from superficial lifestyle marketing (one-off, cosmetic).
+
+**Innovation:** Demonstrated or declared? Demonstrated = shows capabilities in action. Declared = says "innovative" without evidence. Name which and cite.
+
+**White Space:** Most credible unclaimed territory. Must pass: (1) no competitor owns it, (2) brand has credible permission from existing communication equity.`,
+
+    brand_assessment:`(Data sources: Primarily Brand Hero, full body for consistency. Use brand_attributes field where populated.)
+
+**Strengths:** 3, each with **bold label** + 1-2 sentences of evidence. Must be specific to this brand — "strong positioning" is not a strength. "The only brand in the set that sacrificed its own media budget to promote client businesses" is.
+
+**Weaknesses:** 2, same format. Must be diagnostic: name the cause, evidence, and vulnerability it creates.`,
+
+    comm_assessment:`(Data sources: All entries, evaluated as a communication system)
+
+**Strengths:** 3, each with **bold label** + evidence. Evaluate the ecosystem, not individual pieces. A mediocre hero backed by excellent tactical execution can outperform a brilliant hero with no follow-through.
+
+**Weaknesses:** 2, same format. Focus on systemic issues: channel concentration, tone inconsistencies, proof point gaps, creative repetition.`,
+
+    website_vs_comms:`(Only generate if BRAND WEBSITE PROFILE data is provided. Skip entirely if not.)
+
+**Comparison table:**
+| Dimension | Website Profile (declared) | Actual Communications (executed) | Alignment |
+
+Dimensions: Core Positioning, Brand Character, Tone, Target Audience, Value Proposition, Key Differentiators
+
+Alignment values: **Aligned**, **Partial**, **Disconnect**, or **Major Gap** — with brief diagnosis.
+
+**Closing paragraph:** Interpret the pattern. Diagnose disconnects as: (1) website hasn't caught up, (2) internal silos, or (3) positioning that collapses under product reality. Don't leave ambiguous.
+
+**Strategic implication:** Name the consequence for the audience's journey. Disconnect between website and campaign typically weakens conversion.`,
   };
 
   const buildAgnosticPrompt=()=>{
@@ -768,21 +870,17 @@ Compare the brand's official website positioning with their actual advertising c
       const num=String(i+1).padStart(2,"0");
       structureParts.push(`## ${num} — ${label}\n${customDesc&&customDesc!==tmpl?.desc?`CUSTOM INSTRUCTIONS: ${customDesc}\n`:""}${defaultInstructions}`);
     });
-    return `You are a senior brand strategist writing a competitive communication audit.
+    return `You are a senior brand strategist writing a competitive communication audit. Framework-agnostic — no proprietary terminology.
 
-CRITICAL: This is framework-agnostic. Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit.
+CRITICAL: Do NOT reference any proprietary frameworks, models, or methodologies. No portraits, entry doors, journey phases, richness definitions, moments that matter, or client lifecycle. Write as a pure competitive communication audit using plain strategic language.
 
 ${GLOBAL_RULES}
 
-Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
+CITATION FORMAT: [descriptive name](cite:ENTRY_ID) — e.g., [their national awards program](cite:1773496163636)
+Do NOT mention the piece name and then repeat it as a separate link. The name IS the link. One mention only.
+Include a ## Sources section at the end.
 
-CITATION RULES — CRITICAL:
-- When you reference a specific piece of communication, make the descriptive name itself the citation link.
-- Format: [descriptive name](cite:ENTRY_ID)
-- Do NOT mention the piece name and then repeat it as a separate link. One mention only.
-- Include a ## Sources section at the end with [description](cite:ID) for each source.
-
-REPORT STRUCTURE — follow this EXACTLY in this order. ONLY generate the sections listed below. Do NOT add extra sections:
+REPORT STRUCTURE — follow this EXACTLY in this order. ONLY generate the sections listed below:
 
 ${structureParts.join("\n\n")}
 
@@ -791,79 +889,111 @@ Use ## for sections, **bold** for labels. Be conclusive and opinionated. Write w
 
   // Competitor Snapshot (with K&D framework) — section instructions
   const CS_SECTION_PROMPTS={
-    positioning:`(CRITICAL: Focus on entries marked ★★★ BRAND HERO ★★★ for core positioning. You MUST cite every Brand Hero entry.)
-Analyze the brand's positioning using all framework dimensions:
-- **Creative Proposition:** 3–6 word campaign/brand idea from the most recent hero pieces
-- **Brand Archetype:** single archetype + one sentence explanation
-- **Brand Role:** what role the brand plays in the customer's life
-- **Emotional Positioning Statement:** short phrase (5–10 words)
-- **Rational Positioning Statement:** one sentence (15–25 words)
-- **Primary Territory & Secondary Territory:** with evidence
-- **Key Differentiators:** 3 bullet points
-- **Value Proposition:** the core VP as communicated
-- **Insight:** the human truth the brand responds to
-- **Idea:** the creative/strategic idea behind their positioning
-If multiple Brand Hero campaigns exist across years, include **Positioning Evolution** (3–5 sentences).`,
-    identity:`Analyze how the brand addresses entrepreneur identity through the K&D framework:
-- **Entry Door(s):** Which entry doors does the brand use to connect with business owners? (e.g., Growth, Efficiency, Innovation, Belonging)
-- **Experience Reflected:** What business experience does the brand mirror back?
-- **Portrait(s):** Which entrepreneur portraits does the brand target? (Dreamer, Builder, Sovereign, Architect) — with evidence
-- **Richness Definition:** How does the brand define "richness" or success for the entrepreneur?
-Use specific entries as evidence. Create a table if multiple portraits are addressed.`,
-    journey:`Map the brand's communication across the business journey:
-- **Journey Phase(s):** Which phases of the business journey does the brand address? (Starting, Growing, Scaling, Consolidating, Transforming)
-- **Client Lifecycle:** Where in the client relationship do they focus? (Acquisition, Onboarding, Deepening, Retention)
-- **Moments that Matter:** Which specific moments does the brand own?
-  - Acquisition moments (first contact, switching)
-  - Deepening moments (milestones, expansion)
-  - Unexpected moments (crisis, opportunity)
-Create a table mapping entries to journey phases.`,
-    comms:`Analyze communication patterns through the K&D lens:
-- **Bank Role:** What role does the bank play? (Advisor, Partner, Enabler, Platform, etc.)
-- **Pain Points:** What pain points does the brand address? Categorize by type (Operational, Financial, Emotional, Growth)
-- **Language Register:** Formal, conversational, technical, inspirational — with examples
-- **R2B (Right to Believe):** What gives the brand credibility? Evidence from communications
-Analyze the mix of communication intents: Brand Hero vs Brand Tactical vs Product vs Innovation.`,
-    execution:`Analyze execution patterns:
-- **Channel Mix:** Where do they communicate? (Social, TV, Digital, Events, OOH) — create a frequency table
-- **CTA Patterns:** What actions do they ask for? (Apply now, Learn more, Talk to advisor, etc.)
-- **Tone of Voice:** Primary tone labels with examples
-- **Representation:** Who appears in their communications? (Business owners, employees, community, abstract)
-- **Business Size Focus:** Micro, Small, Medium, Large — which segments get attention?`,
-    campaign:`Create a campaign map organizing all entries by:
-- **Funnel Stage:** Awareness → Consideration → Conversion → Loyalty
-- **Year:** Chronological view
-- **Communication Intent:** Brand Hero, Brand Tactical, Product, Innovation
-Create a markdown table with columns: Entry | Year | Intent | Funnel Stage | Rating
-Identify patterns: are they investing more in awareness or conversion? Hero or tactical?`,
-    consistency:`Evaluate brand consistency across all dimensions:
-| Dimension | Assessment | Evidence |
-|-----------|-----------|----------|
-| Tone consistency | Strong/Partial/Fragmented | specific examples |
-| Territory consistency | Strong/Partial/Fragmented | specific examples |
-| VP evolution | Coherent/Shifting/Fragmented | specific examples |
-| Archetype coherence | Strong/Partial/Fragmented | specific examples |
-| Moment integrity | Strong/Partial/Fragmented | specific examples |
-Write 2-3 sentences of overall consistency assessment.`,
-    strategic_read:`K&D Editorial Strategic Read:
-- **Overall Assessment:** One paragraph summarizing this brand's competitive position
-- **What They Do Well:** 3 key strengths with evidence
-- **What's Missing:** 3 gaps or weaknesses
-- **White Space Signal:** The most credible unclaimed territory for this brand
-- **Implication for Scotiabank:** 2-3 sentences on what this means for our client's strategy
-Be opinionated and conclusive.`,
+    positioning:`(Data sources: Brand Hero primary, full body for consistency, website profile for declared baseline)
+
+**Creative Proposition:** Current brand platform/tagline with citation.
+
+**Brand Archetype:** Named archetype (Caregiver, Sage, Magician, Ruler, Outlaw, Enabler, Hero, Creator, Regular Guy). Use pre-calculated archetype distribution to cite consistency ratio. When archetype shifts between Brand Hero campaigns, assess growth vs. instability.
+
+**Brand Role:** The role the bank plays. Use K&D bank role taxonomy where applicable.
+
+**Primary Territory:** Named, with ownership vs. shared occupancy assessment.
+
+**Secondary Territory:** Same assessment.
+
+**Main Value Proposition:** The core promise. One sentence. Cross-reference main_vp and diff_claim fields.
+
+**Insight:** The human truth the brand addresses. From Brand Hero. Apply distinctiveness test.
+
+**Creative Idea:** The creative concept translating insight into communication. From Brand Hero.
+
+**Positioning Evolution:** Chronological Brand Hero trace. Name archetype shifts, territory changes, tone migration. For single Brand Hero, acknowledge limitation and cite tactical consistency.`,
+
+    identity:`(Data sources: All entries, using pre-calculated portrait and entry_door distributions)
+
+**Entry Doors:** Which Entry Doors (Freedom, Identity, Craft, Build to Exit) appear? Reference pre-calculated entry_door distribution. Name dominant door, assess whether secondary doors are strategic extensions or noise.
+
+**Portraits:** Which Portraits (Dreamer, Builder, Sovereign, Architect)? Reference pre-calculated portrait distribution. When Brand Hero targets one portrait and tactical targets another, name the gap.
+
+**Richness Definition:** How does the brand define success? (Financial, Impact, Life well-designed, Strategic capability, Potential). Reference pre-calculated richness_definition distribution. Assess alignment with positioning.`,
+
+    journey:`(Data sources: All entries, using journey_phase, client_lifecycle, moment fields)
+
+**Journey Phases:** Where does communication concentrate? Reference distribution.
+
+**Client Lifecycle:** Which stages? Acquisition, Deepening, Retention. Reference balance.
+
+**Moments that Matter — Table:**
+| Moment Type | Present? | Evidence | Piece |
+| Acquisition | | | |
+| Deepening | | | |
+| Unexpected | | | |
+
+Assess meaningful vs. superficial coverage. Gaps are strategic findings.`,
+
+    comms:`(Data sources: All entries, using pre-calculated distributions)
+
+**Communication Intent Mix:** Reference pre-calculated intent breakdown. Assess balance vs. concentration.
+
+**Channel Strategy:** Reference pre-calculated channel distribution. Assess reach vs. depth.
+
+**Tone Architecture:** Reference pre-calculated tone distribution. Assess strategic vs. inconsistent variation.
+
+**Execution Style Mix:** Reference pre-calculated execution_style distribution. Name dominant style and implications.
+
+**Language Register:** Formal, colloquial, technical, peer-level. Assess consistency.`,
+
+    execution:`(Data sources: All entries)
+
+**Representation:** How does the brand show business owners? Reference pre-calculated distribution. Assess what representation choices say about who the brand values.
+
+**Industry Shown:** Which industries appear? Category-specific or universal? Gaps are findings.
+
+**Business Size:** Reference pre-calculated business_size distribution. When mostly untagged, note as finding.
+
+**CTA Patterns:** What does the brand ask the audience to do? Assess CTA-to-intent alignment.`,
+
+    campaign:`(Data sources: All entries, organized chronologically)
+
+**Campaign Timeline:** Chronological map organized by communication intent:
+- Year | Piece name | Communication Intent | Rating | Key observation (one line)
+
+This section is data organization for strategic pattern reading.`,
+
+    consistency:`(Data sources: All entries, using pre-calculated distributions)
+
+**Archetype Consistency:** Reference pre-calculated archetype distribution. Anomalies = identity problems or unrealized opportunities — diagnose which.
+
+**Tone Consistency:** Same analysis using tone distribution.
+
+**Territory Consistency:** Same for primary/secondary territory.
+
+**Portrait-to-Communication Alignment:** Same portrait across piece types? Name gaps.
+
+**Overall Coherence Rating:** High / Moderate / Low — one sentence justification.`,
+
+    strategic_read:`(Data sources: All entries + competitive context. Use brand_attributes, diff_claim, r2b fields.)
+
+**What They Do Well:** 3 findings with **bold labels** + evidence. Must be specific and anchored.
+
+**What's Missing:** 3 findings with **bold labels** + evidence. Diagnostic — name the vulnerability each gap creates.
+
+**White Space:** Most credible unclaimed territory. Must pass credibility and ownership tests.
+
+**Implication for Scotiabank:** 1-2 sentences on what this means for Scotiabank Business Banking positioning.`,
+
     website_vs_comms:`(Only generate if BRAND WEBSITE PROFILE data is provided. Skip entirely if not.)
-Compare official website positioning with actual advertising communications:
-| Dimension | Website Profile | Actual Communications | Alignment |
-|-----------|----------------|----------------------|-----------|
-| Core Positioning | | | |
-| Archetype | | | |
-| Tone | | | |
-| Target Audience | | | |
-| Value Proposition | | | |
-| Entry Door | | | |
-| Portrait | | | |
-Write 2-3 sentences analyzing consistency or disconnect.`,
+
+Same structure as Agnostic Report Section 08. In the K&D version, the Brand Character row uses named archetypes.
+
+**Comparison table:**
+| Dimension | Website Profile (declared) | Actual Communications (executed) | Alignment |
+
+Dimensions: Core Positioning, Brand Archetype, Tone, Target Audience, Value Proposition, Entry Door
+
+Alignment: **Aligned**, **Partial**, **Disconnect**, **Major Gap** — with diagnosis.
+
+**Closing paragraph + Strategic implication:** Same as agnostic version.`,
   };
 
   const buildCompetitorPrompt=()=>{
@@ -877,19 +1007,15 @@ Write 2-3 sentences analyzing consistency or disconnect.`,
       const num=String(i+1).padStart(2,"0");
       structureParts.push(`## ${num} — ${label}\n${customDesc&&customDesc!==tmpl?.desc?`CUSTOM INSTRUCTIONS: ${customDesc}\n`:""}${defaultInstructions}`);
     });
-    return `You are a world-class brand strategist analyzing competitive communications using the Knots & Dots framework. Write a deep competitor snapshot.
+    return `You are a world-class brand strategist analyzing competitive communications using the K&D proprietary framework. Use all framework dimensions where the data supports them.
 
-This report USES the K&D proprietary framework including: Portraits (Dreamer, Builder, Sovereign, Architect), Entry Doors, Journey Phases, Moments that Matter, Client Lifecycle, Richness Definitions, and Bank Roles.
+This report uses K&D terminology freely: Portraits (Dreamer, Builder, Sovereign, Architect), Entry Doors, Journey Phases, Moments that Matter, Client Lifecycle, Richness Definitions, Bank Roles, and Archetype labels by name.
 
 ${GLOBAL_RULES}
 
-Be specific — reference actual slogans, campaign names, and patterns from the data. No filler, no hedging. Confident analytical prose.
-
-CITATION RULES — CRITICAL:
-- When you reference a specific piece of communication, make the descriptive name itself the citation link.
-- Format: [descriptive name](cite:ENTRY_ID)
-- Do NOT mention the piece name and then repeat it as a separate link. One mention only.
-- Include a ## Sources section at the end with [description](cite:ID) for each source.
+CITATION FORMAT: [descriptive name](cite:ENTRY_ID) — e.g., [their national awards program](cite:1773496163636)
+Do NOT mention the piece name and then repeat it as a separate link. The name IS the link. One mention only.
+Include a ## Sources section at the end.
 
 REPORT STRUCTURE — follow this EXACTLY in this order. ONLY generate the sections listed below:
 
