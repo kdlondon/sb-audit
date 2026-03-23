@@ -1971,7 +1971,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     if (items.length === 0) return null;
     const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
     return (
-      <div className="flex gap-3 mt-2 px-4 overflow-x-auto">
+      <div className="flex gap-3 mt-2 overflow-x-auto">
         {items.map((e, i) => {
           const yt = ytId(e.url);
           const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
