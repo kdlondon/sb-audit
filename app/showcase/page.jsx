@@ -958,7 +958,7 @@ Return: {"title":"...","slides":[...slides...]}`;
         <div className="h-full flex items-center justify-center transition-colors duration-700">
           <div className="max-w-5xl w-full mx-auto pl-20 pr-12" key={currentSlide}>
             <div className={pdfMode ? "" : "slide-enter"}>
-              <ErrorBoundarySlide slide={slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} pdfMode={pdfMode} />
+              <ErrorBoundarySlide slide={slide.type === "cs_proof_points" ? {...(slides.find(s=>s.type==="cs_brand_response")||{}), ...slide} : slide} theme={theme} projectName={projectName} onMediaClick={setMediaModal} pdfMode={pdfMode} />
             </div>
           </div>
         </div>
@@ -1984,16 +1984,13 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_proof_points": {
       const tc = "#1a1a2e";
       const mc = "#555";
-      // Merge strategic positioning data from cs_brand_response if not on this slide
-      const brSlide = (currentShowcase?.slides || []).find(s => s.type === "cs_brand_response") || {};
-      const sp = (field) => slide[field] || brSlide[field] || "";
       return (
         <div className="animate-fadeIn -mx-4">
           <h3 className="text-xl font-bold mb-6 px-4" style={{ color: tc }}>Strategic Positioning</h3>
           <div className="max-w-3xl mx-auto space-y-5 px-4">
             {[
-              ["Brand Archetype", safeStr(sp("brand_archetype"))],
-              ["Brand Role", safeStr(sp("brand_role"))],
+              ["Brand Archetype", safeStr(slide.brand_archetype)],
+              ["Brand Role", safeStr(slide.brand_role)],
             ].map(([label, val]) => val && (
               <div key={label}>
                 <div className="flex items-center gap-2 mb-0.5">
@@ -2006,8 +2003,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
             ))}
             <div className="grid grid-cols-2 gap-6">
               {[
-                ["Emotional Positioning", safeStr(sp("emotional_positioning"))],
-                ["Rational Positioning", safeStr(sp("rational_positioning"))],
+                ["Emotional Positioning", safeStr(slide.emotional_positioning)],
+                ["Rational Positioning", safeStr(slide.rational_positioning)],
               ].map(([label, val]) => val && (
                 <div key={label}>
                   <div className="flex items-center gap-2 mb-0.5">
@@ -2019,24 +2016,24 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                 </div>
               ))}
             </div>
-            {sp("brand_territory") && (
+            {slide.brand_territory && (
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>Brand Territory</span>
                 </div>
                 <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                <p className="text-base font-semibold" style={{ color: tc }}>{safeStr(sp("brand_territory"))}</p>
+                <p className="text-base font-semibold" style={{ color: tc }}>{safeStr(slide.brand_territory)}</p>
               </div>
             )}
-            {safeArr(slide.key_differentiators || brSlide.key_differentiators).length > 0 && (
+            {safeArr(slide.key_differentiators).length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
                   <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>Key Differentiators</span>
                 </div>
                 <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                {safeArr(slide.key_differentiators || brSlide.key_differentiators).map((d, i) => (
+                {safeArr(slide.key_differentiators).map((d, i) => (
                   <p key={i} className="text-sm flex gap-2 items-start" style={{ color: tc }}>
                     <span style={{ color: mc }}>•</span> {d}
                   </p>
