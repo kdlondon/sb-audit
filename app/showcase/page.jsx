@@ -2080,7 +2080,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
 
     case "cs_audience":
       return (
-        <div className="animate-fadeIn flex items-end h-full pb-16">
+        <div className="animate-fadeIn -mx-4 flex flex-col justify-end h-full pb-8">
+          <h2 className="text-xl font-bold mb-6 px-4" style={{ color: "#1a1a2e" }}>Understanding the Audience</h2>
           <div className="grid grid-cols-3 gap-12 px-4">
             {/* Demographic */}
             <div>
@@ -2111,6 +2112,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{slide.tension}</p>
             </div>
           </div>
+          <div className="px-4 mt-4"><EntryStrip entries={slide.entries} /></div>
         </div>
       );
 
