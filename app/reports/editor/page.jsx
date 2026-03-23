@@ -110,6 +110,7 @@ function EditorContent2() {
   // @ mention
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIdx, setMentionIdx] = useState(0);
   const [allEntries, setAllEntries] = useState([]);
 
   // TipTap editor
@@ -319,7 +320,13 @@ function EditorContent2() {
               <div className="p-3 border-b border-main">
                 <div className="flex items-center gap-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-hint"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-                  <input autoFocus value={mentionQuery} onChange={e => setMentionQuery(e.target.value)}
+                  <input autoFocus value={mentionQuery} onChange={e => { setMentionQuery(e.target.value); setMentionIdx(0); }}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx(i => Math.min(i + 1, results.length - 1)); }
+                      else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx(i => Math.max(i - 1, 0)); }
+                      else if (e.key === "Enter" && results.length > 0) { e.preventDefault(); insertCitation(results[mentionIdx]); }
+                      else if (e.key === "Escape") { setMentionOpen(false); }
+                    }}
                     placeholder="Search cases by name, brand, type..."
                     className="flex-1 text-sm text-main bg-transparent focus:outline-none" />
                   <button onClick={() => setMentionOpen(false)} className="text-hint hover:text-main text-sm">×</button>
@@ -331,8 +338,9 @@ function EditorContent2() {
                   const ytMatch = (entry.url || "").match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);
                   const thumb = ytMatch ? `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg` : entry.image_url;
                   return (
-                    <button key={i} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent-soft transition border-b border-main last:border-0"
-                      onClick={() => insertCitation(entry)}>
+                    <button key={i} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition border-b border-main last:border-0 ${i === mentionIdx ? "bg-accent-soft" : "hover:bg-accent-soft"}`}
+                      onClick={() => insertCitation(entry)}
+                      onMouseEnter={() => setMentionIdx(i)}>
                       {thumb && <img src={thumb} className="w-12 h-9 object-cover rounded flex-shrink-0" alt="" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
