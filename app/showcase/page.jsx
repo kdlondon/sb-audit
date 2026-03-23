@@ -1146,16 +1146,16 @@ Return: {"title":"...","slides":[...slides...]}`;
           };
           const cc = theme.isDark ? "rgba(255,255,255," : "rgba(0,0,0,";
           return (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2" data-pdf-hide>
+            <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2" data-pdf-hide>
               {/* Comments above buttons */}
               {viewingComments && slideComms.length > 0 && (
-                <div className="flex justify-center gap-3 overflow-x-auto pb-1 max-w-[90vw]">
+                <div className="flex justify-center gap-3 pb-1 max-w-[80vw] flex-wrap">
                   {slideComms.map((c, i) => (
-                    <div key={i} className="flex-shrink-0 max-w-[220px] rounded-xl px-4 py-3 relative group/comment overflow-visible"
+                    <div key={i} className="max-w-[220px] rounded-xl px-4 py-3 pt-5 relative group/comment"
                       style={{ backgroundColor: cc+"0.12)", backdropFilter: "blur(6px)" }}>
                       <button onClick={() => deleteComment(i)}
-                        className="absolute -top-3 -right-3 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg z-10"
-                        style={{ backgroundColor: cc+"0.7)", color: "#fff", fontSize:14 }}>×</button>
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition"
+                        style={{ backgroundColor: cc+"0.5)", color: theme.isDark?"#fff":"#fff", fontSize:11 }}>×</button>
                       <p className="text-[11px] font-semibold" style={{ color: cc+"0.6)" }}>{c.author?.split("@")[0]}:</p>
                       <p className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: cc+"0.7)" }}>{c.text}</p>
                       <p className="text-[9px] mt-1.5" style={{ color: cc+"0.3)" }}>

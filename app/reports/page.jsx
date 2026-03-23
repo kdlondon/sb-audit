@@ -1726,7 +1726,7 @@ RULES:
 
       {/* ENTRY VIEWER PANEL */}
       {viewerOpen&&(
-        <div className="fixed top-0 right-0 w-[390px] h-screen bg-surface border-l border-main z-50 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)"}}>
+        <div className="fixed right-0 w-[390px] bg-surface border-l border-main z-40 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h, 41px)",height:"calc(100vh - var(--nav-h, 41px))"}}>
           <div className="p-3 border-b border-main flex-shrink-0">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs font-semibold text-main">{viewerEntry?"Entry detail":"Search entries"}</span>
