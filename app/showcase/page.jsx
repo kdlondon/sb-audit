@@ -396,6 +396,12 @@ function ShowcasePage() {
   const [collapsedSlides, setCollapsedSlides] = useState(new Set());
   const [previewSlide, setPreviewSlide] = useState(null); // idx of slide to preview
 
+  // Comments
+  const [slideComments, setSlideComments] = useState([]); // [{slide_idx, text, author, created_at}]
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [viewingComments, setViewingComments] = useState(false);
+
   const canEdit = role === "full_admin" || role === "analyst";
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -455,6 +461,40 @@ function ShowcasePage() {
       if (data) { setCurrentShowcase(data); setCurrentSlide(0); }
     })();
   }, [showcaseId, showcases]);
+
+  // Load comments when showcase changes
+  useEffect(() => {
+    setSlideComments(currentShowcase?.slide_comments || []);
+    setCommentOpen(false);
+    setViewingComments(false);
+  }, [currentShowcase?.id]);
+
+  // Reset comment UI when changing slides
+  useEffect(() => {
+    setCommentOpen(false);
+    setViewingComments(false);
+  }, [currentSlide]);
+
+  // Save a slide comment
+  const saveSlideComment = async () => {
+    if (!commentText.trim()) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const newComment = {
+      slide_idx: currentSlide,
+      text: commentText.trim(),
+      author: session?.user?.email || "Anonymous",
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...slideComments, newComment];
+    setSlideComments(updated);
+    setCommentText("");
+    setCommentOpen(false);
+    await fetch("/api/save-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save_showcase_comments", showcase_id: currentShowcase.id, comments: updated }),
+    });
+  };
 
   /* ─── GENERATE ─── */
   const generateShowcase = async () => {
@@ -1091,6 +1131,55 @@ Return: {"title":"...","slides":[...slides...]}`;
             ))}
           </div>
         )}
+
+        {/* Slide Comments */}
+        {!pdfMode && (() => {
+          const slideComms = slideComments.filter(c => c.slide_idx === currentSlide);
+          return (
+            <div className="absolute bottom-16 right-7 z-[60] flex flex-col items-end gap-2" data-pdf-hide>
+              {/* View existing comments */}
+              {viewingComments && slideComms.length > 0 && (
+                <div className="flex gap-2 max-w-[600px] overflow-x-auto pb-2">
+                  {slideComms.map((c, i) => (
+                    <div key={i} className="flex-shrink-0 max-w-[200px] rounded-xl px-3 py-2"
+                      style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+                      <p className="text-[10px] text-white/90 leading-relaxed">{c.text}</p>
+                      <p className="text-[8px] text-white/40 mt-1">{c.author?.split("@")[0]} · {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Comment input */}
+              {commentOpen && (
+                <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}>
+                  <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") saveSlideComment(); }}
+                    placeholder="Add a comment..."
+                    className="bg-transparent text-white/90 text-xs placeholder-white/30 focus:outline-none w-[200px]"
+                    autoFocus />
+                  <button onClick={saveSlideComment} className="text-[10px] text-white/60 hover:text-white transition">Send</button>
+                </div>
+              )}
+              {/* Bubble buttons */}
+              <div className="flex items-center gap-1.5">
+                {slideComms.length > 0 && (
+                  <button onClick={() => { setViewingComments(!viewingComments); setCommentOpen(false); }}
+                    className="text-[9px] px-2.5 py-1 rounded-full transition"
+                    style={{ backgroundColor: "rgba(0,0,0,0.4)", color: "rgba(255,255,255,0.5)" }}>
+                    {viewingComments ? "Hide" : `${slideComms.length} comment${slideComms.length !== 1 ? "s" : ""}`}
+                  </button>
+                )}
+                <button onClick={() => { setCommentOpen(!commentOpen); setViewingComments(false); }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition hover:scale-110"
+                  style={{ backgroundColor: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.4)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }

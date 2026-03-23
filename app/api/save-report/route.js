@@ -32,6 +32,14 @@ export async function POST(request) {
     return Response.json({ projects: data });
   }
 
+  // ─── SAVE SHOWCASE COMMENTS ───
+  if (body.action === "save_showcase_comments") {
+    const { showcase_id, comments } = body;
+    const { error } = await supabase.from("saved_showcases").update({ slide_comments: comments }).eq("id", showcase_id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ success: true });
+  }
+
   // ─── SAVE REPORT ───
   const { id, content, title } = body;
   if (!id) return Response.json({ error: "Report ID required" }, { status: 400 });
