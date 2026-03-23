@@ -62,8 +62,9 @@ export default function Nav() {
       style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 100, transform: "translateZ(0)" }}>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearProject(); router.push("/projects"); }}>
-          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 20 }} />
-          <span className="text-[10px] font-bold text-white/60 uppercase tracking-[0.15em]">Groundwork</span>
+          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 24 }} />
+          <span className="text-sm font-bold text-white/80 uppercase tracking-[0.15em]">Groundwork</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
         </div>
         <div className="border-l border-white/10 pl-4">
           <button onClick={() => { if (role !== "client") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/scout"); }} className={`text-xs font-medium transition ${role === "client" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>
