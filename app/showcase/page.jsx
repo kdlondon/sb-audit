@@ -1226,7 +1226,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                   </div>
                 </div>
                 <button onClick={() => setPreviewSlide(null)}
-                  className="absolute top-5 right-5 w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold transition hover:scale-110 z-20"
+                  className="absolute top-16 right-6 w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold transition hover:scale-110 z-20"
                   style={{ backgroundColor: pvTheme.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)", color: pvTheme.isDark ? "#fff" : "#1a1a2e" }}>
                   ×
                 </button>
