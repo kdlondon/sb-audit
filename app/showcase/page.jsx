@@ -1353,8 +1353,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                     {/* CS fields — type-specific */}
                     {(() => {
                       const csTextField = (field, label, rows=2) => {
-                        if (slide[field] === undefined) return null;
-                        let val = slide[field];
+                        let val = slide[field] ?? "";
                         if (typeof val === "object" && val !== null) {
                           val = field === "brand_territory" ? [val.primary, val.secondary].filter(Boolean).join(" | ") : JSON.stringify(val);
                         }
@@ -1366,13 +1365,13 @@ Return: {"title":"...","slides":[...slides...]}`;
                           </div>
                         );
                       };
-                      const csArrayField = (field, label, rows=3) => slide[field] ? (
+                      const csArrayField = (field, label, rows=3) => (
                         <div key={field}>
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label} (one per line)</label>
                           <textarea value={(slide[field]||[]).join("\n")} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value.split("\n")};setEditSlides(s);}}
                             className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
                         </div>
-                      ) : null;
+                      );
                       const fieldsByType = {
                         cs_title: ["brand","scope","date","entry_count"],
                         cs_team_notes: [], // body handled by generic body editor above
