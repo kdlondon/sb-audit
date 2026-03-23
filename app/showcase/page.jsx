@@ -1962,34 +1962,49 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       return (
         <div className="animate-fadeIn flex flex-col items-center justify-center h-full -mx-4">
           {firstYt ? (
-            <div className="w-full max-w-4xl" style={{ aspectRatio: "16/9" }}>
-              <iframe
-                src={`https://www.youtube.com/embed/${firstYt}?autoplay=1&mute=1&rel=0&modestbranding=1`}
-                className="w-full h-full rounded-lg"
-                allow="autoplay; encrypted-media" allowFullScreen frameBorder="0" />
+            <div className="w-full max-w-4xl">
+              <div style={{ aspectRatio: "16/9" }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${firstYt}?autoplay=1&mute=1&rel=0&modestbranding=1`}
+                  className="w-full h-full rounded-lg"
+                  allow="autoplay; encrypted-media" allowFullScreen frameBorder="0" />
+              </div>
+              {firstVideo && (
+                <p className="text-[10px] text-white/40 mt-2 text-center">
+                  {[firstVideo.brand, firstVideo.year, firstVideo.description].filter(Boolean).join(" — ")}
+                </p>
+              )}
             </div>
           ) : heroEntries[0]?.image_url ? (
-            <img src={heroEntries[0].image_url} className="max-h-[70vh] rounded-lg object-contain" alt="" />
+            <div>
+              <img src={heroEntries[0].image_url} className="max-h-[70vh] rounded-lg object-contain" alt="" />
+              <p className="text-[10px] text-white/40 mt-2 text-center">
+                {[heroEntries[0].brand, heroEntries[0].year, heroEntries[0].description].filter(Boolean).join(" — ")}
+              </p>
+            </div>
           ) : (
             <p className="text-white/40 text-sm">No hero content available</p>
           )}
           {/* Video thumbnails for additional entries */}
           {videoEntries.length > 1 && (
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex items-start gap-4 mt-6">
               {videoEntries.map((e, i) => {
                 const yt = ytId(e.url);
                 return (
-                  <button key={i} onClick={() => onMediaClick({ src: e.url, type: "Video" })}
-                    className="relative rounded-lg overflow-hidden group/vt transition hover:scale-105"
-                    style={{ width: 120, height: 68 }}>
-                    <img src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`} className="w-full h-full object-cover" alt="" />
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/vt:bg-black/10 transition">
-                      <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
-                        <svg width="8" height="8" viewBox="0 0 20 20" fill="#000"><polygon points="6,3 17,10 6,17"/></svg>
+                  <div key={i} className="flex flex-col items-center">
+                    <button onClick={() => onMediaClick({ src: e.url, type: "Video" })}
+                      className="relative rounded-lg overflow-hidden group/vt transition hover:scale-105"
+                      style={{ width: 140, height: 80 }}>
+                      <img src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`} className="w-full h-full object-cover" alt="" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/vt:bg-black/10 transition">
+                        <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
+                          <svg width="8" height="8" viewBox="0 0 20 20" fill="#000"><polygon points="6,3 17,10 6,17"/></svg>
+                        </div>
                       </div>
-                    </div>
-                    <p className="absolute bottom-1 left-1 right-1 text-[8px] text-white truncate">{e.description}</p>
-                  </button>
+                    </button>
+                    <p className="text-[9px] text-white/40 mt-1.5 text-center max-w-[140px] truncate">{e.description || ""}</p>
+                    <p className="text-[8px] text-white/25">{[e.brand, e.year].filter(Boolean).join(" · ")}</p>
+                  </div>
                 );
               })}
             </div>
