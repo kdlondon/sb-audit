@@ -1182,15 +1182,16 @@ Return: {"title":"...","slides":[...slides...]}`;
                   </button>
                 )}
                 {commentOpen && (
-                  <div className="flex items-center gap-1 rounded-full px-3 py-1.5" style={{ backgroundColor: cc+"0.1)", backdropFilter: "blur(4px)" }}>
-                    <input value={commentText} onChange={e => setCommentText(e.target.value)}
-                      onKeyDown={e => { if(e.key==="Enter"){e.preventDefault();saveSlideComment();}if(e.key==="Escape")setCommentOpen(false);e.stopPropagation(); }}
-                      placeholder="write your comment"
-                      className="bg-transparent text-[11px] focus:outline-none w-[150px] placeholder-current"
+                  <div className="flex items-start gap-1 rounded-2xl px-3 py-2" style={{ backgroundColor: cc+"0.1)", backdropFilter: "blur(4px)" }}>
+                    <textarea value={commentText} onChange={e => setCommentText(e.target.value)}
+                      onKeyDown={e => { if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();saveSlideComment();}if(e.key==="Escape")setCommentOpen(false);e.stopPropagation(); }}
+                      placeholder="write your comment (Cmd+Enter to send)"
+                      rows={2}
+                      className="bg-transparent text-[11px] focus:outline-none w-[200px] resize-none placeholder-current"
                       style={{ color: cc+"0.6)" }}
                       autoFocus />
                     <button onClick={saveSlideComment}
-                      className="w-6 h-6 rounded-full flex items-center justify-center hover:scale-110 transition"
+                      className="w-6 h-6 rounded-full flex items-center justify-center hover:scale-110 transition mt-0.5"
                       style={{ color: cc+"0.5)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>

@@ -122,7 +122,12 @@ function EditorContent2() {
     editorProps: {
       attributes: { class: "prose prose-sm md:prose-base max-w-none focus:outline-none min-h-[400px] dark:prose-invert prose-headings:text-[var(--text)] prose-p:text-[var(--text2)] prose-strong:text-[var(--text)] prose-li:text-[var(--text2)] prose-h2:border-b prose-h2:border-[var(--border)] prose-h2:pb-2 prose-h2:mt-8 prose-h3:mt-6" },
       handleKeyDown: (view, event) => {
-        if (event.key === "@") { setMentionOpen(true); setMentionQuery(""); return false; }
+        if (event.key === "@") {
+          event.preventDefault();
+          setMentionOpen(true);
+          setMentionQuery("");
+          return true;
+        }
         return false;
       },
     },
