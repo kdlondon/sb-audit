@@ -55,7 +55,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (role === "client" && projects.length === 1 && !loading) {
       selectProject(projects[0].id, projects[0].name);
-      router.replace("/showcase");
+      router.replace("/profile");
     }
   }, [role, projects, loading]);
 
@@ -110,7 +110,7 @@ export default function ProjectsPage() {
 
   const enterProject = (p) => {
     selectProject(p.id, p.name);
-    router.push(role === "client" ? "/showcase" : "/dashboard");
+    router.push(role === "client" ? "/profile" : "/dashboard");
   };
 
   const startEdit = (p, e) => {

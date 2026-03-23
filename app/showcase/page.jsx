@@ -482,7 +482,7 @@ function ShowcasePage() {
     const newComment = {
       slide_idx: currentSlide,
       text: commentText.trim(),
-      author: session?.user?.email || "Anonymous",
+      author: (typeof window !== "undefined" && localStorage.getItem("groundwork_profile")) || session?.user?.email?.split("@")[0] || "Anonymous",
       created_at: new Date().toISOString(),
     };
     const updated = [...slideComments, newComment];
