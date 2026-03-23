@@ -83,8 +83,8 @@ function getThemeForSlide(slide, index) {
     case "cs_audience":        return { bg: KD.navy, text: "#fff", accent: "#1D9A42", isDark: true }; // split: navy top, white bottom
     case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
     case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
-    case "cs_hero_gallery":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_proof_points":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_hero_gallery":    return { bg: "#000000", text: "#fff", accent: KD.chartreuse, isDark: true };
+    case "cs_proof_points":    return { bg: "#e8e4de", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_product":         return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_beyond_banking":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_brand_assessment":return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
@@ -1932,76 +1932,41 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_hero_gallery": {
       const heroEntries = safeArr(slide.entries);
       const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
+      // Find video entries
+      const videoEntries = heroEntries.filter(e => ytId(e.url)).slice(0, 3);
+      const firstVideo = videoEntries[0];
+      const firstYt = firstVideo ? ytId(firstVideo.url) : null;
       return (
-        <div className="animate-fadeIn -mx-4">
-          <div className="flex items-center gap-4 mb-2 px-4">
-            <h2 className="text-xl font-bold" style={{ color: theme.accent }}>{slide.title || "Brand Hero Content"}</h2>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: theme.accent, color: "#fff" }}>{heroEntries.length} pieces</span>
-          </div>
-          {slide.subtitle && <p className="text-sm mb-5 px-4" style={{ color: m }}>{slide.subtitle}</p>}
-          {heroEntries.length <= 2 ? (
-            /* 1-2 entries: side by side, large */
-            <div className={`grid gap-4 ${heroEntries.length === 1 ? "grid-cols-1 max-w-2xl mx-auto" : "grid-cols-2"}`}>
-              {heroEntries.map((e, i) => {
-                const yt = ytId(e.url);
-                const thumb = yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : e.image_url;
-                const isVideo = yt || (e.url && /vimeo/i.test(e.url));
-                return (
-                  <div key={i} className="bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer group/hero"
-                    style={{ border: "1px solid rgba(0,0,0,0.04)" }}
-                    onClick={() => { if (e.url) onMediaClick({ src: e.url, type: isVideo ? "Video" : "Image" }); else if (e.image_url) onMediaClick({ src: e.image_url, type: "Image" }); }}>
-                    {thumb && (
-                      <div className="relative overflow-hidden" style={{ maxHeight: "45vh" }}>
-                        <img src={thumb} className="w-full h-full object-contain" alt="" />
-                        {isVideo && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/hero:bg-black/10 transition">
-                            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg"><svg width="16" height="16" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg></div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <p className="text-sm font-semibold leading-snug mb-1" style={{ color: t }}>{e.description || "—"}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {e.year && <span className="text-[10px]" style={{ color: f }}>{e.year}</span>}
-                        {e.type && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.05)", color: m }}>{e.type}</span>}
-                        {e.rating && <span className="text-[10px]" style={{ color: "#D97706" }}>{"★".repeat(Number(e.rating))}</span>}
-                      </div>
-                      {e.main_slogan && <p className="text-xs italic mt-2" style={{ color: m, fontFamily: "Georgia, serif" }}>&ldquo;{e.main_slogan}&rdquo;</p>}
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="animate-fadeIn flex flex-col items-center justify-center h-full -mx-4">
+          {firstYt ? (
+            <div className="w-full max-w-4xl" style={{ aspectRatio: "16/9" }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${firstYt}?autoplay=1&mute=1&rel=0&modestbranding=1`}
+                className="w-full h-full rounded-lg"
+                allow="autoplay; encrypted-media" allowFullScreen frameBorder="0" />
             </div>
+          ) : heroEntries[0]?.image_url ? (
+            <img src={heroEntries[0].image_url} className="max-h-[70vh] rounded-lg object-contain" alt="" />
           ) : (
-            /* 3+ entries: grid of cards */
-            <div className="grid grid-cols-3 gap-3">
-              {heroEntries.map((e, i) => {
+            <p className="text-white/40 text-sm">No hero content available</p>
+          )}
+          {/* Video thumbnails for additional entries */}
+          {videoEntries.length > 1 && (
+            <div className="flex items-center gap-3 mt-6">
+              {videoEntries.map((e, i) => {
                 const yt = ytId(e.url);
-                const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
-                const isVideo = yt || (e.url && /vimeo/i.test(e.url));
                 return (
-                  <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer group/hero"
-                    style={{ border: "1px solid rgba(0,0,0,0.04)" }}
-                    onClick={() => { if (e.url) onMediaClick({ src: e.url, type: isVideo ? "Video" : "Image" }); else if (e.image_url) onMediaClick({ src: e.image_url, type: "Image" }); }}>
-                    {thumb && (
-                      <div className="relative overflow-hidden" style={{ height: 160 }}>
-                        <img src={thumb} className="w-full h-full object-cover" alt="" />
-                        {isVideo && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/hero:bg-black/10 transition">
-                            <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17"/></svg></div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="p-3">
-                      <p className="text-xs font-semibold leading-snug truncate" style={{ color: t }}>{e.description || "—"}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {e.year && <span className="text-[9px]" style={{ color: f }}>{e.year}</span>}
-                        {e.rating && <span className="text-[9px]" style={{ color: "#D97706" }}>{"★".repeat(Number(e.rating))}</span>}
+                  <button key={i} onClick={() => onMediaClick({ src: e.url, type: "Video" })}
+                    className="relative rounded-lg overflow-hidden group/vt transition hover:scale-105"
+                    style={{ width: 120, height: 68 }}>
+                    <img src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`} className="w-full h-full object-cover" alt="" />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/vt:bg-black/10 transition">
+                      <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 20 20" fill="#000"><polygon points="6,3 17,10 6,17"/></svg>
                       </div>
                     </div>
-                  </div>
+                    <p className="absolute bottom-1 left-1 right-1 text-[8px] text-white truncate">{e.description}</p>
+                  </button>
                 );
               })}
             </div>
@@ -2011,49 +1976,68 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     }
 
     case "cs_proof_points": {
-      const secProofs = safeArr(slide.secondary_proofs);
-      const toneVoice = safeArr(slide.tone_voice);
       return (
         <div className="animate-fadeIn -mx-4">
-          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Proof Points and Communication Strategy</h2>
-          <div className="bg-white rounded-2xl shadow-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
-            {slide.creative_proposition && (
-              <p className="text-4xl font-bold mb-6" style={{ color: t }}>
-                &ldquo;{slide.creative_proposition}&rdquo;
-              </p>
-            )}
-            <div className="grid grid-cols-4 gap-5">
-              <div>
-                <p className="text-xs font-bold mb-1" style={{ color: t }}>Primary Proof Points</p>
-                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.primary_proof || ""}</p>
+          {/* Strategic Positioning card */}
+          <div className="max-w-2xl mx-auto rounded-2xl p-6 mb-6" style={{ backgroundColor: theme.accent, color: "#fff" }}>
+            <h3 className="text-lg font-bold mb-5">Strategic Positioning</h3>
+            <div className="space-y-4">
+              {[
+                ["Brand Archetype", safeStr(slide.brand_archetype || slide.creative_proposition)],
+                ["Brand Role", safeStr(slide.brand_role || slide.primary_proof)],
+              ].map(([label, val]) => val && (
+                <div key={label}>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{label}</span>
+                  </div>
+                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+                  <p className="text-sm font-medium">{val}</p>
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  ["Emotional Positioning", safeStr(slide.emotional_positioning)],
+                  ["Rational Positioning", safeStr(slide.rational_positioning)],
+                ].map(([label, val]) => val && (
+                  <div key={label}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">{label}</span>
+                    </div>
+                    <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+                    <p className="text-sm">{val}</p>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-xs font-bold mb-1" style={{ color: t }}>Secondary Proof Points</p>
-                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                <div className="space-y-1">
-                  {secProofs.map((sp, i) => (
-                    <p key={i} className="text-sm" style={{ color: t }}><span className="font-bold">{i+1}.</span> {sp}</p>
+              {slide.brand_territory && (
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Brand Territory</span>
+                  </div>
+                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+                  <p className="text-base font-semibold">{safeStr(slide.brand_territory)}</p>
+                </div>
+              )}
+              {safeArr(slide.key_differentiators).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Key Differentiators</span>
+                  </div>
+                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+                  {safeArr(slide.key_differentiators).map((d, i) => (
+                    <p key={i} className="text-sm flex gap-2 items-start text-white/90">
+                      <span className="text-white/40">•</span> {d}
+                    </p>
                   ))}
                 </div>
-              </div>
-              <div>
-                <p className="text-xs font-bold mb-1" style={{ color: t }}>Communication Focus</p>
-                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                <p className="text-sm leading-relaxed" style={{ color: t }}>{slide.communication_focus || ""}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold mb-1" style={{ color: t }}>Tone & Voice</p>
-                <div className="h-[3px] w-full rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                <div className="space-y-1">
-                  {toneVoice.map((tv, i) => (
-                    <p key={i} className="text-xl font-bold" style={{ color: t }}>{tv}</p>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
-            <EntryStrip entries={slide.entries} />
           </div>
+          {/* Case thumbnails */}
+          <EntryStrip entries={slide.entries} />
         </div>
       );
     }
