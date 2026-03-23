@@ -85,6 +85,7 @@ function getThemeForSlide(slide, index) {
     case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_hero_gallery":    return { bg: "#000000", text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_proof_points":    return { bg: "#e8e4de", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_comm_strategy":   return { bg: "#e8e4de", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_product":         return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_beyond_banking":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_brand_assessment":return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
@@ -892,13 +893,21 @@ Return: {"title":"...","slides":[...slides...]}`;
      PRESENTATION VIEW
      ═══════════════════════════════════════════ */
   if (view === "present" && currentShowcase) {
-    // Inject cs_insight slide for old showcases that have human_insight on cs_audience
+    // Inject missing slides for old showcases
     let slides = currentShowcase.slides || [];
     if (!slides.some(s => s.type === "cs_insight")) {
       const audienceSlide = slides.find(s => s.type === "cs_audience");
       if (audienceSlide?.human_insight) {
         const idx = slides.findIndex(s => s.type === "cs_audience");
         slides = [...slides.slice(0, idx + 1), { type: "cs_insight", human_insight: audienceSlide.human_insight }, ...slides.slice(idx + 1)];
+      }
+    }
+    // Inject cs_comm_strategy from cs_proof_points data
+    if (!slides.some(s => s.type === "cs_comm_strategy")) {
+      const ppSlide = slides.find(s => s.type === "cs_proof_points");
+      if (ppSlide && (ppSlide.primary_proof || ppSlide.communication_focus)) {
+        const idx = slides.findIndex(s => s.type === "cs_proof_points");
+        slides = [...slides.slice(0, idx + 1), { type: "cs_comm_strategy", primary_proof: ppSlide.primary_proof, secondary_proofs: ppSlide.secondary_proofs, communication_focus: ppSlide.communication_focus, tone_voice: ppSlide.tone_voice, entries: ppSlide.entries }, ...slides.slice(idx + 1)];
       }
     }
     const slide = slides[currentSlide];
@@ -2041,50 +2050,55 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               </div>
             )}
           </div>
-          {/* Proof Points & Communication Strategy */}
-          {(slide.primary_proof || safeArr(slide.secondary_proofs).length > 0 || slide.communication_focus || safeArr(slide.tone_voice).length > 0) && (
-            <div className="max-w-3xl mx-auto mt-8 px-4">
-              <h3 className="text-lg font-bold mb-4" style={{ color: tc }}>Proof Points & Communication Strategy</h3>
-              <div className="grid grid-cols-2 gap-6">
-                {slide.primary_proof && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Primary Proof</p>
-                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                    <p className="text-sm leading-relaxed" style={{ color: tc }}>{slide.primary_proof}</p>
-                  </div>
-                )}
-                {safeArr(slide.secondary_proofs).length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Secondary Proofs</p>
-                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                    {safeArr(slide.secondary_proofs).map((sp, i) => (
-                      <p key={i} className="text-sm mb-1" style={{ color: tc }}><span style={{ color: mc }}>•</span> {sp}</p>
-                    ))}
-                  </div>
-                )}
-                {slide.communication_focus && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Communication Focus</p>
-                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                    <p className="text-sm leading-relaxed" style={{ color: tc }}>{slide.communication_focus}</p>
-                  </div>
-                )}
-                {safeArr(slide.tone_voice).length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Tone & Voice</p>
-                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                    {safeArr(slide.tone_voice).map((tv, i) => (
-                      <p key={i} className="text-base font-bold" style={{ color: tc }}>{tv}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           {/* Case thumbnails */}
           <div className="mt-6">
             <EntryStrip entries={slide.entries} />
           </div>
+        </div>
+      );
+    }
+
+    case "cs_comm_strategy": {
+      const tc2 = "#1a1a2e";
+      const mc2 = "#555";
+      return (
+        <div className="animate-fadeIn -mx-4">
+          <h3 className="text-xl font-bold mb-6 px-4" style={{ color: tc2 }}>Proof Points & Communication Strategy</h3>
+          <div className="max-w-3xl mx-auto px-4 grid grid-cols-2 gap-6">
+            {slide.primary_proof && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc2 }}>Primary Proof</p>
+                <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                <p className="text-sm leading-relaxed" style={{ color: tc2 }}>{slide.primary_proof}</p>
+              </div>
+            )}
+            {safeArr(slide.secondary_proofs).length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc2 }}>Secondary Proofs</p>
+                <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                {safeArr(slide.secondary_proofs).map((sp, i) => (
+                  <p key={i} className="text-sm mb-1" style={{ color: tc2 }}><span style={{ color: mc2 }}>•</span> {sp}</p>
+                ))}
+              </div>
+            )}
+            {slide.communication_focus && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc2 }}>Communication Focus</p>
+                <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                <p className="text-sm leading-relaxed" style={{ color: tc2 }}>{slide.communication_focus}</p>
+              </div>
+            )}
+            {safeArr(slide.tone_voice).length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc2 }}>Tone & Voice</p>
+                <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                {safeArr(slide.tone_voice).map((tv, i) => (
+                  <p key={i} className="text-base font-bold" style={{ color: tc2 }}>{tv}</p>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mt-6"><EntryStrip entries={slide.entries} /></div>
         </div>
       );
     }
