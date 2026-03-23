@@ -2032,7 +2032,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
                   <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>Brand Territory</span>
                 </div>
                 <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
-                <p className="text-base font-semibold" style={{ color: tc }}>{safeStr(slide.brand_territory)}</p>
+                <p className="text-sm font-medium" style={{ color: tc }}>{safeStr(slide.brand_territory)}</p>
               </div>
             )}
             {safeArr(slide.key_differentiators).length > 0 && (
