@@ -837,10 +837,30 @@ Return: {"title":"...","slides":[...slides...]}`;
     setPdfMode(false);
   };
 
+  // Build effective slides with injected slides (insight, comm_strategy)
+  const getEffectiveSlides = (showcase) => {
+    let s = showcase?.slides || [];
+    if (!s.some(sl => sl.type === "cs_insight")) {
+      const aud = s.find(sl => sl.type === "cs_audience");
+      if (aud?.human_insight) {
+        const idx = s.findIndex(sl => sl.type === "cs_audience");
+        s = [...s.slice(0, idx + 1), { type: "cs_insight", human_insight: aud.human_insight }, ...s.slice(idx + 1)];
+      }
+    }
+    if (!s.some(sl => sl.type === "cs_comm_strategy")) {
+      const pp = s.find(sl => sl.type === "cs_proof_points");
+      if (pp && (pp.primary_proof || pp.communication_focus)) {
+        const idx = s.findIndex(sl => sl.type === "cs_proof_points");
+        s = [...s.slice(0, idx + 1), { type: "cs_comm_strategy", primary_proof: pp.primary_proof, secondary_proofs: pp.secondary_proofs, communication_focus: pp.communication_focus, tone_voice: pp.tone_voice, entries: pp.entries }, ...s.slice(idx + 1)];
+      }
+    }
+    return s;
+  };
+
   /* ─── KEYBOARD NAV ─── */
   useEffect(() => {
     if (view !== "present") return;
-    const slides = currentShowcase?.slides || [];
+    const slides = getEffectiveSlides(currentShowcase);
     const handler = (e) => {
       if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); setCurrentSlide(s => Math.min(s + 1, slides.length - 1)); }
       if (e.key === "ArrowLeft") { e.preventDefault(); setCurrentSlide(s => Math.max(s - 1, 0)); }
@@ -893,23 +913,7 @@ Return: {"title":"...","slides":[...slides...]}`;
      PRESENTATION VIEW
      ═══════════════════════════════════════════ */
   if (view === "present" && currentShowcase) {
-    // Inject missing slides for old showcases
-    let slides = currentShowcase.slides || [];
-    if (!slides.some(s => s.type === "cs_insight")) {
-      const audienceSlide = slides.find(s => s.type === "cs_audience");
-      if (audienceSlide?.human_insight) {
-        const idx = slides.findIndex(s => s.type === "cs_audience");
-        slides = [...slides.slice(0, idx + 1), { type: "cs_insight", human_insight: audienceSlide.human_insight }, ...slides.slice(idx + 1)];
-      }
-    }
-    // Inject cs_comm_strategy from cs_proof_points data
-    if (!slides.some(s => s.type === "cs_comm_strategy")) {
-      const ppSlide = slides.find(s => s.type === "cs_proof_points");
-      if (ppSlide && (ppSlide.primary_proof || ppSlide.communication_focus)) {
-        const idx = slides.findIndex(s => s.type === "cs_proof_points");
-        slides = [...slides.slice(0, idx + 1), { type: "cs_comm_strategy", primary_proof: ppSlide.primary_proof, secondary_proofs: ppSlide.secondary_proofs, communication_focus: ppSlide.communication_focus, tone_voice: ppSlide.tone_voice, entries: ppSlide.entries }, ...slides.slice(idx + 1)];
-      }
-    }
+    const slides = getEffectiveSlides(currentShowcase);
     const slide = slides[currentSlide];
     if (!slide) return null;
     const theme = getThemeForSlide(slide, currentSlide);
