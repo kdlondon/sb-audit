@@ -1443,7 +1443,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                       ))
                     }
                     {/* Entries editor — for slides with entries arrays */}
-                    {(Array.isArray(slide.entries) || slide.type?.startsWith("cs_")) && (
+                    {(Array.isArray(slide.entries) || slide.type?.startsWith("cs_")) && !["cs_brand_response","cs_insight","cs_team_notes","cs_closing"].includes(slide.type) && (
                       <div>
                         <label className="block text-[10px] text-muted uppercase font-semibold mb-2">
                           Entries ({(slide.entries||[]).length})
