@@ -1146,16 +1146,16 @@ Return: {"title":"...","slides":[...slides...]}`;
           };
           const cc = theme.isDark ? "rgba(255,255,255," : "rgba(0,0,0,";
           return (
-            <div className="absolute bottom-4 left-14 right-7 z-[60]" data-pdf-hide>
-              {/* Comments centered */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2" data-pdf-hide>
+              {/* Comments above buttons */}
               {viewingComments && slideComms.length > 0 && (
-                <div className="flex justify-center gap-3 mb-3 overflow-x-auto pb-1">
+                <div className="flex justify-center gap-3 overflow-x-auto pb-1 max-w-[90vw]">
                   {slideComms.map((c, i) => (
-                    <div key={i} className="flex-shrink-0 max-w-[220px] rounded-xl px-4 py-3 relative group/comment"
-                      style={{ backgroundColor: cc+"0.15)", backdropFilter: "blur(4px)" }}>
+                    <div key={i} className="flex-shrink-0 max-w-[220px] rounded-xl px-4 py-3 relative group/comment overflow-visible"
+                      style={{ backgroundColor: cc+"0.12)", backdropFilter: "blur(6px)" }}>
                       <button onClick={() => deleteComment(i)}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg"
-                        style={{ backgroundColor: cc+"0.6)", color: theme.isDark?"#fff":"#fff", fontSize:12 }}>×</button>
+                        className="absolute -top-3 -right-3 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg z-10"
+                        style={{ backgroundColor: cc+"0.7)", color: "#fff", fontSize:14 }}>×</button>
                       <p className="text-[11px] font-semibold" style={{ color: cc+"0.6)" }}>{c.author?.split("@")[0]}:</p>
                       <p className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: cc+"0.7)" }}>{c.text}</p>
                       <p className="text-[9px] mt-1.5" style={{ color: cc+"0.3)" }}>
@@ -1165,15 +1165,8 @@ Return: {"title":"...","slides":[...slides...]}`;
                   ))}
                 </div>
               )}
-              {/* Controls: right-aligned */}
-              <div className="flex items-center justify-end gap-2">
-                {slideComms.length > 0 && (
-                  <button onClick={() => { setViewingComments(!viewingComments); setCommentOpen(false); }}
-                    className="text-[11px] px-3 py-1.5 rounded-full transition"
-                    style={{ backgroundColor: cc+"0.15)", color: cc+"0.5)" }}>
-                    {viewingComments ? "Hide" : slideComms.length}
-                  </button>
-                )}
+              {/* Centered controls */}
+              <div className="flex items-center gap-2">
                 <button onClick={() => { setCommentOpen(!commentOpen); setViewingComments(false); }}
                   className="w-9 h-9 rounded-full flex items-center justify-center transition hover:scale-110"
                   style={{ backgroundColor: cc+"0.12)", color: cc+"0.4)" }}>
@@ -1181,6 +1174,13 @@ Return: {"title":"...","slides":[...slides...]}`;
                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                   </svg>
                 </button>
+                {slideComms.length > 0 && (
+                  <button onClick={() => { setViewingComments(!viewingComments); setCommentOpen(false); }}
+                    className="text-[11px] px-3 py-1.5 rounded-full transition"
+                    style={{ backgroundColor: cc+"0.12)", color: cc+"0.5)" }}>
+                    {viewingComments ? "Hide" : `${slideComms.length} comment${slideComms.length!==1?"s":""}`}
+                  </button>
+                )}
                 {commentOpen && (
                   <div className="flex items-center gap-1 rounded-full px-3 py-1.5" style={{ backgroundColor: cc+"0.1)", backdropFilter: "blur(4px)" }}>
                     <input value={commentText} onChange={e => setCommentText(e.target.value)}
