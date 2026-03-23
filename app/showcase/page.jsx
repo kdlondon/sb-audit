@@ -2004,7 +2004,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       return (
         <div className="animate-fadeIn -mx-4">
           <h3 className="text-xl font-bold mb-6 px-4" style={{ color: tc }}>Strategic Positioning</h3>
-          <div className="max-w-3xl mx-auto space-y-5 px-4">
+          <div className="space-y-5 px-4">
             {[
               ["Brand Archetype", safeStr(slide.brand_archetype)],
               ["Brand Role", safeStr(slide.brand_role)],
@@ -2072,7 +2072,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
       return (
         <div className="animate-fadeIn -mx-4">
           <h3 className="text-xl font-bold mb-6 px-4" style={{ color: tc2 }}>Proof Points & Communication Strategy</h3>
-          <div className="max-w-3xl mx-auto px-4 grid grid-cols-2 gap-6">
+          <div className="px-4 grid grid-cols-2 gap-6">
             {slide.primary_proof && (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc2 }}>Primary Proof</p>
