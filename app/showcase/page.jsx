@@ -1971,7 +1971,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     if (items.length === 0) return null;
     const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
     return (
-      <div className="flex gap-3 mt-4 pt-4 px-4 overflow-x-auto" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+      <div className="flex gap-3 mt-2 px-4 overflow-x-auto">
         {items.map((e, i) => {
           const yt = ytId(e.url);
           const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
@@ -2222,7 +2222,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
             <div key={i} className="mb-6">
               <p className="text-base font-semibold italic mb-1" style={{ color: t, fontFamily: "Georgia, serif" }}>{b.label}</p>
               <div className="border-t border-dotted mb-3" style={{ borderColor: f }} />
-              <p className={`text-sm leading-relaxed ${b.label === "Tension" ? "font-bold" : ""}`} style={{ color: m }}>{b.text}</p>
+              <p className={b.label === "Tension" ? "text-base font-bold leading-relaxed" : "text-sm leading-relaxed"} style={{ color: b.label === "Tension" ? t : m }}>{b.text}</p>
             </div>
           ))}
           {(slide.entries || []).length > 0 && (
