@@ -1682,7 +1682,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     if (items.length === 0) return null;
     const ytId = (u) => { if (!u) return null; const mx = u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return mx ? mx[1] : null; };
     return (
-      <div className="flex gap-3 mt-4 pt-4 overflow-x-auto" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+      <div className="flex gap-3 mt-4 pt-4 px-4 overflow-x-auto" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
         {items.map((e, i) => {
           const yt = ytId(e.url);
           const thumb = yt ? `https://img.youtube.com/vi/${yt}/mqdefault.jpg` : e.image_url;
