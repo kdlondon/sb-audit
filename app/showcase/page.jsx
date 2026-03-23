@@ -23,6 +23,7 @@ const SLIDE_TYPES = {
 const CS_SLIDE_TYPES = {
   cs_title: "Title",
   cs_audience: "Understanding the Audience",
+  cs_insight: "Human Insight",
   cs_brand_response: "The Brand Response",
   cs_hero_gallery: "Brand Hero Content",
   cs_proof_points: "Proof Points & Communication Strategy",
@@ -77,10 +78,11 @@ function getThemeForSlide(slide, index) {
       : { bg: KD.electric, text: "#fff", accent: "#fff", isDark: true };
     case "takeaways":    return { bg: KD.chartreuse, text: "#0a0a0a", accent: "#0a0a0a", isDark: false };
     case "closing":      return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
-    // Competitor Snapshot themes — cream base, consistent green accent
+    // Competitor Snapshot themes
     case "cs_title":           return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
-    case "cs_audience":        return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
-    case "cs_brand_response":  return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
+    case "cs_audience":        return { bg: KD.navy, text: "#fff", accent: "#1D9A42", isDark: true }; // split: navy top, white bottom
+    case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
+    case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_hero_gallery":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_proof_points":    return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_product":         return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
@@ -531,27 +533,30 @@ CRITICAL RULES:
 - ALL output in English regardless of input language.
 - Return ONLY valid JSON — no markdown, no code blocks.
 
-Return: {"title":"${brand} — Competitor Snapshot","slides":[exactly 9 slide objects]}
+Return: {"title":"${brand} — Competitor Snapshot","slides":[exactly 10 slide objects]}
 
-THE 9 SLIDES — follow this structure EXACTLY:
+THE 10 SLIDES — follow this structure EXACTLY:
 
 SLIDE 1 — type:"cs_title"
 Fields: brand ("${brand}"), scope ("${scopeLabel}"), date ("${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}"), entry_count (${entries.length}), subtitle ("Competitive Communication Snapshot")
 
 SLIDE 2 — type:"cs_audience"
-Analyze entries with Brand Hero communication intent to infer the target audience this brand is speaking to in its core positioning.
+Analyze entries with Brand Hero communication intent to infer the target audience.
 Fields:
-- demographic: string — age range, financial profile, experience level. Short scannable text.
-- psychographic: string — mindset, motivations, self-image. 2-3 short lines.
-- tension: string — the core unresolved need the brand addresses. 1-2 sentences.
-- human_insight: string — a first-person quote (20-35 words) capturing the human truth the brand responds to.
-- entries: array of 1-2 entries: {description, image_url, url, year} — pick the most representative pieces
+- demographic: string — age range, financial profile, experience level. Short scannable text (2-3 lines max).
+- psychographic: string — mindset, motivations, self-image. 2-3 short sentences.
+- tension: string — the core unresolved need the brand addresses. 2-3 sentences.
 
-SLIDE 3 — type:"cs_brand_response"
-Extract ONLY from entries with Brand Hero communication intent.
+SLIDE 3 — type:"cs_insight"
+The human truth this brand responds to. A powerful first-person quote.
 Fields:
-- creative_proposition: string — 3-6 words. Use actual main_slogan if prominent.
-- proposition_description: string — one line.
+- human_insight: string — a first-person quote (25-40 words) capturing the human truth. Written as the target audience speaking. Emotionally resonant.
+
+SLIDE 4 — type:"cs_brand_response"
+Extract ONLY from entries with Brand Hero communication intent. This slide is cinematic — centered, impactful.
+Fields:
+- creative_proposition: string — 3-6 words. Use actual main_slogan if prominent. This displays VERY LARGE.
+- proposition_description: string — one explanatory sentence (15-25 words).
 - brand_archetype: string — dominant archetype + one sentence.
 - brand_role: string — one sentence.
 - emotional_positioning: string — 5-10 words.
@@ -560,7 +565,7 @@ Fields:
 - key_differentiators: array of 3 strings.
 - entries: array of 2-3 Brand Hero entries: {description, image_url, url, year} — the key positioning pieces. COPY exact image_url and url from the data.
 
-SLIDE 4 — type:"cs_proof_points"
+SLIDE 5 — type:"cs_proof_points"
 Fields:
 - creative_proposition: string — same as slide 3.
 - primary_proof: string — 1-2 sentences.
@@ -569,7 +574,7 @@ Fields:
 - tone_voice: array of 3 strings.
 - entries: array of 2-3 entries: {description, image_url, url, year} — pieces that prove the positioning. COPY exact image_url and url.
 
-SLIDE 5 — type:"cs_product"
+SLIDE 6 — type:"cs_product"
 Extract from entries with Product communication intent.
 Fields:
 - approach: string — one sentence.
@@ -578,7 +583,7 @@ Fields:
 - gap: string — one sentence insight.
 - entries: array of 2-3 Product entries: {description, image_url, url, year}. COPY exact image_url and url.
 
-SLIDE 6 — type:"cs_beyond_banking"
+SLIDE 7 — type:"cs_beyond_banking"
 Extract from entries with Innovation or Beyond Banking communication intent.
 Fields:
 - beyond_banking: string — one paragraph on lifestyle/community/aspiration/identity territories.
@@ -586,22 +591,22 @@ Fields:
 - white_space: string — one sentence on the most credible unclaimed territory. This is a strategic insight.
 - entries: array of 1-2 entries: {description, image_url, url, year}. COPY exact image_url and url.
 
-SLIDE 7 — type:"cs_brand_assessment"
+SLIDE 8 — type:"cs_brand_assessment"
 Assess the BRAND itself — its positioning, identity, archetype, proposition, territory.
 Fields:
 - strengths: array of 3 objects {label: string, explanation: string}. Each label is a bold 2-3 word heading, explanation is one sentence.
 - weaknesses: array of 2 objects {label: string, explanation: string}. Same format.
 
-SLIDE 8 — type:"cs_comm_assessment"
+SLIDE 9 — type:"cs_comm_assessment"
 Assess COMMUNICATION quality across proof points (slide 4), product communication (slide 5), and beyond banking/innovation (slide 6). Strengths and weaknesses are about HOW WELL the brand communicates, not what the brand IS.
 Fields:
 - strengths: array of 3 objects {label: string, explanation: string}.
 - weaknesses: array of 2 objects {label: string, explanation: string}.
 
-SLIDE 9 — type:"cs_closing"
+SLIDE 10 — type:"cs_closing"
 Fields: title ("Thank You"), subtitle ("Generated by Knots & Dots — Category Landscape Platform"), date ("${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}")`;
 
-    const userMsg = `Analyze these ${entries.length} communications for ${brand} and create a 9-slide Competitor Snapshot:\n\n${JSON.stringify(entryData, null, 1)}`;
+    const userMsg = `Analyze these ${entries.length} communications for ${brand} and create a 10-slide Competitor Snapshot:\n\n${JSON.stringify(entryData, null, 1)}`;
 
     try {
       const res = await fetch("/api/ai", {
@@ -661,7 +666,7 @@ CRITICAL RULES:
 - Return ONLY valid JSON — no markdown, no code blocks.
 - Citation links like [text](cite:ID) reference real audit entries — extract the entry descriptions and include them in slide entries.
 
-Return: {"title":"...","slides":[exactly 9 slide objects]}
+Return: {"title":"...","slides":[exactly 10 slide objects]}
 
 THE 9 SLIDES — follow this structure EXACTLY:
 
@@ -669,27 +674,30 @@ SLIDE 1 — type:"cs_title"
 Fields: brand (string), scope (string), date ("${new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"})}"), entry_count (number, estimate from report), subtitle ("Competitive Communication Snapshot")
 
 SLIDE 2 — type:"cs_audience"
-Fields: demographic (string), psychographic (string), tension (string), human_insight (string — first-person quote 20-35 words), entries (array of 1-2: {description, year})
+Fields: demographic (string), psychographic (string), tension (string)
 
-SLIDE 3 — type:"cs_brand_response"
-Fields: creative_proposition (3-6 words), proposition_description (one line), brand_archetype (string), brand_role (one sentence), emotional_positioning (5-10 words), rational_positioning (15-25 words), brand_territory (string), key_differentiators (array of 3 strings), entries (array of 2-3: {description, year})
+SLIDE 3 — type:"cs_insight"
+Fields: human_insight (string — first-person quote 25-40 words, emotionally resonant)
 
-SLIDE 4 — type:"cs_proof_points"
+SLIDE 4 — type:"cs_brand_response"
+Fields: creative_proposition (3-6 words, displays VERY LARGE), proposition_description (one sentence), brand_archetype (string), brand_role (one sentence), emotional_positioning (5-10 words), rational_positioning (15-25 words), brand_territory (string), key_differentiators (array of 3 strings), entries (array of 2-3: {description, year})
+
+SLIDE 5 — type:"cs_proof_points"
 Fields: creative_proposition (same as slide 3), primary_proof (1-2 sentences), secondary_proofs (array of 3 strings), communication_focus (1-2 sentences), tone_voice (array of 3 strings), entries (array of 2-3: {description, year})
 
-SLIDE 5 — type:"cs_product"
+SLIDE 6 — type:"cs_product"
 Fields: approach (one sentence), key_messages (array of 3 strings), channels_formats (string), gap (one sentence), entries (array of 2-3: {description, year})
 
-SLIDE 6 — type:"cs_beyond_banking"
+SLIDE 7 — type:"cs_beyond_banking"
 Fields: beyond_banking (one paragraph), innovation (one paragraph), white_space (one sentence), entries (array of 1-2: {description, year})
 
-SLIDE 7 — type:"cs_brand_assessment"
+SLIDE 8 — type:"cs_brand_assessment"
 Fields: strengths (array of 3: {label, explanation}), weaknesses (array of 2: {label, explanation})
 
-SLIDE 8 — type:"cs_comm_assessment"
+SLIDE 9 — type:"cs_comm_assessment"
 Fields: strengths (array of 3: {label, explanation}), weaknesses (array of 2: {label, explanation})
 
-SLIDE 9 — type:"cs_closing"
+SLIDE 10 — type:"cs_closing"
 Fields: title ("Thank You"), subtitle ("Generated by Knots & Dots — Category Landscape Platform"), date ("${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}")`;
 
     const creativeSystemPrompt = `You are a senior creative strategist at Knots & Dots building a cinematic presentation from an existing markdown report.
@@ -713,7 +721,7 @@ RULES:
 Return: {"title":"...","slides":[...slides...]}`;
 
     const systemPrompt = isCS ? csSystemPrompt : creativeSystemPrompt;
-    const userMsg = `Convert this markdown report into a ${isCS ? "9-slide Competitor Snapshot" : "cinematic showcase presentation"}:\n\n${uploadedMD.slice(0, 40000)}`;
+    const userMsg = `Convert this markdown report into a ${isCS ? "10-slide Competitor Snapshot" : "cinematic showcase presentation"}:\n\n${uploadedMD.slice(0, 40000)}`;
 
     try {
       const res = await fetch("/api/ai", {
@@ -1400,7 +1408,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                   <p className="text-[10px] text-muted mb-1 font-semibold">OUTPUT STRUCTURE</p>
                   <p className="text-[10px] text-hint">
                     {isCS
-                      ? "Title → Audience → Brand Response → Proof Points → Product → Beyond Banking → Brand Assessment → Communication Assessment → Closing"
+                      ? "Title → Audience → Insight → Brand Response → Proof Points → Product → Beyond Banking → Brand Assessment → Communication Assessment → Closing"
                       : "Title → Key Findings → Individual Findings (as many as needed) → Takeaways → Closing"}
                   </p>
                 </div>
@@ -1509,7 +1517,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                 <p className="text-[10px] text-muted mb-1 font-semibold">OUTPUT STRUCTURE</p>
                 <p className="text-[10px] text-hint">
                   {isCS
-                    ? "Title → Audience → Brand Response → Proof Points → Product → Beyond Banking → Brand Assessment → Communication Assessment → Closing"
+                    ? "Title → Audience → Insight → Brand Response → Proof Points → Product → Beyond Banking → Brand Assessment → Communication Assessment → Closing"
                     : "Title → Key Findings → Individual Findings (as many as needed) → Takeaways → Closing"}
                 </p>
               </div>
@@ -1854,143 +1862,70 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
 
     case "cs_audience":
       return (
-        <div className="animate-fadeIn -mx-4">
-          {/* Section title */}
-          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: theme.accent }}>Understanding the Audience</h2>
-          {/* White card container */}
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
-            <div className="grid grid-cols-12 min-h-[380px]">
-              {/* Left column — Demographic + Psychographic */}
-              <div className="col-span-4 p-6 space-y-6" style={{ borderRight: "1px solid rgba(0,0,0,0.06)" }}>
-                {/* Demographic */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t} strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7"/></svg>
-                    <span className="text-xs font-bold" style={{ color: t }}>Demographic</span>
-                  </div>
-                  <div className="h-[3px] w-2/3 rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                  <p className="text-sm font-semibold leading-snug mb-1" style={{ color: t }}>{(slide.demographic || "").split(".")[0]}</p>
-                  <p className="text-xs leading-relaxed" style={{ color: m }}>{(slide.demographic || "").split(".").slice(1).join(".").trim()}</p>
-                </div>
-                {/* Psychographic */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t} strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                    <span className="text-xs font-bold" style={{ color: t }}>Psychographic</span>
-                  </div>
-                  <div className="h-[3px] w-2/3 rounded-full mb-3" style={{ backgroundColor: theme.accent }} />
-                  <p className="text-sm font-semibold leading-snug mb-1" style={{ color: t }}>{(slide.psychographic || "").split(".")[0]}</p>
-                  <p className="text-xs leading-relaxed" style={{ color: m }}>{(slide.psychographic || "").split(".").slice(1).join(".").trim()}</p>
-                </div>
+        <div className="animate-fadeIn -mx-4 -my-8 h-[calc(100%+4rem)] flex flex-col relative">
+          {/* Split background: white bottom half */}
+          <div className="absolute bottom-0 left-[-80px] right-[-80px] h-[55%] bg-white" />
+          {/* Dotted separator */}
+          <div className="absolute left-[-80px] right-[-80px] top-[45%] h-[2px] flex items-center justify-center">
+            <div className="w-full border-t-2 border-dotted" style={{ borderColor: "rgba(0,0,0,0.1)" }} />
+          </div>
+          {/* 3-column layout on white background at the bottom */}
+          <div className="flex-1" />
+          <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-16">
+            {/* Demographic */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7"/></svg>
+                <span className="text-xs font-bold text-[#1a1a2e]">Demographic</span>
               </div>
-              {/* Center — Tension */}
-              <div className="col-span-3 p-6 flex flex-col justify-center" style={{ borderRight: "1px solid rgba(0,0,0,0.06)" }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t} strokeWidth="1.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                  <span className="text-xs font-bold" style={{ color: t }}>Tension</span>
-                </div>
-                <div className="h-[3px] w-2/3 rounded-full mb-3" style={{ backgroundColor: "#E11D48" }} />
-                <p className="text-base font-semibold leading-snug mb-2" style={{ color: t }}>{slide.tension}</p>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#0019FF" }} />
+              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{slide.demographic}</p>
+            </div>
+            {/* Psychographic */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span className="text-xs font-bold text-[#1a1a2e]">Psychographic</span>
               </div>
-              {/* Right — Human Insight (green card) */}
-              <div className="col-span-5 p-6 flex flex-col justify-center" style={{ backgroundColor: theme.accent }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  <span className="text-xs font-bold text-white/80">Human Insight</span>
-                </div>
-                <div className="h-[3px] w-2/3 rounded-full mb-4" style={{ backgroundColor: "rgba(255,255,255,0.3)" }} />
-                <p className="text-xl italic leading-relaxed font-medium text-white" style={{ fontFamily: "Georgia, serif" }}>
-                  &ldquo;{slide.human_insight}&rdquo;
-                </p>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1D9A42" }} />
+              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{(slide.psychographic || "").split(".")[0]}</p>
+              <p className="text-xs leading-relaxed text-[#666] mt-1">{(slide.psychographic || "").split(".").slice(1).join(".").trim()}</p>
+            </div>
+            {/* Tension */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span className="text-xs font-bold text-[#1a1a2e]">Tension</span>
               </div>
+              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#E11D48" }} />
+              <p className="text-sm font-semibold leading-relaxed text-[#1a1a2e]">{slide.tension}</p>
             </div>
           </div>
-          <EntryStrip entries={slide.entries} />
+        </div>
+      );
+
+    case "cs_insight":
+      return (
+        <div className="animate-fadeIn flex flex-col justify-center h-full">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] mb-6" style={{ color: "rgba(26,26,46,0.5)" }}>Insight</p>
+          <p className="text-xl md:text-2xl leading-relaxed max-w-3xl" style={{ color: "#1a1a2e", fontFamily: "Georgia, serif" }}>
+            &ldquo;{slide.human_insight}&rdquo;
+          </p>
         </div>
       );
 
     case "cs_brand_response":
       return (
-        <div className="animate-fadeIn -mx-4">
-          <h2 className="text-xl font-bold mb-5 px-4" style={{ color: t }}>The Brand Response</h2>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
-            <div className="grid grid-cols-12 min-h-[380px]">
-              {/* Left — Key Content + Creative Proposition */}
-              <div className="col-span-5 p-6 flex flex-col justify-center" style={{ borderRight: "1px solid rgba(0,0,0,0.06)" }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-                  <span className="text-xs font-bold" style={{ color: t }}>Creative Proposition</span>
-                </div>
-                <div className="h-[3px] w-2/3 rounded-full mb-4" style={{ backgroundColor: theme.accent }} />
-                <h3 className="text-3xl md:text-4xl font-bold leading-[1.05] mb-4" style={{ color: t }}>
-                  &ldquo;{safeStr(slide.creative_proposition)}&rdquo;
-                </h3>
-                {slide.proposition_description && (
-                  <p className="text-sm leading-relaxed" style={{ color: m }}>{safeStr(slide.proposition_description)}</p>
-                )}
-              </div>
-              {/* Right — Strategic Positioning (green card) */}
-              <div className="col-span-7 p-6" style={{ backgroundColor: theme.accent }}>
-                <h3 className="text-lg font-bold text-white mb-5">Strategic Positioning</h3>
-                <div className="space-y-4">
-                  {[
-                    ["Brand Archetype", safeStr(slide.brand_archetype)],
-                    ["Brand Role", safeStr(slide.brand_role)],
-                  ].map(([label, val]) => val && (
-                    <div key={label}>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{label}</span>
-                      </div>
-                      <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      <p className="text-sm font-medium text-white">{val}</p>
-                    </div>
-                  ))}
-                  {/* Emotional + Rational side by side */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      ["Emotional Positioning", safeStr(slide.emotional_positioning)],
-                      ["Rational Positioning", safeStr(slide.rational_positioning)],
-                    ].map(([label, val]) => val && (
-                      <div key={label}>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">{label}</span>
-                        </div>
-                        <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                        <p className="text-sm text-white">{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {slide.brand_territory && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Brand Territory</span>
-                      </div>
-                      <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      <p className="text-base font-semibold text-white">{safeStr(slide.brand_territory)}</p>
-                    </div>
-                  )}
-                  {safeArr(slide.key_differentiators).length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Key Differentiators</span>
-                      </div>
-                      <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                      {safeArr(slide.key_differentiators).map((d, i) => (
-                        <p key={i} className="text-sm flex gap-2 items-start text-white/90">
-                          <span className="text-white/40">•</span> {d}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          <EntryStrip entries={slide.entries} />
+        <div className="animate-fadeIn flex flex-col items-center justify-center text-center h-full">
+          <p className="text-xs uppercase tracking-[0.3em] mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Creative Proposition</p>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold uppercase leading-[1.05] mb-6" style={{ color: "#fff" }}>
+            &ldquo;{safeStr(slide.creative_proposition)}&rdquo;
+          </h2>
+          {slide.proposition_description && (
+            <p className="text-sm md:text-base max-w-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
+              {safeStr(slide.proposition_description)}
+            </p>
+          )}
         </div>
       );
 
