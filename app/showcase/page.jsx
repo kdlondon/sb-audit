@@ -1368,7 +1368,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                       const fieldsByType = {
                         cs_title: ["brand","scope","date","entry_count"],
                         cs_team_notes: ["body"],
-                        cs_audience: ["demographic","psychographic","tension","audience_evolution","human_insight"],
+                        cs_audience: [], // uses dynamic blocks editor below
                         cs_insight: ["human_insight"],
                         cs_brand_response: ["creative_proposition","proposition_description"],
                         cs_hero_gallery: [],
@@ -1442,6 +1442,51 @@ Return: {"title":"...","slides":[...slides...]}`;
                         )
                       ))
                     }
+                    {/* Dynamic blocks editor for cs_audience */}
+                    {slide.type === "cs_audience" && (() => {
+                      // Convert legacy fields to blocks if needed
+                      const blocks = slide._blocks || [
+                        ...(slide.demographic ? [{label:"Demographic",text:slide.demographic}] : []),
+                        ...(slide.psychographic ? [{label:"Psychographic",text:slide.psychographic}] : []),
+                        ...(slide.tension ? [{label:"Tension",text:slide.tension}] : []),
+                        ...(slide.audience_evolution ? [{label:"Audience Evolution",text:slide.audience_evolution}] : []),
+                      ];
+                      const updateBlocks = (newBlocks) => {
+                        const s=[...editSlides];
+                        s[idx]={...s[idx],_blocks:newBlocks,
+                          demographic:newBlocks.find(b=>b.label==="Demographic")?.text||"",
+                          psychographic:newBlocks.find(b=>b.label==="Psychographic")?.text||"",
+                          tension:newBlocks.find(b=>b.label==="Tension")?.text||"",
+                          audience_evolution:newBlocks.find(b=>b.label==="Audience Evolution")?.text||"",
+                        };
+                        setEditSlides(s);
+                      };
+                      return (
+                        <div>
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Content Blocks ({blocks.length})</label>
+                          <div className="space-y-3">
+                            {blocks.map((block, bi) => (
+                              <div key={bi} className="border border-main rounded-lg p-3 relative">
+                                <button onClick={() => updateBlocks(blocks.filter((_,i)=>i!==bi))}
+                                  className="absolute top-2 right-2 text-red-400 hover:text-red-600 text-xs">×</button>
+                                <input value={block.label} placeholder="Block title"
+                                  onChange={e => { const b=[...blocks]; b[bi]={...b[bi],label:e.target.value}; updateBlocks(b); }}
+                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-bold mb-2 focus:outline-none focus:border-[var(--accent)]" />
+                                <textarea value={block.text} placeholder="Content (supports **bold**)" rows={3}
+                                  onChange={e => { const b=[...blocks]; b[bi]={...b[bi],text:e.target.value}; updateBlocks(b); }}
+                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none focus:border-[var(--accent)]" />
+                              </div>
+                            ))}
+                          </div>
+                          {blocks.length < 6 && (
+                            <button onClick={() => updateBlocks([...blocks, {label:"New Block",text:""}])}
+                              className="mt-2 w-full py-2 border border-dashed border-main rounded-lg text-xs text-muted hover:text-main hover:border-[var(--accent)] transition">
+                              + Add block
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {/* Entries editor — for slides with entries arrays */}
                     {(Array.isArray(slide.entries) || slide.type?.startsWith("cs_")) && !["cs_brand_response","cs_insight","cs_team_notes","cs_closing"].includes(slide.type) && (
                       <div>
@@ -2149,53 +2194,32 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
         </div>
       );
 
-    case "cs_audience":
+    case "cs_audience": {
+      const audBlocks = slide._blocks || [
+        ...(slide.demographic ? [{label:"Demographic",text:slide.demographic}] : []),
+        ...(slide.psychographic ? [{label:"Psychographic",text:slide.psychographic}] : []),
+        ...(slide.tension ? [{label:"Tension",text:slide.tension}] : []),
+        ...(slide.audience_evolution ? [{label:"Audience Evolution",text:slide.audience_evolution}] : []),
+      ];
+      const gridCols = audBlocks.length <= 2 ? "grid-cols-2" : "grid-cols-3";
       return (
         <div className="animate-fadeIn -mx-4 flex flex-col justify-end h-full pb-8">
           <h2 className="text-xl font-bold mb-6 px-4" style={{ color: "#1a1a2e" }}>Understanding the Audience</h2>
-          <div className="grid grid-cols-2 gap-x-12 gap-y-6 px-4">
-            {/* Demographic */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7"/></svg>
-                <span className="text-xs font-bold text-[#1a1a2e]">Demographic</span>
-              </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
-              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.demographic}</p>
-            </div>
-            {/* Psychographic */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                <span className="text-xs font-bold text-[#1a1a2e]">Psychographic</span>
-              </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
-              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.psychographic}</p>
-            </div>
-            {/* Tension */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <span className="text-xs font-bold text-[#1a1a2e]">Tension</span>
-              </div>
-              <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
-              <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.tension}</p>
-            </div>
-            {/* Audience Evolution */}
-            {slide.audience_evolution && (
-              <div>
+          <div className={`grid ${gridCols} gap-x-10 gap-y-6 px-4`}>
+            {audBlocks.map((block, i) => (
+              <div key={i}>
                 <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                  <span className="text-xs font-bold text-[#1a1a2e]">Audience Evolution</span>
+                  <span className="text-xs font-bold text-[#1a1a2e]">{block.label}</span>
                 </div>
                 <div className="h-[3px] w-20 rounded-full mb-3" style={{ backgroundColor: "#1a1a2e" }} />
-                <p className="text-sm leading-relaxed text-[#1a1a2e]">{slide.audience_evolution}</p>
+                <p className="text-sm leading-relaxed text-[#1a1a2e]">{block.text}</p>
               </div>
-            )}
+            ))}
           </div>
           <div className="px-4 mt-4"><EntryStrip entries={slide.entries} /></div>
         </div>
       );
+    }
 
     case "cs_insight":
       return (
