@@ -566,7 +566,7 @@ Fields:
 - entries: array of 2-3 Brand Hero entries: {description, image_url, url, year} — the key positioning pieces. COPY exact image_url and url from the data.
 
 SLIDE 5 — type:"cs_proof_points"
-This slide displays the full Strategic Positioning breakdown. Include ALL these fields:
+This slide has TWO sections: Strategic Positioning (top) + Proof Points & Communication Strategy (bottom). Include ALL fields:
 Fields:
 - brand_archetype: string — dominant archetype + one sentence explanation.
 - brand_role: string — one sentence on the brand's role.
@@ -574,6 +574,10 @@ Fields:
 - rational_positioning: string — 15-25 words.
 - brand_territory: string — primary + secondary territory.
 - key_differentiators: array of 3 strings.
+- primary_proof: string — 1-2 sentences on primary proof points.
+- secondary_proofs: array of 3 strings.
+- communication_focus: string — 1-2 sentences.
+- tone_voice: array of 3 strings (e.g. "Aspirational", "Institutional", "Authoritative").
 - entries: array of 2-3 entries: {description, image_url, url, year} — pieces that prove the positioning. COPY exact image_url and url.
 
 SLIDE 6 — type:"cs_product"
@@ -2034,6 +2038,46 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
               </div>
             )}
           </div>
+          {/* Proof Points & Communication Strategy */}
+          {(slide.primary_proof || safeArr(slide.secondary_proofs).length > 0 || slide.communication_focus || safeArr(slide.tone_voice).length > 0) && (
+            <div className="max-w-3xl mx-auto mt-8 px-4">
+              <h3 className="text-lg font-bold mb-4" style={{ color: tc }}>Proof Points & Communication Strategy</h3>
+              <div className="grid grid-cols-2 gap-6">
+                {slide.primary_proof && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Primary Proof</p>
+                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                    <p className="text-sm leading-relaxed" style={{ color: tc }}>{slide.primary_proof}</p>
+                  </div>
+                )}
+                {safeArr(slide.secondary_proofs).length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Secondary Proofs</p>
+                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                    {safeArr(slide.secondary_proofs).map((sp, i) => (
+                      <p key={i} className="text-sm mb-1" style={{ color: tc }}><span style={{ color: mc }}>•</span> {sp}</p>
+                    ))}
+                  </div>
+                )}
+                {slide.communication_focus && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Communication Focus</p>
+                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                    <p className="text-sm leading-relaxed" style={{ color: tc }}>{slide.communication_focus}</p>
+                  </div>
+                )}
+                {safeArr(slide.tone_voice).length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: mc }}>Tone & Voice</p>
+                    <div className="h-[2px] w-full rounded-full mb-2" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                    {safeArr(slide.tone_voice).map((tv, i) => (
+                      <p key={i} className="text-base font-bold" style={{ color: tc }}>{tv}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {/* Case thumbnails */}
           <div className="mt-6">
             <EntryStrip entries={slide.entries} />
