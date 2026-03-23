@@ -1212,8 +1212,20 @@ Return: {"title":"...","slides":[...slides...]}`;
         <div className="min-h-screen" style={{ background: "var(--bg)" }}>
           {ToastEl}
           {mediaModal && <MediaModal src={mediaModal.src} type={mediaModal.type} onClose={() => setMediaModal(null)} />}
-          <div className="max-w-[1400px] mx-auto p-6">
-            <div className="flex justify-between items-center mb-6 sticky top-[52px] z-30 py-3 -mx-6 px-6" style={{ background: "var(--bg)" }}>
+          {/* Full-screen preview modal */}
+          {previewSlide !== null && editSlides[previewSlide] && (
+            <div className="fixed inset-0 z-[70]" style={{ backgroundColor: getThemeForSlide(editSlides[previewSlide], previewSlide).bg }}>
+              <KDLogo color={getThemeForSlide(editSlides[previewSlide], previewSlide).text} opacity={0.1} />
+              <div className="h-full flex items-center justify-center">
+                <div className="max-w-5xl w-full mx-auto pl-20 pr-12">
+                  <SlideRenderer slide={editSlides[previewSlide].type==="cs_proof_points"?{...(editSlides.find(s=>s.type==="cs_brand_response")||{}),...editSlides[previewSlide]}:editSlides[previewSlide]} theme={getThemeForSlide(editSlides[previewSlide], previewSlide)} projectName={projectName} onMediaClick={()=>{}} />
+                </div>
+              </div>
+              <button onClick={() => setPreviewSlide(null)} className="absolute top-6 right-6 text-white/60 hover:text-white text-2xl z-10">×</button>
+            </div>
+          )}
+          <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
+            <div className="flex justify-between items-center mb-4 sticky top-[52px] z-30 py-3 -mx-4 px-4 lg:-mx-6 lg:px-6" style={{ background: "var(--bg)" }}>
               <div className="flex items-center gap-3">
                 <button onClick={() => nav({ id: currentShowcase.id })} className="text-muted hover:text-main text-lg">←</button>
                 <h1 className="text-xl font-bold text-main">Edit Showcase</h1>
@@ -1270,14 +1282,17 @@ Return: {"title":"...","slides":[...slides...]}`;
                             title={sc.label}/>
                         ))}
                       </div>
+                      <button onClick={() => setPreviewSlide(idx)} className="text-xs text-muted hover:text-accent px-1.5 py-1 rounded hover:bg-accent-soft" title="Preview">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
                       {idx > 0 && <button onClick={() => { const s = [...editSlides]; [s[idx-1],s[idx]]=[s[idx],s[idx-1]]; setEditSlides(s); }} className="text-xs text-muted hover:text-main px-1.5 py-1 rounded hover:bg-surface2">↑</button>}
                       {idx < editSlides.length-1 && <button onClick={() => { const s = [...editSlides]; [s[idx],s[idx+1]]=[s[idx+1],s[idx]]; setEditSlides(s); }} className="text-xs text-muted hover:text-main px-1.5 py-1 rounded hover:bg-surface2">↓</button>}
                       <button onClick={() => { if(confirm("Remove this slide?")) setEditSlides(editSlides.filter((_,i)=>i!==idx)); }} className="text-xs text-red-400 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50">×</button>
                     </div>
                   </div>
                   {/* Body: fields left + preview right */}
-                  {!collapsedSlides.has(idx)&&<div className="flex border-t border-main">
-                    <div className="flex-1 min-w-0 px-5 pb-5 pt-3 space-y-3">
+                  {!collapsedSlides.has(idx)&&<div className="flex flex-col lg:flex-row border-t border-main">
+                    <div className="flex-1 min-w-0 px-4 lg:px-5 pb-5 pt-3 space-y-3">
                     {/* Slide type selector */}
                     <div>
                       <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Slide Type</label>
@@ -1524,7 +1539,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                     )}
                   </div>
                   {/* Live preview — 16:9 */}
-                  <div className="w-[55%] flex-shrink-0 border-l border-main relative" style={{backgroundColor:getThemeForSlide(slide,idx).bg}}>
+                  <div className="hidden lg:block w-[55%] flex-shrink-0 border-l border-main relative" style={{backgroundColor:getThemeForSlide(slide,idx).bg}}>
                     <div style={{paddingTop:"56.25%"}}/>
                     <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{transform:"scale(0.55)",transformOrigin:"center center"}}>
                       <div className="w-[900px]">
