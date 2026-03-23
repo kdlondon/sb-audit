@@ -1472,8 +1472,8 @@ Return: {"title":"...","slides":[...slides...]}`;
                                   className="absolute top-2 right-2 text-red-400 hover:text-red-600 text-xs">×</button>
                                 <input value={block.label} placeholder="Block title"
                                   onChange={e => { const b=[...blocks]; b[bi]={...b[bi],label:e.target.value}; updateBlocks(b); }}
-                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-bold mb-2 focus:outline-none focus:border-[var(--accent)]" />
-                                <textarea value={block.text} placeholder="Content (supports **bold**)" rows={3}
+                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold mb-2 focus:outline-none focus:border-[var(--accent)]" />
+                                <textarea value={block.text} placeholder="Write your content here..." rows={3}
                                   onChange={e => { const b=[...blocks]; b[bi]={...b[bi],text:e.target.value}; updateBlocks(b); }}
                                   className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none focus:border-[var(--accent)]" />
                               </div>
