@@ -1144,16 +1144,16 @@ Return: {"title":"...","slides":[...slides...]}`;
               body: JSON.stringify({ action: "save_showcase_comments", showcase_id: currentShowcase.id, comments: updated }) });
           };
           return (
-            <div className="absolute bottom-16 right-7 z-[60] flex flex-col items-end gap-3" data-pdf-hide>
+            <div className="absolute bottom-16 left-14 right-7 z-[60] flex flex-col items-end gap-3" data-pdf-hide>
               {/* View existing comments */}
               {viewingComments && slideComms.length > 0 && (
-                <div className="flex gap-3 max-w-[700px] overflow-x-auto pb-2">
+                <div className="flex gap-3 w-full overflow-x-auto pb-2 pt-3">
                   {slideComms.map((c, i) => (
-                    <div key={i} className="flex-shrink-0 max-w-[260px] rounded-2xl px-4 py-3 relative group/comment"
+                    <div key={i} className="flex-shrink-0 max-w-[280px] rounded-2xl px-4 py-3 relative group/comment"
                       style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
                       <button onClick={() => deleteComment(i)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition">×</button>
-                      <p className="text-sm text-white/90 leading-relaxed">{c.text}</p>
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover/comment:opacity-100 transition shadow-lg">×</button>
+                      <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{c.text}</p>
                       <p className="text-[10px] text-white/40 mt-2">{c.author?.split("@")[0]} · {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                     </div>
                   ))}
@@ -1161,13 +1161,14 @@ Return: {"title":"...","slides":[...slides...]}`;
               )}
               {/* Comment input */}
               {commentOpen && (
-                <div className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }}>
-                  <input value={commentText} onChange={e => setCommentText(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") saveSlideComment(); if (e.key === "Escape") setCommentOpen(false); e.stopPropagation(); }}
-                    placeholder="Add a comment..."
-                    className="bg-transparent text-sm text-white/90 placeholder-white/30 focus:outline-none w-[280px]"
+                <div className="rounded-2xl px-4 py-3 flex items-start gap-3" style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }}>
+                  <textarea value={commentText} onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveSlideComment(); if (e.key === "Escape") setCommentOpen(false); e.stopPropagation(); }}
+                    placeholder="Add a comment... (Cmd+Enter to send)"
+                    rows={2}
+                    className="bg-transparent text-sm text-white/90 placeholder-white/30 focus:outline-none w-[320px] resize-none"
                     autoFocus />
-                  <button onClick={saveSlideComment} className="text-xs font-semibold text-white/60 hover:text-white transition px-2">Send</button>
+                  <button onClick={saveSlideComment} className="text-xs font-semibold text-white/60 hover:text-white transition px-2 mt-1">Send</button>
                 </div>
               )}
               {/* Bubble buttons */}
