@@ -22,6 +22,7 @@ const SLIDE_TYPES = {
 /* ─── COMPETITOR SNAPSHOT SLIDE TYPES ─── */
 const CS_SLIDE_TYPES = {
   cs_title: "Title",
+  cs_team_notes: "Team Notes",
   cs_audience: "Understanding the Audience",
   cs_insight: "Human Insight",
   cs_brand_response: "The Brand Response",
@@ -959,7 +960,7 @@ Return: {"title":"...","slides":[...slides...]}`;
 
   const openShowcase = (sc) => { setCurrentShowcase(sc); setCurrentSlide(0); nav({ id: sc.id }); };
   const enterEdit = async () => {
-    setEditSlides(JSON.parse(JSON.stringify(currentShowcase.slides)));
+    setEditSlides(JSON.parse(JSON.stringify(getEffectiveSlides(currentShowcase))));
     setEditTitle(currentShowcase.title);
     nav({ id: currentShowcase.id, edit: 1 });
     // Load all entries for the search
@@ -1378,9 +1379,9 @@ Return: {"title":"...","slides":[...slides...]}`;
                   {/* Live preview — 16:9 */}
                   <div className="w-[55%] flex-shrink-0 border-l border-main relative" style={{backgroundColor:getThemeForSlide(slide,idx).bg}}>
                     <div style={{paddingTop:"56.25%"}}/>
-                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{transform:"scale(0.48)",transformOrigin:"center center"}}>
-                      <div className="w-[1100px]">
-                        <SlideRenderer slide={slide} theme={getThemeForSlide(slide,idx)} projectName={projectName} onMediaClick={()=>{}} />
+                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{transform:"scale(0.55)",transformOrigin:"center center"}}>
+                      <div className="w-[900px]">
+                        <SlideRenderer slide={slide.type==="cs_proof_points"?{...(editSlides.find(s=>s.type==="cs_brand_response")||{}),...slide}:slide} theme={getThemeForSlide(slide,idx)} projectName={projectName} onMediaClick={()=>{}} />
                       </div>
                     </div>
                   </div>
