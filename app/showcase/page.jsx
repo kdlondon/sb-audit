@@ -1876,13 +1876,8 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
 
     case "cs_audience":
       return (
-        <div className="animate-fadeIn -mx-4 -my-8 h-[calc(100%+4rem)] flex flex-col relative">
-          {/* Navy gradient on top only */}
-          <div className="absolute top-0 left-[-80px] right-[-80px] h-[45%]"
-            style={{ background: "linear-gradient(to bottom, #0a0f3c, #0a0f3c 60%, transparent)" }} />
-          {/* 3-column layout in cream zone */}
-          <div style={{ flex: "0 0 50%" }} />
-          <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-12">
+        <div className="animate-fadeIn flex items-end h-full pb-16">
+          <div className="grid grid-cols-3 gap-12 px-4">
             {/* Demographic */}
             <div>
               <div className="flex items-center gap-2 mb-1">
