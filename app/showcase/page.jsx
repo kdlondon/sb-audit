@@ -80,7 +80,7 @@ function getThemeForSlide(slide, index) {
     case "closing":      return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
     // Competitor Snapshot themes
     case "cs_title":           return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
-    case "cs_audience":        return { bg: KD.navy, text: "#fff", accent: "#1D9A42", isDark: true }; // split: navy top, white bottom
+    case "cs_audience":        return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
     case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_hero_gallery":    return { bg: "#000000", text: "#fff", accent: KD.chartreuse, isDark: true };
@@ -1877,11 +1877,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_audience":
       return (
         <div className="animate-fadeIn -mx-4 -my-8 h-[calc(100%+4rem)] flex flex-col relative">
-          {/* Smooth gradient: navy → cream */}
-          <div className="absolute inset-0 left-[-80px] right-[-80px]"
-            style={{ background: "linear-gradient(to bottom, #0a0f3c 25%, #faf5ee 50%)" }} />
-          {/* 3-column layout in bottom cream zone */}
-          <div style={{ flex: "0 0 55%" }} />
+          {/* Navy gradient on top only */}
+          <div className="absolute top-0 left-[-80px] right-[-80px] h-[45%]"
+            style={{ background: "linear-gradient(to bottom, #0a0f3c, #0a0f3c 60%, transparent)" }} />
+          {/* 3-column layout in cream zone */}
+          <div style={{ flex: "0 0 50%" }} />
           <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-12">
             {/* Demographic */}
             <div>
