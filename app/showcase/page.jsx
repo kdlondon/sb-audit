@@ -566,12 +566,14 @@ Fields:
 - entries: array of 2-3 Brand Hero entries: {description, image_url, url, year} — the key positioning pieces. COPY exact image_url and url from the data.
 
 SLIDE 5 — type:"cs_proof_points"
+This slide displays the full Strategic Positioning breakdown. Include ALL these fields:
 Fields:
-- creative_proposition: string — same as slide 3.
-- primary_proof: string — 1-2 sentences.
-- secondary_proofs: array of 3 strings.
-- communication_focus: string — 1-2 sentences.
-- tone_voice: array of 3 strings.
+- brand_archetype: string — dominant archetype + one sentence explanation.
+- brand_role: string — one sentence on the brand's role.
+- emotional_positioning: string — 5-10 words.
+- rational_positioning: string — 15-25 words.
+- brand_territory: string — primary + secondary territory.
+- key_differentiators: array of 3 strings.
 - entries: array of 2-3 entries: {description, image_url, url, year} — pieces that prove the positioning. COPY exact image_url and url.
 
 SLIDE 6 — type:"cs_product"
@@ -1973,68 +1975,69 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     }
 
     case "cs_proof_points": {
+      const tc = "#1a1a2e";
+      const mc = "#555";
       return (
         <div className="animate-fadeIn -mx-4">
-          {/* Strategic Positioning card */}
-          <div className="max-w-2xl mx-auto rounded-2xl p-6 mb-6" style={{ backgroundColor: theme.accent, color: "#fff" }}>
-            <h3 className="text-lg font-bold mb-5">Strategic Positioning</h3>
-            <div className="space-y-4">
+          <h3 className="text-xl font-bold mb-6 px-4" style={{ color: tc }}>Strategic Positioning</h3>
+          <div className="max-w-3xl mx-auto space-y-5 px-4">
+            {[
+              ["Brand Archetype", safeStr(slide.brand_archetype || slide.creative_proposition)],
+              ["Brand Role", safeStr(slide.brand_role || slide.primary_proof)],
+            ].map(([label, val]) => val && (
+              <div key={label}>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>{label}</span>
+                </div>
+                <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                <p className="text-sm font-medium" style={{ color: tc }}>{val}</p>
+              </div>
+            ))}
+            <div className="grid grid-cols-2 gap-6">
               {[
-                ["Brand Archetype", safeStr(slide.brand_archetype || slide.creative_proposition)],
-                ["Brand Role", safeStr(slide.brand_role || slide.primary_proof)],
+                ["Emotional Positioning", safeStr(slide.emotional_positioning)],
+                ["Rational Positioning", safeStr(slide.rational_positioning)],
               ].map(([label, val]) => val && (
                 <div key={label}>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{label}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: mc }}>{label}</span>
                   </div>
-                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                  <p className="text-sm font-medium">{val}</p>
+                  <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                  <p className="text-sm" style={{ color: tc }}>{val}</p>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  ["Emotional Positioning", safeStr(slide.emotional_positioning)],
-                  ["Rational Positioning", safeStr(slide.rational_positioning)],
-                ].map(([label, val]) => val && (
-                  <div key={label}>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">{label}</span>
-                    </div>
-                    <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                    <p className="text-sm">{val}</p>
-                  </div>
+            </div>
+            {slide.brand_territory && (
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>Brand Territory</span>
+                </div>
+                <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                <p className="text-base font-semibold" style={{ color: tc }}>{safeStr(slide.brand_territory)}</p>
+              </div>
+            )}
+            {safeArr(slide.key_differentiators).length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={mc} strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: mc }}>Key Differentiators</span>
+                </div>
+                <div className="h-[2px] w-full rounded-full mb-1.5" style={{ backgroundColor: "rgba(0,0,0,0.08)" }} />
+                {safeArr(slide.key_differentiators).map((d, i) => (
+                  <p key={i} className="text-sm flex gap-2 items-start" style={{ color: tc }}>
+                    <span style={{ color: mc }}>•</span> {d}
+                  </p>
                 ))}
               </div>
-              {slide.brand_territory && (
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Brand Territory</span>
-                  </div>
-                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                  <p className="text-base font-semibold">{safeStr(slide.brand_territory)}</p>
-                </div>
-              )}
-              {safeArr(slide.key_differentiators).length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Key Differentiators</span>
-                  </div>
-                  <div className="h-[2px] w-full rounded-full mb-1" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                  {safeArr(slide.key_differentiators).map((d, i) => (
-                    <p key={i} className="text-sm flex gap-2 items-start text-white/90">
-                      <span className="text-white/40">•</span> {d}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
           {/* Case thumbnails */}
-          <EntryStrip entries={slide.entries} />
+          <div className="mt-6">
+            <EntryStrip entries={slide.entries} />
+          </div>
         </div>
       );
     }
