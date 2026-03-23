@@ -65,8 +65,8 @@ const SLIDE_COLORS = [
 ];
 
 function getThemeForSlide(slide, index) {
-  // Custom bg override (skip for CS slides — they have fixed themes)
-  if (slide._bg && !slide.type?.startsWith("cs_")) {
+  // Custom bg override
+  if (slide._bg) {
     const isDark = ["#0a0f3c","#1e1a22","#111015","#0019FF"].includes(slide._bg);
     return { bg: slide._bg, text: isDark ? "#fff" : "#1a1a2e", accent: isDark ? "#D4E520" : "#1D9A42", isDark };
   }
@@ -1367,7 +1367,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                       ) : null;
                       const fieldsByType = {
                         cs_title: ["brand","scope","date","entry_count"],
-                        cs_team_notes: ["body"],
+                        cs_team_notes: [], // body handled by generic body editor above
                         cs_audience: [], // uses dynamic blocks editor below
                         cs_insight: ["human_insight"],
                         cs_brand_response: ["creative_proposition","proposition_description"],
