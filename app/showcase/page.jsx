@@ -2267,11 +2267,11 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
 
     case "cs_proof_points": {
       const items = [
-        ["Brand Archetype", slide.brand_archetype],
-        ["Brand Role", slide.brand_role],
-        ["Emotional Positioning", slide.emotional_positioning],
-        ["Rational Positioning", slide.rational_positioning],
-        ["Brand Territory", slide.brand_territory],
+        ["Brand Archetype", typeof slide.brand_archetype === "object" ? JSON.stringify(slide.brand_archetype) : slide.brand_archetype],
+        ["Brand Role", typeof slide.brand_role === "object" ? JSON.stringify(slide.brand_role) : slide.brand_role],
+        ["Emotional Positioning", typeof slide.emotional_positioning === "object" ? JSON.stringify(slide.emotional_positioning) : slide.emotional_positioning],
+        ["Rational Positioning", typeof slide.rational_positioning === "object" ? JSON.stringify(slide.rational_positioning) : slide.rational_positioning],
+        ["Brand Territory", typeof slide.brand_territory === "object" ? [slide.brand_territory.primary, slide.brand_territory.secondary].filter(Boolean).join(" | ") : slide.brand_territory],
       ].filter(([,v]) => v);
       const diffs = Array.isArray(slide.key_differentiators) ? slide.key_differentiators : [];
       return (
