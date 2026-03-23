@@ -1352,13 +1352,20 @@ Return: {"title":"...","slides":[...slides...]}`;
                     )}
                     {/* CS fields — type-specific */}
                     {(() => {
-                      const csTextField = (field, label, rows=2) => slide[field] !== undefined ? (
-                        <div key={field}>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label || field.replace(/_/g," ")}</label>
-                          <textarea value={slide[field]||""} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value};setEditSlides(s);}}
-                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
-                        </div>
-                      ) : null;
+                      const csTextField = (field, label, rows=2) => {
+                        if (slide[field] === undefined) return null;
+                        let val = slide[field];
+                        if (typeof val === "object" && val !== null) {
+                          val = field === "brand_territory" ? [val.primary, val.secondary].filter(Boolean).join(" | ") : JSON.stringify(val);
+                        }
+                        return (
+                          <div key={field}>
+                            <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label || field.replace(/_/g," ")}</label>
+                            <textarea value={val||""} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value};setEditSlides(s);}}
+                              className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
+                          </div>
+                        );
+                      };
                       const csArrayField = (field, label, rows=3) => slide[field] ? (
                         <div key={field}>
                           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label} (one per line)</label>
@@ -1596,7 +1603,7 @@ Return: {"title":"...","slides":[...slides...]}`;
                   {/* Live preview — 16:9 */}
                   <div className="hidden lg:block w-[55%] flex-shrink-0 border-l border-main relative" style={{backgroundColor:getThemeForSlide(slide,idx).bg}}>
                     <div style={{paddingTop:"56.25%"}}/>
-                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{transform:"scale(0.55)",transformOrigin:"center center"}}>
+                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none" style={{transform:"scale(0.55)",transformOrigin:"center center"}}>
                       <div className="w-[900px]">
                         <SlideRenderer slide={slide.type==="cs_proof_points"?{...(editSlides.find(s=>s.type==="cs_brand_response")||{}),...slide}:slide} theme={getThemeForSlide(slide,idx)} projectName={projectName} onMediaClick={()=>{}} />
                       </div>
