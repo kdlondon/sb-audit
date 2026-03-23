@@ -1001,7 +1001,8 @@ Return: {"title":"...","slides":[...slides...]}`;
 
   const openShowcase = (sc) => { setCurrentShowcase(sc); setCurrentSlide(0); nav({ id: sc.id }); };
   const enterEdit = async () => {
-    setEditSlides(JSON.parse(JSON.stringify(getEffectiveSlides(currentShowcase))));
+    const effectiveSlides = getEffectiveSlides(currentShowcase);
+    setEditSlides(JSON.parse(JSON.stringify(effectiveSlides)));
     setEditTitle(currentShowcase.title);
     nav({ id: currentShowcase.id, edit: 1 });
     // Load all entries for the search
