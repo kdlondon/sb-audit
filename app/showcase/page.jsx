@@ -1020,7 +1020,7 @@ Return: {"title":"...","slides":[...slides...]}`;
   };
 
   const ToastEl = toast ? (
-    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-medium z-[100] shadow-2xl">{toast}</div>
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-medium z-[100] shadow-2xl">{toast}</div>
   ) : null;
 
   /* ═══════════════════════════════════════════
