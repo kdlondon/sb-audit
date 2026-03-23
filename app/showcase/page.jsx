@@ -1317,60 +1317,99 @@ Return: {"title":"...","slides":[...slides...]}`;
                           className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
                       </div>
                     )}
-                    {/* CS text fields */}
-                    {["demographic","psychographic","tension","human_insight","creative_proposition","proposition_description",
-                      "brand_archetype","brand_role","emotional_positioning","rational_positioning","brand_territory",
-                      "primary_proof","communication_focus","approach","channels_formats","gap",
-                      "beyond_banking","innovation","white_space","scope","date","entry_count"].map(field => (
-                      slide[field] !== undefined && (
+                    {/* CS fields — type-specific */}
+                    {(() => {
+                      const csTextField = (field, label, rows=2) => slide[field] !== undefined ? (
                         <div key={field}>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{field.replace(/_/g," ")}</label>
-                          <textarea value={slide[field] || ""} rows={2} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],[field]:e.target.value}; setEditSlides(s); }}
-                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label || field.replace(/_/g," ")}</label>
+                          <textarea value={slide[field]||""} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value};setEditSlides(s);}}
+                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
                         </div>
-                      )
-                    ))}
-                    {/* CS array fields: key_differentiators, secondary_proofs, key_messages, tone_voice */}
-                    {["key_differentiators","secondary_proofs","key_messages","tone_voice"].map(field => (
-                      slide[field] && (
+                      ) : null;
+                      const csArrayField = (field, label, rows=3) => slide[field] ? (
                         <div key={field}>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{field.replace(/_/g," ")} (one per line)</label>
-                          <textarea value={(slide[field]||[]).join("\n")} rows={3} onChange={e => { const s=[...editSlides]; s[idx]={...s[idx],[field]:e.target.value.split("\n")}; setEditSlides(s); }}
-                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label} (one per line)</label>
+                          <textarea value={(slide[field]||[]).join("\n")} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value.split("\n")};setEditSlides(s);}}
+                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
                         </div>
-                      )
-                    ))}
-                    {/* CS assessment arrays: strengths / weaknesses */}
-                    {slide.strengths && (
+                      ) : null;
+                      const fieldsByType = {
+                        cs_title: ["brand","scope","date","entry_count"],
+                        cs_team_notes: ["body"],
+                        cs_audience: ["demographic","psychographic","tension","human_insight"],
+                        cs_insight: ["human_insight"],
+                        cs_brand_response: ["creative_proposition","proposition_description"],
+                        cs_hero_gallery: [],
+                        cs_proof_points: ["brand_archetype","brand_role","emotional_positioning","rational_positioning","brand_territory"],
+                        cs_comm_strategy: ["primary_proof","communication_focus"],
+                        cs_product: ["approach","channels_formats","gap"],
+                        cs_beyond_banking: ["beyond_banking","innovation","white_space"],
+                      };
+                      const arrayFieldsByType = {
+                        cs_proof_points: ["key_differentiators"],
+                        cs_comm_strategy: ["secondary_proofs","tone_voice"],
+                        cs_product: ["key_messages"],
+                      };
+                      const fields = fieldsByType[slide.type] || [];
+                      const arrayFields = arrayFieldsByType[slide.type] || [];
+                      return (<>
+                        {fields.map(f => csTextField(f))}
+                        {arrayFields.map(f => csArrayField(f, f.replace(/_/g," ")))}
+                      </>);
+                    })()}
+                    {/* Assessments: strengths & weaknesses as multiline markdown */}
+                    {(slide.type === "cs_brand_assessment" || slide.type === "cs_comm_assessment") && (<>
                       <div>
-                        <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Strengths</label>
-                        {slide.strengths.map((s, si) => (
-                          <div key={si} className="flex gap-2 mb-2 items-start">
-                            <div className="flex-1 space-y-1">
-                              <input value={s.label||""} placeholder="Label" onChange={e => { const sl=[...editSlides]; const arr=[...sl[idx].strengths]; arr[si]={...arr[si],label:e.target.value}; sl[idx]={...sl[idx],strengths:arr}; setEditSlides(sl); }}
-                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold" />
-                              <input value={s.explanation||""} placeholder="Explanation" onChange={e => { const sl=[...editSlides]; const arr=[...sl[idx].strengths]; arr[si]={...arr[si],explanation:e.target.value}; sl[idx]={...sl[idx],strengths:arr}; setEditSlides(sl); }}
-                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                            </div>
-                          </div>
-                        ))}
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Strengths (markdown — use **bold** for labels)</label>
+                        <textarea value={
+                          typeof slide._strengths_text === "string" ? slide._strengths_text
+                          : (slide.strengths||[]).map(s => `**${s.label}:** ${s.explanation}`).join("\n")
+                        } rows={5} onChange={e => {
+                          const s=[...editSlides];
+                          const lines = e.target.value.split("\n").filter(l=>l.trim());
+                          const parsed = lines.map(l => {
+                            const m = l.match(/^\*\*(.+?)\*\*:?\s*(.*)/);
+                            return m ? {label:m[1],explanation:m[2]} : {label:l,explanation:""};
+                          });
+                          s[idx]={...s[idx],strengths:parsed,_strengths_text:e.target.value};
+                          setEditSlides(s);
+                        }}
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)] font-mono"/>
                       </div>
-                    )}
-                    {slide.weaknesses && (
                       <div>
-                        <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Weaknesses</label>
-                        {slide.weaknesses.map((w, wi) => (
-                          <div key={wi} className="flex gap-2 mb-2 items-start">
-                            <div className="flex-1 space-y-1">
-                              <input value={w.label||""} placeholder="Label" onChange={e => { const sl=[...editSlides]; const arr=[...sl[idx].weaknesses]; arr[wi]={...arr[wi],label:e.target.value}; sl[idx]={...sl[idx],weaknesses:arr}; setEditSlides(sl); }}
-                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold" />
-                              <input value={w.explanation||""} placeholder="Explanation" onChange={e => { const sl=[...editSlides]; const arr=[...sl[idx].weaknesses]; arr[wi]={...arr[wi],explanation:e.target.value}; sl[idx]={...sl[idx],weaknesses:arr}; setEditSlides(sl); }}
-                                className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main" />
-                            </div>
-                          </div>
-                        ))}
+                        <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Weaknesses (markdown — use **bold** for labels)</label>
+                        <textarea value={
+                          typeof slide._weaknesses_text === "string" ? slide._weaknesses_text
+                          : (slide.weaknesses||[]).map(w => `**${w.label}:** ${w.explanation}`).join("\n")
+                        } rows={4} onChange={e => {
+                          const s=[...editSlides];
+                          const lines = e.target.value.split("\n").filter(l=>l.trim());
+                          const parsed = lines.map(l => {
+                            const m = l.match(/^\*\*(.+?)\*\*:?\s*(.*)/);
+                            return m ? {label:m[1],explanation:m[2]} : {label:l,explanation:""};
+                          });
+                          s[idx]={...s[idx],weaknesses:parsed,_weaknesses_text:e.target.value};
+                          setEditSlides(s);
+                        }}
+                          className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)] font-mono"/>
                       </div>
-                    )}
+                    </>)}
+                    {/* Fallback: any remaining CS text fields not covered above */}
+                    {!["cs_title","cs_team_notes","cs_audience","cs_insight","cs_brand_response","cs_hero_gallery",
+                      "cs_proof_points","cs_comm_strategy","cs_product","cs_beyond_banking","cs_brand_assessment","cs_comm_assessment"].includes(slide.type) &&
+                      ["demographic","psychographic","tension","human_insight","creative_proposition","proposition_description",
+                        "brand_archetype","brand_role","emotional_positioning","rational_positioning","brand_territory",
+                        "primary_proof","communication_focus","approach","channels_formats","gap",
+                        "beyond_banking","innovation","white_space","scope","date","entry_count"].map(field => (
+                        slide[field] !== undefined && (
+                          <div key={field}>
+                            <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{field.replace(/_/g," ")}</label>
+                            <textarea value={slide[field]||""} rows={2} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value};setEditSlides(s);}}
+                              className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
+                          </div>
+                        )
+                      ))
+                    }
                     {/* Entries editor — for slides with entries arrays */}
                     {(Array.isArray(slide.entries) || slide.type?.startsWith("cs_")) && (
                       <div>
