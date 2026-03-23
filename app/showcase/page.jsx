@@ -892,7 +892,15 @@ Return: {"title":"...","slides":[...slides...]}`;
      PRESENTATION VIEW
      ═══════════════════════════════════════════ */
   if (view === "present" && currentShowcase) {
-    const slides = currentShowcase.slides || [];
+    // Inject cs_insight slide for old showcases that have human_insight on cs_audience
+    let slides = currentShowcase.slides || [];
+    if (!slides.some(s => s.type === "cs_insight")) {
+      const audienceSlide = slides.find(s => s.type === "cs_audience");
+      if (audienceSlide?.human_insight) {
+        const idx = slides.findIndex(s => s.type === "cs_audience");
+        slides = [...slides.slice(0, idx + 1), { type: "cs_insight", human_insight: audienceSlide.human_insight }, ...slides.slice(idx + 1)];
+      }
+    }
     const slide = slides[currentSlide];
     if (!slide) return null;
     const theme = getThemeForSlide(slide, currentSlide);
@@ -1869,12 +1877,12 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_audience":
       return (
         <div className="animate-fadeIn -mx-4 -my-8 h-[calc(100%+4rem)] flex flex-col relative">
-          {/* Smooth gradient: navy → white */}
+          {/* Smooth gradient: navy → cream */}
           <div className="absolute inset-0 left-[-80px] right-[-80px]"
-            style={{ background: "linear-gradient(to bottom, #0a0f3c 30%, #0a0f3c 40%, #faf5ee 60%, #faf5ee 100%)" }} />
-          {/* 3-column layout positioned at the bottom */}
-          <div className="flex-1" />
-          <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-16">
+            style={{ background: "linear-gradient(to bottom, #0a0f3c 25%, #faf5ee 50%)" }} />
+          {/* 3-column layout in bottom cream zone */}
+          <div style={{ flex: "0 0 55%" }} />
+          <div className="relative z-10 grid grid-cols-3 gap-12 px-12 pb-12">
             {/* Demographic */}
             <div>
               <div className="flex items-center gap-2 mb-1">
