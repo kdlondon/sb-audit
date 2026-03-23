@@ -1350,51 +1350,79 @@ Return: {"title":"...","slides":[...slides...]}`;
                           className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
                       </div>
                     )}
-                    {/* CS fields — type-specific */}
-                    {(() => {
-                      const csTextField = (field, label, rows=2) => {
-                        let val = slide[field] ?? "";
-                        if (typeof val === "object" && val !== null) {
-                          val = field === "brand_territory" ? [val.primary, val.secondary].filter(Boolean).join(" | ") : JSON.stringify(val);
-                        }
-                        return (
-                          <div key={field}>
-                            <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label || field.replace(/_/g," ")}</label>
-                            <textarea value={val||""} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value};setEditSlides(s);}}
-                              className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
-                          </div>
-                        );
-                      };
-                      const csArrayField = (field, label, rows=3) => (
-                        <div key={field}>
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label} (one per line)</label>
-                          <textarea value={(slide[field]||[]).join("\n")} rows={rows} onChange={e=>{const s=[...editSlides];s[idx]={...s[idx],[field]:e.target.value.split("\n")};setEditSlides(s);}}
-                            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
-                        </div>
-                      );
-                      const fieldsByType = {
-                        cs_title: ["brand","scope","date","entry_count"],
-                        cs_team_notes: [], // body handled by generic body editor above
-                        cs_audience: [], // uses dynamic blocks editor below
-                        cs_insight: ["human_insight"],
-                        cs_brand_response: ["creative_proposition","proposition_description"],
-                        cs_hero_gallery: [],
-                        cs_proof_points: ["brand_archetype","brand_role","emotional_positioning","rational_positioning","brand_territory"],
-                        cs_comm_strategy: ["primary_proof","communication_focus"],
-                        cs_product: ["approach","channels_formats","gap"],
-                        cs_beyond_banking: ["beyond_banking","innovation","white_space"],
+                    {/* CS fields — Content Blocks editor (same UX as cs_audience) */}
+                    {slide.type?.startsWith("cs_") && !["cs_audience","cs_title","cs_team_notes","cs_hero_gallery","cs_brand_assessment","cs_comm_assessment","cs_closing"].includes(slide.type) && (() => {
+                      // Define which fields map to blocks for each slide type
+                      const blockFieldsByType = {
+                        cs_insight: [["Human Insight","human_insight"]],
+                        cs_brand_response: [["Creative Proposition","creative_proposition"],["Proposition Description","proposition_description"]],
+                        cs_proof_points: [["Brand Archetype","brand_archetype"],["Brand Role","brand_role"],["Emotional Positioning","emotional_positioning"],["Rational Positioning","rational_positioning"],["Brand Territory","brand_territory"]],
+                        cs_comm_strategy: [["Primary Proof","primary_proof"],["Communication Focus","communication_focus"]],
+                        cs_product: [["Approach","approach"],["Channels & Formats","channels_formats"],["Gap","gap"]],
+                        cs_beyond_banking: [["Beyond Banking","beyond_banking"],["Innovation","innovation"],["White Space","white_space"]],
                       };
                       const arrayFieldsByType = {
-                        cs_proof_points: ["key_differentiators"],
-                        cs_comm_strategy: ["secondary_proofs","tone_voice"],
-                        cs_product: ["key_messages"],
+                        cs_proof_points: [["Key Differentiators","key_differentiators"]],
+                        cs_comm_strategy: [["Secondary Proofs","secondary_proofs"],["Tone & Voice","tone_voice"]],
+                        cs_product: [["Key Messages","key_messages"]],
                       };
-                      const fields = fieldsByType[slide.type] || [];
+                      const blockFields = blockFieldsByType[slide.type] || [];
                       const arrayFields = arrayFieldsByType[slide.type] || [];
-                      return (<>
-                        {fields.map(f => csTextField(f))}
-                        {arrayFields.map(f => csArrayField(f, f.replace(/_/g," ")))}
-                      </>);
+
+                      // Build blocks from slide data
+                      const toStr = (v, field) => {
+                        if (v == null) return "";
+                        if (typeof v === "object") return field === "brand_territory" ? [v.primary, v.secondary].filter(Boolean).join(" | ") : JSON.stringify(v);
+                        return String(v);
+                      };
+                      const blocks = slide._blocks || [
+                        ...blockFields.map(([label, field]) => slide[field] !== undefined ? { label, text: toStr(slide[field], field), _field: field } : null).filter(Boolean),
+                        ...arrayFields.map(([label, field]) => slide[field] ? { label, text: (Array.isArray(slide[field]) ? slide[field] : []).join("\n"), _field: field, _isArray: true } : null).filter(Boolean),
+                      ];
+                      // If no blocks from data, seed with empty defaults
+                      const finalBlocks = blocks.length > 0 ? blocks : blockFields.map(([label, field]) => ({ label, text: "", _field: field }));
+
+                      const updateBlocks = (newBlocks) => {
+                        const s = [...editSlides];
+                        const updates = { _blocks: newBlocks };
+                        // Sync block values back to slide fields
+                        for (const [, field] of [...blockFields, ...arrayFields]) { updates[field] = undefined; }
+                        for (const block of newBlocks) {
+                          const af = arrayFields.find(([l]) => l === block.label);
+                          if (af || block._isArray) {
+                            updates[block._field || af?.[1] || block.label.toLowerCase().replace(/[^a-z]+/g,"_")] = (block.text || "").split("\n").filter(l => l.trim());
+                          } else {
+                            updates[block._field || block.label.toLowerCase().replace(/[^a-z]+/g,"_")] = block.text;
+                          }
+                        }
+                        s[idx] = { ...s[idx], ...updates };
+                        setEditSlides(s);
+                      };
+                      return (
+                        <div>
+                          <label className="block text-[10px] text-muted uppercase font-semibold mb-2">Content Blocks ({finalBlocks.length})</label>
+                          <div className="space-y-3">
+                            {finalBlocks.map((block, bi) => (
+                              <div key={bi} className="border border-main rounded-lg p-3 relative">
+                                <button onClick={() => updateBlocks(finalBlocks.filter((_, i) => i !== bi))}
+                                  className="absolute top-2 right-2 text-red-400 hover:text-red-600 text-xs">×</button>
+                                <input value={block.label} placeholder="Block title"
+                                  onChange={e => { const b = [...finalBlocks]; b[bi] = { ...b[bi], label: e.target.value }; updateBlocks(b); }}
+                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main font-semibold mb-2 focus:outline-none focus:border-[var(--accent)]" />
+                                <textarea value={block.text} placeholder="Write your content here..." rows={3}
+                                  onChange={e => { const b = [...finalBlocks]; b[bi] = { ...b[bi], text: e.target.value }; updateBlocks(b); }}
+                                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none focus:border-[var(--accent)]" />
+                              </div>
+                            ))}
+                          </div>
+                          {finalBlocks.length < 10 && (
+                            <button onClick={() => updateBlocks([...finalBlocks, { label: "New Block", text: "" }])}
+                              className="mt-2 w-full py-2 border border-dashed border-main rounded-lg text-xs text-muted hover:text-main hover:border-[var(--accent)] transition">
+                              + Add block
+                            </button>
+                          )}
+                        </div>
+                      );
                     })()}
                     {/* Assessments: strengths & weaknesses as multiline markdown */}
                     {(slide.type === "cs_brand_assessment" || slide.type === "cs_comm_assessment") && (<>
