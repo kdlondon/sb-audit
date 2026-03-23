@@ -82,7 +82,7 @@ function getThemeForSlide(slide, index) {
     case "cs_title":           return { bg: KD.navy, text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_audience":        return { bg: "#faf5ee", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_insight":         return { bg: KD.chartreuse, text: "#1a1a2e", accent: "#1a1a2e", isDark: false };
-    case "cs_brand_response":  return { bg: KD.charcoal, text: "#fff", accent: KD.chartreuse, isDark: true };
+    case "cs_brand_response":  return { bg: "#5c4a4a", text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_hero_gallery":    return { bg: "#000000", text: "#fff", accent: KD.chartreuse, isDark: true };
     case "cs_proof_points":    return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
     case "cs_comm_strategy":   return { bg: "#ffffff", text: "#1a1a2e", accent: "#1D9A42", isDark: false };
@@ -1940,7 +1940,7 @@ function SlideRenderer({ slide, theme, projectName, onMediaClick, pdfMode = fals
     case "cs_brand_response":
       return (
         <div className="animate-fadeIn flex flex-col items-center justify-center text-center h-full">
-          <p className="text-xs uppercase tracking-[0.3em] mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Creative Proposition</p>
+          <p className="text-xs uppercase tracking-[0.3em] mb-6" style={{ color: KD.chartreuse }}>Creative Proposition</p>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold uppercase leading-[1.05] mb-6" style={{ color: "#fff" }}>
             &ldquo;{safeStr(slide.creative_proposition)}&rdquo;
           </h2>
