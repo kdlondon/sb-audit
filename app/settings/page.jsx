@@ -404,6 +404,14 @@ function SettingsContent() {
     await loadBrands();
   };
 
+  const moveBrandScope = async (id, newScope) => {
+    await supabase
+      .from("project_brands")
+      .update({ scope: newScope })
+      .eq("id", id);
+    await loadBrands();
+  };
+
   /* ─── Profiles ─── */
   const getLatestProfile = (brandName) => {
     return profiles.find(
@@ -700,6 +708,13 @@ function SettingsContent() {
                         ))}
                       </select>
                       <button
+                        onClick={() => moveBrandScope(b.id, "global")}
+                        className="text-[10px] text-accent hover:text-white hover:bg-accent px-1.5 py-0.5 rounded border border-accent opacity-0 group-hover:opacity-100 transition"
+                        title="Move to Global"
+                      >
+                        Global →
+                      </button>
+                      <button
                         onClick={() => removeBrand(b.id)}
                         className="text-red-400 hover:text-red-600 text-sm px-1 opacity-0 group-hover:opacity-100 transition"
                       >
@@ -789,6 +804,13 @@ function SettingsContent() {
                           </option>
                         ))}
                       </select>
+                      <button
+                        onClick={() => moveBrandScope(b.id, "local")}
+                        className="text-[10px] text-accent hover:text-white hover:bg-accent px-1.5 py-0.5 rounded border border-accent opacity-0 group-hover:opacity-100 transition"
+                        title="Move to Local"
+                      >
+                        ← Local
+                      </button>
                       <button
                         onClick={() => removeBrand(b.id)}
                         className="text-red-400 hover:text-red-600 text-sm px-1 opacity-0 group-hover:opacity-100 transition"
