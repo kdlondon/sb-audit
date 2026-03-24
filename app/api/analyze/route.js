@@ -1,11 +1,9 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
+import { loadFramework, buildPromptContext, buildClassificationFields, getLanguageInstruction } from "@/lib/framework-loader";
 
-export async function POST(request) {
-  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType } = await request.json();
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
-
-  const prompt = `${FRAMEWORK_CONTEXT}
+// Build the legacy (Scotiabank-hardcoded) classification prompt
+function buildLegacyPrompt(context) {
+  return `${FRAMEWORK_CONTEXT}
 
 You are classifying a competitive communication piece for the Scotiabank Business Banking category audit.
 
@@ -59,11 +57,62 @@ Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks)
 }
 
 CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrait, entry door, journey phase, and richness — do not guess generically.`;
+}
+
+// Build a dynamic classification prompt from framework
+function buildDynamicPrompt(framework, context) {
+  const frameworkContext = buildPromptContext(framework);
+  const fields = buildClassificationFields(framework);
+  const langInstruction = getLanguageInstruction(framework);
+
+  const brandName = framework.brandName || "this brand";
+  const industry = framework.industry || "the given industry";
+
+  // Build JSON schema from fields
+  const fieldEntries = Object.entries(fields).map(([key, desc]) => `  "${key}": ${desc}`).join(",\n");
+
+  return `${frameworkContext}
+
+You are classifying a competitive communication piece for the ${brandName} competitive audit in the ${industry} category.
+
+LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language. Regardless of the source material language, ALL your output fields must be written in English. Translate any copy, slogans, insights, synopses, and pain points into English.${langInstruction}
+
+${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
+
+Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks) with these fields. For dropdown fields, pick EXACTLY one of the provided options.
+
+{
+${fieldEntries}
+}
+
+CRITICAL: Return ONLY the JSON object.${framework.frameworkText ? " Use the FRAMEWORK DEFINITIONS above for any framework-specific dimensions — do not guess generically." : ""}`;
+}
+
+export async function POST(request) {
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id } = await request.json();
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
+
+  // Load framework and build prompt
+  let prompt;
+  if (project_id) {
+    try {
+      const framework = await loadFramework(project_id);
+      if (framework) {
+        prompt = buildDynamicPrompt(framework, context);
+      }
+    } catch (err) {
+      console.error("Failed to load framework for analyze route:", err);
+    }
+  }
+  // Fallback to legacy prompt
+  if (!prompt) {
+    prompt = buildLegacyPrompt(context);
+  }
 
   try {
     const messageContent = [];
 
-    // Add document (PDF) if provided — Claude reads PDFs natively
     if (documentBase64) {
       messageContent.push({
         type: "document",
@@ -71,14 +120,12 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
       });
     }
 
-    // Add primary image — prefer base64 (compressed), fall back to URL
     if (imageBase64) {
       messageContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } });
     } else if (imageUrl) {
       messageContent.push({ type: "image", source: { type: "url", url: imageUrl } });
     }
 
-    // Add extra images — prefer base64, fall back to URLs
     if (extraImageBase64 && extraImageBase64.length > 0) {
       for (const b64 of extraImageBase64.slice(0, 3)) {
         if (b64) messageContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } });

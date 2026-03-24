@@ -5,8 +5,9 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import { useFramework } from "@/lib/framework-context";
 
-const BRAND_CATEGORIES = [
+const DEFAULT_BRAND_CATEGORIES = [
   "Traditional Banking",
   "Fintech",
   "Neobank",
@@ -151,9 +152,11 @@ function BrandProfileCard({ profile, pagesCrawled }) {
    ═══════════════════════════════════════════════════════════════ */
 function SettingsContent() {
   const { projectId, projectName } = useProject() || {};
+  const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
+  const BRAND_CATEGORIES = (frameworkLoaded && framework?.brandCategories?.length > 0) ? framework.brandCategories : DEFAULT_BRAND_CATEGORIES;
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState("project"); // project | brands | profiles
+  const [activeTab, setActiveTab] = useState("project"); // project | brands | profiles | framework
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
@@ -519,6 +522,7 @@ function SettingsContent() {
     { key: "project", label: "Project Info" },
     { key: "brands", label: "Brands" },
     { key: "profiles", label: "Competitor Profiles" },
+    { key: "framework", label: "Framework" },
   ];
 
   return (
@@ -1112,6 +1116,141 @@ function SettingsContent() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ═══ TAB 4: FRAMEWORK ═══ */}
+      {activeTab === "framework" && (
+        <div className="max-w-3xl mx-auto p-6">
+          <h3 className="text-lg font-bold text-main mb-4">Analysis Framework</h3>
+
+          {!frameworkLoaded ? (
+            <div className="bg-surface border border-main rounded-xl p-6 text-center">
+              <p className="text-muted text-sm mb-2">No framework configured for this project.</p>
+              <p className="text-hint text-xs">Create one through the onboarding flow or contact the K&D team.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Tier Badge */}
+              <div className="bg-surface border border-main rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full ${
+                    framework.tier === "specialist" ? "bg-purple-100 text-purple-800" :
+                    framework.tier === "enhanced" ? "bg-blue-100 text-blue-800" :
+                    "bg-gray-100 text-gray-800"
+                  }`}>
+                    {framework.tier}
+                  </span>
+                  <span className="text-sm font-semibold text-main">{framework.name || "Framework"}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div><span className="text-muted">Industry:</span> <span className="text-main">{framework.industry || "—"}</span></div>
+                  <div><span className="text-muted">Market:</span> <span className="text-main">{framework.primaryMarket || "—"}</span></div>
+                  <div><span className="text-muted">Language:</span> <span className="text-main">{framework.language || "English"}</span></div>
+                  <div><span className="text-muted">Brand:</span> <span className="text-main">{framework.brandName || "—"}</span></div>
+                </div>
+              </div>
+
+              {/* Brand Profile */}
+              <div className="bg-surface border border-main rounded-xl p-5">
+                <h4 className="text-sm font-semibold text-main mb-3">Brand Profile</h4>
+                <div className="space-y-2 text-xs">
+                  {[
+                    ["Description", framework.brandDescription],
+                    ["Positioning", framework.brandPositioning],
+                    ["Differentiator", framework.brandDifferentiator],
+                    ["Audience", framework.brandAudience],
+                    ["Tone", framework.brandTone],
+                  ].filter(([,v]) => v).map(([label, value]) => (
+                    <div key={label}>
+                      <span className="text-muted font-medium">{label}:</span>
+                      <span className="text-main ml-1">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Objectives */}
+              {framework.objectives?.length > 0 && (
+                <div className="bg-surface border border-main rounded-xl p-5">
+                  <h4 className="text-sm font-semibold text-main mb-3">Objectives</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {framework.objectives.map((obj, i) => (
+                      <span key={i} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{obj}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Active Dimensions */}
+              <div className="bg-surface border border-main rounded-xl p-5">
+                <h4 className="text-sm font-semibold text-main mb-3">Standard Dimensions</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(framework.standardDimensions || []).map(dim => (
+                    <span key={dim} className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded-full font-medium">{dim}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Communication Intents */}
+              <div className="bg-surface border border-main rounded-xl p-5">
+                <h4 className="text-sm font-semibold text-main mb-3">Communication Intents</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(framework.communicationIntents || []).map(intent => (
+                    <span key={intent} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">{intent}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Brand Categories */}
+              <div className="bg-surface border border-main rounded-xl p-5">
+                <h4 className="text-sm font-semibold text-main mb-3">Brand Categories</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(framework.brandCategories || []).map(cat => (
+                    <span key={cat} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{cat}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Dimensions (Tier 2+) */}
+              {framework.dimensions?.length > 0 && (
+                <div className="bg-surface border border-main rounded-xl p-5">
+                  <h4 className="text-sm font-semibold text-main mb-3">
+                    {framework.tier === "specialist" ? "Specialist Dimensions" : "Custom Dimensions"}
+                    <span className="text-hint ml-2 font-normal">({framework.dimensions.length})</span>
+                  </h4>
+                  <div className="space-y-3">
+                    {framework.dimensions.map((dim, i) => (
+                      <div key={i} className="border border-main rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-main">{dim.name}</span>
+                          <span className="text-[10px] text-hint font-mono">{dim.key}</span>
+                        </div>
+                        {dim.description && <p className="text-[11px] text-muted mb-2">{dim.description}</p>}
+                        <div className="flex flex-wrap gap-1">
+                          {(dim.values || []).map((v, j) => (
+                            <span key={j} className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded">{v}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Global Markets */}
+              {framework.globalMarkets?.length > 0 && (
+                <div className="bg-surface border border-main rounded-xl p-5">
+                  <h4 className="text-sm font-semibold text-main mb-3">Global Markets</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {framework.globalMarkets.map(m => (
+                      <span key={m} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{m}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

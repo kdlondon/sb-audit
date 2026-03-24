@@ -232,6 +232,7 @@ export default function ScoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           max_tokens: 1500,
+          skip_framework: true,
           system: `You are a competitive intelligence research assistant for a brand strategy team. The user is using a YouTube Scout tool to find and analyze competitor communications.
 
 PROJECT CONTEXT:

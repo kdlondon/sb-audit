@@ -1,13 +1,32 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
+import { loadFramework, buildPromptContext, getLanguageInstruction } from "@/lib/framework-loader";
 
 export async function POST(request) {
-  const { messages, system, max_tokens, use_opus, skip_framework } = await request.json();
+  const { messages, system, max_tokens, use_opus, skip_framework, project_id } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
   const model = use_opus ? "claude-opus-4-20250514" : "claude-sonnet-4-20250514";
-  const enrichedSystem = skip_framework ? (system || "") : `${system || ""}\n\n${FRAMEWORK_CONTEXT}`;
-  
+
+  // Build system prompt with dynamic framework context
+  let enrichedSystem = system || "";
+  if (!skip_framework) {
+    let frameworkContext = FRAMEWORK_CONTEXT; // Default fallback
+    if (project_id) {
+      try {
+        const framework = await loadFramework(project_id);
+        if (framework) {
+          frameworkContext = buildPromptContext(framework);
+          enrichedSystem += getLanguageInstruction(framework);
+        }
+      } catch (err) {
+        console.error("Failed to load framework for AI route:", err);
+        // Fall through to static FRAMEWORK_CONTEXT
+      }
+    }
+    enrichedSystem = `${enrichedSystem}\n\n${frameworkContext}`;
+  }
+
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

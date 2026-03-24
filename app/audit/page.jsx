@@ -458,7 +458,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         setAnalyzing(true);
         try{
           const context=`Document: ${fileName}`;
-          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context})});
+          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context,project_id:projectId})});
           if(res.ok){
             const result=await res.json();
             if(result.success&&result.analysis){
@@ -661,7 +661,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           imageBase64,
           extraImageUrls:extraBase64.length>0?null:extraImgs,
           extraImageBase64:extraBase64,
-          context:context.join("\n")
+          context:context.join("\n"),
+          project_id:projectId
         })
       });
       if(!res.ok){

@@ -5,6 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import { useFramework } from "@/lib/framework-context";
 import Markdown from "react-markdown";
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
@@ -41,6 +42,7 @@ function EntryViewerPanel({entry, onClose}) {
 
 function ChatContent() {
   const { projectId } = useProject();
+  const { framework, frameworkLoaded } = useFramework();
   const [data, setData] = useState([]);
   const [messages, setMessages] = useState([{
     role: "assistant",
@@ -139,15 +141,22 @@ function ChatContent() {
     const history = messages.filter((_, i) => i > 0).slice(-6).map(m => ({ role: m.role, content: m.content }));
 
     try {
+      // Build dynamic system prompt based on framework
+      const brandName = framework?.brandName || "the client brand";
+      const industry = framework?.industry || "the competitive category";
+      const market = framework?.primaryMarket || "the local market";
+      const competitors = framework?.localCompetitors?.map(c => c.name || c).join(", ") || "competitors in the audit";
+
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           max_tokens: 2000,
-          system: `You are a senior brand strategy analyst for Scotiabank Business Banking. You have access to two datasets:
+          project_id: projectId,
+          system: `You are a senior brand strategy analyst working on the ${brandName} competitive audit in the ${industry} industry. You have access to two datasets:
 
-1. LOCAL AUDIT (${localEntries.length} pieces) — Canadian market competitors: TD, RBC, BMO, CIBC, Desjardins, Amex, Venn, Float
-2. GLOBAL BENCHMARKS (${globalEntries.length} pieces) — International creative references across banking, fintech, and adjacent categories
+1. LOCAL AUDIT (${localEntries.length} pieces) — ${market} market competitors: ${competitors}
+2. GLOBAL BENCHMARKS (${globalEntries.length} pieces) — International creative references across the category and adjacent industries
 
 Full dataset:
 ${dataStr}
@@ -155,7 +164,7 @@ ${dataStr}
 CITATION RULES — ABSOLUTELY MANDATORY:
 - Every entry starts with [ID:xxxxxxxxxxxxxxx] — use that EXACT full numeric ID.
 - Write a SHORT HUMAN-READABLE name for the piece, then add [ENTRY:id] right after it.
-- Example: "CIBC's AI adoption guide [ENTRY:1773496163636] directly addresses Builder psychology"
+- Example: "Brand X's campaign [ENTRY:1773496163636] directly addresses this positioning"
 - NEVER put the numeric ID in your prose. NEVER write "(ID: 883404)" or the raw description with ID.
 - Use short descriptive names: "their Instagram post", "the How I made it series" — not raw DB descriptions.
 - The [ENTRY:id] token is invisible to the reader. Never write it anywhere except as [ENTRY:123456].

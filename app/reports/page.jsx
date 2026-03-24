@@ -8,6 +8,7 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import { useFramework } from "@/lib/framework-context";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -45,7 +46,7 @@ const TEMPLATES=[
     {id:"phase_gaps",label:"Journey phase gaps",desc:"Ignored phases — especially complexity & consolidation"},
     {id:"moment_gaps",label:"Moment gaps",desc:"Moments appearing in 0–1 entries across the category"},
     {id:"emotional_gaps",label:"Emotional & register gaps",desc:"Missing emotional territory and language register"},
-    {id:"opportunities",label:"Opportunity territories",desc:"3–5 named strategic opportunities for Scotiabank"},
+    {id:"opportunities",label:"Opportunity territories",desc:"3–5 named strategic opportunities for the client brand"},
   ]},
   {id:"creative_intelligence",label:"Creative Intelligence",scope:"global",badge:"Global",description:"Global creative — territories, execution, transferable inspiration",singleBrand:false,sections:[
     {id:"landscape",label:"Creative landscape",desc:"Emotional and strategic territory globally"},
@@ -53,7 +54,7 @@ const TEMPLATES=[
     {id:"archetypes",label:"Archetypes & roles",desc:"Which archetypes and bank roles dominate globally"},
     {id:"insights",label:"Insights & human truths",desc:"The human truths driving global creative"},
     {id:"portrait_door",label:"Portrait & door intelligence",desc:"Which entrepreneur identities global brands address"},
-    {id:"inspiration",label:"Transferable inspiration",desc:"What Scotiabank could learn from global examples"},
+    {id:"inspiration",label:"Transferable inspiration",desc:"What the client brand could learn from global examples"},
   ]},
   {id:"innovation",label:"Innovation Report",scope:"global",badge:"Global",description:"Convention breaks — what global brands are doing differently",singleBrand:false,sections:[
     {id:"convention",label:"Category convention",desc:"The dominant global norm — the baseline"},
@@ -157,22 +158,28 @@ INTERNAL VERIFICATION (apply during generation):
 `;
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPTS={
-  competitor_snapshot: "DYNAMIC",
+// System prompts are now functions that accept framework context
+function getSystemPrompts(fw) {
+  const brandName = fw?.brandName || "the client brand";
+  const industry = fw?.industry || "the competitive category";
+  const market = fw?.primaryMarket || "the local market";
 
-  category_landscape:`You are a world-class brand strategist analyzing the full Canadian business banking competitive landscape for Scotiabank.
+  return {
+    competitor_snapshot: "DYNAMIC",
+
+    category_landscape:`You are a world-class brand strategist analyzing the full ${market} ${industry} competitive landscape for ${brandName}.
 
 ${GLOBAL_RULES}
 
 When comparing brands across the category, group your analysis by communication intent:
 - Compare Brand Hero positioning across competitors (archetype, territory, proposition)
 - Compare Product communication strategies
-- Compare Beyond Banking and Innovation approaches
+- Compare innovation and value-added approaches
 - Note which brands use Client Testimonials effectively and what those reveal
 
 Use ## for sections, **bold** for key findings, markdown tables for cross-brand comparisons. Be conclusive.`,
 
-  opportunity:`You are a world-class brand strategist identifying strategic white spaces for Scotiabank in Canadian business banking.
+    opportunity:`You are a world-class brand strategist identifying strategic white spaces for ${brandName} in the ${market} ${industry} market.
 
 ${GLOBAL_RULES}
 
@@ -182,28 +189,29 @@ Focus ONLY on entries from the last 2 years. Ignore older entries for opportunit
 When identifying opportunities, consider gaps across all communication intent categories:
 - Unclaimed Brand Hero territories (positioning no competitor owns)
 - Product communication gaps (product stories no one is telling)
-- Beyond Banking white spaces (lifestyle/community territories unexplored)
+- Value-added white spaces (lifestyle/community territories unexplored)
 - Client Testimonial opportunities (customer voices no one is amplifying)
 
 Be specific, opinionated, and direct. End with 3–5 named opportunity territories.`,
 
-  creative_intelligence:`You are a world-class creative strategist analyzing global financial brand communications to extract inspiration for Scotiabank business banking.
+    creative_intelligence:`You are a world-class creative strategist analyzing global ${industry} brand communications to extract inspiration for ${brandName}.
 
 ${GLOBAL_RULES}
 
 QUALITY FOCUS — CRITICAL:
 Focus primarily on entries rated 4–5 stars. These represent the most creatively outstanding cases and should be the spotlight of your analysis. Lower-rated entries (1–3 stars) may provide useful context or contrast, but the core of the report must highlight excellence. When selecting transferable examples, prioritize the highest-rated work.
 
-For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the Canadian context. Distinguish between Brand Hero inspiration (positioning/territory ideas) and tactical inspiration (execution/format ideas).`,
+For transferable examples, state: what they do, why it works, the transferable principle, and how it could apply in the ${market} context. Distinguish between Brand Hero inspiration (positioning/territory ideas) and tactical inspiration (execution/format ideas).`,
 
-  innovation:`You are a world-class brand strategist identifying communication innovation and convention breaks in global financial brands.
+    innovation:`You are a world-class brand strategist identifying communication innovation and convention breaks in global ${industry} brands.
 
 ${GLOBAL_RULES}
 
 Focus on what breaks category norms. Identify emerging signals before they become mainstream. Note whether innovation appears in Brand Hero positioning (strategic innovation) or in tactical execution (format/channel innovation).`,
 
-  agnostic_snapshot: "DYNAMIC",
-};
+    agnostic_snapshot: "DYNAMIC",
+  };
+}
 
 const BADGE={local:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",global:"bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"};
 
@@ -404,6 +412,7 @@ function EntryViewer({entry,onClose}){
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
   const{projectId,projectName}=useProject()||{};
+  const{framework,frameworkLoaded,hasDimension}=useFramework()||{};
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
@@ -980,7 +989,7 @@ This section is data organization for strategic pattern reading.`,
 
 **White Space:** Most credible unclaimed territory. Must pass credibility and ownership tests.
 
-**Implication for Scotiabank:** 1-2 sentences on what this means for Scotiabank Business Banking positioning.`,
+**Implication for ${framework?.brandName || "the client brand"}:** 1-2 sentences on what this means for ${framework?.brandName || "the client brand"}'s positioning.`,
 
     website_vs_comms:`(Only generate if BRAND WEBSITE PROFILE data is provided. Skip entirely if not.)
 
@@ -1131,6 +1140,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
       }
     }
 
+    const SYSTEM_PROMPTS=getSystemPrompts(framework);
     const system=selectedTemplate.id==="agnostic_snapshot"?buildAgnosticPrompt():selectedTemplate.id==="competitor_snapshot"?buildCompetitorPrompt():SYSTEM_PROMPTS[selectedTemplate.id];
     const brandLabel=competitors.length>0?competitors.join(", "):"all brands";
     const userMsg=`SUBJECT BRAND: ${brandLabel}\n\nCRITICAL: This report is EXCLUSIVELY about ${brandLabel}. Every section must analyze ${brandLabel} only. Do NOT confuse with other brands that may appear in comparison data. If you mention other brands, it must be clearly framed as comparison context, not as the subject.\n\nAudit data${timeRange} — ${filteredData.length} pieces:\n${dataStr}${brandProfileContext}\n\nGenerate the following sections IN THIS ORDER:\n${sectionDetails}\n\n${customInstructions?`Additional instructions: ${customInstructions}\n\n`:""}IMPORTANT — CITATION RULE:
@@ -1143,7 +1153,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
 - NEVER put raw IDs in prose. NEVER write "(ID: 883404)".
 - Do NOT place citations inside markdown table rows — only in prose and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
-      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,messages:[{role:"user",content:userMsg}]})});
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,project_id:projectId,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
       if(result.error){setReport("Error: "+result.error);setGenerating(false);return;}
       const content=result.content?.map(c=>c.text||"").join("")||"No content.";
@@ -1311,7 +1321,7 @@ RULES:
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt, messages: [{ role: "user", content: userMsg }] }),
+        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt, project_id: projectId, messages: [{ role: "user", content: userMsg }] }),
       });
       const data = await res.json();
       const text = data.content?.[0]?.text || "";

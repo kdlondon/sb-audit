@@ -149,10 +149,16 @@ export default function ProjectsPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-main">Projects</h1>
             {isAdmin && (
-              <button onClick={() => setCreating(!creating)}
-                className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
-                {creating ? "Cancel" : "+ New project"}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => router.push("/onboarding")}
+                  className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
+                  + New project
+                </button>
+                <button onClick={() => setCreating(!creating)}
+                  className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition">
+                  {creating ? "Cancel" : "Quick create"}
+                </button>
+              </div>
             )}
           </div>
 

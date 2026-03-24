@@ -65,6 +65,9 @@ export default function Nav() {
           <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 24 }} />
           <span className="text-sm font-bold text-white/80 uppercase tracking-[0.15em]">Groundwork</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
+          {process.env.NEXT_PUBLIC_ENV === "staging" && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#facc15", color: "#0a0f3c" }}>Staging</span>
+          )}
         </div>
         <div className="border-l border-white/10 pl-4">
           <button onClick={() => { if (role !== "client") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/scout"); }} className={`text-xs font-medium transition ${role === "client" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>

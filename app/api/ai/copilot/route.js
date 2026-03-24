@@ -1,13 +1,29 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
+import { loadFramework, buildPromptContext, getLanguageInstruction } from "@/lib/framework-loader";
 
 export async function POST(request) {
-  const { currentSection, reportTitle, sectionHeadings, auditSummary, knowledgeContext } = await request.json();
+  const { currentSection, reportTitle, sectionHeadings, auditSummary, knowledgeContext, project_id } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
+  // Load dynamic framework context
+  let frameworkContext = FRAMEWORK_CONTEXT;
+  let langInstruction = "";
+  if (project_id) {
+    try {
+      const framework = await loadFramework(project_id);
+      if (framework) {
+        frameworkContext = buildPromptContext(framework);
+        langInstruction = getLanguageInstruction(framework);
+      }
+    } catch (err) {
+      console.error("Failed to load framework for copilot:", err);
+    }
+  }
+
   const system = `You are a research copilot assisting an analyst editing a competitive intelligence report at Knots & Dots.
 
-${FRAMEWORK_CONTEXT}
+${frameworkContext}
 
 REPORT: "${reportTitle || "Untitled"}"
 SECTIONS: ${sectionHeadings || "N/A"}
@@ -19,7 +35,7 @@ Your job: read the section the analyst is currently editing and provide helpful 
 Return ONLY valid JSON with this structure:
 {
   "related_entries": [
-    {"brand": "TD", "description": "Campaign title", "relevance": "Why this is relevant to the current section"}
+    {"brand": "Brand", "description": "Campaign title", "relevance": "Why this is relevant to the current section"}
   ],
   "alternative_angles": ["A different perspective or missing point to consider"],
   "framework_connections": ["How this connects to a specific framework dimension"],
@@ -33,7 +49,7 @@ RULES:
 - Reference specific brands, campaigns, and data from the audit summary
 - If knowledge documents are provided, reference specific findings from them
 - Return 2-4 items per category, skip empty categories
-- ALL output in English`;
+- ALL output in English${langInstruction}`;
 
   try {
     const userMsg = `AUDIT DATA SUMMARY:\n${(auditSummary || "").slice(0, 4000)}\n\nCURRENT SECTION BEING EDITED:\n${currentSection || ""}`;
