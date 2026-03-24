@@ -225,7 +225,10 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
             className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">Send</button>
         </div>
         <div className="flex gap-2 mt-2 flex-wrap">
-          {["Which competitor talks to Builders?","Compare local vs global tone patterns","Who owns the first cash flow crisis?","Where is the white space?","What can local brands learn from global benchmarks?"].map(q => (
+          {(framework?.tier === "specialist"
+            ? ["Which competitor talks to Builders?","Compare local vs global tone patterns","Who owns the first cash flow crisis?","Where is the white space?","What can local brands learn from global benchmarks?"]
+            : ["What positioning do competitors use?","Compare tone across competitors","Which brand stands out creatively?","Where is the white space?","What can local brands learn from global benchmarks?"]
+          ).map(q => (
             <button key={q} onClick={() => setInput(q)}
               className="text-[11px] text-accent bg-accent-soft px-2 py-1 rounded-full hover:opacity-80">{q}</button>
           ))}
