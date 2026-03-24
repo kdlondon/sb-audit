@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getTableName } from "@/lib/options";
+import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getSections, getTableName } from "@/lib/options";
+import { useFramework } from "@/lib/framework-context";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -211,6 +212,7 @@ function MultiSelect({ fieldKey, value, opts, onChange }) {
 }
 
 function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry}){
+  const {framework,frameworkLoaded}=useFramework()||{};
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [cur,setCur]=useState({});
@@ -752,7 +754,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     }
     setUploading(false);
   };
-  const sections=getFieldsForScope(scope);
+  const sections=frameworkLoaded?getSections(framework,scope):getFieldsForScope(scope);
   const fieldStyle=(key)=>highlighted.has(key)?{background:"var(--accent-soft)",borderColor:"var(--accent)",transition:"background 0.3s"}:{};
 
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
