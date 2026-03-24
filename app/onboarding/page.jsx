@@ -353,6 +353,33 @@ function OnboardingContent() {
             sort_order: i,
           }))
         );
+        // Also insert into project_brands so they appear in Settings
+        await supabase.from("project_brands").insert(
+          localCompetitors.map(c => ({
+            project_id: projectId,
+            brand_name: typeof c === "string" ? c : c.name,
+            scope: "local",
+            category: "",
+            country: "",
+            status: "active",
+            urls: [],
+          }))
+        );
+      }
+
+      // 5b. Insert global benchmarks into project_brands
+      if (globalBenchmarks.length > 0) {
+        await supabase.from("project_brands").insert(
+          globalBenchmarks.map(b => ({
+            project_id: projectId,
+            brand_name: typeof b === "string" ? b : b.name,
+            scope: "global",
+            category: "",
+            country: typeof b === "string" ? "" : (b.country || ""),
+            status: "active",
+            urls: [],
+          }))
+        );
       }
 
       // 6. Insert communication intent options

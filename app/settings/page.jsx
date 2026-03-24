@@ -352,8 +352,17 @@ function SettingsContent() {
       status: "active",
       urls: [],
     });
-    if (scope === "local") setNewLocalName("");
-    else {
+    // Also add to dropdown_options so it appears in audit form competitor dropdown
+    if (scope === "local") {
+      const { data: existing } = await supabase.from("dropdown_options")
+        .select("id").eq("project_id", projectId).eq("category", "competitor").eq("value", name);
+      if (!existing || existing.length === 0) {
+        await supabase.from("dropdown_options").insert({
+          project_id: projectId, category: "competitor", value: name, sort_order: 999,
+        });
+      }
+      setNewLocalName("");
+    } else {
       setNewGlobalName("");
       setNewGlobalCountry("");
     }

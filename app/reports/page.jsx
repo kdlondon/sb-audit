@@ -80,6 +80,13 @@ const TEMPLATES=[
 const GLOBAL_RULES = `
 GLOBAL ANALYSIS RULES — APPLY TO ALL REPORTS:
 
+0. ABSOLUTE RULE — NO FABRICATION:
+- You may ONLY reference entries that appear in the data provided. NEVER invent entries, brands, campaigns, percentages, or citations.
+- NEVER create fake citation IDs. Every [cite:ID] MUST use an exact ID from the data.
+- If the data is insufficient for a section, say so explicitly: "Insufficient data for this analysis — only N entries available."
+- If you cannot fill a section with real data, write: "Not enough entries to generate this section." Do NOT fill it with imagined content.
+- NEVER fabricate statistics, percentages, or distribution numbers. Only cite numbers you can calculate from the actual data provided.
+
 1. COMMUNICATION INTENT HIERARCHY:
 - **Brand Hero**: Core positioning — manifestos, brand commercials, tagline-driven campaigns. Use as PRIMARY source for positioning analysis (tension, insight, creative proposition, archetype, territory).
 - **Brand Tactical**: Brand-building support — events, sponsorships, CSR, community initiatives.
@@ -1035,6 +1042,11 @@ Use ## for sections, **bold** for labels, markdown tables where useful. Be concl
 
   const generate=async()=>{
     if(!selectedTemplate||generating)return;
+    // Data gate — prevent hallucinated reports with insufficient data
+    if(filteredData.length<3){
+      alert(`Not enough data to generate this report. You have ${filteredData.length} ${filteredData.length===1?"entry":"entries"} but need at least 3.\n\nAdd more audit entries first, then try again.`);
+      return;
+    }
     setGenerating(true);setReport("");setViewingReport(null);
     const timeRange=yearFrom&&yearTo?` (${yearFrom}–${yearTo})`:"";
     const sectionNames=sections.map(id=>{
