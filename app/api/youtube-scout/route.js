@@ -102,31 +102,63 @@ export async function POST(request) {
           officialChannelId = bestChannel.id.channelId;
           officialChannelName = bestChannel.snippet.channelTitle;
 
-          // Get ALL recent videos from official channel (no query filter — just list them)
-          const channelSearchParams = new URLSearchParams({
-            part: "snippet",
-            channelId: officialChannelId,
-            type: "video",
-            maxResults: String(Math.min(maxResults * 3, 50)),
-            key: apiKey,
-            order: "date",
-          });
-          if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
+          // Get ALL recent videos from official channel — paginate to get up to 100
+          let channelPageToken = undefined;
+          const channelTarget = Math.max(outputLimit * 3, 50);
+          let channelFetched = 0;
+          while (channelFetched < channelTarget) {
+            const batchSize = Math.min(50, channelTarget - channelFetched);
+            const channelSearchParams = new URLSearchParams({
+              part: "snippet",
+              channelId: officialChannelId,
+              type: "video",
+              maxResults: String(batchSize),
+              key: apiKey,
+              order: "date",
+            });
+            if (publishedAfter) channelSearchParams.set("publishedAfter", publishedAfter);
+            if (channelPageToken) channelSearchParams.set("pageToken", channelPageToken);
 
-          const channelVids = await ytSearch(channelSearchParams);
-          channelVids.forEach(v => { v.isOfficial = true; v.source = "official"; });
-          allVideos.push(...channelVids);
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${channelSearchParams}`);
+            const data = await res.json();
+            if (data.error) break;
+            const vids = (data.items || []).filter(item => item.id?.videoId).map(item => ({
+              videoId: item.id.videoId,
+              title: item.snippet.title,
+              channel: item.snippet.channelTitle,
+              channelId: item.snippet.channelId,
+              description: item.snippet.description,
+              thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
+              publishedAt: item.snippet.publishedAt,
+              year: item.snippet.publishedAt?.substring(0, 4),
+            }));
+            vids.forEach(v => { v.isOfficial = true; v.source = "official"; });
+            allVideos.push(...vids);
+            channelFetched += vids.length;
+            channelPageToken = data.nextPageToken;
+            if (!channelPageToken || vids.length === 0) break;
+          }
         }
       } catch(e) { console.error("Phase 1 failed:", e.message); } }
 
-      // ─── PHASE 2: Only if channel not found or very few results ───
-      if (allVideos.length < 3) {
+      // ─── Pre-filter by duration before Phase 2 decision ───
+      let phase1Filtered = [...allVideos];
+      if (minSeconds || maxSeconds) {
+        // Enrich phase 1 videos to check duration
+        phase1Filtered = await enrichWithStats(phase1Filtered);
+        const min = minSeconds || 0;
+        const max = maxSeconds || 999999;
+        phase1Filtered = phase1Filtered.filter(v => v.durationSeconds >= min && v.durationSeconds <= max);
+      }
+
+      // ─── PHASE 2: If channel not found, few results, or not enough after duration filter ───
+      if (allVideos.length < 3 || phase1Filtered.length < outputLimit) {
         // Use the full original query — this is the fallback
         const generalParams = new URLSearchParams({
           part: "snippet",
           q: cleanQuery,
           type: "video",
-          maxResults: String(Math.min(maxResults, 25)),
+          maxResults: String(Math.min(outputLimit, 50)),
           key: apiKey,
           order: "relevance",
         });
