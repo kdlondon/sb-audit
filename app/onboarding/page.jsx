@@ -203,7 +203,8 @@ Return ONLY valid JSON: {"name":"..."}. If nothing extractable, return {}`;
 
     if (newExchanges >= 7 || !nextQ) {
       setLoading(false);
-      addAI("Got it — I have a solid picture of your brand. Click **Next** to review and continue.");
+      addAI("Got it — I have a solid picture. Let me review what I've captured...");
+      setTimeout(() => goToStep(2), 1500);
       return;
     }
 
