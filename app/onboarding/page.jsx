@@ -208,12 +208,16 @@ Return ONLY valid JSON: {"name":"..."}. If nothing extractable, return {}`;
     }
 
     // Conversational response + next question
-    const respPrompt = `You are a sharp, witty brand strategist onboarding a new client. The user just answered about their brand.
-Respond in EXACTLY 2 sentences:
-1. A brief strategic observation connecting their answer to the competitive context. Be specific, insightful, maybe slightly provocative. NO "I understand" or "Noted" — vary: "That puts you in direct collision with...", "Interesting — a ${bp.category || "this"} brand with that positioning is rare because...", "Five years in means you've survived the credibility gap..."
-2. Then ask: "${nextQ.q}"
+    const respPrompt = `You are a brand strategist doing a quick intake. The user answered about their brand.
 
-Tone: sharp, direct, a bit playful. Like a consultant who's done this 100 times. No exclamation marks.`;
+Reply with MAX 1 short sentence acknowledging what they said (10 words max), then ask: "${nextQ.q}"
+
+RULES:
+- First sentence: casual, warm, max 10 words. Examples: "Got it.", "Nice — clear positioning.", "Solid.", "Makes sense for that market.", "Interesting mix."
+- NEVER start with "That puts you in" — BANNED phrase
+- NEVER write more than 2 sentences total
+- No analysis, no strategic observations, no paragraphs
+- Just acknowledge briefly and ask the next question`;
 
     const response = await callAI(respPrompt, text);
     setLoading(false);
