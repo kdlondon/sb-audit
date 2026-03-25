@@ -13,13 +13,13 @@ const mainTabs = [
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
 
-const ROLE_LABELS = { full_admin: "Admin", analyst: "Analyst", client: "Client" };
+const ROLE_LABELS = { full_admin: "Admin", platform_admin: "Platform Admin", org_admin: "Admin", analyst: "Analyst", client: "Client", viewer: "Viewer" };
 
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { projectName, clearProject } = useProject();
-  const { role, userEmail } = useRole();
+  const { role, userEmail, activeOrg, orgRole, memberships, isPlatformAdmin, isOrgAdmin, switchOrg } = useRole();
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -151,19 +151,38 @@ export default function Nav() {
             style={{ zIndex: 99999 }}>
             <div className="px-4 py-3 border-b border-main">
               <p className="text-sm font-medium text-main truncate">{userEmail}</p>
-              <p className="text-[10px] text-muted uppercase tracking-wider mt-0.5">{ROLE_LABELS[role] || role}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[10px] text-muted uppercase tracking-wider">{ROLE_LABELS[orgRole] || ROLE_LABELS[role] || role}</p>
+                {activeOrg && <span className="text-[10px] text-hint">· {activeOrg.name}</span>}
+              </div>
             </div>
+            {/* Org switcher — only if user has multiple memberships */}
+            {memberships.length > 1 && (
+              <div className="px-4 py-2 border-b border-main">
+                <p className="text-[9px] text-hint uppercase tracking-wider mb-1">Switch organization</p>
+                {memberships.map(m => (
+                  <button key={m.orgId} onClick={() => { switchOrg(m.orgId); setMenuOpen(false); }}
+                    className={`w-full text-left px-2 py-1 rounded text-xs transition ${
+                      activeOrg?.id === m.orgId ? "text-accent font-semibold bg-accent-soft" : "text-muted hover:text-main hover:bg-surface2"
+                    }`}>
+                    {m.orgName} <span className="text-[9px] text-hint">({m.role.replace("_"," ")})</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <button onClick={() => { setMenuOpen(false); router.push("/reports"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Dashboard</button>
             {canAccess(role, "settings") && (
               <button onClick={() => { setMenuOpen(false); router.push("/settings"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Settings</button>
             )}
-            {canAccess(role, "users") && (
+            {(isOrgAdmin || canAccess(role, "users")) && (
               <button onClick={() => { setMenuOpen(false); router.push("/users"); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">User Management</button>
+                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
+                {isPlatformAdmin ? "K&D Admins" : "Team Management"}
+              </button>
             )}
-            {canAccess(role, "clients") && (
+            {isPlatformAdmin && (
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client Management</button>
             )}

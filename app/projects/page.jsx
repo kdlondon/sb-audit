@@ -19,16 +19,35 @@ export default function ProjectsPage() {
   const [editDesc, setEditDesc] = useState("");
   const router = useRouter();
   const { selectProject } = useProject();
-  const { role, userId, loading: roleLoading } = useRole() || { loading: true };
+  const { role, userId, loading: roleLoading, activeOrg, isPlatformAdmin, isOrgAdmin } = useRole() || { loading: true };
   const supabase = createClient();
+  const isAdmin = role === "full_admin" || isPlatformAdmin || isOrgAdmin;
 
   const load = async () => {
-    if (role === "full_admin") {
-      // Full admins see all projects
+    if (isPlatformAdmin && (!activeOrg || activeOrg.type === "platform")) {
+      // Platform admins with platform org selected see ALL projects
+      const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+      setProjects(data || []);
+    } else if (isAdmin && activeOrg) {
+      // Org admins see projects in their org + projects they have access to
+      const [{ data: orgProjects }, { data: access }] = await Promise.all([
+        supabase.from("projects").select("*").eq("organization_id", activeOrg.id).order("created_at", { ascending: false }),
+        supabase.from("project_access").select("project_id").eq("user_id", userId),
+      ]);
+      const accessIds = (access || []).map(a => a.project_id);
+      const merged = [...(orgProjects || [])];
+      // Add any projects from project_access not already in org projects
+      if (accessIds.length > 0) {
+        const { data: extraProjects } = await supabase.from("projects").select("*").in("id", accessIds).order("created_at", { ascending: false });
+        (extraProjects || []).forEach(p => { if (!merged.find(m => m.id === p.id)) merged.push(p); });
+      }
+      setProjects(merged);
+    } else if (role === "full_admin") {
+      // Legacy full_admin without org context
       const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
       setProjects(data || []);
     } else {
-      // Analysts and Clients only see assigned projects
+      // Analysts/viewers only see assigned projects
       const { data: access } = await supabase.from("project_access").select("project_id").eq("user_id", userId);
       const projectIds = (access || []).map(a => a.project_id);
       if (projectIds.length > 0) {
@@ -66,6 +85,7 @@ export default function ProjectsPage() {
     await supabase.from("projects").insert({
       id, name: newName.trim(), client_name: newClient.trim(),
       description: newDesc.trim(), created_by: session?.user?.email || "",
+      organization_id: activeOrg?.id || null,
     });
     const { data: defaults } = await supabase.from("dropdown_options").select("category, value, sort_order").eq("project_id", "proj_sb_bb");
     if (defaults && defaults.length > 0) {
@@ -126,7 +146,7 @@ export default function ProjectsPage() {
     router.replace("/login");
   };
 
-  const isAdmin = role === "full_admin";
+  // isAdmin already defined above
 
   if (loading) return <AuthGuard><div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading projects...</p></div></AuthGuard>;
 

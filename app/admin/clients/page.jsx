@@ -116,14 +116,22 @@ export default function ClientsPage() {
     setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
     const slug = form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    // Create organization first
+    const { data: orgData, error: orgError } = await supabase.from("organizations").insert({
+      name: form.name.trim(), slug, type: "client",
+      plan: form.tier === "enterprise" ? "premium" : (form.tier || "standard"),
+      status: form.status === "active" ? "active" : "active",
+    }).select().single();
+
     const { error } = await supabase.from("clients").insert({
       ...form,
       slug,
       monthly_value: form.monthly_value ? Number(form.monthly_value) : null,
       created_by: session?.user?.id || null,
+      organization_id: orgData?.id || null,
     });
-    if (error) {
-      showToast("Error: " + error.message);
+    if (error || orgError) {
+      showToast("Error: " + (error?.message || orgError?.message));
     } else {
       showToast("Client added");
       setForm({ name: "", primary_contact_name: "", primary_contact_email: "", website: "", industry: "", country: "", company_size: "", status: "lead", tier: "standard", contract_start: "", contract_end: "", monthly_value: "", notes: "" });

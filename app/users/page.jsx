@@ -7,6 +7,18 @@ import Nav from "@/components/Nav";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
 
+const PLATFORM_ROLE_OPTIONS = [
+  { value: "platform_admin", label: "Platform Admin", desc: "Full access to all clients, projects, and platform settings" },
+  { value: "analyst", label: "Analyst", desc: "Audit, Dashboard, Reports, Chat — assigned projects only" },
+];
+
+const ORG_ROLE_OPTIONS = [
+  { value: "org_admin", label: "Admin", desc: "Manage team members and all projects in this organization" },
+  { value: "analyst", label: "Analyst", desc: "Audit, Dashboard, Reports, Chat — assigned projects only" },
+  { value: "viewer", label: "Viewer", desc: "View-only access to Showcase and Reports" },
+];
+
+// Legacy fallback
 const ROLE_OPTIONS = [
   { value: "full_admin", label: "Full Admin", desc: "All modules, all projects, manage users" },
   { value: "analyst", label: "Analyst", desc: "Audit, Dashboard, Reports, Chat — assigned projects only" },
@@ -14,7 +26,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function UsersPage() {
-  const { role } = useRole();
+  const { role, isPlatformAdmin, isOrgAdmin, activeOrg } = useRole();
   const router = useRouter();
   const supabase = createClient();
 
@@ -62,7 +74,7 @@ export default function UsersPage() {
   }, [role]);
 
   // Redirect non-admins
-  if (role && role !== "full_admin") {
+  if (role && !isPlatformAdmin && !isOrgAdmin && role !== "full_admin") {
     router.replace("/dashboard");
     return null;
   }
@@ -124,7 +136,7 @@ export default function UsersPage() {
     const res = await fetch("/api/create-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail.trim(), password: invitePassword.trim(), role: inviteRole }),
+      body: JSON.stringify({ email: inviteEmail.trim(), password: invitePassword.trim(), role: inviteRole, organization_id: activeOrg?.id || null }),
     });
 
     let result;
@@ -223,7 +235,7 @@ export default function UsersPage() {
                         <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Role *</label>
                         <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
                           className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
-                          {ROLE_OPTIONS.map(r => (
+                          {(isPlatformAdmin && activeOrg?.type === "platform" ? PLATFORM_ROLE_OPTIONS : isOrgAdmin ? ORG_ROLE_OPTIONS : ROLE_OPTIONS).map(r => (
                             <option key={r.value} value={r.value}>{r.label}</option>
                           ))}
                         </select>

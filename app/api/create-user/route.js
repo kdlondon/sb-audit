@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request) {
-  const { email, password, role } = await request.json();
+  const { email, password, role, organization_id } = await request.json();
 
   if (!email || !password || !role) {
     return Response.json({ error: "Email, password, and role are required" }, { status: 400 });
@@ -14,7 +14,6 @@ export async function POST(request) {
     return Response.json({ error: "Server configuration error — missing service role key" }, { status: 500 });
   }
 
-  // Use service role client to create user without affecting current session
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -23,21 +22,15 @@ export async function POST(request) {
     // Create auth user
     let userId;
     const { data: userData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+      email, password, email_confirm: true,
     });
 
     if (authError) {
-      // If user already exists in auth, find them and just add the role
       if (authError.message.includes("already") || authError.message.includes("registered")) {
         const { data: existingUsers } = await adminClient.auth.admin.listUsers();
         const existing = existingUsers?.users?.find(u => u.email === email);
-        if (existing) {
-          userId = existing.id;
-        } else {
-          return Response.json({ error: authError.message }, { status: 400 });
-        }
+        if (existing) { userId = existing.id; }
+        else { return Response.json({ error: authError.message }, { status: 400 }); }
       } else {
         return Response.json({ error: authError.message }, { status: 400 });
       }
@@ -45,22 +38,35 @@ export async function POST(request) {
       userId = userData.user.id;
     }
 
-    // Add role (upsert — update if exists)
+    // Map new org roles to legacy roles for backward compat
+    const legacyRole = (role === "platform_admin" || role === "org_admin") ? "full_admin"
+      : role === "viewer" ? "client"
+      : role === "analyst" ? "analyst"
+      : role; // pass through for legacy roles (full_admin, analyst, client)
+
+    // Add to legacy user_roles (backward compat)
     const { error: roleError } = await adminClient.from("user_roles").upsert({
-      user_id: userId,
-      email,
-      role,
+      user_id: userId, email, role: legacyRole,
     }, { onConflict: "user_id" });
 
     if (roleError) {
-      // Try insert if upsert fails
-      await adminClient.from("user_roles").insert({ user_id: userId, email, role });
+      await adminClient.from("user_roles").insert({ user_id: userId, email, role: legacyRole });
     }
 
-    return Response.json({
-      success: true,
-      user: { id: userId, email },
-    });
+    // Add to organization_members if organization_id provided
+    if (organization_id) {
+      // Determine org role: if legacy role provided, map it
+      const orgRole = ["platform_admin", "org_admin", "analyst", "viewer"].includes(role) ? role
+        : role === "full_admin" ? "org_admin"
+        : role === "client" ? "viewer"
+        : "analyst";
+
+      await adminClient.from("organization_members").upsert({
+        organization_id, user_id: userId, email, role: orgRole,
+      }, { onConflict: "organization_id,user_id" });
+    }
+
+    return Response.json({ success: true, user: { id: userId, email } });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }

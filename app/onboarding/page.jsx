@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
+import { useRole } from "@/lib/role-context";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 
@@ -113,6 +114,7 @@ const STEPS = [
 function OnboardingContent() {
   const router = useRouter();
   const { selectProject } = useProject();
+  const { activeOrg } = useRole() || {};
   const supabase = createClient();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -357,7 +359,7 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
       await supabase.from("projects").insert({
         id: projectId, name: projectName, client_name: bp.name || "",
         description: [bp.category, bp.market && `Market: ${bp.market}`, bp.proposition].filter(Boolean).join(" · "),
-        created_by: email,
+        created_by: email, organization_id: activeOrg?.id || null,
       });
 
       // Grant access
