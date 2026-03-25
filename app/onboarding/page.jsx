@@ -297,16 +297,33 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
 
     for (const brand of all) {
       try {
-        const query = `${brand.name} ${bp.category || ""} ad commercial campaign`;
+        // Use the full youtube-scout with AI ranking for better results
         const res = await fetch("/api/youtube-scout", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "search", query: query.trim(), maxResults: 1, publishedAfter: new Date(Date.now() - 730 * 86400000).toISOString() }),
+          body: JSON.stringify({
+            action: "search",
+            query: `"${brand.name}" official commercial anuncio publicidad`,
+            maxResults: 3,
+            publishedAfter: new Date(Date.now() - 730 * 86400000).toISOString(),
+            contentType: "official",
+            minDuration: 15,
+            maxDuration: 180,
+          }),
         });
         const data = await res.json();
-        const videos = (data.videos || []).slice(0, 1);
+        // Pick best video — prefer higher views, filter out irrelevant titles
+        const allVids = (data.videos || [])
+          .filter(v => {
+            const t = (v.title || "").toLowerCase();
+            const bn = brand.name.toLowerCase();
+            // Filter out clearly unrelated content
+            return !t.includes("reaction") && !t.includes("review") && !t.includes("tutorial") && !t.includes("how to");
+          })
+          .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+        const videos = allVids.slice(0, 1);
         setScoutResults(prev => ({ ...prev, [brand.name]: videos }));
         videos.forEach(v => setScoutVideoStatus(prev => ({ ...prev, [`${brand.name}:${v.videoId}`]: "pending" })));
-        addAI(`**${brand.name}** — found ${videos.length} piece${videos.length !== 1 ? "s" : ""}`);
+        addAI(videos.length > 0 ? `**${brand.name}** — found a piece` : `**${brand.name}** — no relevant content found`);
       } catch {
         addAI(`**${brand.name}** — couldn't search (API limit)`);
       }
