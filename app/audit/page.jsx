@@ -138,7 +138,8 @@ function CountryInput({ value, onChange }) {
 const MULTI_SELECT_FIELDS = new Set([
   "portrait","entry_door","journey_phase","client_lifecycle",
   "moment_acquisition","moment_deepening","moment_unexpected",
-  "business_size","industry_shown","channel","brand_archetype","funnel","communication_intent"
+  "business_size","industry_shown","channel","brand_archetype","funnel","communication_intent",
+  "execution_style","tone_of_voice","representation","cta","category_proximity","category"
 ]);
 
 // ── DESCRIPTIONS ──────────────────────────────────────────────────────────────
@@ -165,15 +166,38 @@ const ARCHETYPE_DESCRIPTIONS = {
 };
 
 // ── MULTI-SELECT CHIP COMPONENT ───────────────────────────────────────────────
-function MultiSelect({ fieldKey, value, opts, onChange }) {
-  // value is a comma-separated string e.g. "Builder, Dreamer"
+function MultiSelect({ fieldKey, value, opts, onChange, projectId, optKey }) {
+  const [otherInput, setOtherInput] = useState("");
+  const [showOther, setShowOther] = useState(false);
   const selected = value ? value.split(",").map(v => v.trim()).filter(Boolean) : [];
 
   const toggle = (opt) => {
+    if (opt === "Other") {
+      setShowOther(!showOther);
+      return;
+    }
     const next = selected.includes(opt)
       ? selected.filter(v => v !== opt)
       : [...selected, opt];
     onChange(next.join(", "));
+  };
+
+  const addOtherValue = async () => {
+    const val = otherInput.trim();
+    if (!val) return;
+    const next = [...selected, val];
+    onChange(next.join(", "));
+    setOtherInput("");
+    setShowOther(false);
+    // Save to dropdown_options for this project so it appears in future entries
+    if (projectId && optKey) {
+      const supabase = createClient();
+      const category = optKey || fieldKey;
+      const { data: existing } = await supabase.from("dropdown_options").select("id").eq("project_id", projectId).eq("category", category).eq("value", val);
+      if (!existing || existing.length === 0) {
+        await supabase.from("dropdown_options").insert({ project_id: projectId, category, value: val, sort_order: 999 });
+      }
+    }
   };
 
   const desc = fieldKey === "portrait"
@@ -191,7 +215,9 @@ function MultiSelect({ fieldKey, value, opts, onChange }) {
             type="button"
             onClick={() => toggle(opt)}
             className={`px-2 py-0.5 rounded text-xs font-medium border transition ${
-              selected.includes(opt)
+              opt === "Other" && showOther
+                ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                : selected.includes(opt)
                 ? "bg-accent-soft border-[var(--accent)] text-accent"
                 : "bg-surface border-main text-muted hover:border-[var(--accent)] hover:text-main"
             }`}
@@ -200,6 +226,15 @@ function MultiSelect({ fieldKey, value, opts, onChange }) {
           </button>
         ))}
       </div>
+      {showOther && (
+        <div className="flex gap-2 mt-2">
+          <input value={otherInput} onChange={e => setOtherInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addOtherValue()}
+            placeholder="Type custom value and press Enter..."
+            className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none focus:border-accent" autoFocus />
+          <button onClick={addOtherValue} className="px-2 py-1 bg-accent text-white rounded text-xs font-semibold">Add</button>
+        </div>
+      )}
       {desc.length > 0 && (
         <div className="mt-1.5 space-y-1">
           {desc.map((d, i) => (
@@ -299,8 +334,23 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const autoFill=(updates)=>{const fk=[];setCur(prev=>{const u={...prev};Object.entries(updates).forEach(([k,v])=>{if(!u[k]&&v){u[k]=v;fk.push(k);}});return u;});if(fk.length>0)highlightFields(fk);};
   const clearForm=()=>{if(!confirm("Clear all form data?"))return;setCur({});setMaterialType("none");setSec(0);setHighlighted(new Set());};
 
+  // Auto-fill R2B from communication fields
+  const autoFillR2B=useCallback(()=>{
+    if(cur.r2b)return; // Don't overwrite existing
+    const parts=[];
+    if(cur.emotional_benefit)parts.push(`Emotional: ${cur.emotional_benefit}`);
+    if(cur.rational_benefit)parts.push(`Rational: ${cur.rational_benefit}`);
+    if(cur.main_vp)parts.push(`VP: ${cur.main_vp}`);
+    if(cur.insight)parts.push(`Insight: ${cur.insight}`);
+    if(parts.length>=2){
+      setCur(prev=>({...prev,r2b:`${prev.emotional_benefit||""} → ${prev.rational_benefit||""} → ${prev.main_vp||""}`}));
+      highlightFields(["r2b"]);
+    }
+  },[cur.emotional_benefit,cur.rational_benefit,cur.main_vp,cur.insight,cur.r2b]);
+  useEffect(()=>{autoFillR2B();},[cur.emotional_benefit,cur.rational_benefit,cur.main_vp]);
+
   const LOCAL_COLUMNS=["id","created_by","updated_at","competitor","category","description","year","type","xtype","url","image_url","image_urls","funnel","communication_intent","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
-  const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity","company_type"];
+  const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity"];
 
   const prepareSaveData=(rawCur)=>{
     const allowed=new Set(scope==="global"?GLOBAL_COLUMNS:LOCAL_COLUMNS);
@@ -912,6 +962,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                               value={cur[f.key]||""}
                               opts={getOpts(f)}
                               onChange={v=>setCur({...cur,[f.key]:v})}
+                              projectId={projectId}
+                              optKey={f.optKey||f.key}
                             />
                           ) : f.type==="select" ? (
                             <div>
