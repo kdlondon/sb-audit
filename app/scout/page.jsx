@@ -894,6 +894,22 @@ Rules:
                           <span className="text-[10px] text-muted">AI analyze on import</span>
                         </label>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[9px] text-hint uppercase font-semibold">Min ranking</label>
+                        <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
+                          className="px-2 py-1 bg-surface2 border border-main rounded text-xs text-main">
+                          <option value={0}>0/10</option>
+                          <option value={1}>1/10</option>
+                          <option value={2}>2/10</option>
+                          <option value={3}>3/10</option>
+                          <option value={4}>4/10</option>
+                          <option value={5}>5/10</option>
+                          <option value={6}>6/10</option>
+                          <option value={7}>7/10</option>
+                          <option value={8}>8/10</option>
+                          <option value={9}>9/10</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 )}
