@@ -1,4 +1,9 @@
+import { requireAuth } from "@/lib/api-auth";
+
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
+
   const { brand_name, industry, market, global_markets, type } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });

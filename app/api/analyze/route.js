@@ -1,5 +1,6 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 import { loadFramework, buildPromptContext, buildClassificationFields, getLanguageInstruction } from "@/lib/framework-loader";
+import { requireAuth } from "@/lib/api-auth";
 
 // Build the legacy (Scotiabank-hardcoded) classification prompt
 function buildLegacyPrompt(context) {
@@ -89,6 +90,9 @@ CRITICAL: Return ONLY the JSON object.${framework.frameworkText ? " Use the FRAM
 }
 
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
+
   const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });

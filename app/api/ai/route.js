@@ -1,7 +1,11 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
 import { loadFramework, buildPromptContext, getLanguageInstruction } from "@/lib/framework-loader";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
+
   const { messages, system, max_tokens, use_opus, skip_framework, project_id } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });

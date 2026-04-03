@@ -1,9 +1,12 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
+import { requireAuth } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
   const body = await request.json();
   const { action } = body;
   const apiKeys = [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2].filter(Boolean);

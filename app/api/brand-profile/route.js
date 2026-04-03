@@ -1,7 +1,11 @@
+import { requireAuth } from "@/lib/api-auth";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 

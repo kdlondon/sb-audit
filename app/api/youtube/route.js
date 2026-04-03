@@ -1,4 +1,9 @@
+import { requireAuth } from "@/lib/api-auth";
+
 export async function POST(request) {
+  const denied = await requireAuth(request);
+  if (denied) return denied;
+
   const { url } = await request.json();
   if (!url) return Response.json({ error: "No URL" }, { status: 400 });
 
