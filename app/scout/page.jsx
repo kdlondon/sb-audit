@@ -310,8 +310,7 @@ Rules:
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const table = scope === "global" ? "audit_global" : "audit_entries";
-      const { data } = await supabase.from(table).select("url").eq("project_id", projectId);
+      const { data } = await supabase.from("creative_source").select("url").eq("project_id", projectId);
       setExistingUrls(new Set((data || []).map(e => e.url).filter(Boolean)));
     })();
   }, [projectId, scope]);
@@ -481,8 +480,6 @@ Rules:
     setImporting(true);
     setImportProgress({ current: 1, total: 1, label: `Processing: ${(item.title || "").slice(0, 40)}...` });
     const { data: { session } } = await supabase.auth.getSession();
-    const table = scope === "global" ? "audit_global" : "audit_entries";
-
     // Use user-provided transcript first, then try auto-fetch
     let transcript = transcripts[item.video_id] || "";
     if (!transcript) {
@@ -518,19 +515,21 @@ Rules:
       transcript,
     };
 
+    // [PHASE 0] unified fields
+    entry.scope = scope;
+    entry.brand_name = item.channel || "";
     if (scope === "global") {
-      entry.brand = item.channel || "";
       entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
-    } else {
-      entry.competitor = item.channel || "";
     }
+    entry.competitor = scope === "local" ? (item.channel || "") : undefined;
+    entry.brand = scope === "global" ? (item.channel || "") : undefined;
 
     const notes = savedNotes[item.id] || analystNotes[item.video_id] || "";
     if (notes) entry.analyst_comment = notes;
     const vidIntent = videoIntents[item.video_id];
     if (vidIntent) entry.communication_intent = vidIntent;
 
-    const { error } = await supabase.from(table).insert(entry);
+    const { error } = await supabase.from("creative_source").insert(entry);
     if (error) { showToast("Import error: " + error.message); setImporting(false); return; }
 
     if (autoAnalyze && (item.thumbnail || transcript)) {
@@ -678,7 +677,6 @@ Rules:
     for (let i = 0; i < toImport.length; i++) {
       const v = toImport[i];
       const vidScope = videoScopes[v.videoId] || scope;
-      const table = vidScope === "global" ? "audit_global" : "audit_entries";
 
       setImportProgress({ current: i + 1, total: toImport.length, label: `Processing: ${v.title.slice(0, 40)}...` });
 
@@ -721,15 +719,17 @@ Rules:
       const note = analystNotes[v.videoId];
       if (note) entry.analyst_comment = note;
 
+      // [PHASE 0] unified fields
+      entry.scope = vidScope;
+      entry.brand_name = v.channel || "";
+      entry.competitor = vidScope === "local" ? (v.channel || "") : undefined;
+      entry.brand = vidScope === "global" ? (v.channel || "") : undefined;
       if (vidScope === "global") {
-        entry.brand = v.channel || "";
         entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
-      } else {
-        entry.competitor = v.channel || "";
       }
 
       // Insert
-      const { error } = await supabase.from(table).insert(entry);
+      const { error } = await supabase.from("creative_source").insert(entry);
       if (error) { console.error("Insert error:", error); continue; }
       imported++;
 
