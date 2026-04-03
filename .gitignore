@@ -5,3 +5,4 @@ node_modules/
 .DS_Store
 *.log
 SB_App_Handoff_V4.md
+.claude/worktrees/
