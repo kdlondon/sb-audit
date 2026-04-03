@@ -1101,7 +1101,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 };
                 return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#0019FF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor}/>:<span className="font-medium text-main">{e.brand||"—"}</span>}</td>
+                  <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}</td>
                   <IC field="category" className=""><Tag v={e.category}/></IC>
                   <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
@@ -1127,7 +1127,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
                 <div className="p-2.5">
-                  <div className="flex gap-1 mb-1">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
+                  <div className="flex gap-1 mb-1">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
                   <p className="text-xs font-medium text-main truncate">{e.description||"—"}</p>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-[10px] text-muted">{e.year||""}</span>
@@ -1152,7 +1152,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       )}
 
       {sb&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
-        <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
+        <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
         {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2 relative group/sb">
           <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
@@ -1167,7 +1167,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         </div>}
         {sb.url&&!ytId(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
         <div className="p-3">
-          <div className="flex gap-1 flex-wrap mb-2">{sb.competitor&&<Tag v={sb.competitor}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
+          <div className="flex gap-1 flex-wrap mb-2">{(sb.competitor||sb.brand_name)&&<Tag v={sb.competitor||sb.brand_name}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
           <div className="flex gap-3 mt-1 flex-wrap">{sb.created_by&&<span className="text-[10px] text-hint">Added by <span className="text-main font-medium">{sb.created_by}</span></span>}{sb.created_at&&<span className="text-[10px] text-hint">Created <span className="text-main">{fmtDate(sb.created_at)}</span></span>}{sb.updated_at&&<span className="text-[10px] text-hint">Updated <span className="text-main">{fmtDate(sb.updated_at)}</span></span>}</div>
           {[["Type",sb.type],["Portrait",sb.portrait],["Phase",sb.journey_phase],["Lifecycle",sb.client_lifecycle],["Door",sb.entry_door],["Role",sb.bank_role],["Archetype",sb.brand_archetype],["Tone",sb.tone_of_voice],["Language",sb.language_register],["Territory",sb.primary_territory],["Execution",sb.execution_style],["VP",sb.main_vp],["Slogan",sb.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>))}
         </div>
