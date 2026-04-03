@@ -186,6 +186,8 @@ export default function Nav() {
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client Management</button>
             )}
+            <button onClick={() => { setMenuOpen(false); router.push("/mfa-setup"); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Security (MFA)</button>
             <div className="border-t border-main my-1" />
             <button onClick={() => { toggleDark(); setMenuOpen(false); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
