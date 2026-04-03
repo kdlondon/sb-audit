@@ -417,17 +417,18 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
       // Import accepted videos
       for (let i = 0; i < acceptedVideos.length; i++) {
         const vid = acceptedVideos[i];
-        const table = vid.scope === "global" ? "audit_global" : "audit_entries";
         const entry = {
           id: String(Date.now()) + "_" + i,
           project_id: projectId, created_by: email, updated_at: new Date().toISOString(),
           url: `https://www.youtube.com/watch?v=${vid.videoId}`,
           image_url: vid.thumbnail || "", description: vid.title || "",
           year: vid.year || "", type: "Video", synopsis: vid.description || "",
+          scope: vid.scope || "local",
+          brand_name: vid.brandName || "",
         };
         if (vid.scope === "global") { entry.brand = vid.brandName; entry.country = ""; }
         else { entry.competitor = vid.brandName; }
-        await supabase.from(table).insert(entry);
+        await supabase.from("creative_source").insert(entry);
       }
 
       selectProject(projectId, projectName);

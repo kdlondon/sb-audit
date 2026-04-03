@@ -294,7 +294,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const load=useCallback(async()=>{
     setLoading(true);
-    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).eq("scope",scope).order("created_at",{ascending:false});
     setData(rows||[]);setLoading(false);setSelected(new Set());setSbRaw(null);
   },[scope]);
 
@@ -366,12 +366,16 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       if(allowed.has(k)&&!k.endsWith("_other"))e[k]=merged[k];
     });
     delete e.created_at;
+    // [PHASE 0] Add scope and brand_name for creative_source
+    e.scope = scope;
+    e.brand_name = scope === "local" ? (e.competitor || "") : (e.brand || "");
+    e.organization_id = null; // Will be set by trigger or from context
     return e;
   };
 
   const save=async()=>{
     const e=prepareSaveData(cur);
-    if(!e.competitor&&!e.brand&&!e.description){setToast({message:"Please fill at least a brand or description"});return;}
+    if(!e.competitor&&!e.brand&&!e.brand_name&&!e.description){setToast({message:"Please fill at least a brand or description"});return;}
 
     // Auto-save "Other" custom values to dropdown_options
     const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
@@ -1221,14 +1225,9 @@ function AuditPageInner(){
       // Search both tables to find the entry and set correct scope
       (async()=>{
         const supabase=createClient();
-        const[{data:local},{data:global}]=await Promise.all([
-          supabase.from("audit_entries").select("*").eq("id",entryId),
-          supabase.from("audit_global").select("*").eq("id",entryId),
-        ]);
-        const localMatch=(local||[])[0];
-        const globalMatch=(global||[])[0];
-        if(localMatch){setScope("local");setInitialEntry(localMatch);}
-        else if(globalMatch){setScope("global");setInitialEntry(globalMatch);}
+        const{data:matches}=await supabase.from("creative_source").select("*").eq("id",entryId);
+        const match=(matches||[])[0];
+        if(match){setScope(match.scope||"local");setInitialEntry(match);}
       })();
     } else if(s&&(s==="local"||s==="global")){
       handleAddWithScope(s);

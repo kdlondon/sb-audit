@@ -417,16 +417,12 @@ function ShowcasePage() {
   };
 
   const loadFilterOptions = async () => {
-    const [localRes, globalRes] = await Promise.all([
-      supabase.from("audit_entries").select("competitor, year").eq("project_id", projectId),
-      supabase.from("audit_global").select("brand, country, year").eq("project_id", projectId),
-    ]);
+    const { data: csData } = await supabase.from("creative_source").select("brand_name, competitor, brand, scope, country, year").eq("project_id", projectId);
     const brandSet = new Set();
-    (localRes.data || []).forEach(e => e.competitor && brandSet.add(e.competitor));
-    (globalRes.data || []).forEach(e => e.brand && brandSet.add(e.brand));
+    (csData || []).forEach(e => { const bn = e.brand_name || e.competitor || e.brand; if (bn) brandSet.add(bn); });
     setAllBrands([...brandSet].sort());
     const countrySet = new Set();
-    (globalRes.data || []).forEach(e => e.country && countrySet.add(e.country));
+    (csData || []).filter(e => e.scope === "global").forEach(e => e.country && countrySet.add(e.country));
     setAllCountries([...countrySet].sort());
   };
 
@@ -500,22 +496,17 @@ function ShowcasePage() {
   const generateShowcase = async () => {
     setGenerating(true);
 
-    let localQuery = supabase.from("audit_entries").select("*").eq("project_id", projectId);
-    let globalQuery = supabase.from("audit_global").select("*").eq("project_id", projectId);
+    let query = supabase.from("creative_source").select("*").eq("project_id", projectId);
 
     if (selectedBrands.length > 0) {
-      localQuery = localQuery.in("competitor", selectedBrands);
-      globalQuery = globalQuery.in("brand", selectedBrands);
+      query = query.in("brand_name", selectedBrands);
     }
-    if (yearFrom) { localQuery = localQuery.gte("year", yearFrom); globalQuery = globalQuery.gte("year", yearFrom); }
-    if (yearTo) { localQuery = localQuery.lte("year", yearTo); globalQuery = globalQuery.lte("year", yearTo); }
-    if (selectedCountries.length > 0) { globalQuery = globalQuery.in("country", selectedCountries); }
+    if (yearFrom) { query = query.gte("year", yearFrom); }
+    if (yearTo) { query = query.lte("year", yearTo); }
+    if (selectedCountries.length > 0) { query = query.in("country", selectedCountries); }
 
-    const skipLocal = selectedCountries.length > 0;
-    const [localRes, globalRes] = await Promise.all([
-      skipLocal ? Promise.resolve({ data: [] }) : localQuery, globalQuery,
-    ]);
-    const entries = [...(localRes.data || []), ...(globalRes.data || [])];
+    const { data: entries_ } = await query;
+    const entries = entries_ || [];
 
     if (entries.length === 0) { showToast("No entries match your filters"); setGenerating(false); return; }
 
@@ -601,19 +592,15 @@ Return: {"title":"...","slides":[...slides...]}`;
     const brand = selectedBrands[0];
     if (!brand) { showToast("Select exactly one brand"); setGenerating(false); return; }
 
-    let localQuery = supabase.from("audit_entries").select("*").eq("project_id", projectId).eq("competitor", brand);
-    let globalQuery = supabase.from("audit_global").select("*").eq("project_id", projectId).eq("brand", brand);
-    if (yearFrom) { localQuery = localQuery.gte("year", yearFrom); globalQuery = globalQuery.gte("year", yearFrom); }
-    if (yearTo) { localQuery = localQuery.lte("year", yearTo); globalQuery = globalQuery.lte("year", yearTo); }
-    if (selectedCountries.length > 0) globalQuery = globalQuery.in("country", selectedCountries);
+    let query = supabase.from("creative_source").select("*").eq("project_id", projectId).eq("brand_name", brand);
+    if (yearFrom) { query = query.gte("year", yearFrom); }
+    if (yearTo) { query = query.lte("year", yearTo); }
+    if (selectedCountries.length > 0) query = query.in("country", selectedCountries);
+    if (selectedScope === "local") query = query.eq("scope", "local");
+    if (selectedScope === "global") query = query.eq("scope", "global");
 
-    const useLocal = selectedScope === "local" || selectedScope === "both";
-    const useGlobal = selectedScope === "global" || selectedScope === "both";
-    const [localRes, globalRes] = await Promise.all([
-      useLocal ? localQuery : Promise.resolve({ data: [] }),
-      useGlobal ? globalQuery : Promise.resolve({ data: [] }),
-    ]);
-    const entries = [...(localRes.data || []), ...(globalRes.data || [])];
+    const { data: entries_ } = await query;
+    const entries = entries_ || [];
     if (entries.length === 0) { showToast("No entries found for this brand"); setGenerating(false); return; }
 
     const entryData = entries.map(e => ({
@@ -988,14 +975,8 @@ Return: {"title":"...","slides":[...slides...]}`;
   useEffect(() => {
     if (view !== "edit" || !projectId || allEntries.length > 0) return;
     (async () => {
-      const [localRes, globalRes] = await Promise.all([
-        supabase.from("audit_entries").select("id,competitor,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis").eq("project_id", projectId),
-        supabase.from("audit_global").select("id,brand,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis,country").eq("project_id", projectId),
-      ]);
-      setAllEntries([
-        ...(localRes.data || []).map(e => ({ ...e, brand: e.competitor })),
-        ...(globalRes.data || []),
-      ]);
+      const { data: csData } = await supabase.from("creative_source").select("id,brand_name,competitor,brand,scope,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis,country").eq("project_id", projectId);
+      setAllEntries((csData || []).map(e => ({ ...e, brand: e.brand_name || e.competitor || e.brand })));
     })();
   }, [view, projectId]);
 
@@ -1007,15 +988,8 @@ Return: {"title":"...","slides":[...slides...]}`;
     nav({ id: currentShowcase.id, edit: 1 });
     // Load all entries for the search
     if (allEntries.length === 0) {
-      const [localRes, globalRes] = await Promise.all([
-        supabase.from("audit_entries").select("id,competitor,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis").eq("project_id", projectId),
-        supabase.from("audit_global").select("id,brand,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis,country").eq("project_id", projectId),
-      ]);
-      const entries = [
-        ...(localRes.data || []).map(e => ({ ...e, brand: e.competitor })),
-        ...(globalRes.data || []),
-      ];
-      setAllEntries(entries);
+      const { data: csData } = await supabase.from("creative_source").select("id,brand_name,competitor,brand,scope,description,year,type,rating,image_url,image_urls,url,main_slogan,synopsis,country").eq("project_id", projectId);
+      setAllEntries((csData || []).map(e => ({ ...e, brand: e.brand_name || e.competitor || e.brand })));
     }
   };
 

@@ -57,14 +57,9 @@ function ChatContent() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const [{ data: local }, { data: global }] = await Promise.all([
-        supabase.from("audit_entries").select("*").eq("project_id",projectId),
-        supabase.from("audit_global").select("*").eq("project_id",projectId),
-      ]);
-      const all = [
-        ...(local || []).map(e => ({ ...e, _scope: "local" })),
-        ...(global || []).map(e => ({ ...e, _scope: "global" })),
-      ];
+      // [PHASE 0] Single query to creative_source
+      const { data: entries } = await supabase.from("creative_source").select("*").eq("project_id", projectId);
+      const all = (entries || []).map(e => ({ ...e, _scope: e.scope || "local" }));
       setData(all);
       setDataLoaded(true);
     })();

@@ -287,12 +287,14 @@ function DashboardContent() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const [{ data: local }, { data: global }, { data: meta }] = await Promise.all([
-        supabase.from("audit_entries").select("*").eq("project_id", projectId),
-        supabase.from("audit_global").select("*").eq("project_id", projectId),
+      // [PHASE 0] Single query to creative_source + brands for metadata
+      const [{ data: entries }, { data: meta }] = await Promise.all([
+        supabase.from("creative_source").select("*").eq("project_id", projectId),
         supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id", projectId),
       ]);
-      setLocalData(local || []); setGlobalData(global || []);
+      const local = (entries || []).filter(e => e.scope === "local");
+      const global = (entries || []).filter(e => e.scope === "global");
+      setLocalData(local); setGlobalData(global);
       const map = {}; (meta || []).forEach(m => { map[m.brand_name] = m.brand_category; });
       setBrandMetaMap(map);
       const opts = await fetchOptions(projectId); setOPTIONS(opts);

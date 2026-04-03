@@ -59,15 +59,14 @@ export default function ClientsPage() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
   const loadData = async () => {
-    const [clientsRes, projectsRes, localRes, globalRes] = await Promise.all([
+    const [clientsRes, projectsRes, csRes] = await Promise.all([
       supabase.from("clients").select("*").order("created_at", { ascending: false }),
       supabase.from("projects").select("id, name, client_id, created_at"),
-      supabase.from("audit_entries").select("id, project_id, created_at"),
-      supabase.from("audit_global").select("id, project_id, created_at"),
+      supabase.from("creative_source").select("id, project_id, created_at"),
     ]);
     setClients(clientsRes.data || []);
     setProjects(projectsRes.data || []);
-    setEntries([...(localRes.data || []), ...(globalRes.data || [])]);
+    setEntries(csRes.data || []);
     setLoading(false);
   };
 

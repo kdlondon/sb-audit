@@ -583,12 +583,12 @@ function ReportsContent(){
   const[renamingReport,setRenamingReport]=useState(null); // report id being renamed
 
   useEffect(()=>{(async()=>{
-    const[{data:local},{data:global},{data:reports}]=await Promise.all([
-      supabase.from("audit_entries").select("*").eq("project_id",projectId),
-      supabase.from("audit_global").select("*").eq("project_id",projectId),
+    const[{data:csData},{data:reports}]=await Promise.all([
+      supabase.from("creative_source").select("*").eq("project_id",projectId),
       supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false}),
     ]);
-    const ld=local||[];const gd=global||[];
+    const allCs=csData||[];
+    const ld=allCs.filter(e=>e.scope==="local");const gd=allCs.filter(e=>e.scope==="global");
     setLocalData(ld);setGlobalData(gd);setSavedReports(reports||[]);
     const years=[...new Set([...ld,...gd].map(e=>e.year).filter(Boolean))].sort();
     setAllYears(years);
@@ -1222,15 +1222,14 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     const scope = isAgnostic ? "both" : (rpt.scope || "local");
     console.log("[Showcase] useCSFormat:", useCSFormat, "brands:", brandNames, "scope:", scope, "template_type:", rpt.template_type);
 
-    // Get the original entries — ALWAYS search both tables for agnostic, otherwise use scope
-    let entries = [];
-    if (scope === "local" || scope === "both") {
-      const { data } = await supabase.from("audit_entries").select("*").eq("project_id", projectId);
-      if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.competitor)) : data));
-    }
-    if (scope === "global" || scope === "both") {
-      const { data } = await supabase.from("audit_global").select("*").eq("project_id", projectId);
-      if (data) entries.push(...(brandNames.length > 0 ? data.filter(e => brandNames.includes(e.brand)) : data));
+    // Get the original entries from creative_source
+    let csQuery = supabase.from("creative_source").select("*").eq("project_id", projectId);
+    if (scope === "local") csQuery = csQuery.eq("scope", "local");
+    else if (scope === "global") csQuery = csQuery.eq("scope", "global");
+    const { data: csEntries } = await csQuery;
+    let entries = csEntries || [];
+    if (brandNames.length > 0) {
+      entries = entries.filter(e => brandNames.includes(e.brand_name) || brandNames.includes(e.competitor) || brandNames.includes(e.brand));
     }
     console.log("[Showcase] Entries found:", entries.length, "for brands:", brandNames, "scope:", scope);
     // Apply year filters if the report had them

@@ -217,16 +217,12 @@ function SettingsContent() {
     const existingGlobal = (pb || []).filter((b) => b.scope === "global");
     const existingNames = new Set((pb || []).map((b) => b.brand_name.toLowerCase()));
 
-    // 2. Auto-import from audit_entries + audit_global + brand_metadata
-    const [{ data: entries }, { data: globals }, { data: meta }] =
+    // 2. Auto-import from creative_source + brand_metadata
+    const [{ data: csEntries }, { data: meta }] =
       await Promise.all([
         supabase
-          .from("audit_entries")
-          .select("competitor")
-          .eq("project_id", projectId),
-        supabase
-          .from("audit_global")
-          .select("brand")
+          .from("creative_source")
+          .select("brand_name, competitor, brand, scope")
           .eq("project_id", projectId),
         supabase
           .from("brand_metadata")
@@ -243,15 +239,11 @@ function SettingsContent() {
     const toImportLocal = new Set();
     const toImportGlobal = new Set();
 
-    (entries || []).forEach((e) => {
-      if (e.competitor && !existingNames.has(e.competitor.toLowerCase())) {
-        toImportLocal.add(e.competitor);
-      }
-    });
-    (globals || []).forEach((e) => {
-      if (e.brand && !existingNames.has(e.brand.toLowerCase())) {
-        toImportGlobal.add(e.brand);
-      }
+    (csEntries || []).forEach((e) => {
+      const name = e.brand_name || (e.scope === "local" ? e.competitor : e.brand);
+      if (!name || existingNames.has(name.toLowerCase())) return;
+      if (e.scope === "global") toImportGlobal.add(name);
+      else toImportLocal.add(name);
     });
 
     // Insert imports

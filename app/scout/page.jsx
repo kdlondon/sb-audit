@@ -149,18 +149,17 @@ export default function ScoutPage() {
     if (!projectId) return;
     (async () => {
       const s = createClient();
-      const [{ data: local }, { data: global }, { data: opts }] = await Promise.all([
-        s.from("audit_entries").select("competitor").eq("project_id", projectId),
-        s.from("audit_global").select("brand, country").eq("project_id", projectId),
+      // [PHASE 0] Single query to creative_source
+      const [{ data: entries }, { data: opts }] = await Promise.all([
+        s.from("creative_source").select("brand_name, country, scope").eq("project_id", projectId),
         s.from("dropdown_options").select("value").eq("project_id", projectId).eq("category", "competitor"),
       ]);
       const brands = new Set();
-      (local || []).forEach(e => { if (e.competitor) brands.add(e.competitor); });
-      (global || []).forEach(e => { if (e.brand) brands.add(e.brand); });
+      (entries || []).forEach(e => { if (e.brand_name) brands.add(e.brand_name); });
       if (opts) opts.forEach(o => { if (o.value && o.value !== "Other") brands.add(o.value); });
       setProjectCompetitors([...brands]);
       const countries = new Set();
-      (global || []).forEach(e => { if (e.country) countries.add(e.country); });
+      (entries || []).filter(e => e.scope === "global").forEach(e => { if (e.country) countries.add(e.country); });
       const arr = [];
       const brandArr = [...brands].sort(() => 0.5 - Math.random());
       brandArr.slice(0, 2).forEach(b => arr.push(b));

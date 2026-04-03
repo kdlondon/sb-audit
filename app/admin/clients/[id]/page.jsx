@@ -73,15 +73,14 @@ export default function ClientDetailPage() {
 
     const projectIds = prjs.map(p => p.id);
     if (projectIds.length > 0) {
-      const [localRes, globalRes, reportsRes, showcasesRes, accessRes] = await Promise.all([
-        supabase.from("audit_entries").select("id, project_id, created_at, created_by").in("project_id", projectIds),
-        supabase.from("audit_global").select("id, project_id, created_at, created_by").in("project_id", projectIds),
+      const [csRes, reportsRes, showcasesRes, accessRes] = await Promise.all([
+        supabase.from("creative_source").select("id, project_id, created_at, created_by, scope").in("project_id", projectIds),
         supabase.from("saved_reports").select("id, project_id, created_at, created_by").in("project_id", projectIds),
         supabase.from("saved_showcases").select("id, project_id, created_at").in("project_id", projectIds),
         supabase.from("project_access").select("user_id, email, project_id").in("project_id", projectIds),
       ]);
-      setLocalEntries(localRes.data || []);
-      setGlobalEntries(globalRes.data || []);
+      setLocalEntries((csRes.data || []).filter(e => e.scope === "local"));
+      setGlobalEntries((csRes.data || []).filter(e => e.scope === "global"));
       setReports(reportsRes.data || []);
       setShowcases(showcasesRes.data || []);
 
@@ -94,11 +93,7 @@ export default function ClientDetailPage() {
       });
       setTeamUsers(Object.values(userMap));
     } else {
-      setLocalEntries([]);
-      setGlobalEntries([]);
-      setReports([]);
-      setShowcases([]);
-      setTeamUsers([]);
+      setLocalEntries([]); setGlobalEntries([]); setReports([]); setShowcases([]); setTeamUsers([]);
     }
 
     // Load activity log

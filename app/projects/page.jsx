@@ -119,8 +119,8 @@ export default function ProjectsPage() {
 
   const deleteProject = async (p) => {
     if (!confirm(`Delete "${p.name}"?\n\nThis will permanently delete the project and ALL its data — audit entries, global benchmarks, reports and settings.\n\nThis cannot be undone.`)) return;
-    await supabase.from("audit_entries").delete().eq("project_id", p.id);
-    await supabase.from("audit_global").delete().eq("project_id", p.id);
+    await supabase.from("creative_source").delete().eq("project_id", p.id);
+    await supabase.from("project_cases").delete().eq("project_id", p.id);
     await supabase.from("saved_reports").delete().eq("project_id", p.id);
     await supabase.from("dropdown_options").delete().eq("project_id", p.id);
     await supabase.from("project_access").delete().eq("project_id", p.id);

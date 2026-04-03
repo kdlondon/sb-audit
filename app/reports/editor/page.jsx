@@ -155,11 +155,8 @@ function EditorContent2() {
         if (editor) editor.commands.setContent(mdToHtml(data.content || ""));
       }
       // Load entries for @ mentions
-      const [lr, gr] = await Promise.all([
-        supabase.from("audit_entries").select("id,competitor,description,year,type,rating,image_url,url,communication_intent").eq("project_id", projectId),
-        supabase.from("audit_global").select("id,brand,description,year,type,rating,image_url,url,communication_intent").eq("project_id", projectId),
-      ]);
-      setAllEntries([...(lr.data || []).map(e => ({ ...e, brand: e.competitor })), ...(gr.data || [])]);
+      const { data: csData } = await supabase.from("creative_source").select("id,brand_name,scope,competitor,brand,description,year,type,rating,image_url,url,communication_intent").eq("project_id", projectId);
+      setAllEntries((csData || []).map(e => ({ ...e, brand: e.brand_name || e.competitor || e.brand })));
       setLoading(false);
     })();
   }, [reportId, projectId, editor]);

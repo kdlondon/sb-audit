@@ -49,6 +49,8 @@ export async function POST(request) {
         id: entry.id || String(Date.now()),
         project_id: entry.project_id,
         competitor: entry.competitor || "",
+        brand_name: entry.competitor || entry.brand_name || "",
+        scope: entry.scope || "local",
         description: entry.description || "",
         image_url: entry.image_url || "",
         url: entry.url || "",
@@ -69,7 +71,7 @@ export async function POST(request) {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from("audit_entries").insert(entryData);
+      const { error } = await supabase.from("creative_source").insert(entryData);
       if (error) return Response.json({ error: error.message }, { status: 400 });
 
       return Response.json({ success: true, id: entryData.id });

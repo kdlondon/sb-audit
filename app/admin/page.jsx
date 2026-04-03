@@ -30,20 +30,19 @@ export default function AdminDashboard() {
     (async () => {
       const [
         { data: projects },
-        { data: localEntries },
-        { data: globalEntries },
+        { data: allCreativeEntries },
         { data: reports },
         { data: showcases },
         { data: users },
       ] = await Promise.all([
         supabase.from("projects").select("id, name, created_at"),
-        supabase.from("audit_entries").select("id, created_by, created_at, updated_at, competitor, communication_intent, rating, project_id"),
-        supabase.from("audit_global").select("id, created_by, created_at, updated_at, brand, communication_intent, rating, project_id"),
+        supabase.from("creative_source").select("id, created_by, created_at, updated_at, brand_name, competitor, brand, scope, communication_intent, rating, project_id"),
         supabase.from("saved_reports").select("id, created_by, created_at, template_type, project_id"),
         supabase.from("saved_showcases").select("id, created_by, created_at, project_id, slides"),
         supabase.from("user_roles").select("email, role, project_id"),
       ]);
-      setRawData({ projects: projects || [], localEntries: localEntries || [], globalEntries: globalEntries || [], reports: reports || [], showcases: showcases || [], users: users || [] });
+      const ce = allCreativeEntries || [];
+      setRawData({ projects: projects || [], localEntries: ce.filter(e => e.scope === "local"), globalEntries: ce.filter(e => e.scope === "global"), reports: reports || [], showcases: showcases || [], users: users || [] });
     })();
   }, []);
 
@@ -124,7 +123,7 @@ export default function AdminDashboard() {
 
       // Brands coverage
       const brandSet = new Set();
-      allEntries.forEach(e => { if (e.competitor) brandSet.add(e.competitor); if (e.brand) brandSet.add(e.brand); });
+      allEntries.forEach(e => { if (e.brand_name) brandSet.add(e.brand_name); else if (e.competitor) brandSet.add(e.competitor); else if (e.brand) brandSet.add(e.brand); });
 
       // Intent distribution
       const intents = {};
