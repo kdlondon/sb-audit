@@ -1449,7 +1449,7 @@ RULES:
       {/* DASHBOARD VIEW — embedded */}
       {view==="dashboard"&&(
         <div style={{height:"calc(100vh - 100px)",overflow:"hidden"}}>
-          <iframe src="/dashboard?embedded=1" style={{width:"100%",height:"100%",border:"none"}} />
+          <iframe src="/analytics?embedded=1" style={{width:"100%",height:"100%",border:"none"}} />
         </div>
       )}
 

@@ -7,6 +7,7 @@ export default function BrandGuard({ children }) {
   const router = useRouter();
   useEffect(() => {
     if (ready && !brandId) router.replace("/dashboard");
+    // Note: /dashboard is the brand portfolio home
   }, [ready, brandId, router]);
   if (!ready || !brandId) return <div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading...</p></div>;
   return children;
