@@ -283,14 +283,16 @@ function DashboardContent() {
   const [drill, setDrill] = useState(null); // { title, entries }
   const brandFilterRef = useRef(null);
 
-  const { projectId } = useProject();
+  const { projectId, brandId } = useProject();
+  const filterField = brandId ? "brand_id" : "project_id";
+  const filterValue = brandId || projectId;
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       // [PHASE 0] Single query to creative_source + brands for metadata
       const [{ data: entries }, { data: meta }] = await Promise.all([
-        supabase.from("creative_source").select("*").eq("project_id", projectId),
-        supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id", projectId),
+        supabase.from("creative_source").select("*").eq(filterField, filterValue),
+        supabase.from("brand_metadata").select("brand_name,brand_category").eq(filterField, filterValue),
       ]);
       const local = (entries || []).filter(e => e.scope === "local");
       const global = (entries || []).filter(e => e.scope === "global");

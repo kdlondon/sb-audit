@@ -137,7 +137,9 @@ function VideoPreview({ videoId, title, onClose }) {
 
 /* ─── MAIN COMPONENT ─── */
 export default function ScoutPage() {
-  const { projectId, projectName } = useProject();
+  const { projectId, projectName, brandId } = useProject();
+  const filterField = brandId ? "brand_id" : "project_id";
+  const filterValue = brandId || projectId;
   const { role } = useRole();
   const router = useRouter();
   const supabase = createClient();
@@ -151,8 +153,8 @@ export default function ScoutPage() {
       const s = createClient();
       // [PHASE 0] Single query to creative_source
       const [{ data: entries }, { data: opts }] = await Promise.all([
-        s.from("creative_source").select("brand_name, country, scope").eq("project_id", projectId),
-        s.from("dropdown_options").select("value").eq("project_id", projectId).eq("category", "competitor"),
+        s.from("creative_source").select("brand_name, country, scope").eq(filterField, filterValue),
+        s.from("dropdown_options").select("value").eq(filterField, filterValue).eq("category", "competitor"),
       ]);
       const brands = new Set();
       (entries || []).forEach(e => { if (e.brand_name) brands.add(e.brand_name); });
@@ -310,7 +312,7 @@ Rules:
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const { data } = await supabase.from("creative_source").select("url").eq("project_id", projectId);
+      const { data } = await supabase.from("creative_source").select("url").eq(filterField, filterValue);
       setExistingUrls(new Set((data || []).map(e => e.url).filter(Boolean)));
     })();
   }, [projectId, scope]);
@@ -319,7 +321,7 @@ Rules:
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const { data } = await supabase.from("scout_saved").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      const { data } = await supabase.from("scout_saved").select("*").eq(filterField, filterValue).order("created_at", { ascending: false });
       if (data) {
         setSavedItems(data);
         const notes = {};
@@ -446,6 +448,7 @@ Rules:
     const { data: { session } } = await supabase.auth.getSession();
     const entry = {
       project_id: projectId,
+      brand_id: brandId,
       video_id: v.videoId,
       title: v.title || "",
       channel: v.channel || "",
@@ -503,6 +506,7 @@ Rules:
     const entry = {
       id: String(Date.now()) + "_saved",
       project_id: projectId,
+      brand_id: brandId,
       created_by: session?.user?.email || "",
       updated_at: new Date().toISOString(),
       url: item.url,
@@ -544,7 +548,7 @@ Rules:
         const analyzeRes = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: item.thumbnail, context: contextParts.join("\n") }),
+          body: JSON.stringify({ imageUrl: item.thumbnail, context: contextParts.join("\n"), project_id: projectId, brand_id: brandId }),
         });
         const analysis = await analyzeRes.json();
         if (analysis.success && analysis.analysis) {
@@ -699,6 +703,7 @@ Rules:
       const entry = {
         id: String(Date.now()) + "_" + i,
         project_id: projectId,
+        brand_id: brandId,
         created_by: session?.user?.email || "",
         updated_at: new Date().toISOString(),
         url: `https://www.youtube.com/watch?v=${v.videoId}`,
@@ -750,6 +755,8 @@ Rules:
             body: JSON.stringify({
               imageUrl: v.thumbnail,
               context: contextParts.join("\n"),
+              project_id: projectId,
+              brand_id: brandId,
             }),
           });
           const analysis = await analyzeRes.json();

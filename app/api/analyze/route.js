@@ -1,5 +1,5 @@
 import { FRAMEWORK_CONTEXT } from "@/lib/framework";
-import { loadFramework, buildPromptContext, buildClassificationFields, getLanguageInstruction } from "@/lib/framework-loader";
+import { loadFramework, loadBrandFramework, buildPromptContext, buildClassificationFields, getLanguageInstruction } from "@/lib/framework-loader";
 import { requireAuth } from "@/lib/api-auth";
 
 // Build the legacy (Scotiabank-hardcoded) classification prompt
@@ -93,15 +93,17 @@ export async function POST(request) {
   // const denied = await requireAuth(request); // TODO: fix auth with Supabase SSR
   // if (denied) return denied;
 
-  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id } = await request.json();
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id, brand_id } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
   // Load framework and build prompt
   let prompt;
-  if (project_id) {
+  if (brand_id || project_id) {
     try {
-      const framework = await loadFramework(project_id);
+      const framework = brand_id
+        ? await loadBrandFramework(brand_id)
+        : await loadFramework(project_id);
       if (framework) {
         prompt = buildDynamicPrompt(framework, context);
       }

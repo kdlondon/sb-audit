@@ -151,7 +151,9 @@ function BrandProfileCard({ profile, pagesCrawled }) {
    MAIN SETTINGS CONTENT
    ═══════════════════════════════════════════════════════════════ */
 function SettingsContent() {
-  const { projectId, projectName } = useProject() || {};
+  const { projectId, projectName, brandId } = useProject() || {};
+  const filterField = brandId ? "brand_id" : "project_id";
+  const filterValue = brandId || projectId;
   const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
   const BRAND_CATEGORIES = (frameworkLoaded && framework?.brandCategories?.length > 0) ? framework.brandCategories : DEFAULT_BRAND_CATEGORIES;
   const supabase = createClient();
@@ -209,7 +211,7 @@ function SettingsContent() {
     const { data: pb } = await supabase
       .from("project_brands")
       .select("*")
-      .eq("project_id", projectId)
+      .eq(filterField, filterValue)
       .eq("status", "active")
       .order("brand_name");
 
@@ -223,11 +225,11 @@ function SettingsContent() {
         supabase
           .from("creative_source")
           .select("brand_name, competitor, brand, scope")
-          .eq("project_id", projectId),
+          .eq(filterField, filterValue),
         supabase
           .from("brand_metadata")
           .select("*")
-          .eq("project_id", projectId),
+          .eq(filterField, filterValue),
       ]);
 
     const metaMap = {};
@@ -251,6 +253,7 @@ function SettingsContent() {
     toImportLocal.forEach((name) => {
       imports.push({
         project_id: projectId,
+        brand_id: brandId,
         brand_name: name,
         scope: "local",
         category: metaMap[name.toLowerCase()] || "",
@@ -262,6 +265,7 @@ function SettingsContent() {
     toImportGlobal.forEach((name) => {
       imports.push({
         project_id: projectId,
+        brand_id: brandId,
         brand_name: name,
         scope: "global",
         category: metaMap[name.toLowerCase()] || "",
@@ -277,7 +281,7 @@ function SettingsContent() {
       const { data: pb2 } = await supabase
         .from("project_brands")
         .select("*")
-        .eq("project_id", projectId)
+        .eq(filterField, filterValue)
         .eq("status", "active")
         .order("brand_name");
       setLocalBrands((pb2 || []).filter((b) => b.scope === "local"));
@@ -295,7 +299,7 @@ function SettingsContent() {
     const { data } = await supabase
       .from("brand_profiles")
       .select("*")
-      .eq("project_id", projectId)
+      .eq(filterField, filterValue)
       .order("created_at", { ascending: false });
     setProfiles(data || []);
   }, [projectId]);
@@ -337,6 +341,7 @@ function SettingsContent() {
     const country = scope === "global" ? newGlobalCountry.trim() : "";
     await supabase.from("project_brands").insert({
       project_id: projectId,
+      brand_id: brandId,
       brand_name: name,
       scope,
       category: "",
@@ -347,10 +352,10 @@ function SettingsContent() {
     // Also add to dropdown_options so it appears in audit form competitor dropdown
     if (scope === "local") {
       const { data: existing } = await supabase.from("dropdown_options")
-        .select("id").eq("project_id", projectId).eq("category", "competitor").eq("value", name);
+        .select("id").eq(filterField, filterValue).eq("category", "competitor").eq("value", name);
       if (!existing || existing.length === 0) {
         await supabase.from("dropdown_options").insert({
-          project_id: projectId, category: "competitor", value: name, sort_order: 999,
+          project_id: projectId, brand_id: brandId, category: "competitor", value: name, sort_order: 999,
         });
       }
       setNewLocalName("");
@@ -381,7 +386,7 @@ function SettingsContent() {
       const { data: existing } = await supabase
         .from("brand_metadata")
         .select("id")
-        .eq("project_id", projectId)
+        .eq(filterField, filterValue)
         .eq("brand_name", brand.brand_name)
         .maybeSingle();
       if (existing) {
@@ -392,6 +397,7 @@ function SettingsContent() {
       } else {
         await supabase.from("brand_metadata").insert({
           project_id: projectId,
+          brand_id: brandId,
           brand_name: brand.brand_name,
           brand_category: category,
         });
@@ -493,6 +499,7 @@ function SettingsContent() {
       // Save profile to brand_profiles
       await supabase.from("brand_profiles").insert({
         project_id: projectId,
+        brand_id: brandId,
         brand_name: brand.brand_name,
         profile_data: data.profile,
         pages_crawled: data.pagesCrawled || [],

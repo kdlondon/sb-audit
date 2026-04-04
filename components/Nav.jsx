@@ -2,13 +2,13 @@
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase";
-import { useProject } from "@/lib/project-context";
+import { useBrand } from "@/lib/brand-context";
 import { useRole, canAccess } from "@/lib/role-context";
 import { useEffect, useState, useRef } from "react";
 
 const mainTabs = [
   { name: "Scout", href: "/scout", module: "scout" },
-  { name: "Audit", href: "/audit", module: "audit" },
+  { name: "Creative Source", href: "/audit", module: "audit" },
   { name: "Report", href: "/reports", module: "reports" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
@@ -18,7 +18,7 @@ const ROLE_LABELS = { full_admin: "Admin", platform_admin: "Platform Admin", org
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { projectName, clearProject } = useProject();
+  const { brandName, projectName, clearBrand, clearProject } = useBrand();
   const { role, userEmail, activeOrg, orgRole, memberships, isPlatformAdmin, isOrgAdmin, switchOrg } = useRole();
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -61,7 +61,7 @@ export default function Nav() {
     <div className="px-5 py-2 flex items-center justify-between sticky top-0"
       style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 100, transform: "translateZ(0)" }}>
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearProject(); router.push("/projects"); }}>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
           <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 24 }} />
           <span className="text-sm font-bold text-white/80 uppercase tracking-[0.15em]">Groundwork</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
@@ -69,9 +69,10 @@ export default function Nav() {
             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#facc15", color: "#0a0f3c" }}>Staging</span>
           )}
         </div>
-        <div className="border-l border-white/10 pl-4">
-          <button onClick={() => { if (role !== "client") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/scout"); }} className={`text-xs font-medium transition ${role === "client" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>
-            {pathname.startsWith("/admin") ? "Platform Admin" : (projectName || "Select project")}
+        <div className="border-l border-white/10 pl-4 flex items-center gap-2">
+          <button onClick={() => { clearBrand(); router.push("/dashboard"); }} className="text-[10px] text-white/30 hover:text-white/60 transition">← Dashboard</button>
+          <button onClick={() => { if (role !== "client" && role !== "viewer") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/audit"); }} className={`text-xs font-medium transition ${role === "client" || role === "viewer" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>
+            {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select brand")}
           </button>
         </div>
         {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-2">
@@ -128,6 +129,14 @@ export default function Nav() {
               style={{ background: "#0019FF" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               <span className="text-[10px] font-bold uppercase tracking-wide text-white overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Chat</span>
+            </button>
+          )}
+
+          {/* Settings — gray */}
+          {canAccess(role, "settings") && (
+            <button onClick={() => router.push("/settings")}
+              className="h-[28px] w-[28px] rounded-full flex items-center justify-center hover:bg-white/10 transition">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" className="opacity-40 hover:opacity-80 transition"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           )}
         </div>
@@ -193,8 +202,8 @@ export default function Nav() {
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
               {dark ? "Light mode" : "Dark mode"}
             </button>
-            <button onClick={() => { setMenuOpen(false); clearProject(); router.push("/projects"); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch project</button>
+            <button onClick={() => { setMenuOpen(false); clearBrand(); router.push("/dashboard"); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch brand</button>
             <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
               What's new

@@ -41,7 +41,9 @@ function EntryViewerPanel({entry, onClose}) {
 }
 
 function ChatContent() {
-  const { projectId } = useProject();
+  const { projectId, brandId } = useProject();
+  const filterField = brandId ? "brand_id" : "project_id";
+  const filterValue = brandId || projectId;
   const { framework, frameworkLoaded } = useFramework();
   const [data, setData] = useState([]);
   const [messages, setMessages] = useState([{
@@ -58,7 +60,7 @@ function ChatContent() {
     (async () => {
       const supabase = createClient();
       // [PHASE 0] Single query to creative_source
-      const { data: entries } = await supabase.from("creative_source").select("*").eq("project_id", projectId);
+      const { data: entries } = await supabase.from("creative_source").select("*").eq(filterField, filterValue);
       const all = (entries || []).map(e => ({ ...e, _scope: e.scope || "local" }));
       setData(all);
       setDataLoaded(true);
@@ -148,6 +150,7 @@ function ChatContent() {
         body: JSON.stringify({
           max_tokens: 2000,
           project_id: projectId,
+          brand_id: brandId,
           system: `You are a senior brand strategy analyst working on the ${brandName} competitive audit in the ${industry} industry. You have access to two datasets:
 
 1. LOCAL AUDIT (${localEntries.length} pieces) — ${market} market competitors: ${competitors}

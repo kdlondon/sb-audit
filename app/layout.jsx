@@ -1,5 +1,5 @@
 import "./globals.css";
-import { ProjectProvider } from "@/lib/project-context";
+import { BrandProvider } from "@/lib/brand-context";
 import { RoleProvider } from "@/lib/role-context";
 import { FrameworkProvider } from "@/lib/framework-context";
 export const metadata = {
@@ -12,9 +12,9 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <RoleProvider>
-          <ProjectProvider>
+          <BrandProvider>
             <FrameworkProvider>{children}</FrameworkProvider>
-          </ProjectProvider>
+          </BrandProvider>
         </RoleProvider>
       </body>
     </html>

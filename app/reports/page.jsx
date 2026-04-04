@@ -418,7 +418,9 @@ function EntryViewer({entry,onClose}){
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
-  const{projectId,projectName}=useProject()||{};
+  const{projectId,projectName,brandId}=useProject()||{};
+  const filterField=brandId?"brand_id":"project_id";
+  const filterValue=brandId||projectId;
   const{framework,frameworkLoaded,hasDimension}=useFramework()||{};
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
@@ -584,8 +586,8 @@ function ReportsContent(){
 
   useEffect(()=>{(async()=>{
     const[{data:csData},{data:reports}]=await Promise.all([
-      supabase.from("creative_source").select("*").eq("project_id",projectId),
-      supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false}),
+      supabase.from("creative_source").select("*").eq(filterField,filterValue),
+      supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false}),
     ]);
     const allCs=csData||[];
     const ld=allCs.filter(e=>e.scope==="local");const gd=allCs.filter(e=>e.scope==="global");
@@ -660,7 +662,7 @@ function ReportsContent(){
   });
   // Load brand metadata
   useEffect(()=>{(async()=>{
-    const{data}=await supabase.from("brand_metadata").select("brand_name,brand_category").eq("project_id",projectId);
+    const{data}=await supabase.from("brand_metadata").select("brand_name,brand_category").eq(filterField,filterValue);
     const map={};(data||[]).forEach(m=>{map[m.brand_name]=m.brand_category;});
     setBrandMetaMap(map);
   })();},[projectId]);
@@ -761,9 +763,10 @@ function ReportsContent(){
       content:report,
       created_by:session?.user?.email||"",
       project_id:projectId,
+      brand_id:brandId,
     };
     await supabase.from("saved_reports").insert(reportObj);
-    const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+    const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);setSaving(false);
     if(openEditor)router.push(`/reports/editor?id=${id}`);
     return reportObj;
@@ -772,7 +775,7 @@ function ReportsContent(){
   const deleteReport=async(id)=>{
     if(!confirm("Delete this report?"))return;
     await supabase.from("saved_reports").delete().eq("id",id);
-    const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+    const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
     if(viewingReport?.id===id)router.push("/reports?tab=archive",{scroll:false});
   };
@@ -1129,7 +1132,7 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
     // Fetch brand profiles for context
     let brandProfileContext="";
     if(competitors.length>0){
-      const{data:bProfiles}=await supabase.from("brand_profiles").select("brand_name,profile_data").eq("project_id",projectId).in("brand_name",competitors).order("created_at",{ascending:false});
+      const{data:bProfiles}=await supabase.from("brand_profiles").select("brand_name,profile_data").eq(filterField,filterValue).in("brand_name",competitors).order("created_at",{ascending:false});
       if(bProfiles&&bProfiles.length>0){
         const seen=new Set();
         const unique=bProfiles.filter(p=>{if(seen.has(p.brand_name))return false;seen.add(p.brand_name);return true;});
@@ -1165,7 +1168,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
 - NEVER put raw IDs in prose. NEVER write "(ID: 883404)".
 - Do NOT place citations inside markdown table rows — only in prose and bullet points.\n\nUse markdown with ## headers, tables, and **bold** key findings. Be analytical and conclusive, not descriptive.`;
     try{
-      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,project_id:projectId,messages:[{role:"user",content:userMsg}]})});
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({use_opus:true,max_tokens:12000,system,project_id:projectId,brand_id:brandId,messages:[{role:"user",content:userMsg}]})});
       const result=await res.json();
       if(result.error){setReport("Error: "+result.error);setGenerating(false);return;}
       const content=result.content?.map(c=>c.text||"").join("")||"No content.";
@@ -1174,9 +1177,9 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
       const{data:{session}}=await supabase.auth.getSession();
       const rTitle=reportTitleRef.current||reportTitle||`${selectedTemplate?.label} — ${new Date().toLocaleDateString()}`;
       const id=String(Date.now());
-      const reportObj={id,title:rTitle,scope:selectedTemplate?.scopeAny?"local":selectedTemplate?.scope||"local",template_type:selectedTemplate?.id||"",sections:sections.join(","),competitors:competitors.join(","),custom_instructions:customInstructions,year_from:yearFrom,year_to:yearTo,content,created_by:session?.user?.email||"",project_id:projectId};
+      const reportObj={id,title:rTitle,scope:selectedTemplate?.scopeAny?"local":selectedTemplate?.scope||"local",template_type:selectedTemplate?.id||"",sections:sections.join(","),competitors:competitors.join(","),custom_instructions:customInstructions,year_from:yearFrom,year_to:yearTo,content,created_by:session?.user?.email||"",project_id:projectId,brand_id:brandId};
       await supabase.from("saved_reports").insert(reportObj);
-      const{data:reports}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+      const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
       setSavedReports(reports||[]);
       setViewingReport(reportObj);
       setReport("");
@@ -1223,7 +1226,7 @@ Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
     console.log("[Showcase] useCSFormat:", useCSFormat, "brands:", brandNames, "scope:", scope, "template_type:", rpt.template_type);
 
     // Get the original entries from creative_source
-    let csQuery = supabase.from("creative_source").select("*").eq("project_id", projectId);
+    let csQuery = supabase.from("creative_source").select("*").eq(filterField, filterValue);
     if (scope === "local") csQuery = csQuery.eq("scope", "local");
     else if (scope === "global") csQuery = csQuery.eq("scope", "global");
     const { data: csEntries } = await csQuery;
@@ -1332,7 +1335,7 @@ RULES:
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt, project_id: projectId, messages: [{ role: "user", content: userMsg }] }),
+        body: JSON.stringify({ use_opus: true, max_tokens: 8000, system: systemPrompt, project_id: projectId, brand_id: brandId, messages: [{ role: "user", content: userMsg }] }),
       });
       const data = await res.json();
       const text = data.content?.[0]?.text || "";
@@ -1345,7 +1348,7 @@ RULES:
       const { data: { session } } = await supabase.auth.getSession();
       const { data: showcase } = await supabase.from("saved_showcases").insert({
         title: parsed.title || rpt.title || "Showcase",
-        project_id: projectId,
+        project_id: projectId, brand_id: brandId,
         slides: parsed.slides || [],
         created_by: session?.user?.email || "",
         filters: {
@@ -1492,7 +1495,7 @@ RULES:
                     {renamingReport===r.id?(
                       <input autoFocus defaultValue={r.title} className="text-sm font-medium text-main bg-surface border border-[var(--accent)] rounded px-2 py-0.5 w-full max-w-[400px] focus:outline-none"
                         onClick={ev=>ev.stopPropagation()}
-                        onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&v!==r.title){await supabase.from("saved_reports").update({title:v}).eq("id",r.id);const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}setRenamingReport(null);}}
+                        onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&v!==r.title){await supabase.from("saved_reports").update({title:v}).eq("id",r.id);const{data}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});setSavedReports(data||[]);}setRenamingReport(null);}}
                         onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();if(ev.key==="Escape")setRenamingReport(null);}}/>
                     ):(
                       <p className="text-sm font-medium text-main cursor-text" onDoubleClick={ev=>{ev.stopPropagation();setRenamingReport(r.id);}}>{r.title}</p>
@@ -1532,7 +1535,7 @@ RULES:
                   <input className="text-2xl font-bold text-main flex-1 min-w-0 bg-transparent focus:outline-none focus:bg-surface focus:px-2 focus:rounded-lg transition-all"
                     defaultValue={viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}
                     key={viewingReport?.id}
-                    onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq("project_id",projectId).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
+                    onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
                     onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();}}
                   />
                   <div className="flex items-center gap-1.5 flex-shrink-0">

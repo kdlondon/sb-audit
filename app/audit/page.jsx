@@ -294,7 +294,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const load=useCallback(async()=>{
     setLoading(true);
-    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).eq("scope",scope).order("created_at",{ascending:false});
+    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq(filterField,filterValue).eq("scope",scope).order("created_at",{ascending:false});
     setData(rows||[]);setLoading(false);setSelected(new Set());setSbRaw(null);
   },[scope]);
 
@@ -403,6 +403,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const{data:{session}}=await supabase.auth.getSession();
       e.created_by=session?.user?.email||"";
       e.project_id=projectId;
+      e.brand_id=brandId;
       e.updated_at=new Date().toISOString();
       const{error}=await supabase.from(table).insert(e);
       if(error){setToast({message:"Error saving: "+error.message});return;}
@@ -514,7 +515,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         setAnalyzing(true);
         try{
           const context=`Document: ${fileName}`;
-          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context,project_id:projectId})});
+          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context,project_id:projectId,brand_id:brandId})});
           if(res.ok){
             const result=await res.json();
             if(result.success&&result.analysis){
@@ -718,7 +719,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           extraImageUrls:extraBase64.length>0?null:extraImgs,
           extraImageBase64:extraBase64,
           context:context.join("\n"),
-          project_id:projectId
+          project_id:projectId,
+          brand_id:brandId
         })
       });
       if(!res.ok){
@@ -1210,7 +1212,9 @@ function AuditPageInner(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
   const[initialEntry,setInitialEntry]=useState(null);
-  const{projectId}=useProject();
+  const{projectId,brandId}=useProject();
+  const filterField=brandId?"brand_id":"project_id";
+  const filterValue=brandId||projectId;
   const handleScopeChange=(s)=>{setScope(s);};
   const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
 

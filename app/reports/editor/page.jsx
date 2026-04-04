@@ -93,7 +93,9 @@ function EditorContent2() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportId = searchParams.get("id");
-  const { projectId } = useProject() || {};
+  const { projectId, brandId } = useProject() || {};
+  const filterField = brandId ? "brand_id" : "project_id";
+  const filterValue = brandId || projectId;
   const { role } = useRole() || {};
   const supabase = createClient();
 
@@ -155,7 +157,7 @@ function EditorContent2() {
         if (editor) editor.commands.setContent(mdToHtml(data.content || ""));
       }
       // Load entries for @ mentions
-      const { data: csData } = await supabase.from("creative_source").select("id,brand_name,scope,competitor,brand,description,year,type,rating,image_url,url,communication_intent").eq("project_id", projectId);
+      const { data: csData } = await supabase.from("creative_source").select("id,brand_name,scope,competitor,brand,description,year,type,rating,image_url,url,communication_intent").eq(filterField, filterValue);
       setAllEntries((csData || []).map(e => ({ ...e, brand: e.brand_name || e.competitor || e.brand })));
       setLoading(false);
     })();
