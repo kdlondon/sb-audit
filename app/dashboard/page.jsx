@@ -284,8 +284,8 @@ function DashboardContent() {
   const brandFilterRef = useRef(null);
 
   const { projectId, brandId } = useProject();
-  const filterField = brandId ? "brand_id" : "project_id";
-  const filterValue = brandId || projectId;
+  const filterField = "project_id"; // Use project_id for data queries during transition
+  const filterValue = projectId || brandId;
   useEffect(() => {
     (async () => {
       const supabase = createClient();

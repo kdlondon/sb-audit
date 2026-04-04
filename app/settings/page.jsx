@@ -152,8 +152,8 @@ function BrandProfileCard({ profile, pagesCrawled }) {
    ═══════════════════════════════════════════════════════════════ */
 function SettingsContent() {
   const { projectId, projectName, brandId } = useProject() || {};
-  const filterField = brandId ? "brand_id" : "project_id";
-  const filterValue = brandId || projectId;
+  const filterField = "project_id"; // Use project_id for data queries during transition
+  const filterValue = projectId || brandId;
   const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
   const BRAND_CATEGORIES = (frameworkLoaded && framework?.brandCategories?.length > 0) ? framework.brandCategories : DEFAULT_BRAND_CATEGORIES;
   const supabase = createClient();

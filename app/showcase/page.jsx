@@ -338,8 +338,8 @@ export default function ShowcasePageWrapper() {
 
 function ShowcasePage() {
   const { projectId, projectName, brandId } = useProject() || {};
-  const filterField = brandId ? "brand_id" : "project_id";
-  const filterValue = brandId || projectId;
+  const filterField = "project_id"; // Use project_id for data queries during transition
+  const filterValue = projectId || brandId;
   const { role } = useRole() || {};
   const router = useRouter();
   const searchParams = useSearchParams();

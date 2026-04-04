@@ -419,8 +419,8 @@ function EntryViewer({entry,onClose}){
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
   const{projectId,projectName,brandId}=useProject()||{};
-  const filterField=brandId?"brand_id":"project_id";
-  const filterValue=brandId||projectId;
+  const filterField="project_id"; // Use project_id for data queries during transition
+  const filterValue=projectId||brandId;
   const{framework,frameworkLoaded,hasDimension}=useFramework()||{};
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");

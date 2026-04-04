@@ -1213,8 +1213,8 @@ function AuditPageInner(){
   const[pendingForm,setPendingForm]=useState(false);
   const[initialEntry,setInitialEntry]=useState(null);
   const{projectId,brandId}=useProject();
-  const filterField=brandId?"brand_id":"project_id";
-  const filterValue=brandId||projectId;
+  const filterField="project_id"; // Use project_id for data queries during transition
+  const filterValue=projectId||brandId;
   const handleScopeChange=(s)=>{setScope(s);};
   const handleAddWithScope=(s)=>{if(s!==scope){setScope(s);setPendingForm(true);}else setPendingForm(true);};
 

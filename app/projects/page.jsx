@@ -72,8 +72,22 @@ export default function ClientDashboard() {
     }
   }, [role, brands, loading]);
 
-  const enterBrand = (b) => {
-    selectBrand(b.id, b.name);
+  const enterBrand = async (b) => {
+    // Find the project_id for this brand (needed for data queries during transition)
+    const { data: cs } = await supabase
+      .from("creative_source")
+      .select("project_id")
+      .eq("brand_id", b.id)
+      .limit(1)
+      .single();
+    const projId = cs?.project_id || null;
+
+    selectBrand(b.id, b.name, projId);
+    // Also set projectId directly for backward compat
+    if (projId) {
+      localStorage.setItem("sb-project-id", projId);
+      localStorage.setItem("sb-project-name", b.name);
+    }
     router.push(role === "client" || role === "viewer" ? "/showcase" : "/audit");
   };
 

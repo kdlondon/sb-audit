@@ -94,8 +94,8 @@ function EditorContent2() {
   const searchParams = useSearchParams();
   const reportId = searchParams.get("id");
   const { projectId, brandId } = useProject() || {};
-  const filterField = brandId ? "brand_id" : "project_id";
-  const filterValue = brandId || projectId;
+  const filterField = "project_id"; // Use project_id for data queries during transition
+  const filterValue = projectId || brandId;
   const { role } = useRole() || {};
   const supabase = createClient();
 
