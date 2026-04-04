@@ -294,7 +294,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const load=useCallback(async()=>{
     setLoading(true);
-    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq(filterField,filterValue).eq("scope",scope).order("created_at",{ascending:false});
+    const{data:rows}=await supabase.from(getTableName(scope)).select("*").eq("project_id",projectId).eq("scope",scope).order("created_at",{ascending:false});
     setData(rows||[]);setLoading(false);setSelected(new Set());setSbRaw(null);
   },[scope]);
 

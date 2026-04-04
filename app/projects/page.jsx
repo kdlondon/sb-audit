@@ -38,7 +38,7 @@ export default function ClientDashboard() {
 
     // Separate own brands from competitors
     const ownBrands = (brandsData || []).filter(b => b.proximity === "own_brand");
-    setBrands(ownBrands.length > 0 ? ownBrands : (brandsData || []).filter(b => b.scope === "local").slice(0, 10));
+    setBrands(ownBrands);
 
     // Count cases per brand
     const { data: entries } = await supabase
@@ -73,17 +73,17 @@ export default function ClientDashboard() {
   }, [role, brands, loading]);
 
   const enterBrand = async (b) => {
-    // Find the project_id for this brand (needed for data queries during transition)
+    // Find project_id from any entry in the same organization
     const { data: cs } = await supabase
       .from("creative_source")
       .select("project_id")
-      .eq("brand_id", b.id)
+      .eq("organization_id", b.organization_id)
+      .not("project_id", "is", null)
       .limit(1)
       .single();
     const projId = cs?.project_id || null;
 
     selectBrand(b.id, b.name, projId);
-    // Also set projectId directly for backward compat
     if (projId) {
       localStorage.setItem("sb-project-id", projId);
       localStorage.setItem("sb-project-name", b.name);
