@@ -98,28 +98,17 @@ export default function Nav() {
             <div className="ai-sparkle" style={{ top: "72%", left: "80%", animationDelay: "0.4s" }} />
           </div>
 
-          {/* Add — chartreuse */}
+          {/* Add — chartreuse — opens form directly (no dropdown) */}
           {canAccess(role, "audit") && (
-            <div className="relative" ref={addRef}>
-              <button onClick={() => setAddMenuOpen(!addMenuOpen)}
-                className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
-                style={{ background: "#D4E520" }}>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#0a0f3c" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
-                <span className="text-[10px] font-bold uppercase tracking-wide overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap" style={{ color: "#0a0f3c" }}>Add</span>
-              </button>
-              {addMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-surface border border-main rounded-xl shadow-2xl overflow-hidden animate-fadeIn" style={{ zIndex: 99999 }}>
-                  <button onClick={() => { setAddMenuOpen(false);
-                    if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"local"}}));}
-                    else{window.location.href="/audit?scope=local&add=1";}
-                  }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition border-b border-main">Local entry</button>
-                  <button onClick={() => { setAddMenuOpen(false);
-                    if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"global"}}));}
-                    else{window.location.href="/audit?scope=global&add=1";}
-                  }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-accent-soft transition">Global entry</button>
-                </div>
-              )}
-            </div>
+            <button onClick={() => {
+              if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"local"}}));}
+              else{window.location.href="/audit?add=1";}
+            }}
+              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
+              style={{ background: "#D4E520" }}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#0a0f3c" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wide overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap" style={{ color: "#0a0f3c" }}>Add</span>
+            </button>
           )}
 
           {/* Chat — blue */}

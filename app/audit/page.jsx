@@ -949,95 +949,143 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             </div>
           </div>
 
-          {/* FORM FIELDS PANEL */}
+          {/* FORM FIELDS PANEL — config-driven from system + custom dimensions */}
           <div className="w-[380px] border-l border-main bg-surface overflow-auto">
             <div className="p-3">
-              {sections.map((s,si)=>(
-                <div key={si} className="mb-1">
-                  <div onClick={()=>setSec(sec===si?-1:si)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${sec===si?"bg-accent-soft text-accent border border-[var(--accent)]":"bg-surface2 border border-main text-main"}`}>
-                    <span>{s.title}</span><span className="text-hint">{sec===si?"−":"+"}</span>
-                  </div>
-                  {sec===si&&(
-                    <div className="py-2 space-y-3">
-                      {s.fields.filter(f=>f.key!=="url"&&f.key!=="image_url"&&f.key!=="transcript"&&f.key!=="analyst_comment").map(f=>(
-                        <div key={f.key} style={fieldStyle(f.key)} className="rounded px-1 -mx-1 transition-all duration-500">
-                          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.label}</label>
-                          {f.key==="country" ? (
-                            <CountryInput
-                              value={cur[f.key]||""}
-                              onChange={v=>setCur({...cur,[f.key]:v})}
-                            />
-                          ) : f.type==="select" && MULTI_SELECT_FIELDS.has(f.key) ? (
-                            <MultiSelect
-                              fieldKey={f.key}
-                              value={cur[f.key]||""}
-                              opts={getOpts(f)}
-                              onChange={v=>setCur({...cur,[f.key]:v})}
-                              projectId={projectId}
-                              optKey={f.optKey||f.key}
-                            />
-                          ) : f.type==="select" ? (
-                            <div>
-                              <select value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
-                                <option value="">—</option>
-                                {getOpts(f).map(o=><option key={o} value={o}>{o}</option>)}
-                              </select>
-                              {cur[f.key]==="Other"&&<input value={cur[f.key+"_other"]||""} onChange={e=>setCur({...cur,[f.key+"_other"]:e.target.value})} placeholder="Specify..." className="w-full mt-1 px-2 py-1 border border-[var(--accent)] rounded text-xs bg-accent-soft text-main" />}
-                            </div>
-                          ) : f.type==="textarea" ? (
-                            <textarea value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} rows={2} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
-                          ) : (
-                            <input value={cur[f.key]||""} onChange={e=>setCur({...cur,[f.key]:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
-                          )}
-                        </div>
-                      ))}
+              {allDimensions.filter(d => d.fields?.length > 0).map((dim, di) => {
+                const isOpen = sec === di;
+                const isCustom = !dim.is_system;
+                // Skip fields already rendered in the left panel (Section A special fields)
+                const skipKeys = new Set(["url", "image_url", "transcript", "analyst_comment", "scope", "brand_name"]);
+                // For Section A (identification), also skip special UI fields
+                if (dim.key === "identification") skipKeys.add("rating");
+
+                return (
+                  <div key={di} className="mb-1">
+                    <div onClick={() => setSec(isOpen ? -1 : di)}
+                      className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${
+                        isOpen
+                          ? isCustom ? "bg-purple-50 text-purple-700 border border-purple-300" : "bg-accent-soft text-accent border border-[var(--accent)]"
+                          : "bg-surface2 border border-main text-main"
+                      }`}>
+                      <span>{dim.name}{isCustom && <span className="text-hint font-normal ml-1">(custom)</span>}</span>
+                      <span className="text-hint">{isOpen ? "−" : "+"}</span>
                     </div>
-                  )}
-                </div>
-              ))}
-              {/* ── Custom dimension sections from brand_frameworks ── */}
-              {allDimensions.filter(d => !d.is_system && d.fields?.length > 0).map((dim, di) => (
-                <div key={`custom_${di}`} className="mb-1">
-                  <div onClick={() => setSec(sec === 100 + di ? -1 : 100 + di)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${sec === 100 + di ? "bg-purple-50 text-purple-700 border border-purple-300" : "bg-surface2 border border-main text-main"}`}>
-                    <span>{dim.name} <span className="text-hint font-normal">(custom)</span></span><span className="text-hint">{sec === 100 + di ? "−" : "+"}</span>
-                  </div>
-                  {sec === 100 + di && (
-                    <div className="py-2 space-y-3">
-                      {dim.fields.map(f => {
-                        const dbKey = f.db_key || f.key;
-                        // Read value from direct column or custom_dimensions JSONB
-                        const val = cur[dbKey] || cur.custom_dimensions?.[f.key] || "";
-                        const setVal = (v) => {
-                          const update = { ...cur, [dbKey]: v };
-                          // Also store in custom_dimensions JSONB
-                          update.custom_dimensions = { ...(cur.custom_dimensions || {}), [f.key]: v };
-                          setCur(update);
-                        };
-                        return (
-                          <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                            <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
-                            {(f.type === "multichoice" || f.type === "single_choice") && f.values?.length > 0 ? (
+                    {isOpen && (
+                      <div className="py-2 space-y-3">
+                        {(dim.fields || []).filter(f => !skipKeys.has(f.key) && !skipKeys.has(f.db_key)).map(f => {
+                          const dbKey = f.db_key || f.key;
+                          const val = cur[dbKey] ?? cur.custom_dimensions?.[f.key] ?? "";
+                          const setVal = (v) => {
+                            const update = { ...cur, [dbKey]: v };
+                            if (isCustom) update.custom_dimensions = { ...(cur.custom_dimensions || {}), [f.key]: v };
+                            setCur(update);
+                          };
+
+                          // Country field — special autocomplete
+                          if (f.type === "country_search") return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <CountryInput value={val} onChange={v => setVal(v)} />
+                            </div>
+                          );
+
+                          // Rating — star selector
+                          if (f.type === "rating") return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <StarRating value={val} onChange={v => setVal(v)} />
+                            </div>
+                          );
+
+                          // Brand selector — conditional on scope
+                          if (f.type === "brand_selector") return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Brand</label>
+                              <input value={cur.competitor || cur.brand_name || cur.brand || ""} onChange={e => {
+                                const v = e.target.value;
+                                setCur({...cur, brand_name: v, competitor: scope === "local" ? v : "", brand: scope === "global" ? v : ""});
+                              }} placeholder={scope === "local" ? "Select competitor..." : "Type brand name..."}
+                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                            </div>
+                          );
+
+                          // Toggle (scope) — render as two buttons
+                          if (f.type === "toggle") return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <div className="flex gap-1">
+                                {(f.values || []).map(v => (
+                                  <button key={v} type="button" onClick={() => {
+                                    const newScope = v;
+                                    if (typeof onScopeChange === "function") onScopeChange(newScope);
+                                    setVal(v);
+                                  }}
+                                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                                      scope === v ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:border-accent/40"
+                                    }`}>
+                                    {v === "local" ? "Local" : "Global"}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+
+                          // Taxonomy — dropdown from taxonomy_terms (fallback to values)
+                          if (f.type === "taxonomy") {
+                            const opts = f.values || OPTIONS[f.taxonomy_type] || OPTIONS[dbKey] || [];
+                            return (
+                              <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <select value={val} onChange={e => setVal(e.target.value)}
+                                  className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                  <option value="">—</option>
+                                  {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              </div>
+                            );
+                          }
+
+                          // URL — text input (skip, handled in left panel)
+                          if (f.type === "url") return null;
+
+                          // Multi-choice or single-choice — use DropdownCheckbox
+                          if ((f.type === "multichoice" || f.type === "single_choice") && f.values?.length > 0) return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <DropdownCheckbox
                                 options={f.values}
-                                selected={val ? val.split(",").map(v => v.trim()).filter(Boolean) : []}
+                                selected={val ? String(val).split(",").map(v => v.trim()).filter(Boolean) : []}
                                 onChange={v => setVal(f.type === "multichoice" ? v.join(", ") : v[0] || "")}
                                 singleChoice={f.type === "single_choice"}
-                                allowOther={true}
+                                allowOther={f.allow_other || false}
                               />
-                            ) : f.type === "textarea" ? (
+                            </div>
+                          );
+
+                          // Textarea
+                          if (f.type === "textarea") return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <textarea value={val} onChange={e => setVal(e.target.value)} rows={2}
                                 className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
-                            ) : (
+                            </div>
+                          );
+
+                          // Default: text input
+                          return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <input value={val} onChange={e => setVal(e.target.value)}
                                 className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div className="p-3 border-t border-main"><button onClick={save} className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">{eid?"Save changes":"Save entry"}</button></div>
           </div>
