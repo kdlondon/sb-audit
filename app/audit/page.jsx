@@ -406,16 +406,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   },[cur.emotional_benefit,cur.rational_benefit,cur.main_vp,cur.insight,cur.r2b]);
   useEffect(()=>{autoFillR2B();},[cur.emotional_benefit,cur.rational_benefit,cur.main_vp]);
 
-  const LOCAL_COLUMNS=["id","created_by","updated_at","competitor","category","description","year","type","xtype","url","image_url","image_urls","funnel","communication_intent","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","rating","analyst_comment","entry_door","experience_reflected","portrait","richness_definition","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim"];
-  const GLOBAL_COLUMNS=[...LOCAL_COLUMNS,"brand","country","category_proximity"];
+  const { getAllFieldKeys: _getAllKeys } = require("@/lib/system-dimensions");
+  const ALL_COLUMNS = _getAllKeys(framework);
+  // Legacy aliases kept for backward compat
+  const LOCAL_COLUMNS = ALL_COLUMNS;
+  const GLOBAL_COLUMNS = ALL_COLUMNS;
 
   const prepareSaveData=(rawCur)=>{
-    const allowed=new Set(scope==="global"?GLOBAL_COLUMNS:LOCAL_COLUMNS);
-    const allFields=getFieldsForScope(scope).flatMap(s=>s.fields);
+    const allowed=new Set(ALL_COLUMNS);
     const merged={...rawCur};
-    allFields.forEach(f=>{
-      if(f.type==="select"&&merged[f.key]==="Other"&&merged[f.key+"_other"]){
-        merged[f.key]=merged[f.key+"_other"];
+    // Handle "Other" overrides from old-style selects
+    Object.keys(merged).forEach(k=>{
+      if(k.endsWith("_other") && merged[k] && merged[k.replace("_other","")]==="Other"){
+        merged[k.replace("_other","")] = merged[k];
       }
     });
     const e={};
@@ -423,10 +426,22 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       if(allowed.has(k)&&!k.endsWith("_other"))e[k]=merged[k];
     });
     delete e.created_at;
-    // [PHASE 0] Add scope and brand_name for creative_source
-    e.scope = scope;
-    e.brand_name = scope === "local" ? (e.competitor || "") : (e.brand || "");
-    e.organization_id = null; // Will be set by trigger or from context
+    // Ensure critical fields
+    e.scope = merged.scope || formScope || "local";
+    e.brand_name = merged.brand_name || (e.scope === "local" ? (merged.competitor || "") : (merged.brand || ""));
+    e.competitor = e.scope === "local" ? (merged.competitor || merged.brand_name || "") : undefined;
+    e.brand = e.scope === "global" ? (merged.brand || merged.brand_name || "") : undefined;
+    e.country = merged.country || "";
+    e.category = merged.category || "";
+    e.sub_category = merged.sub_category || "";
+    e.category_proximity = merged.category_proximity || "";
+    e.insight_type = merged.insight_type || "";
+    e.creative_approach = merged.creative_approach || "";
+    e.custom_dimensions = merged.custom_dimensions || {};
+    e.brand_id = merged.brand_id || brandId || null;
+    e.organization_id = orgId || null;
+    // Clean undefined values
+    Object.keys(e).forEach(k => { if (e[k] === undefined) delete e[k]; });
     return e;
   };
 
@@ -892,7 +907,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-main">{eid?"Edit entry":"New entry"}</h2>
-            <span className="text-xs text-hint bg-accent-soft px-2 py-0.5 rounded font-medium">{scope==="local"?"Local":"Global"}</span>
             {ytLoading&&<span className="text-xs text-accent animate-pulse">Fetching YouTube data...</span>}
             {analyzing&&<span className="text-xs text-accent animate-pulse">AI analyzing...</span>}
           </div>
