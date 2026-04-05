@@ -1198,7 +1198,20 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
 
   // Delete a custom dimension
   const deleteDim = async (idx) => {
-    if (!confirm("Delete this dimension and all its fields?")) return;
+    const dim = customDims[idx];
+    const dimKeys = (dim.fields || []).map(f => f.key);
+    // Check if entries have data for this dimension
+    let entryCount = 0;
+    if (dimKeys.length > 0) {
+      // Count entries where custom_dimensions has any of these keys
+      const { count } = await supabase.from("creative_source").select("*", { count: "exact", head: true })
+        .not("custom_dimensions", "eq", "{}").not("custom_dimensions", "is", null);
+      entryCount = count || 0;
+    }
+    const msg = entryCount > 0
+      ? `This dimension has data in ${entryCount} entries. Deleting it will remove the dimension from the form and AI analysis, but existing data will be preserved in the database. Are you sure?`
+      : "Delete this dimension and all its fields?";
+    if (!confirm(msg)) return;
     const updated = [...customDims];
     updated.splice(idx, 1);
     await saveCustomDims(updated);
@@ -1430,7 +1443,8 @@ function DimensionBuilder({ initial, onSave, onCancel, saving }) {
                 <option value="textarea">Text area</option>
               </select>
               {(f.type === "single_choice" || f.type === "multichoice") && (
-                <input value={(f.values || []).join(", ")} onChange={e => updateField(i, { values: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
+                <input defaultValue={(f.values || []).join(", ")}
+                  onBlur={e => updateField(i, { values: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
                   placeholder="Options (comma-separated)"
                   className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
               )}

@@ -817,6 +817,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setToast({message:"Image cropped"});
   };
 
+  // Sort options alphabetically, "Other"/"None" always at the end
+  const sortOpts = (opts) => {
+    if (!opts || !Array.isArray(opts)) return opts || [];
+    const endItems = ["Other", "- Other", "None", "None identifiable", "Not specific", "Not specified", "Not identifiable"];
+    const normal = opts.filter(o => !endItems.includes(o)).sort((a, b) => a.localeCompare(b));
+    const end = opts.filter(o => endItems.includes(o));
+    return [...normal, ...end];
+  };
+
   const uploadExtraImage=async(file)=>{
     if(!file)return;
     setUploading(true);
@@ -973,9 +982,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 const isOpen = sec === di;
                 const isCustom = !dim.is_system;
                 // Skip fields already rendered in the left panel (Section A special fields)
-                const skipKeys = new Set(["url", "image_url", "transcript", "analyst_comment", "scope", "brand_name"]);
-                // For Section A (identification), also skip special UI fields
-                if (dim.key === "identification") skipKeys.add("rating");
+                const skipKeys = new Set(["url", "image_url", "transcript", "analyst_comment"]);
+                // Rating is rendered inline in Section A via StarRating, not skipped
 
                 return (
                   <div key={di} className="mb-1">
@@ -1078,30 +1086,47 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           if (f.type === "url") return null;
 
                           // Single choice — always native dropdown
-                          if (f.type === "single_choice" && f.values?.length > 0) return (
-                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
-                              <select value={val} onChange={e => setVal(e.target.value)}
-                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
-                                <option value="">—</option>
-                                {f.values.map(o => <option key={o} value={o}>{o}</option>)}
-                                {f.allow_other && <option value="Other">Other</option>}
-                              </select>
-                            </div>
-                          );
+                          if (f.type === "single_choice" && f.values?.length > 0) {
+                            const sorted = sortOpts(f.values);
+                            return (
+                              <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <select value={val} onChange={e => setVal(e.target.value)}
+                                  className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                  <option value="">—</option>
+                                  {sorted.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                                {val === "Other" && (
+                                  <input value={cur[`${dbKey}_other`] || ""} onChange={e => setCur({...cur, [`${dbKey}_other`]: e.target.value})}
+                                    placeholder="Specify..." className="w-full mt-1 px-2 py-1 border border-accent rounded text-xs bg-accent-soft text-main" autoFocus />
+                                )}
+                              </div>
+                            );
+                          }
 
                           // Multi-choice — DropdownCheckbox (≤5 chips, >5 dropdown)
-                          if (f.type === "multichoice" && f.values?.length > 0) return (
-                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
-                              <DropdownCheckbox
-                                options={f.values}
-                                selected={val ? String(val).split(",").map(v => v.trim()).filter(Boolean) : []}
-                                onChange={v => setVal(v.join(", "))}
-                                allowOther={f.allow_other || false}
-                              />
-                            </div>
-                          );
+                          if (f.type === "multichoice" && f.values?.length > 0) {
+                            const sorted = sortOpts(f.values);
+                            return (
+                              <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <DropdownCheckbox
+                                  options={sorted}
+                                  selected={val ? String(val).split(",").map(v => v.trim()).filter(Boolean) : []}
+                                  onChange={v => setVal(v.join(", "))}
+                                  allowOther={f.allow_other || false}
+                                  onOtherAdded={async (newVal) => {
+                                    // Save to taxonomy_terms for this org
+                                    const s = createClient();
+                                    await s.from("taxonomy_terms").insert({
+                                      organization_id: null, taxonomy_type: f.taxonomy_type || dbKey,
+                                      name: newVal, sort_order: 999, is_active: true,
+                                    });
+                                  }}
+                                />
+                              </div>
+                            );
+                          }
 
                           // Textarea
                           if (f.type === "textarea") return (
