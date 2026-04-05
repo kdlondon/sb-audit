@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
+import { SYSTEM_DIMENSIONS } from "@/lib/system-dimensions";
 
 const DEFAULT_BRAND_CATEGORIES = [
   "Traditional Banking",
@@ -1128,139 +1129,325 @@ function SettingsContent() {
       )}
 
       {/* ═══ TAB 4: FRAMEWORK ═══ */}
+      {/* ═══ TAB 4: ANALYSIS FRAMEWORK ═══ */}
       {activeTab === "framework" && (
-        <div className="max-w-3xl mx-auto p-6">
-          <h3 className="text-lg font-bold text-main mb-4">Analysis Framework</h3>
-
-          {!frameworkLoaded ? (
-            <div className="bg-surface border border-main rounded-xl p-6 text-center">
-              <p className="text-muted text-sm mb-2">No framework configured for this project.</p>
-              <p className="text-hint text-xs">Create one through the onboarding flow or contact the K&D team.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Tier Badge */}
-              <div className="bg-surface border border-main rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full ${
-                    framework.tier === "specialist" ? "bg-purple-100 text-purple-800" :
-                    framework.tier === "enhanced" ? "bg-blue-100 text-blue-800" :
-                    "bg-gray-100 text-gray-800"
-                  }`}>
-                    {framework.tier}
-                  </span>
-                  <span className="text-sm font-semibold text-main">{framework.name || "Framework"}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div><span className="text-muted">Industry:</span> <span className="text-main">{framework.industry || "—"}</span></div>
-                  <div><span className="text-muted">Market:</span> <span className="text-main">{framework.primaryMarket || "—"}</span></div>
-                  <div><span className="text-muted">Language:</span> <span className="text-main">{framework.language || "English"}</span></div>
-                  <div><span className="text-muted">Brand:</span> <span className="text-main">{framework.brandName || "—"}</span></div>
-                </div>
-              </div>
-
-              {/* Brand Profile */}
-              <div className="bg-surface border border-main rounded-xl p-5">
-                <h4 className="text-sm font-semibold text-main mb-3">Brand Profile</h4>
-                <div className="space-y-2 text-xs">
-                  {[
-                    ["Description", framework.brandDescription],
-                    ["Positioning", framework.brandPositioning],
-                    ["Differentiator", framework.brandDifferentiator],
-                    ["Audience", framework.brandAudience],
-                    ["Tone", framework.brandTone],
-                  ].filter(([,v]) => v).map(([label, value]) => (
-                    <div key={label}>
-                      <span className="text-muted font-medium">{label}:</span>
-                      <span className="text-main ml-1">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Objectives */}
-              {framework.objectives?.length > 0 && (
-                <div className="bg-surface border border-main rounded-xl p-5">
-                  <h4 className="text-sm font-semibold text-main mb-3">Objectives</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {framework.objectives.map((obj, i) => (
-                      <span key={i} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{obj}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Active Dimensions */}
-              <div className="bg-surface border border-main rounded-xl p-5">
-                <h4 className="text-sm font-semibold text-main mb-3">Standard Dimensions</h4>
-                <div className="flex flex-wrap gap-2">
-                  {(framework.standardDimensions || []).map(dim => (
-                    <span key={dim} className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded-full font-medium">{dim}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Communication Intents */}
-              <div className="bg-surface border border-main rounded-xl p-5">
-                <h4 className="text-sm font-semibold text-main mb-3">Communication Intents</h4>
-                <div className="flex flex-wrap gap-2">
-                  {(framework.communicationIntents || []).map(intent => (
-                    <span key={intent} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">{intent}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Brand Categories */}
-              <div className="bg-surface border border-main rounded-xl p-5">
-                <h4 className="text-sm font-semibold text-main mb-3">Brand Categories</h4>
-                <div className="flex flex-wrap gap-2">
-                  {(framework.brandCategories || []).map(cat => (
-                    <span key={cat} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{cat}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Dimensions (Tier 2+) */}
-              {framework.dimensions?.length > 0 && (
-                <div className="bg-surface border border-main rounded-xl p-5">
-                  <h4 className="text-sm font-semibold text-main mb-3">
-                    {framework.tier === "specialist" ? "Specialist Dimensions" : "Custom Dimensions"}
-                    <span className="text-hint ml-2 font-normal">({framework.dimensions.length})</span>
-                  </h4>
-                  <div className="space-y-3">
-                    {framework.dimensions.map((dim, i) => (
-                      <div key={i} className="border border-main rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-main">{dim.name}</span>
-                          <span className="text-[10px] text-hint font-mono">{dim.key}</span>
-                        </div>
-                        {dim.description && <p className="text-[11px] text-muted mb-2">{dim.description}</p>}
-                        <div className="flex flex-wrap gap-1">
-                          {(dim.values || []).map((v, j) => (
-                            <span key={j} className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded">{v}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Global Markets */}
-              {framework.globalMarkets?.length > 0 && (
-                <div className="bg-surface border border-main rounded-xl p-5">
-                  <h4 className="text-sm font-semibold text-main mb-3">Global Markets</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {framework.globalMarkets.map(m => (
-                      <span key={m} className="text-xs bg-surface2 px-2.5 py-1 rounded-full text-main">{m}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <FrameworkTab brandId={brandId} projectId={projectId} framework={framework} frameworkLoaded={frameworkLoaded} refreshFramework={refreshFramework} />
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FRAMEWORK TAB — System dims (read-only) + Custom dims (editable)
+   ═══════════════════════════════════════════════════════════════ */
+function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshFramework }) {
+  const supabase = createClient();
+  const [expandedDims, setExpandedDims] = useState(new Set());
+  const [editingDim, setEditingDim] = useState(null); // index of custom dim being edited
+  const [newDim, setNewDim] = useState(null); // new dimension being created
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+  const toggleExpand = (key) => setExpandedDims(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+
+  // Custom dimensions from framework (supports both flat and nested)
+  const customDims = framework?.dimensions || [];
+
+  // Get fields for a dimension (supports both formats)
+  const getDimFields = (dim) => {
+    if (dim.fields?.length) return dim.fields; // nested format
+    if (dim.values?.length) return [{ key: dim.key, name: dim.name, type: "single_choice", values: dim.values }]; // flat format
+    return [];
+  };
+
+  const fieldTypeLabel = (type) => {
+    if (type === "single_choice") return "Single choice";
+    if (type === "multichoice") return "Multi-choice";
+    if (type === "textarea") return "Text area";
+    if (type === "toggle") return "Toggle";
+    if (type === "rating") return "Rating";
+    if (type === "brand_selector") return "Brand selector";
+    if (type === "country_search") return "Country search";
+    if (type === "taxonomy") return "Taxonomy dropdown";
+    if (type === "url") return "URL";
+    return "Text";
+  };
+
+  // Save custom dimensions to brand_frameworks
+  const saveCustomDims = async (updatedDims) => {
+    setSaving(true);
+    const fwId = framework?.id;
+    if (fwId) {
+      // Update existing brand_framework
+      await supabase.from("brand_frameworks").update({ custom_dimensions: updatedDims }).eq("id", fwId);
+    } else if (brandId) {
+      // Try project_frameworks fallback
+      await supabase.from("project_frameworks").update({ dimensions: updatedDims }).eq("project_id", projectId);
+    }
+    refreshFramework?.();
+    setSaving(false);
+    showToast("Framework saved");
+    setEditingDim(null);
+    setNewDim(null);
+  };
+
+  // Delete a custom dimension
+  const deleteDim = async (idx) => {
+    if (!confirm("Delete this dimension and all its fields?")) return;
+    const updated = [...customDims];
+    updated.splice(idx, 1);
+    await saveCustomDims(updated);
+  };
+
+  // Save edited dimension
+  const saveDimEdit = async (idx, dimData) => {
+    const updated = [...customDims];
+    updated[idx] = dimData;
+    await saveCustomDims(updated);
+  };
+
+  // Add new dimension
+  const saveNewDim = async (dimData) => {
+    const updated = [...customDims, { ...dimData, sort_order: customDims.length + 100 }];
+    await saveCustomDims(updated);
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto p-6">
+      <h3 className="text-lg font-bold text-main mb-2">Analysis Framework</h3>
+      <p className="text-xs text-muted mb-6">Dimensions define the structure of your audit form and AI analysis. System dimensions are always present. Custom dimensions are specific to this brand.</p>
+
+      {/* ── SECTION 1: System dimensions (read-only) ── */}
+      <div className="mb-8">
+        <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Groundwork dimensions</h4>
+        <div className="space-y-2">
+          {SYSTEM_DIMENSIONS.map(dim => {
+            const isOpen = expandedDims.has(dim.key);
+            const fieldCount = dim.fields?.length || 0;
+            return (
+              <div key={dim.key} className="bg-surface border border-main rounded-xl overflow-hidden">
+                <button onClick={() => toggleExpand(dim.key)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-surface2 transition">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-main">{dim.name}</span>
+                    <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{fieldCount} fields</span>
+                    <span className="text-[9px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full font-medium">System</span>
+                  </div>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition ${isOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3"/></svg>
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-3 border-t border-main">
+                    {dim.description && <p className="text-[11px] text-muted mt-2 mb-3">{dim.description}</p>}
+                    <div className="space-y-1.5">
+                      {(dim.fields || []).map(f => (
+                        <div key={f.key} className="flex items-center gap-3 py-1 text-xs">
+                          <span className="text-main font-medium w-40">{f.name}</span>
+                          <span className="text-hint">{fieldTypeLabel(f.type)}</span>
+                          {f.values && <span className="text-hint ml-auto truncate max-w-[200px]">{f.values.length} options</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── SECTION 2: Custom dimensions (editable) ── */}
+      <div>
+        <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Your personalised dimensions</h4>
+
+        {customDims.length === 0 && !newDim && (
+          <div className="bg-surface border border-dashed border-main rounded-xl p-6 text-center mb-4">
+            <p className="text-sm text-muted mb-2">No custom dimensions configured</p>
+            <p className="text-xs text-hint">Add dimensions to create additional analysis fields specific to your brand.</p>
+          </div>
+        )}
+
+        <div className="space-y-2 mb-4">
+          {customDims.map((dim, idx) => {
+            const isOpen = expandedDims.has(`custom_${idx}`);
+            const fields = getDimFields(dim);
+            const isEditing = editingDim === idx;
+
+            return (
+              <div key={idx} className="bg-surface border border-main rounded-xl overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <button onClick={() => toggleExpand(`custom_${idx}`)} className="flex items-center gap-2 flex-1 text-left">
+                    <span className="text-sm font-semibold text-main">{dim.name}</span>
+                    <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{fields.length} fields</span>
+                    <span className="text-[9px] bg-purple-50 text-purple-500 px-1.5 py-0.5 rounded-full font-medium">Custom</span>
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setEditingDim(isEditing ? null : idx); toggleExpand(`custom_${idx}`); }}
+                      className="text-[10px] text-accent hover:underline px-1">Edit</button>
+                    <button onClick={() => deleteDim(idx)}
+                      className="text-[10px] text-red-400 hover:text-red-600 px-1">Delete</button>
+                    <svg onClick={() => toggleExpand(`custom_${idx}`)} width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition cursor-pointer ${isOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3"/></svg>
+                  </div>
+                </div>
+
+                {isOpen && !isEditing && (
+                  <div className="px-4 pb-3 border-t border-main">
+                    {dim.description && <p className="text-[11px] text-muted mt-2 mb-2">{dim.description}</p>}
+                    {dim.classification_rules && <p className="text-[10px] text-hint italic mb-2">Rules: {dim.classification_rules}</p>}
+                    <div className="space-y-1.5">
+                      {fields.map(f => (
+                        <div key={f.key} className="flex items-start gap-3 py-1 text-xs">
+                          <span className="text-main font-medium w-36 flex-shrink-0">{f.name}</span>
+                          <span className="text-hint">{fieldTypeLabel(f.type)}</span>
+                          {f.values && (
+                            <div className="flex flex-wrap gap-1 ml-auto">
+                              {f.values.map((v, vi) => (
+                                <span key={vi} className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded">{v}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isEditing && (
+                  <DimensionBuilder
+                    initial={dim}
+                    onSave={(data) => saveDimEdit(idx, data)}
+                    onCancel={() => setEditingDim(null)}
+                    saving={saving}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* New dimension builder */}
+        {newDim ? (
+          <div className="bg-surface border border-accent rounded-xl overflow-hidden">
+            <DimensionBuilder
+              initial={newDim}
+              onSave={(data) => saveNewDim(data)}
+              onCancel={() => setNewDim(null)}
+              saving={saving}
+            />
+          </div>
+        ) : (
+          <button onClick={() => setNewDim({ key: "", name: "", description: "", fields: [], classification_rules: "" })}
+            className="text-xs text-accent hover:underline font-medium">
+            + New dimension
+          </button>
+        )}
+      </div>
+
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-main text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-xl animate-fadeIn" style={{ zIndex: 99999 }}>{toast}</div>}
+    </div>
+  );
+}
+
+/* ── Dimension Builder (inline editor for custom dimensions) ── */
+function DimensionBuilder({ initial, onSave, onCancel, saving }) {
+  const [name, setName] = useState(initial?.name || "");
+  const [description, setDescription] = useState(initial?.description || "");
+  const [rules, setRules] = useState(initial?.classification_rules || "");
+  const [fields, setFields] = useState(initial?.fields || []);
+
+  const addField = () => {
+    setFields([...fields, { key: "", name: "", type: "text", values: [] }]);
+  };
+
+  const updateField = (idx, updates) => {
+    const updated = [...fields];
+    updated[idx] = { ...updated[idx], ...updates };
+    // Auto-generate key from name
+    if (updates.name && !updated[idx].key) {
+      updated[idx].key = updates.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+    }
+    setFields(updated);
+  };
+
+  const removeField = (idx) => setFields(fields.filter((_, i) => i !== idx));
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const key = initial?.key || name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+    onSave({
+      key,
+      name: name.trim(),
+      description: description.trim(),
+      classification_rules: rules.trim(),
+      fields: fields.map(f => ({
+        ...f,
+        key: f.key || f.name.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+        name: f.name.trim(),
+      })).filter(f => f.name),
+      sort_order: initial?.sort_order || 100,
+    });
+  };
+
+  return (
+    <div className="px-4 py-4 border-t border-main space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Dimension name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Target"
+            className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
+        </div>
+        <div>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Description</label>
+          <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description"
+            className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Classification rules (for AI)</label>
+        <textarea value={rules} onChange={e => setRules(e.target.value)} rows={2}
+          placeholder="Instructions for AI on how to classify these fields..."
+          className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent resize-none" />
+      </div>
+
+      {/* Fields */}
+      <div>
+        <label className="block text-[9px] text-hint uppercase font-semibold mb-2">Fields</label>
+        <div className="space-y-2">
+          {fields.map((f, i) => (
+            <div key={i} className="flex gap-2 items-start bg-surface2 rounded-lg p-2">
+              <input value={f.name} onChange={e => updateField(i, { name: e.target.value })}
+                placeholder="Field name" className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
+              <select value={f.type} onChange={e => updateField(i, { type: e.target.value })}
+                className="px-2 py-1 bg-surface border border-main rounded text-xs text-main w-28">
+                <option value="text">Text</option>
+                <option value="single_choice">Single choice</option>
+                <option value="multichoice">Multi-choice</option>
+                <option value="textarea">Text area</option>
+              </select>
+              {(f.type === "single_choice" || f.type === "multichoice") && (
+                <input value={(f.values || []).join(", ")} onChange={e => updateField(i, { values: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
+                  placeholder="Options (comma-separated)"
+                  className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
+              )}
+              <button onClick={() => removeField(i)} className="text-red-400 hover:text-red-600 text-sm px-1">×</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addField} className="text-xs text-accent hover:underline mt-2">+ Add field</button>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button onClick={handleSave} disabled={saving || !name.trim()}
+          className="px-4 py-1.5 bg-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40">
+          {saving ? "Saving..." : "Save"}
+        </button>
+        <button onClick={onCancel} className="px-4 py-1.5 border border-main rounded-lg text-xs text-muted hover:text-main">Cancel</button>
+      </div>
     </div>
   );
 }
