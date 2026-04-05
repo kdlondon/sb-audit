@@ -323,19 +323,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         });
         setTaxonomyTerms(grouped);
       }
-      // Local competitors for brand dropdown
+      // Competitors for brand dropdowns
       if(brandId){
         const{data:comps}=await s.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id",brandId);
         if(comps?.length){
           const compIds=comps.map(c=>c.competitor_brand_id);
-          const{data:brands}=await s.from("brands").select("id,name").in("id",compIds).order("name");
-          setLocalCompetitors(brands||[]);
+          // Local competitors (scope=local only, excludes own brand)
+          const{data:localB}=await s.from("brands").select("id,name").in("id",compIds).eq("scope","local").order("name");
+          setLocalCompetitors(localB||[]);
+          // Global brands from same competitor set (scope=global)
+          const{data:globalB}=await s.from("brands").select("id,name").in("id",compIds).eq("scope","global").order("name");
+          setGlobalBrands(globalB||[]);
         }
-      }
-      // Global brands for type-ahead
-      if(orgId){
-        const{data:gb}=await s.from("brands").select("id,name").eq("organization_id",orgId).eq("scope","global").order("name");
-        setGlobalBrands(gb||[]);
       }
     })();
   },[load]);
@@ -353,10 +352,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     if(!editParam)return;
     if(editParam==="new"){
       // Pre-fill defaults from active brand
-      const defaults = { scope: formScope };
-      if(brand?.market) defaults.country = brand.market;
-      if(brand?.category) defaults.category = brand.category;
-      setCur(defaults);
+      (async()=>{
+        const defaults = { scope: formScope };
+        if(brandId){
+          const s=createClient();
+          const{data:ownBrand}=await s.from("brands").select("market,category").eq("id",brandId).single();
+          if(ownBrand?.market) defaults.country = ownBrand.market;
+          if(ownBrand?.category) defaults.category = ownBrand.category;
+        } else {
+          if(brand?.market) defaults.country = brand.market;
+          if(brand?.category) defaults.category = brand.category;
+        }
+        setCur(defaults);
+      })();
       setMaterialType("none");
       return;
     }
@@ -1127,7 +1135,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                             } else {
                               opts = (taxonomyTerms[f.taxonomy_type] || []).map(t => t.name);
                             }
-                            if (opts.length === 0) opts = OPTIONS[dbKey] || [];
+                            // Only use OPTIONS fallback for non-taxonomy fields
+                            if (opts.length === 0 && f.taxonomy_type !== "sub_category") opts = OPTIONS[dbKey] || [];
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                                 <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
