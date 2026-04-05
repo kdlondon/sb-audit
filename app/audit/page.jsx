@@ -259,6 +259,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [localCompetitors, setLocalCompetitors] = useState([]);
   const [globalBrands, setGlobalBrands] = useState([]);
   const [formScope, setFormScope] = useState(scope || "local");
+  const [globalBrandConfirmed, setGlobalBrandConfirmed] = useState(false);
   const [cur,setCur]=useState({});
   const router=useRouter();
   const searchParams=useSearchParams();
@@ -1076,17 +1077,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                 <div className="relative">
                                   <input value={cur.brand || cur.brand_name || ""} onChange={e => {
                                     const v = e.target.value;
+                                    setGlobalBrandConfirmed(false);
                                     setCur({...cur, brand_name: v, brand: v, scope: "global"});
                                   }} placeholder="Type brand name..."
                                     className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
-                                  {cur.brand && cur.brand.length > 1 && (
+                                  {cur.brand && cur.brand.length > 1 && !globalBrandConfirmed && (
                                     <div className="absolute z-40 mt-1 w-full bg-surface border border-main rounded-lg shadow-lg max-h-32 overflow-auto">
                                       {globalBrands.filter(b => b.name.toLowerCase().includes((cur.brand||"").toLowerCase())).slice(0,5).map(b => (
-                                        <button key={b.id} type="button" onClick={() => setCur({...cur, brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global"})}
+                                        <button key={b.id} type="button" onClick={() => { setCur({...cur, brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global"}); setGlobalBrandConfirmed(true); }}
                                           className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent-soft transition text-main">{b.name}</button>
                                       ))}
                                       {!globalBrands.some(b => b.name.toLowerCase() === (cur.brand||"").toLowerCase()) && cur.brand.length > 2 && (
-                                        <button type="button" onClick={() => setCur({...cur, brand_name: cur.brand, scope: "global"})}
+                                        <button type="button" onClick={() => { setCur({...cur, brand_name: cur.brand, scope: "global"}); setGlobalBrandConfirmed(true); }}
                                           className="w-full text-left px-3 py-1.5 text-xs text-accent hover:bg-accent-soft transition font-medium">
                                           + Create "{cur.brand}" as new brand
                                         </button>
@@ -1106,10 +1108,13 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                 {(f.values || []).map(v => (
                                   <button key={v} type="button" onClick={() => {
                                     setFormScope(v);
-                                    setCur(prev => ({...prev, scope: v}));
-                                    // Pre-fill country when switching to local
-                                    if (v === "local" && brand?.market) {
-                                      setCur(prev => ({...prev, scope: v, country: prev.country || brand.market}));
+                                    setGlobalBrandConfirmed(false);
+                                    if (v === "local") {
+                                      // Pre-fill country + category for local
+                                      setCur(prev => ({...prev, scope: v, country: brand?.market || prev.country || "", category: brand?.category || prev.category || ""}));
+                                    } else {
+                                      // Clear country for global — user fills manually
+                                      setCur(prev => ({...prev, scope: v, country: "", competitor: "", brand: "", brand_name: ""}));
                                     }
                                   }}
                                     className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
