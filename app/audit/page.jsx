@@ -250,9 +250,15 @@ function MultiSelect({ fieldKey, value, opts, onChange, projectId, optKey }) {
 
 function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry}){
   const {framework,frameworkLoaded}=useFramework()||{};
+  const {brandId,brand}=require("@/lib/brand-context").useBrand()||{};
+  const {activeOrg}=require("@/lib/role-context").useRole()||{};
+  const orgId=activeOrg?.id;
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
+  const [localCompetitors, setLocalCompetitors] = useState([]);
+  const [globalBrands, setGlobalBrands] = useState([]);
+  const [formScope, setFormScope] = useState(scope || "local");
   const [cur,setCur]=useState({});
   const router=useRouter();
   const searchParams=useSearchParams();
@@ -304,9 +310,10 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   useEffect(()=>{
     load();
     fetchOptions(projectId).then(o=>setOPTIONS(o));
-    // Load taxonomy terms for category/sub_category dropdowns
+    // Load taxonomy terms + competitors + brand defaults
     (async()=>{
       const s=createClient();
+      // Taxonomy terms
       const{data:terms}=await s.from("taxonomy_terms").select("*").eq("is_active",true).order("sort_order");
       if(terms){
         const grouped={};
@@ -315,6 +322,20 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           grouped[t.taxonomy_type].push({...t});
         });
         setTaxonomyTerms(grouped);
+      }
+      // Local competitors for brand dropdown
+      if(brandId){
+        const{data:comps}=await s.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id",brandId);
+        if(comps?.length){
+          const compIds=comps.map(c=>c.competitor_brand_id);
+          const{data:brands}=await s.from("brands").select("id,name").in("id",compIds).order("name");
+          setLocalCompetitors(brands||[]);
+        }
+      }
+      // Global brands for type-ahead
+      if(orgId){
+        const{data:gb}=await s.from("brands").select("id,name").eq("organization_id",orgId).eq("scope","global").order("name");
+        setGlobalBrands(gb||[]);
       }
     })();
   },[load]);
@@ -330,7 +351,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   // Sync form from URL editParam (browser back/forward)
   useEffect(()=>{
     if(!editParam)return;
-    if(editParam==="new"){setCur({});setMaterialType("none");return;}
+    if(editParam==="new"){
+      // Pre-fill defaults from active brand
+      const defaults = { scope: formScope };
+      if(brand?.market) defaults.country = brand.market;
+      if(brand?.category) defaults.category = brand.category;
+      setCur(defaults);
+      setMaterialType("none");
+      return;
+    }
     const entry=data.find(x=>x.id===editParam);
     if(entry){
       setCur({...entry});
@@ -1027,27 +1056,56 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           if (f.type === "brand_selector") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                               <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Brand</label>
-                              <input value={cur.competitor || cur.brand_name || cur.brand || ""} onChange={e => {
-                                const v = e.target.value;
-                                setCur({...cur, brand_name: v, competitor: scope === "local" ? v : "", brand: scope === "global" ? v : ""});
-                              }} placeholder={scope === "local" ? "Select competitor..." : "Type brand name..."}
-                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                              {formScope === "local" ? (
+                                <select value={cur.competitor || cur.brand_name || ""} onChange={e => {
+                                  const v = e.target.value;
+                                  setCur({...cur, brand_name: v, competitor: v, scope: "local"});
+                                }} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                  <option value="">— Select competitor —</option>
+                                  {localCompetitors.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                                </select>
+                              ) : (
+                                <div className="relative">
+                                  <input value={cur.brand || cur.brand_name || ""} onChange={e => {
+                                    const v = e.target.value;
+                                    setCur({...cur, brand_name: v, brand: v, scope: "global"});
+                                  }} placeholder="Type brand name..."
+                                    className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                                  {cur.brand && cur.brand.length > 1 && (
+                                    <div className="absolute z-40 mt-1 w-full bg-surface border border-main rounded-lg shadow-lg max-h-32 overflow-auto">
+                                      {globalBrands.filter(b => b.name.toLowerCase().includes((cur.brand||"").toLowerCase())).slice(0,5).map(b => (
+                                        <button key={b.id} type="button" onClick={() => setCur({...cur, brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global"})}
+                                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent-soft transition text-main">{b.name}</button>
+                                      ))}
+                                      {!globalBrands.some(b => b.name.toLowerCase() === (cur.brand||"").toLowerCase()) && cur.brand.length > 2 && (
+                                        <button type="button" onClick={() => setCur({...cur, brand_name: cur.brand, scope: "global"})}
+                                          className="w-full text-left px-3 py-1.5 text-xs text-accent hover:bg-accent-soft transition font-medium">
+                                          + Create "{cur.brand}" as new brand
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
 
-                          // Toggle (scope) — render as two buttons
+                          // Toggle (scope) — two buttons, state only (no page reload)
                           if (f.type === "toggle") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                               <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <div className="flex gap-1">
                                 {(f.values || []).map(v => (
                                   <button key={v} type="button" onClick={() => {
-                                    const newScope = v;
-                                    if (typeof onScopeChange === "function") onScopeChange(newScope);
-                                    setVal(v);
+                                    setFormScope(v);
+                                    setCur(prev => ({...prev, scope: v}));
+                                    // Pre-fill country when switching to local
+                                    if (v === "local" && brand?.market) {
+                                      setCur(prev => ({...prev, scope: v, country: prev.country || brand.market}));
+                                    }
                                   }}
                                     className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                                      scope === v ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:border-accent/40"
+                                      formScope === v ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:border-accent/40"
                                     }`}>
                                     {v === "local" ? "Local" : "Global"}
                                   </button>
