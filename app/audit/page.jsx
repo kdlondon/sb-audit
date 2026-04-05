@@ -11,6 +11,8 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import dynamic from "next/dynamic";
 const ImageCropper = dynamic(() => import("@/components/ImageCropper"), { ssr: false });
+import DropdownCheckbox, { StarRating } from "@/components/DropdownCheckbox";
+import { getFieldValue } from "@/lib/system-dimensions";
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
 function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);return m?m[1]:null;}
@@ -811,6 +813,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setUploading(false);
   };
   const sections=frameworkLoaded?getSections(framework,scope):getFieldsForScope(scope);
+  // Phase 1.5: load all dimensions for the config-driven form
+  const { getAllDimensions: _getAllDims } = require("@/lib/system-dimensions");
+  const allDimensions = _getAllDims(framework);
   const fieldStyle=(key)=>highlighted.has(key)?{background:"var(--accent-soft)",borderColor:"var(--accent)",transition:"background 0.3s"}:{};
 
   if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
@@ -986,6 +991,49 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {/* ── Custom dimension sections from brand_frameworks ── */}
+              {allDimensions.filter(d => !d.is_system && d.fields?.length > 0).map((dim, di) => (
+                <div key={`custom_${di}`} className="mb-1">
+                  <div onClick={() => setSec(sec === 100 + di ? -1 : 100 + di)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${sec === 100 + di ? "bg-purple-50 text-purple-700 border border-purple-300" : "bg-surface2 border border-main text-main"}`}>
+                    <span>{dim.name} <span className="text-hint font-normal">(custom)</span></span><span className="text-hint">{sec === 100 + di ? "−" : "+"}</span>
+                  </div>
+                  {sec === 100 + di && (
+                    <div className="py-2 space-y-3">
+                      {dim.fields.map(f => {
+                        const dbKey = f.db_key || f.key;
+                        // Read value from direct column or custom_dimensions JSONB
+                        const val = cur[dbKey] || cur.custom_dimensions?.[f.key] || "";
+                        const setVal = (v) => {
+                          const update = { ...cur, [dbKey]: v };
+                          // Also store in custom_dimensions JSONB
+                          update.custom_dimensions = { ...(cur.custom_dimensions || {}), [f.key]: v };
+                          setCur(update);
+                        };
+                        return (
+                          <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                            <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                            {(f.type === "multichoice" || f.type === "single_choice") && f.values?.length > 0 ? (
+                              <DropdownCheckbox
+                                options={f.values}
+                                selected={val ? val.split(",").map(v => v.trim()).filter(Boolean) : []}
+                                onChange={v => setVal(f.type === "multichoice" ? v.join(", ") : v[0] || "")}
+                                singleChoice={f.type === "single_choice"}
+                                allowOther={true}
+                              />
+                            ) : f.type === "textarea" ? (
+                              <textarea value={val} onChange={e => setVal(e.target.value)} rows={2}
+                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
+                            ) : (
+                              <input value={val} onChange={e => setVal(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
