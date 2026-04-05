@@ -252,6 +252,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const {framework,frameworkLoaded}=useFramework()||{};
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
+  const [taxonomyTerms, setTaxonomyTerms] = useState({});
   const [cur,setCur]=useState({});
   const router=useRouter();
   const searchParams=useSearchParams();
@@ -300,7 +301,23 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setData(rows||[]);setLoading(false);setSelected(new Set());setSbRaw(null);
   },[scope]);
 
-  useEffect(()=>{load();fetchOptions(projectId).then(o=>setOPTIONS(o));},[load]);
+  useEffect(()=>{
+    load();
+    fetchOptions(projectId).then(o=>setOPTIONS(o));
+    // Load taxonomy terms for category/sub_category dropdowns
+    (async()=>{
+      const s=createClient();
+      const{data:terms}=await s.from("taxonomy_terms").select("*").eq("is_active",true).order("sort_order");
+      if(terms){
+        const grouped={};
+        terms.forEach(t=>{
+          if(!grouped[t.taxonomy_type])grouped[t.taxonomy_type]=[];
+          grouped[t.taxonomy_type].push({...t});
+        });
+        setTaxonomyTerms(grouped);
+      }
+    })();
+  },[load]);
 
   // Sync sidebar from URL entryParam (browser back/forward)
   useEffect(()=>{
@@ -1033,7 +1050,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
                           // Taxonomy — dropdown from taxonomy_terms (fallback to values)
                           if (f.type === "taxonomy") {
-                            const opts = f.values || OPTIONS[f.taxonomy_type] || OPTIONS[dbKey] || [];
+                            let opts = [];
+                            if (f.taxonomy_type === "sub_category" && f.parent_key) {
+                              // Filter sub-categories by selected parent category
+                              const parentVal = cur[f.parent_key] || cur.category || "";
+                              const parentTerm = (taxonomyTerms.category || []).find(t => t.name === parentVal);
+                              if (parentTerm) {
+                                opts = (taxonomyTerms.sub_category || []).filter(t => t.parent_id === parentTerm.id).map(t => t.name);
+                              }
+                            } else {
+                              opts = (taxonomyTerms[f.taxonomy_type] || []).map(t => t.name);
+                            }
+                            if (opts.length === 0) opts = OPTIONS[dbKey] || [];
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                                 <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
@@ -1049,15 +1077,27 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           // URL — text input (skip, handled in left panel)
                           if (f.type === "url") return null;
 
-                          // Multi-choice or single-choice — use DropdownCheckbox
-                          if ((f.type === "multichoice" || f.type === "single_choice") && f.values?.length > 0) return (
+                          // Single choice — always native dropdown
+                          if (f.type === "single_choice" && f.values?.length > 0) return (
+                            <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
+                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <select value={val} onChange={e => setVal(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                <option value="">—</option>
+                                {f.values.map(o => <option key={o} value={o}>{o}</option>)}
+                                {f.allow_other && <option value="Other">Other</option>}
+                              </select>
+                            </div>
+                          );
+
+                          // Multi-choice — DropdownCheckbox (≤5 chips, >5 dropdown)
+                          if (f.type === "multichoice" && f.values?.length > 0) return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                               <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <DropdownCheckbox
                                 options={f.values}
                                 selected={val ? String(val).split(",").map(v => v.trim()).filter(Boolean) : []}
-                                onChange={v => setVal(f.type === "multichoice" ? v.join(", ") : v[0] || "")}
-                                singleChoice={f.type === "single_choice"}
+                                onChange={v => setVal(v.join(", "))}
                                 allowOther={f.allow_other || false}
                               />
                             </div>
