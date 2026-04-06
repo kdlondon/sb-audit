@@ -299,7 +299,20 @@ function DashboardContent() {
       setLocalData(local); setGlobalData(global);
       const map = {}; (meta || []).forEach(m => { map[m.brand_name] = m.brand_category; });
       setBrandMetaMap(map);
-      const opts = await fetchOptions(projectId); setOPTIONS(opts);
+      const opts = await fetchOptions(projectId);
+      // Override competitor list from brand_competitors with scope
+      if (brandId) {
+        const { data: compLinks } = await supabase.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id", brandId);
+        if (compLinks?.length) {
+          const compIds = compLinks.map(c => c.competitor_brand_id);
+          const { data: compBrands } = await supabase.from("brands").select("id, name, scope").in("id", compIds).order("name");
+          if (compBrands) {
+            opts.competitor = compBrands.map(b => b.name);
+            opts._competitorFull = compBrands;
+          }
+        }
+      }
+      setOPTIONS(opts);
       setLoading(false);
     })();
   }, [projectId]);
@@ -316,9 +329,18 @@ function DashboardContent() {
   const scopedData = scope === "local" ? localData : scope === "global" ? globalData : [...localData, ...globalData];
   const brandField = scopedData.some(e => e.competitor) ? "competitor" : "brand";
 
+  // Brand list from brand_competitors — filtered by scope
   const brandSet = new Set();
-  scopedData.forEach(e => { const b = e.competitor || e.brand; if (b) brandSet.add(b); });
-  (OPTIONS.competitor || []).filter(v => v !== "Other").forEach(b => brandSet.add(b));
+  const fullComps = OPTIONS._competitorFull || [];
+  if (fullComps.length > 0) {
+    const scopeFiltered = scope === "local" ? fullComps.filter(b => b.scope === "local")
+      : scope === "global" ? fullComps.filter(b => b.scope === "global")
+      : fullComps;
+    scopeFiltered.forEach(b => brandSet.add(b.name));
+  } else {
+    // Fallback: from entries
+    scopedData.forEach(e => { const b = e.competitor || e.brand_name || e.brand; if (b) brandSet.add(b); });
+  }
   const catOrder = ["Traditional Banking", "Fintech", "Neobank", "Credit Union", "Supplementary Services", "Non-financial", "Other"];
   const groupedBrands = (() => {
     const groups = {};
@@ -327,7 +349,7 @@ function DashboardContent() {
   })();
   const allBrands = groupedBrands.flatMap(g => g.brands);
 
-  const data = selectedBrands.length > 0 ? scopedData.filter(e => { const b = e.competitor || e.brand; return b && selectedBrands.includes(b); }) : scopedData;
+  const data = selectedBrands.length > 0 ? scopedData.filter(e => { const b = e.competitor || e.brand_name || e.brand; return b && selectedBrands.includes(b); }) : scopedData;
   const rated = data.filter(e => e.rating);
   const avgRating = rated.length > 0 ? (rated.reduce((s, e) => s + Number(e.rating), 0) / rated.length).toFixed(1) : "—";
   const brands = [...new Set(data.map(e => e.competitor || e.brand).filter(Boolean))];
