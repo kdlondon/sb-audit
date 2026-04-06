@@ -415,11 +415,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const prepareSaveData=(rawCur)=>{
     const allowed=new Set(ALL_COLUMNS);
     const merged={...rawCur};
-    // Handle "Other" overrides from old-style selects
+    // Handle "Other" overrides from selects
     Object.keys(merged).forEach(k=>{
-      if(k.endsWith("_other") && merged[k] && merged[k.replace("_other","")]==="Other"){
-        merged[k.replace("_other","")] = merged[k];
+      if(k.endsWith("_other") && merged[k]){
+        const baseKey = k.replace("_other","");
+        if(merged[baseKey]==="Other" || merged[baseKey]==="__other__"){
+          merged[baseKey] = merged[k];
+        }
       }
+    });
+    // Clean __other__ sentinel values
+    Object.keys(merged).forEach(k=>{
+      if(merged[k]==="__other__") merged[k] = "";
     });
     const e={};
     Object.keys(merged).forEach(k=>{
@@ -1145,26 +1152,56 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           // Taxonomy — dropdown from taxonomy_terms (fallback to values)
                           if (f.type === "taxonomy") {
                             let opts = [];
+                            let parentTermId = null;
                             if (f.taxonomy_type === "sub_category" && f.parent_key) {
-                              // Filter sub-categories by selected parent category
                               const parentVal = cur[f.parent_key] || cur.category || "";
                               const parentTerm = (taxonomyTerms.category || []).find(t => t.name === parentVal);
                               if (parentTerm) {
+                                parentTermId = parentTerm.id;
                                 opts = (taxonomyTerms.sub_category || []).filter(t => t.parent_id === parentTerm.id).map(t => t.name);
                               }
                             } else {
                               opts = (taxonomyTerms[f.taxonomy_type] || []).map(t => t.name);
                             }
-                            // Only use OPTIONS fallback for non-taxonomy fields
                             if (opts.length === 0 && f.taxonomy_type !== "sub_category") opts = OPTIONS[dbKey] || [];
+                            const sorted = sortOpts(opts);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                                 <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                                 <select value={val} onChange={e => setVal(e.target.value)}
                                   className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
                                   <option value="">—</option>
-                                  {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                                  {sorted.map(o => <option key={o} value={o}>{o}</option>)}
+                                  <option value="__other__">- Other</option>
                                 </select>
+                                {val === "__other__" && (
+                                  <input value={cur[`${dbKey}_other`] || ""} onChange={e => setCur({...cur, [`${dbKey}_other`]: e.target.value})}
+                                    onBlur={async (e) => {
+                                      const newVal = e.target.value.trim();
+                                      if (!newVal) return;
+                                      // Save to taxonomy_terms
+                                      const s = createClient();
+                                      const insertData = {
+                                        organization_id: orgId || null,
+                                        taxonomy_type: f.taxonomy_type,
+                                        name: newVal,
+                                        sort_order: 999,
+                                        is_active: true,
+                                      };
+                                      if (f.taxonomy_type === "sub_category" && parentTermId) {
+                                        insertData.parent_id = parentTermId;
+                                      }
+                                      await s.from("taxonomy_terms").insert(insertData);
+                                      // Set the actual value and clear __other__
+                                      setVal(newVal);
+                                      setCur(prev => ({...prev, [dbKey]: newVal, [`${dbKey}_other`]: ""}));
+                                      // Refresh taxonomy
+                                      const{data:terms}=await s.from("taxonomy_terms").select("*").eq("is_active",true).order("sort_order");
+                                      if(terms){const grouped={};terms.forEach(t=>{if(!grouped[t.taxonomy_type])grouped[t.taxonomy_type]=[];grouped[t.taxonomy_type].push({...t});});setTaxonomyTerms(grouped);}
+                                    }}
+                                    placeholder={`New ${f.name.toLowerCase()}...`}
+                                    className="w-full mt-1 px-2 py-1 border border-accent rounded text-xs bg-accent-soft text-main" autoFocus />
+                                )}
                               </div>
                             );
                           }
