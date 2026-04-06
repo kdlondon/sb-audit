@@ -819,6 +819,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
   else if(sortPreset==="oldest")fd=[...fd].sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
+  else if(sortPreset==="updated")fd=[...fd].sort((a,b)=>(b.updated_at||b.created_at||"").localeCompare(a.updated_at||a.created_at||""));
   else if(sortPreset==="rating")fd=[...fd].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
   else if(sortCol){fd=[...fd].sort((a,b)=>{const va=(a[sortCol]||"").toLowerCase(),vb=(b[sortCol]||"").toLowerCase();return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);});}
 
@@ -1284,6 +1285,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("created_at");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
+              <option value="updated">Last updated</option>
               <option value="rating">Rating</option>
             </select>
             <div className="flex bg-surface2 rounded p-0.5">
