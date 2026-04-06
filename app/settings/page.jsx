@@ -794,15 +794,27 @@ function LandscapeTab({ brandId, orgId }) {
       setCrawlResult(data.profile);
       setCrawlPages(data.pagesCrawled || []);
 
-      // Save to brand_profiles for history (Fix 6)
-      await supabase.from("brand_profiles").insert({
-        brand_id: comp.competitor_brand_id,
-        brand_name: comp.brand.name,
-        profile_data: data.profile || {},
-        pages_crawled: data.pagesCrawled || [],
-        urls_used: urls,
-        project_id: null,
-      });
+      // Save to brand_profiles for history
+      const { data: savedProfile, error: profileError } = await supabase
+        .from("brand_profiles")
+        .insert({
+          brand_id: comp.competitor_brand_id,
+          brand_name: comp.brand.name,
+          profile_data: data.profile || {},
+          pages_crawled: data.pagesCrawled || [],
+          urls_used: urls,
+          project_id: null,
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error("[Crawl] FAILED to save profile:", profileError);
+        console.error("[Crawl] Attempted brand_id:", comp.competitor_brand_id);
+        showToast("Warning: crawl completed but failed to save history — " + profileError.message);
+      } else {
+        console.log("[Crawl] Profile saved successfully:", savedProfile.id);
+      }
 
       // Update brand.brand_profile JSONB with latest crawl
       await supabase.from("brands").update({
@@ -831,8 +843,14 @@ function LandscapeTab({ brandId, orgId }) {
   const [suggestions, setSuggestions] = useState([]);
 
   const aiSuggest = async () => {
+    if (!brandId) {
+      console.error("[AI Suggest] brandId is null — cannot filter existing competitors");
+      showToast("Error: brand context not loaded");
+      return;
+    }
     setSuggesting(true);
     try {
+      console.log("[AI Suggest] brandId:", brandId);
       const { data: ownBrand } = await supabase.from("brands").select("name, category, market").eq("id", brandId).single();
 
       // Get existing competitor names from DB (not local state — must be fresh)
@@ -1103,16 +1121,28 @@ function LandscapeTab({ brandId, orgId }) {
                   const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
                   const addSugg = async () => {
                     console.log("[Accept] Adding local:", name);
-                    const { data: nb, error: e1 } = await supabase.from("brands").insert({
-                      name, organization_id: orgId, scope: "local", proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
-                      is_active: true, source: "ai_recommended",
-                    }).select().single();
-                    if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
-                    console.log("[Accept] Brand created:", nb.id);
-                    const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
-                    if (e2) { console.error("[Accept] link error:", e2); }
-                    // Update local state
-                    setLocalComps(prev => [...prev, { competitor_brand_id: nb.id, brand: nb, entryCount: 0 }]);
+                    // Find or create brand
+                    let { data: existingBrand } = await supabase.from("brands").select("id, name").eq("name", name).eq("organization_id", orgId).maybeSingle();
+                    let brandToLink;
+                    if (existingBrand) {
+                      console.log("[Accept] Brand already exists:", existingBrand.id);
+                      brandToLink = existingBrand;
+                    } else {
+                      const { data: nb, error: e1 } = await supabase.from("brands").insert({
+                        name, organization_id: orgId, scope: "local", proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
+                        is_active: true, source: "ai_recommended",
+                      }).select().single();
+                      if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
+                      brandToLink = nb;
+                    }
+                    // Check if link exists
+                    const { data: existingLink } = await supabase.from("brand_competitors").select("own_brand_id").eq("own_brand_id", brandId).eq("competitor_brand_id", brandToLink.id).maybeSingle();
+                    if (!existingLink) {
+                      const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: brandToLink.id });
+                      if (e2) console.error("[Accept] link error:", e2);
+                    }
+                    console.log("[Accept] result:", brandToLink.id, "link created:", !existingLink);
+                    setLocalComps(prev => [...prev, { competitor_brand_id: brandToLink.id, brand: brandToLink, entryCount: 0 }]);
                     setSuggestions(prev => prev.filter(x => x.name !== name));
                     showToast(`${name} added`);
                   };
@@ -1135,15 +1165,26 @@ function LandscapeTab({ brandId, orgId }) {
                   const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
                   const addSugg = async () => {
                     console.log("[Accept] Adding global:", name);
-                    const { data: nb, error: e1 } = await supabase.from("brands").insert({
-                      name, organization_id: orgId, scope: "global", proximity: "Target proximity",
-                      country: s.country || "", is_active: true, source: "ai_recommended",
-                    }).select().single();
-                    if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
-                    console.log("[Accept] Brand created:", nb.id);
-                    const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
-                    if (e2) { console.error("[Accept] link error:", e2); }
-                    setGlobalRefs(prev => [...prev, { competitor_brand_id: nb.id, brand: nb, entryCount: 0 }]);
+                    let { data: existingBrand } = await supabase.from("brands").select("id, name").eq("name", name).eq("organization_id", orgId).maybeSingle();
+                    let brandToLink;
+                    if (existingBrand) {
+                      console.log("[Accept] Brand already exists:", existingBrand.id);
+                      brandToLink = existingBrand;
+                    } else {
+                      const { data: nb, error: e1 } = await supabase.from("brands").insert({
+                        name, organization_id: orgId, scope: "global", proximity: "Target proximity",
+                        country: s.country || "", is_active: true, source: "ai_recommended",
+                      }).select().single();
+                      if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
+                      brandToLink = nb;
+                    }
+                    const { data: existingLink } = await supabase.from("brand_competitors").select("own_brand_id").eq("own_brand_id", brandId).eq("competitor_brand_id", brandToLink.id).maybeSingle();
+                    if (!existingLink) {
+                      const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: brandToLink.id });
+                      if (e2) console.error("[Accept] link error:", e2);
+                    }
+                    console.log("[Accept] result:", brandToLink.id, "link created:", !existingLink);
+                    setGlobalRefs(prev => [...prev, { competitor_brand_id: brandToLink.id, brand: brandToLink, entryCount: 0 }]);
                     setSuggestions(prev => prev.filter(x => x.name !== name));
                     showToast(`${name} added`);
                   };

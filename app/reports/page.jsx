@@ -678,9 +678,15 @@ function ReportsContent(){
   })();},[projectId]);
 
   const buildGroupedBrands=(dataArr,brandKey)=>{
+    // Use ONLY the competitor list from brand_competitors (loaded in OPTIONS.competitor override)
     const allBrandSet=new Set();
-    dataArr.forEach(e=>{if(e[brandKey])allBrandSet.add(e[brandKey]);});
-    if(brandKey==="competitor")(OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>allBrandSet.add(b));
+    if(brandKey==="competitor"){
+      // LOCKED list from brand_competitors — do NOT add from entries
+      (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>allBrandSet.add(b));
+      console.log("[Reports] competitors from brand_competitors:", allBrandSet.size);
+    } else {
+      dataArr.forEach(e=>{if(e[brandKey])allBrandSet.add(e[brandKey]);});
+    }
     const groups={};
     allBrandSet.forEach(b=>{const cat=brandMetaMap[b]||"Other";if(!groups[cat])groups[cat]=[];groups[cat].push(b);});
     const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
