@@ -617,9 +617,11 @@ function LandscapeTab({ brandId, orgId }) {
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
 
   // Crawl state
-  const [crawling, setCrawling] = useState(null); // competitor brand id being crawled
+  const [crawling, setCrawling] = useState(null);
   const [crawlResult, setCrawlResult] = useState(null);
   const [crawlPages, setCrawlPages] = useState([]);
+  const [crawlHistory, setCrawlHistory] = useState({}); // { brandId: [{id, created_at, urls_used},...] }
+  const [expandedHistory, setExpandedHistory] = useState(null); // profile id to show details
 
   // Confirm removal
   const [confirmRemove, setConfirmRemove] = useState(null);
@@ -767,6 +769,16 @@ function LandscapeTab({ brandId, orgId }) {
     setGlobalRefs(prev => updateList(prev));
   };
 
+  const loadCrawlHistory = async (compBrandId) => {
+    const { data } = await supabase
+      .from("brand_profiles")
+      .select("id, created_at, urls_used, profile_data, pages_crawled")
+      .eq("brand_id", compBrandId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setCrawlHistory(prev => ({ ...prev, [compBrandId]: data || [] }));
+  };
+
   const runCrawl = async (comp) => {
     // Parse URLs — support both JSON array and plain string
     let urls = [];
@@ -824,6 +836,8 @@ function LandscapeTab({ brandId, orgId }) {
           } else {
             console.log("[Crawl] INSERT SUCCESS. id:", savedProfile.id, "created_at:", savedProfile.created_at);
             showToast("Profile saved to history");
+            // Refresh history
+            await loadCrawlHistory(comp.competitor_brand_id);
           }
         } catch (err) {
           console.error("[Crawl] UNEXPECTED ERROR:", err);
@@ -949,7 +963,11 @@ function LandscapeTab({ brandId, orgId }) {
     return (
       <div key={comp.id} className="bg-surface border border-main rounded-xl overflow-hidden">
         <button
-          onClick={() => setExpandedId(isExpanded ? null : comp.competitor_brand_id)}
+          onClick={() => {
+            const newId = isExpanded ? null : comp.competitor_brand_id;
+            setExpandedId(newId);
+            if (newId) loadCrawlHistory(newId);
+          }}
           className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-surface2 transition"
         >
           <div className="flex-1 min-w-0">
@@ -1046,6 +1064,51 @@ function LandscapeTab({ brandId, orgId }) {
 
               {crawlResult && expandedId === comp.competitor_brand_id && (
                 <BrandProfileCard profile={crawlResult} pagesCrawled={crawlPages} />
+              )}
+
+              {/* Crawl History */}
+              {(crawlHistory[comp.competitor_brand_id] || []).length > 0 && (
+                <div className="mt-3 pt-2 border-t border-main/50">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Crawl history</p>
+                  <div className="space-y-1.5">
+                    {(crawlHistory[comp.competitor_brand_id] || []).map(h => {
+                      const date = new Date(h.created_at);
+                      const label = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + ", " + date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                      const isOpen = expandedHistory === h.id;
+                      return (
+                        <div key={h.id} className="border border-main rounded-lg overflow-hidden">
+                          <button onClick={() => setExpandedHistory(isOpen ? null : h.id)}
+                            className="w-full text-left px-3 py-2 flex justify-between items-center hover:bg-surface2 transition">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-main font-medium">{label}</span>
+                              <span className="text-[10px] text-hint">{(h.urls_used || []).length} URLs · {Object.keys(h.profile_data || {}).length} fields</span>
+                            </div>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition ${isOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3"/></svg>
+                          </button>
+                          {isOpen && (
+                            <div className="px-3 pb-3 border-t border-main">
+                              {h.urls_used?.length > 0 && (
+                                <div className="mt-2 mb-2">
+                                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">URLs crawled</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {h.urls_used.map((u, ui) => (
+                                      <a key={ui} href={u} target="_blank" rel="noopener" className="text-[10px] text-accent hover:underline bg-accent-soft px-2 py-0.5 rounded">{u.replace(/https?:\/\//, "").split("/").slice(0, 2).join("/")}</a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {h.profile_data && (
+                                <div className="mt-2">
+                                  <BrandProfileCard profile={h.profile_data} pagesCrawled={h.pages_crawled || []} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>
