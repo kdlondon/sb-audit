@@ -585,10 +585,10 @@ function LandscapeTab({ brandId, orgId }) {
     if (!brandId) return;
     setLoading(true);
 
-    // Load brand_competitors join with brands
+    // Load competitor links
     const { data: comps } = await supabase
       .from("brand_competitors")
-      .select("id, competitor_brand_id, scope, proximity")
+      .select("own_brand_id, competitor_brand_id")
       .eq("own_brand_id", brandId);
 
     if (!comps || comps.length === 0) {
@@ -599,32 +599,26 @@ function LandscapeTab({ brandId, orgId }) {
     }
 
     const compIds = comps.map((c) => c.competitor_brand_id);
+    // Load full brand data (scope, proximity live on brands table)
     const { data: brands } = await supabase
       .from("brands")
-      .select("id, name, country, category, sub_category, website, description, target_audience, value_proposition, brand_archetype, brand_tone, scope")
-      .in("id", compIds);
+      .select("id, name, country, category, sub_category, website, description, target_audience, value_proposition, brand_archetype, brand_tone, brand_profile, scope, proximity")
+      .in("id", compIds)
+      .order("name");
 
-    // Count entries for each competitor brand
+    // Count entries per competitor
     const entryCounts = {};
-    for (const cid of compIds) {
-      const { count } = await supabase
-        .from("creative_source")
-        .select("*", { count: "exact", head: true })
-        .eq("brand_id", cid);
-      entryCounts[cid] = count || 0;
-    }
+    const { data: entries } = await supabase.from("creative_source").select("brand_id").in("brand_id", compIds);
+    (entries || []).forEach(e => { entryCounts[e.brand_id] = (entryCounts[e.brand_id] || 0) + 1; });
 
-    const brandMap = {};
-    (brands || []).forEach((b) => { brandMap[b.id] = b; });
-
-    const merged = comps.map((c) => ({
-      ...c,
-      brand: brandMap[c.competitor_brand_id] || {},
-      entryCount: entryCounts[c.competitor_brand_id] || 0,
+    const merged = (brands || []).map((b) => ({
+      competitor_brand_id: b.id,
+      brand: b,
+      entryCount: entryCounts[b.id] || 0,
     }));
 
-    setLocalComps(merged.filter((c) => c.scope === "local"));
-    setGlobalRefs(merged.filter((c) => c.scope === "global"));
+    setLocalComps(merged.filter((c) => c.brand.scope === "local"));
+    setGlobalRefs(merged.filter((c) => c.brand.scope === "global"));
     setLoading(false);
   }, [brandId]);
 
@@ -683,12 +677,10 @@ function LandscapeTab({ brandId, orgId }) {
       return;
     }
 
-    // 2. Insert into brand_competitors
+    // 2. Insert into brand_competitors (only has own_brand_id + competitor_brand_id)
     await supabase.from("brand_competitors").insert({
       own_brand_id: brandId,
       competitor_brand_id: newBrand.id,
-      scope,
-      proximity: newComp.proximity || (scope === "local" ? "Direct" : "Parallel"),
     });
 
     setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Parallel", website: "" });
@@ -699,9 +691,9 @@ function LandscapeTab({ brandId, orgId }) {
     await loadCompetitors();
   };
 
-  const removeCompetitor = async (bcId) => {
+  const removeCompetitor = async (compBrandId) => {
     // Delete from brand_competitors only (not brands)
-    await supabase.from("brand_competitors").delete().eq("id", bcId);
+    await supabase.from("brand_competitors").delete().eq("own_brand_id", brandId).eq("competitor_brand_id", compBrandId);
     setConfirmRemove(null);
     showToast("Competitor removed");
     await loadCompetitors();
@@ -752,18 +744,29 @@ function LandscapeTab({ brandId, orgId }) {
     setCrawling(null);
   };
 
-  const aiSuggest = async () => {
+  const [suggestions, setSuggestions] = useState([]);
+
+  const aiSuggest = async (suggestScope) => {
     setSuggesting(true);
     try {
+      // Load own brand info for context
+      const { data: ownBrand } = await supabase.from("brands").select("name, category, market").eq("id", brandId).single();
       const res = await fetch("/api/suggest-competitors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandId }),
+        body: JSON.stringify({
+          brand_name: ownBrand?.name || "",
+          industry: ownBrand?.category || "",
+          market: suggestScope === "global" ? null : (ownBrand?.market || ""),
+          type: suggestScope || "local",
+        }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
       if (data.suggestions?.length) {
-        showToast(`${data.suggestions.length} suggestions found — add them below`);
+        setSuggestions(data.suggestions);
+        showToast(`${data.suggestions.length} suggestions found`);
+      } else {
+        showToast("No suggestions found");
       }
     } catch (err) {
       showToast("AI suggest failed: " + err.message);
@@ -781,12 +784,12 @@ function LandscapeTab({ brandId, orgId }) {
 
   const renderCompetitorCard = (comp) => {
     const b = comp.brand;
-    const isExpanded = expandedId === comp.id;
+    const isExpanded = expandedId === comp.competitor_brand_id;
 
     return (
       <div key={comp.id} className="bg-surface border border-main rounded-xl overflow-hidden">
         <button
-          onClick={() => setExpandedId(isExpanded ? null : comp.id)}
+          onClick={() => setExpandedId(isExpanded ? null : comp.competitor_brand_id)}
           className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-surface2 transition"
         >
           <div className="flex-1 min-w-0">
@@ -883,7 +886,7 @@ function LandscapeTab({ brandId, orgId }) {
                 </div>
               )}
 
-              {crawlResult && expandedId === comp.id && (
+              {crawlResult && expandedId === comp.competitor_brand_id && (
                 <BrandProfileCard profile={crawlResult} pagesCrawled={crawlPages} />
               )}
             </div>
@@ -1046,7 +1049,7 @@ function LandscapeTab({ brandId, orgId }) {
               This will remove <strong>{confirmRemove.brand?.name}</strong> from your competitive landscape. The brand record will be preserved, only the competitor link will be deleted.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => removeCompetitor(confirmRemove.id)}
+              <button onClick={() => removeCompetitor(confirmRemove.competitor_brand_id)}
                 className="px-4 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600">Remove</button>
               <button onClick={() => setConfirmRemove(null)}
                 className="px-4 py-1.5 border border-main rounded-lg text-xs text-muted hover:text-main">Cancel</button>
