@@ -9,6 +9,7 @@ import { useBrand } from "@/lib/brand-context";
 import { useRole } from "@/lib/role-context";
 import { useFramework } from "@/lib/framework-context";
 import { SYSTEM_DIMENSIONS } from "@/lib/system-dimensions";
+import CountryInput from "@/components/CountryInput";
 
 const BRAND_ARCHETYPES = [
   "Innocent", "Explorer", "Sage", "Hero", "Outlaw", "Magician",
@@ -446,8 +447,7 @@ function ProfileTab({ brandId, orgId }) {
 
         <div>
           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Primary market</label>
-          <input value={market} onChange={(e) => setMarket(e.target.value)} placeholder="e.g., United Kingdom"
-            className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+          <CountryInput value={market} onChange={setMarket} placeholder="Type country name..." />
         </div>
 
         <TagInput
@@ -672,7 +672,7 @@ function LandscapeTab({ brandId, orgId }) {
       sub_category: newComp.sub_category.trim(),
       website: newComp.website.trim(),
       scope,
-      proximity: scope === "local" ? (newComp.proximity || "Direct") : (newComp.proximity || "Parallel"),
+      proximity: scope === "local" ? (newComp.proximity || "Direct") : (newComp.proximity || "Direct"),
       is_active: true,
     }).select("id").single();
 
@@ -688,7 +688,7 @@ function LandscapeTab({ brandId, orgId }) {
       competitor_brand_id: newBrand.id,
     });
 
-    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Parallel", website: "" });
+    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", website: "" });
     setShowAddLocal(false);
     setShowAddGlobal(false);
     setSaving(false);
@@ -751,24 +751,29 @@ function LandscapeTab({ brandId, orgId }) {
 
   const [suggestions, setSuggestions] = useState([]);
 
-  const aiSuggest = async (suggestScope) => {
+  const aiSuggest = async () => {
     setSuggesting(true);
     try {
-      // Load own brand info for context
       const { data: ownBrand } = await supabase.from("brands").select("name, category, market").eq("id", brandId).single();
-      const res = await fetch("/api/suggest-competitors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brand_name: ownBrand?.name || "",
-          industry: ownBrand?.category || "",
-          market: suggestScope === "global" ? null : (ownBrand?.market || ""),
-          type: suggestScope || "local",
-        }),
-      });
-      const data = await res.json();
-      if (data.suggestions?.length) {
-        setSuggestions(data.suggestions);
+      // Get existing competitor names to filter
+      const existingNames = [...localComps, ...globalRefs].map(c => c.brand?.name?.toLowerCase()).filter(Boolean);
+      // Request both local and global suggestions
+      const [localRes, globalRes] = await Promise.all([
+        fetch("/api/suggest-competitors", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: ownBrand?.market || "", type: "local" }),
+        }).then(r => r.json()),
+        fetch("/api/suggest-competitors", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: null, type: "global" }),
+        }).then(r => r.json()),
+      ]);
+      const allSuggestions = [
+        ...(localRes.suggestions || []).map(s => ({ ...s, suggestScope: "local" })),
+        ...(globalRes.suggestions || []).map(s => ({ ...s, suggestScope: "global" })),
+      ].filter(s => !existingNames.includes((s.name || "").toLowerCase()));
+      if (allSuggestions.length) {
+        setSuggestions(allSuggestions);
         showToast(`${data.suggestions.length} suggestions found`);
       } else {
         showToast("No suggestions found");
@@ -781,9 +786,9 @@ function LandscapeTab({ brandId, orgId }) {
 
   const proximityColor = (p) => {
     if (p === "Direct") return "bg-red-50 text-red-600 border-red-200";
+    if (p === "Direct") return "bg-red-50 text-red-600 border-red-200";
     if (p === "Adjacent") return "bg-amber-50 text-amber-600 border-amber-200";
-    if (p === "Parallel") return "bg-blue-50 text-blue-600 border-blue-200";
-    if (p === "Distant") return "bg-gray-100 text-gray-500 border-gray-200";
+    if (p === "Target proximity") return "bg-green-50 text-green-600 border-green-200";
     return "bg-gray-100 text-gray-500 border-gray-200";
   };
 
@@ -902,7 +907,7 @@ function LandscapeTab({ brandId, orgId }) {
   };
 
   const renderAddForm = (scope) => {
-    const proximityOptions = scope === "local" ? ["Direct", "Adjacent"] : ["Parallel", "Distant"];
+    const proximityOptions = ["Direct", "Adjacent", "Target proximity"];
     return (
       <div className="bg-surface border border-accent rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -914,9 +919,7 @@ function LandscapeTab({ brandId, orgId }) {
           </div>
           <div>
             <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Country</label>
-            <input value={newComp.country} onChange={(e) => setNewComp({ ...newComp, country: e.target.value })}
-              placeholder="Country..."
-              className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
+            <CountryInput value={newComp.country} onChange={v => setNewComp({ ...newComp, country: v })} placeholder="Type country..." />
           </div>
         </div>
 
@@ -969,7 +972,7 @@ function LandscapeTab({ brandId, orgId }) {
             className="px-4 py-1.5 bg-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40">
             {saving ? "Adding..." : "Add"}
           </button>
-          <button onClick={() => { scope === "local" ? setShowAddLocal(false) : setShowAddGlobal(false); setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Parallel", website: "" }); }}
+          <button onClick={() => { scope === "local" ? setShowAddLocal(false) : setShowAddGlobal(false); setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", website: "" }); }}
             className="px-4 py-1.5 border border-main rounded-lg text-xs text-muted hover:text-main">Cancel</button>
         </div>
       </div>
@@ -1003,7 +1006,7 @@ function LandscapeTab({ brandId, orgId }) {
               const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
               return (
                 <button key={i} disabled={already} onClick={async () => {
-                  const scope = s.type === "adjacent" ? "local" : "local";
+                  const scope = s.suggestScope || (s.type === "adjacent" ? "local" : "local");
                   const { data: nb } = await supabase.from("brands").insert({
                     name, organization_id: orgId, scope, proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
                     is_active: true, source: "ai_recommended",
@@ -1075,7 +1078,7 @@ function LandscapeTab({ brandId, orgId }) {
           </div>
 
           {showAddGlobal ? renderAddForm("global") : (
-            <button onClick={() => { setShowAddGlobal(true); setNewComp({ ...newComp, proximity: "Parallel" }); }}
+            <button onClick={() => { setShowAddGlobal(true); setNewComp({ ...newComp, proximity: "Direct" }); }}
               className="text-xs text-accent hover:underline font-medium">
               + Add global reference
             </button>
