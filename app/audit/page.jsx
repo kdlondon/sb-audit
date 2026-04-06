@@ -518,26 +518,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
 
   const moveEntry=async(entry)=>{
-    const fromTable=getTableName(scope);
-    const toScope=scope==="local"?"global":"local";
-    const toTable=getTableName(toScope);
+    const toScope=entry.scope==="local"?"global":"local";
     if(!confirm(`Move this entry to ${toScope==="global"?"Global benchmarks":"Local audit"}?`))return;
-    // Copy entry data
-    const e={...entry};delete e.id;
-    // Map fields between scopes
+    // Update scope + map fields in place (single table now)
+    const updates = { scope: toScope, updated_at: new Date().toISOString() };
     if(toScope==="global"){
-      if(e.competitor&&!e.brand){e.brand=e.competitor;}
-      delete e.competitor;
-      if(!e.country)e.country="";
-    }else{
-      if(e.brand&&!e.competitor){e.competitor=e.brand;}
-      delete e.brand;delete e.country;delete e.category_proximity;delete e.company_type;
+      updates.brand = entry.competitor || entry.brand_name || "";
+      updates.brand_name = entry.competitor || entry.brand_name || "";
+    } else {
+      updates.competitor = entry.brand || entry.brand_name || "";
+      updates.brand_name = entry.brand || entry.brand_name || "";
     }
-    e.id=String(Date.now());
-    e.updated_at=new Date().toISOString();
-    const{error:insertErr}=await supabase.from(toTable).insert(e);
-    if(insertErr){setToast({message:"Error moving: "+insertErr.message});return;}
-    await supabase.from(fromTable).delete().eq("id",entry.id);
+    const{error}=await supabase.from("creative_source").update(updates).eq("id",entry.id);
+    if(error){setToast({message:"Error moving: "+error.message});return;}
     if(sb?.id===entry.id)setSb(null);
     load();
     setToast({message:`Moved to ${toScope==="global"?"Global benchmarks":"Local audit"}`});
