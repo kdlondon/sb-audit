@@ -1110,7 +1110,21 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                           className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent-soft transition text-main">{b.name}</button>
                                       ))}
                                       {!globalBrands.some(b => b.name.toLowerCase() === (cur.brand||"").toLowerCase()) && cur.brand.length > 2 && (
-                                        <button type="button" onClick={() => { setCur({...cur, brand_name: cur.brand, scope: "global"}); setGlobalBrandConfirmed(true); }}
+                                        <button type="button" onClick={async () => {
+                                          // Create new global brand in DB + link to workspace
+                                          const s = createClient();
+                                          const { data: nb } = await s.from("brands").insert({
+                                            name: cur.brand.trim(), organization_id: orgId,
+                                            scope: "global", proximity: "Target proximity",
+                                            is_active: true, source: "manual",
+                                          }).select("id").single();
+                                          if (nb) {
+                                            await s.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                                            setCur({...cur, brand_name: cur.brand, brand_id: nb.id, scope: "global"});
+                                            setGlobalBrands(prev => [...prev, { id: nb.id, name: cur.brand.trim() }]);
+                                          }
+                                          setGlobalBrandConfirmed(true);
+                                        }}
                                           className="w-full text-left px-3 py-1.5 text-xs text-accent hover:bg-accent-soft transition font-medium">
                                           + Create "{cur.brand}" as new brand
                                         </button>

@@ -206,45 +206,68 @@ function TaxonomyDropdown({ label, value, options, onChange, onAddOther, placeho
 /* ═══════════════════════════════════════════════════════════════
    TAG INPUT — editable tags (comma-separated or chips)
    ═══════════════════════════════════════════════════════════════ */
-function TagInput({ label, tags, onChange, placeholder }) {
+function TagInput({ label, tags, onChange, placeholder, options }) {
   const [inputVal, setInputVal] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const ref = useRef(null);
 
   const addTag = (val) => {
     const trimmed = val.trim();
     if (trimmed && !tags.includes(trimmed)) {
+      if (options && !options.some(o => o.toLowerCase() === trimmed.toLowerCase())) return; // Only allow from options
       onChange([...tags, trimmed]);
     }
     setInputVal("");
+    setShowSuggestions(false);
   };
 
   const removeTag = (idx) => {
     onChange(tags.filter((_, i) => i !== idx));
   };
 
+  const filtered = options && inputVal.length > 0
+    ? options.filter(o => o.toLowerCase().includes(inputVal.toLowerCase()) && !tags.includes(o)).slice(0, 6)
+    : [];
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowSuggestions(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   return (
-    <div>
+    <div ref={ref} style={{ position: "relative" }}>
       {label && <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label}</label>}
       <div className="flex flex-wrap gap-1.5 p-2 bg-surface border border-main rounded-lg min-h-[38px]">
         {tags.map((tag, i) => (
           <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-soft text-accent rounded-full text-xs font-medium">
             {tag}
-            <button onClick={() => removeTag(i)} className="text-accent/60 hover:text-accent ml-0.5">x</button>
+            <button type="button" onClick={() => removeTag(i)} className="text-accent/60 hover:text-accent ml-0.5">x</button>
           </span>
         ))}
         <input
           value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
+          onChange={(e) => { setInputVal(e.target.value); setShowSuggestions(true); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
               e.preventDefault();
-              addTag(inputVal);
+              if (filtered.length > 0) addTag(filtered[0]); // Select first match
+              else if (!options) addTag(inputVal); // Free-text if no options list
             }
           }}
-          onBlur={() => { if (inputVal.trim()) addTag(inputVal); }}
+          onFocus={() => { if (inputVal.length > 0) setShowSuggestions(true); }}
           placeholder={tags.length === 0 ? (placeholder || "Type and press Enter...") : ""}
           className="flex-1 min-w-[100px] bg-transparent text-sm text-main focus:outline-none"
         />
       </div>
+      {showSuggestions && filtered.length > 0 && (
+        <div className="absolute left-0 right-0 bg-surface border border-main rounded-lg shadow-lg overflow-hidden" style={{ top: "100%", marginTop: 2, zIndex: 9999 }}>
+          {filtered.map(c => (
+            <button key={c} type="button" onMouseDown={() => addTag(c)}
+              className="w-full text-left px-3 py-1.5 text-xs text-main hover:bg-accent-soft transition">{c}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -252,7 +275,7 @@ function TagInput({ label, tags, onChange, placeholder }) {
 /* ═══════════════════════════════════════════════════════════════
    PROFILE TAB — Brand identity, market, audience, analysis
    ═══════════════════════════════════════════════════════════════ */
-function ProfileTab({ brandId, orgId }) {
+function ProfileTab({ brandId, orgId, refreshFramework }) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -384,6 +407,8 @@ function ProfileTab({ brandId, orgId }) {
       }).eq("id", existingFw.id);
     }
 
+    // Refresh framework context so entry form picks up new communication_intents
+    refreshFramework?.();
     setSaving(false);
     if (error) {
       console.error("Profile save error:", error);
@@ -454,7 +479,8 @@ function ProfileTab({ brandId, orgId }) {
           label="Markets to observe"
           tags={marketsToObserve}
           onChange={setMarketsToObserve}
-          placeholder="Type a market and press Enter..."
+          placeholder="Type country name..."
+          options={require("@/components/CountryInput").COUNTRIES}
         />
       </div>
 
@@ -993,41 +1019,73 @@ function LandscapeTab({ brandId, orgId }) {
         </button>
       </div>
 
-      {/* AI Suggestions */}
+      {/* AI Suggestions — two columns */}
       {suggestions.length > 0 && (
         <div className="max-w-6xl mx-auto mb-4 bg-accent-soft border border-accent/20 rounded-xl p-4">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="text-xs font-bold text-accent">AI Suggestions ({suggestions.length})</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-xs font-bold text-accent">AI Suggestions</h4>
             <button onClick={() => setSuggestions([])} className="text-[10px] text-hint hover:text-main">Dismiss</button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {suggestions.map((s, i) => {
-              const name = s.name || s;
-              const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
-              return (
-                <button key={i} disabled={already} onClick={async () => {
-                  const scope = s.suggestScope || (s.type === "adjacent" ? "local" : "local");
-                  const { data: nb } = await supabase.from("brands").insert({
-                    name, organization_id: orgId, scope, proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
-                    is_active: true, source: "ai_recommended",
-                  }).select("id").single();
-                  if (nb) {
-                    await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
-                    setSuggestions(prev => prev.filter((_, j) => j !== i));
-                    showToast(`${name} added`);
-                    await loadCompetitors();
-                  }
-                }}
-                  className={`text-left px-3 py-2 rounded-lg border text-xs transition ${
-                    already ? "bg-green-50 border-green-200 text-green-700" : "bg-surface border-main text-main hover:border-accent"
-                  }`}>
-                  <span className="font-semibold">{name}</span>
-                  {s.type && <span className="text-hint ml-1">({s.type})</span>}
-                  {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
-                  {already && <span className="text-green-600 text-[10px] ml-1">Already added</span>}
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Local suggestions */}
+            <div>
+              <p className="text-[10px] font-bold text-muted uppercase mb-2">Local ({suggestions.filter(s=>s.suggestScope==="local").length})</p>
+              <div className="space-y-1.5">
+                {suggestions.filter(s=>s.suggestScope==="local").map((s, i) => {
+                  const name = s.name || s;
+                  const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
+                  const addSugg = async () => {
+                    const { data: nb } = await supabase.from("brands").insert({
+                      name, organization_id: orgId, scope: "local", proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
+                      is_active: true, source: "ai_recommended",
+                    }).select("id").single();
+                    if (nb) {
+                      await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                      setSuggestions(prev => prev.filter(x => x.name !== name));
+                      showToast(`${name} added`);
+                      loadCompetitors();
+                    }
+                  };
+                  return (
+                    <button key={`l${i}`} disabled={already} onClick={addSugg}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main hover:border-accent"}`}>
+                      <span className="font-semibold">{name}</span>
+                      {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
+                      {already && <span className="text-green-600 text-[10px]"> Added</span>}
+                    </button>);
+                })}
+              </div>
+            </div>
+            {/* Global suggestions */}
+            <div>
+              <p className="text-[10px] font-bold text-muted uppercase mb-2">Global ({suggestions.filter(s=>s.suggestScope==="global").length})</p>
+              <div className="space-y-1.5">
+                {suggestions.filter(s=>s.suggestScope==="global").map((s, i) => {
+                  const name = s.name || s;
+                  const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
+                  const addSugg = async () => {
+                    const { data: nb } = await supabase.from("brands").insert({
+                      name, organization_id: orgId, scope: "global", proximity: "Target proximity",
+                      country: s.country || "", is_active: true, source: "ai_recommended",
+                    }).select("id").single();
+                    if (nb) {
+                      await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                      setSuggestions(prev => prev.filter(x => x.name !== name));
+                      showToast(`${name} added`);
+                      loadCompetitors();
+                    }
+                  };
+                  return (
+                    <button key={`g${i}`} disabled={already} onClick={addSugg}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main hover:border-accent"}`}>
+                      <span className="font-semibold">{name}</span>
+                      {s.country && <span className="text-hint ml-1">({s.country})</span>}
+                      {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
+                      {already && <span className="text-green-600 text-[10px]"> Added</span>}
+                    </button>);
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1154,7 +1212,7 @@ function SettingsContent() {
 
       {/* TAB 1: PROFILE */}
       {activeTab === "profile" && (
-        <ProfileTab brandId={brandId} orgId={orgId} />
+        <ProfileTab brandId={brandId} orgId={orgId} refreshFramework={refreshFramework} />
       )}
 
       {/* TAB 2: COMPETITIVE LANDSCAPE */}

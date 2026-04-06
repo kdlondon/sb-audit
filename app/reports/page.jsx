@@ -1461,7 +1461,7 @@ RULES:
             <div className="mb-5">
               <p className="text-xs text-hint mb-2">Select a brand to explore its journey map</p>
               <div className="flex gap-2 flex-wrap">
-                {[...new Set(localData.map(e=>e.competitor).filter(Boolean))].sort().map(c=>(
+                {[...new Set(localData.map(e=>e.competitor||e.brand_name).filter(Boolean))].sort().map(c=>(
                   <button key={c} onClick={()=>setJourneyBrand(c)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${journeyBrand===c?"bg-accent-soft border-[var(--accent)] text-accent":"bg-surface border-main text-hint hover:border-[var(--accent)]"}`}
                   >{c}</button>
