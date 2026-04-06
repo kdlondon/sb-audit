@@ -9,7 +9,7 @@ export async function POST(request) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
-  const { url, extraUrls, instructions, brandName, projectId } = await request.json();
+  const { url, extraUrls, instructions, brandName, projectId, brand_id } = await request.json();
   if (!url) return Response.json({ error: "URL required" }, { status: 400 });
   const allInputUrls = [url, ...(extraUrls || [])].filter(u => u && u.trim());
 
