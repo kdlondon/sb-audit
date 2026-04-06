@@ -595,7 +595,17 @@ function ReportsContent(){
     const years=[...new Set([...ld,...gd].map(e=>e.year).filter(Boolean))].sort();
     setAllYears(years);
     if(years.length>0){setYearFrom(years[0]);setYearTo(years[years.length-1]);}
-    const opts=await fetchOptions(projectId);setOPTIONS(opts);setLoading(false);
+    const opts=await fetchOptions(projectId);
+    // Override competitor list from brand_competitors (Fix 5)
+    if(brandId){
+      const{data:compLinks}=await supabase.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id",brandId);
+      if(compLinks?.length){
+        const compIds=compLinks.map(c=>c.competitor_brand_id);
+        const{data:compBrands}=await supabase.from("brands").select("name").in("id",compIds).order("name");
+        if(compBrands) opts.competitor=compBrands.map(b=>b.name);
+      }
+    }
+    setOPTIONS(opts);setLoading(false);
   })();},[projectId]);
 
   useEffect(()=>{

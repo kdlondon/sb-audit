@@ -1125,6 +1125,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                           }).select("id").single();
                                           if (nb) {
                                             await s.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                                            // Link existing entries with this brand_name to the new brand_id
+                                            await s.from("creative_source").update({ brand_id: nb.id }).eq("brand_name", cur.brand.trim()).is("brand_id", null);
+                                            console.log("[Create Brand] Created:", nb.id, "linked existing entries");
                                             setCur({...cur, brand_name: cur.brand, brand_id: nb.id, scope: "global"});
                                             setGlobalBrands(prev => [...prev, { id: nb.id, name: cur.brand.trim() }]);
                                           }

@@ -834,9 +834,20 @@ function LandscapeTab({ brandId, orgId }) {
     setSuggesting(true);
     try {
       const { data: ownBrand } = await supabase.from("brands").select("name, category, market").eq("id", brandId).single();
-      // Get existing competitor names to filter
-      const existingNames = [...localComps, ...globalRefs].map(c => c.brand?.name?.toLowerCase()).filter(Boolean);
-      // Request both local and global suggestions
+
+      // Get existing competitor names from DB (not local state — must be fresh)
+      const { data: existing } = await supabase
+        .from("brand_competitors")
+        .select("competitor_brand_id")
+        .eq("own_brand_id", brandId);
+      const existingIds = (existing || []).map(e => e.competitor_brand_id);
+      const { data: existingBrands } = existingIds.length > 0
+        ? await supabase.from("brands").select("name").in("id", existingIds)
+        : { data: [] };
+      const existingNames = new Set((existingBrands || []).map(b => b.name.toLowerCase()));
+      console.log("[AI Suggest] Existing competitors:", [...existingNames]);
+
+      // Request both local and global
       const [localRes, globalRes] = await Promise.all([
         fetch("/api/suggest-competitors", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -847,17 +858,26 @@ function LandscapeTab({ brandId, orgId }) {
           body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: null, type: "global" }),
         }).then(r => r.json()),
       ]);
-      const allSuggestions = [
-        ...(localRes.suggestions || []).map(s => ({ ...s, suggestScope: "local" })),
-        ...(globalRes.suggestions || []).map(s => ({ ...s, suggestScope: "global" })),
-      ].filter(s => !existingNames.includes((s.name || "").toLowerCase()));
+
+      // Filter out existing — programmatically AFTER AI response
+      let localSuggs = (localRes.suggestions || []).filter(s => !existingNames.has((s.name || "").toLowerCase()));
+      let globalSuggs = (globalRes.suggestions || []).filter(s => !existingNames.has((s.name || "").toLowerCase()));
+
+      // Enforce max 5 each
+      localSuggs = localSuggs.slice(0, 5).map(s => ({ ...s, suggestScope: "local" }));
+      globalSuggs = globalSuggs.slice(0, 5).map(s => ({ ...s, suggestScope: "global" }));
+
+      const allSuggestions = [...localSuggs, ...globalSuggs];
+      console.log("[AI Suggest] Filtered suggestions:", allSuggestions.length);
+
       if (allSuggestions.length) {
         setSuggestions(allSuggestions);
-        showToast(`${data.suggestions.length} suggestions found`);
+        showToast(`${allSuggestions.length} suggestions found`);
       } else {
-        showToast("No suggestions found");
+        showToast("No new suggestions found");
       }
     } catch (err) {
+      console.error("[AI Suggest] Error:", err);
       showToast("AI suggest failed: " + err.message);
     }
     setSuggesting(false);
@@ -912,8 +932,7 @@ function LandscapeTab({ brandId, orgId }) {
               </div>
               <div>
                 <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Country</label>
-                <input defaultValue={b.country || ""} onBlur={(e) => updateCompetitorBrand(comp.competitor_brand_id, { country: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
+                <CountryInput value={b.country || ""} onChange={v => updateCompetitorBrand(comp.competitor_brand_id, { country: v })} />
               </div>
             </div>
 
@@ -1083,16 +1102,19 @@ function LandscapeTab({ brandId, orgId }) {
                   const name = s.name || s;
                   const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
                   const addSugg = async () => {
-                    const { data: nb } = await supabase.from("brands").insert({
+                    console.log("[Accept] Adding local:", name);
+                    const { data: nb, error: e1 } = await supabase.from("brands").insert({
                       name, organization_id: orgId, scope: "local", proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
                       is_active: true, source: "ai_recommended",
-                    }).select("id").single();
-                    if (nb) {
-                      await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
-                      setSuggestions(prev => prev.filter(x => x.name !== name));
-                      showToast(`${name} added`);
-                      loadCompetitors();
-                    }
+                    }).select().single();
+                    if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
+                    console.log("[Accept] Brand created:", nb.id);
+                    const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                    if (e2) { console.error("[Accept] link error:", e2); }
+                    // Update local state
+                    setLocalComps(prev => [...prev, { competitor_brand_id: nb.id, brand: nb, entryCount: 0 }]);
+                    setSuggestions(prev => prev.filter(x => x.name !== name));
+                    showToast(`${name} added`);
                   };
                   return (
                     <button key={`l${i}`} disabled={already} onClick={addSugg}
@@ -1112,16 +1134,18 @@ function LandscapeTab({ brandId, orgId }) {
                   const name = s.name || s;
                   const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
                   const addSugg = async () => {
-                    const { data: nb } = await supabase.from("brands").insert({
+                    console.log("[Accept] Adding global:", name);
+                    const { data: nb, error: e1 } = await supabase.from("brands").insert({
                       name, organization_id: orgId, scope: "global", proximity: "Target proximity",
                       country: s.country || "", is_active: true, source: "ai_recommended",
-                    }).select("id").single();
-                    if (nb) {
-                      await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
-                      setSuggestions(prev => prev.filter(x => x.name !== name));
-                      showToast(`${name} added`);
-                      loadCompetitors();
-                    }
+                    }).select().single();
+                    if (e1) { console.error("[Accept] brand insert error:", e1); showToast("Error: " + e1.message); return; }
+                    console.log("[Accept] Brand created:", nb.id);
+                    const { error: e2 } = await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                    if (e2) { console.error("[Accept] link error:", e2); }
+                    setGlobalRefs(prev => [...prev, { competitor_brand_id: nb.id, brand: nb, entryCount: 0 }]);
+                    setSuggestions(prev => prev.filter(x => x.name !== name));
+                    showToast(`${name} added`);
                   };
                   return (
                     <button key={`g${i}`} disabled={already} onClick={addSugg}
