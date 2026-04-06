@@ -12,11 +12,11 @@ export async function POST(request) {
 
   const prompt = isGlobal
     ? `Given brand: ${brand_name}, industry: ${industry}, global markets: ${(global_markets || []).join(", ") || "worldwide"}
-Suggest 10 international brands worth benchmarking — mix of same-industry leaders and cross-industry innovators known for exceptional marketing.
-Return ONLY a JSON array: [{"name": "Brand Name", "country": "XX", "industry": "Their industry", "reason": "One-line why benchmark this brand"}]`
+Suggest exactly 5 international brands worth benchmarking — mix of same-industry leaders and cross-industry innovators known for exceptional marketing.
+Return ONLY a JSON array with exactly 5 items: [{"name": "Brand Name", "country": "XX", "industry": "Their industry", "reason": "One-line why benchmark this brand"}]`
     : `Given this brand: ${brand_name}, industry: ${industry}, market: ${market}
-Suggest 10 direct competitors and 3 adjacent/emerging competitors in the ${market} market.
-Return ONLY a JSON array: [{"name": "Brand Name", "type": "direct" or "adjacent", "reason": "One-line why this is a competitor"}]`;
+Suggest exactly 5 direct competitors or adjacent competitors in the ${market} market.
+Return ONLY a JSON array with exactly 5 items: [{"name": "Brand Name", "type": "direct" or "adjacent", "reason": "One-line why this is a competitor"}]`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

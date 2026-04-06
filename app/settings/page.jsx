@@ -272,6 +272,33 @@ function TagInput({ label, tags, onChange, placeholder, options }) {
   );
 }
 
+/* ── Multi-URL Input Component ── */
+function MultiUrlInput({ label, urls, onChange, max = 10 }) {
+  const list = urls.length > 0 ? urls : [""];
+  const update = (idx, val) => { const u = [...list]; u[idx] = val; onChange(u.filter(Boolean)); };
+  const add = () => { if (list.length < max) onChange([...list, ""]); };
+  const remove = (idx) => { const u = list.filter((_, i) => i !== idx); onChange(u.length > 0 ? u : [""]); };
+  return (
+    <div>
+      {label && <label className="block text-[10px] text-muted uppercase font-semibold mb-1">{label}</label>}
+      <div className="space-y-1.5">
+        {list.map((url, i) => (
+          <div key={i} className="flex gap-1">
+            <input value={url} onChange={e => { const u = [...list]; u[i] = e.target.value; onChange(u); }}
+              onBlur={() => onChange(list.filter(Boolean))}
+              placeholder="https://..."
+              className="flex-1 px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
+            {list.length > 1 && <button type="button" onClick={() => remove(i)} className="text-red-400 hover:text-red-600 text-sm px-1">×</button>}
+          </div>
+        ))}
+      </div>
+      {list.filter(Boolean).length < max && (
+        <button type="button" onClick={add} className="text-[10px] text-accent hover:underline mt-1">+ Add URL</button>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PROFILE TAB — Brand identity, market, audience, analysis
    ═══════════════════════════════════════════════════════════════ */
@@ -584,7 +611,7 @@ function LandscapeTab({ brandId, orgId }) {
   // Add forms
   const [showAddLocal, setShowAddLocal] = useState(false);
   const [showAddGlobal, setShowAddGlobal] = useState(false);
-  const [newComp, setNewComp] = useState({ name: "", country: "", category: "", sub_category: "", proximity: "Direct", website: "" });
+  const [newComp, setNewComp] = useState({ name: "", country: "", category: "", sub_category: "", proximity: "Direct", websites: [""] });
 
   // Taxonomy
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
@@ -696,7 +723,7 @@ function LandscapeTab({ brandId, orgId }) {
       country: newComp.country.trim(),
       category: newComp.category.trim(),
       sub_category: newComp.sub_category.trim(),
-      website: newComp.website.trim(),
+      website: JSON.stringify((newComp.websites || []).filter(u => u.trim())),
       scope,
       proximity: scope === "local" ? (newComp.proximity || "Direct") : (newComp.proximity || "Direct"),
       is_active: true,
@@ -714,7 +741,7 @@ function LandscapeTab({ brandId, orgId }) {
       competitor_brand_id: newBrand.id,
     });
 
-    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", website: "" });
+    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", websites: [""] });
     setShowAddLocal(false);
     setShowAddGlobal(false);
     setSaving(false);
@@ -732,12 +759,20 @@ function LandscapeTab({ brandId, orgId }) {
 
   const updateCompetitorBrand = async (compBrandId, updates) => {
     await supabase.from("brands").update(updates).eq("id", compBrandId);
-    await loadCompetitors();
+    // Update local state instead of full reload to preserve scroll
+    const updateList = (list) => list.map(c =>
+      c.competitor_brand_id === compBrandId ? { ...c, brand: { ...c.brand, ...updates } } : c
+    );
+    setLocalComps(prev => updateList(prev));
+    setGlobalRefs(prev => updateList(prev));
   };
 
   const runCrawl = async (comp) => {
-    const url = comp.brand.website;
-    if (!url) { showToast("No website URL set"); return; }
+    // Parse URLs — support both JSON array and plain string
+    let urls = [];
+    try { const p = JSON.parse(comp.brand.website || "[]"); urls = Array.isArray(p) ? p : [comp.brand.website]; } catch { urls = [comp.brand.website].filter(Boolean); }
+    if (urls.length === 0) { showToast("No website URL set"); return; }
+
     setCrawling(comp.competitor_brand_id);
     setCrawlResult(null);
     setCrawlPages([]);
@@ -747,8 +782,10 @@ function LandscapeTab({ brandId, orgId }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url,
+          url: urls[0],
+          extraUrls: urls.slice(1),
           brandName: comp.brand.name,
+          brand_id: comp.competitor_brand_id,
         }),
       });
       const data = await res.json();
@@ -757,7 +794,22 @@ function LandscapeTab({ brandId, orgId }) {
       setCrawlResult(data.profile);
       setCrawlPages(data.pagesCrawled || []);
 
-      // Update brand with crawled data
+      // Save to brand_profiles for history (Fix 6)
+      await supabase.from("brand_profiles").insert({
+        brand_id: comp.competitor_brand_id,
+        brand_name: comp.brand.name,
+        profile_data: data.profile || {},
+        pages_crawled: data.pagesCrawled || [],
+        urls_used: urls,
+        project_id: null,
+      });
+
+      // Update brand.brand_profile JSONB with latest crawl
+      await supabase.from("brands").update({
+        brand_profile: data.profile || {},
+      }).eq("id", comp.competitor_brand_id);
+
+      // Also update descriptive fields
       if (data.profile) {
         const updates = {};
         if (data.profile.description) updates.description = data.profile.description;
@@ -769,6 +821,7 @@ function LandscapeTab({ brandId, orgId }) {
           await updateCompetitorBrand(comp.competitor_brand_id, updates);
         }
       }
+      showToast("Website crawled successfully");
     } catch (err) {
       setCrawlResult({ error: err.message });
     }
@@ -883,12 +936,11 @@ function LandscapeTab({ brandId, orgId }) {
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Website</label>
-              <input defaultValue={b.website || ""} onBlur={(e) => updateCompetitorBrand(comp.competitor_brand_id, { website: e.target.value })}
-                placeholder="https://..."
-                className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-            </div>
+            <MultiUrlInput
+              label="Website URLs"
+              urls={(() => { try { const p = JSON.parse(b.website || "[]"); return Array.isArray(p) ? p : [b.website].filter(Boolean); } catch { return [b.website].filter(Boolean); } })()}
+              onChange={(urls) => updateCompetitorBrand(comp.competitor_brand_id, { website: JSON.stringify(urls) })}
+            />
 
             <div>
               <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Description</label>
@@ -968,12 +1020,8 @@ function LandscapeTab({ brandId, orgId }) {
           />
         </div>
 
-        <div>
-          <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Website</label>
-          <input value={newComp.website} onChange={(e) => setNewComp({ ...newComp, website: e.target.value })}
-            placeholder="https://..."
-            className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-        </div>
+        <MultiUrlInput label="Website URLs" urls={newComp.websites || [""]}
+          onChange={urls => setNewComp({ ...newComp, websites: urls })} />
 
         <div>
           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Proximity</label>
@@ -998,7 +1046,7 @@ function LandscapeTab({ brandId, orgId }) {
             className="px-4 py-1.5 bg-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40">
             {saving ? "Adding..." : "Add"}
           </button>
-          <button onClick={() => { scope === "local" ? setShowAddLocal(false) : setShowAddGlobal(false); setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", website: "" }); }}
+          <button onClick={() => { scope === "local" ? setShowAddLocal(false) : setShowAddGlobal(false); setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", websites: [""] }); }}
             className="px-4 py-1.5 border border-main rounded-lg text-xs text-muted hover:text-main">Cancel</button>
         </div>
       </div>
