@@ -794,32 +794,52 @@ function LandscapeTab({ brandId, orgId }) {
       setCrawlResult(data.profile);
       setCrawlPages(data.pagesCrawled || []);
 
-      // Save to brand_profiles for history
-      const { data: savedProfile, error: profileError } = await supabase
-        .from("brand_profiles")
-        .insert({
-          brand_id: comp.competitor_brand_id,
-          brand_name: comp.brand.name,
-          profile_data: data.profile || {},
-          pages_crawled: data.pagesCrawled || [],
-          urls_used: urls,
-          project_id: null,
-        })
-        .select()
-        .single();
+      // ===== CRAWL SAVE - DEBUG VERSION =====
+      console.log("[Crawl] About to save. brand_id:", comp.competitor_brand_id);
+      console.log("[Crawl] brand_name:", comp.brand?.name);
+      console.log("[Crawl] profile keys:", Object.keys(data.profile || {}));
+      console.log("[Crawl] pages crawled:", (data.pagesCrawled || []).length);
+      console.log("[Crawl] urls:", urls);
 
-      if (profileError) {
-        console.error("[Crawl] FAILED to save profile:", profileError);
-        console.error("[Crawl] Attempted brand_id:", comp.competitor_brand_id);
-        showToast("Warning: crawl completed but failed to save history — " + profileError.message);
+      if (!comp.competitor_brand_id) {
+        console.error("[Crawl] ABORT: competitor_brand_id is null/undefined");
+        showToast("Error: cannot save — brand ID missing");
       } else {
-        console.log("[Crawl] Profile saved successfully:", savedProfile.id);
+        try {
+          const { data: savedProfile, error: profileError } = await supabase
+            .from("brand_profiles")
+            .insert({
+              brand_id: comp.competitor_brand_id,
+              brand_name: comp.brand?.name || "Unknown",
+              profile_data: data.profile || {},
+              pages_crawled: data.pagesCrawled || [],
+              urls_used: urls || [],
+            })
+            .select()
+            .single();
+
+          if (profileError) {
+            console.error("[Crawl] INSERT FAILED:", profileError);
+            showToast("Crawl save failed: " + profileError.message);
+          } else {
+            console.log("[Crawl] INSERT SUCCESS. id:", savedProfile.id, "created_at:", savedProfile.created_at);
+            showToast("Profile saved to history");
+          }
+        } catch (err) {
+          console.error("[Crawl] UNEXPECTED ERROR:", err);
+        }
       }
 
-      // Update brand.brand_profile JSONB with latest crawl
-      await supabase.from("brands").update({
-        brand_profile: data.profile || {},
-      }).eq("id", comp.competitor_brand_id);
+      // Also update brands.brand_profile
+      try {
+        await supabase.from("brands").update({
+          brand_profile: data.profile || {},
+        }).eq("id", comp.competitor_brand_id);
+        console.log("[Crawl] brands.brand_profile updated");
+      } catch (err) {
+        console.error("[Crawl] brands update error:", err);
+      }
+      // ===== END CRAWL SAVE =====
 
       // Also update descriptive fields
       if (data.profile) {

@@ -596,13 +596,17 @@ function ReportsContent(){
     setAllYears(years);
     if(years.length>0){setYearFrom(years[0]);setYearTo(years[years.length-1]);}
     const opts=await fetchOptions(projectId);
-    // Override competitor list from brand_competitors (Fix 5)
+    // Override competitor list from brand_competitors with scope info
     if(brandId){
       const{data:compLinks}=await supabase.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id",brandId);
       if(compLinks?.length){
         const compIds=compLinks.map(c=>c.competitor_brand_id);
-        const{data:compBrands}=await supabase.from("brands").select("name").in("id",compIds).order("name");
-        if(compBrands) opts.competitor=compBrands.map(b=>b.name);
+        const{data:compBrands}=await supabase.from("brands").select("id, name, scope").in("id",compIds).order("name");
+        if(compBrands){
+          opts.competitor=compBrands.map(b=>b.name);
+          opts._competitorFull=compBrands; // Full data with scope for filtering
+          console.log("[Reports] competitors from brand_competitors:", compBrands.length, compBrands.map(b=>b.name));
+        }
       }
     }
     setOPTIONS(opts);setLoading(false);
@@ -677,16 +681,21 @@ function ReportsContent(){
     setBrandMetaMap(map);
   })();},[projectId]);
 
-  const buildGroupedBrands=(dataArr,brandKey)=>{
-    // Use ONLY the competitor list from brand_competitors (loaded in OPTIONS.competitor override)
+  const buildGroupedBrands=(dataArr,brandKey,scopeFilter)=>{
+    // LOCKED list from brand_competitors — do NOT add from entries
     const allBrandSet=new Set();
-    if(brandKey==="competitor"){
-      // LOCKED list from brand_competitors — do NOT add from entries
-      (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>allBrandSet.add(b));
-      console.log("[Reports] competitors from brand_competitors:", allBrandSet.size);
+    const fullComps = OPTIONS._competitorFull || [];
+    if(fullComps.length > 0){
+      // Filter by scope if specified
+      const filtered = scopeFilter && scopeFilter !== "all"
+        ? fullComps.filter(b => b.scope === (scopeFilter === "local" ? "local" : "global"))
+        : fullComps;
+      filtered.forEach(b => allBrandSet.add(b.name));
     } else {
-      dataArr.forEach(e=>{if(e[brandKey])allBrandSet.add(e[brandKey]);});
+      // Fallback: use OPTIONS.competitor or entries
+      (OPTIONS.competitor||[]).filter(v=>v!=="Other").forEach(b=>allBrandSet.add(b));
     }
+    console.log("[Reports] brands for scope", scopeFilter, ":", allBrandSet.size);
     const groups={};
     allBrandSet.forEach(b=>{const cat=brandMetaMap[b]||"Other";if(!groups[cat])groups[cat]=[];groups[cat].push(b);});
     const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];
@@ -696,10 +705,10 @@ function ReportsContent(){
   const countryFilteredLocal=countryFilter.length>0?localData.filter(e=>countryFilter.includes(e.country)):localData;
   const countryFilteredGlobal=countryFilter.length>0?globalData.filter(e=>countryFilter.includes(e.country)):globalData;
   const groupedBrands=selectedTemplate?.scopeAny
-    ?(()=>{const localG=buildGroupedBrands(countryFilteredLocal,"competitor");const globalG=buildGroupedBrands(countryFilteredGlobal,"brand");const merged={};[...localG,...globalG].forEach(g=>{if(!merged[g.cat])merged[g.cat]=new Set();g.brands.forEach(b=>merged[g.cat].add(b));});const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];return Object.entries(merged).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,set])=>({cat,brands:[...set].sort()}));})()
+    ?(()=>{const localG=buildGroupedBrands(countryFilteredLocal,"competitor","local");const globalG=buildGroupedBrands(countryFilteredGlobal,"brand","global");const merged={};[...localG,...globalG].forEach(g=>{if(!merged[g.cat])merged[g.cat]=new Set();g.brands.forEach(b=>merged[g.cat].add(b));});const order=["Traditional Banking","Fintech","Neobank","Credit Union","Supplementary Services","Non-financial","Other"];return Object.entries(merged).sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);return(ia===-1?99:ia)-(ib===-1?99:ib);}).map(([cat,set])=>({cat,brands:[...set].sort()}));})()
     :selectedTemplate?.scope==="local"
-      ?buildGroupedBrands(countryFilteredLocal,"competitor")
-      :buildGroupedBrands(countryFilteredGlobal,"brand");
+      ?buildGroupedBrands(countryFilteredLocal,"competitor","local")
+      :buildGroupedBrands(countryFilteredGlobal,"brand","global");
   const availableBrands=groupedBrands.flatMap(g=>g.brands);
   const allData=[...localData,...globalData];
 
