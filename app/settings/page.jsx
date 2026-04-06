@@ -865,21 +865,34 @@ function LandscapeTab({ brandId, orgId }) {
       const existingNames = new Set((existingBrands || []).map(b => b.name.toLowerCase()));
       console.log("[AI Suggest] Existing competitors:", [...existingNames]);
 
-      // Request both local and global
+      // Send existing names to AI so it avoids them
+      const existingList = [...existingNames].join(", ");
       const [localRes, globalRes] = await Promise.all([
         fetch("/api/suggest-competitors", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: ownBrand?.market || "", type: "local" }),
+          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: ownBrand?.market || "", type: "local", exclude: existingList }),
         }).then(r => r.json()),
         fetch("/api/suggest-competitors", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: null, type: "global" }),
+          body: JSON.stringify({ brand_name: ownBrand?.name || "", industry: ownBrand?.category || "", market: null, type: "global", exclude: existingList }),
         }).then(r => r.json()),
       ]);
 
-      // Filter out existing — programmatically AFTER AI response
-      let localSuggs = (localRes.suggestions || []).filter(s => !existingNames.has((s.name || "").toLowerCase()));
-      let globalSuggs = (globalRes.suggestions || []).filter(s => !existingNames.has((s.name || "").toLowerCase()));
+      // Fuzzy filter — check if suggestion name contains or is contained by any existing name
+      const fuzzyMatch = (suggName) => {
+        const s = suggName.toLowerCase();
+        for (const existing of existingNames) {
+          if (s.includes(existing) || existing.includes(s)) return true;
+          // Check first word match (e.g. "RBC" matches "RBC Royal Bank")
+          const sFirst = s.split(" ")[0];
+          const eFirst = existing.split(" ")[0];
+          if (sFirst === eFirst && sFirst.length > 2) return true;
+        }
+        return false;
+      };
+
+      let localSuggs = (localRes.suggestions || []).filter(s => !fuzzyMatch(s.name || ""));
+      let globalSuggs = (globalRes.suggestions || []).filter(s => !fuzzyMatch(s.name || ""));
 
       // Enforce max 5 each
       localSuggs = localSuggs.slice(0, 5).map(s => ({ ...s, suggestScope: "local" }));
@@ -1147,12 +1160,16 @@ function LandscapeTab({ brandId, orgId }) {
                     showToast(`${name} added`);
                   };
                   return (
-                    <button key={`l${i}`} disabled={already} onClick={addSugg}
-                      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main hover:border-accent"}`}>
-                      <span className="font-semibold">{name}</span>
-                      {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
-                      {already && <span className="text-green-600 text-[10px]"> Added</span>}
-                    </button>);
+                    <div key={`l${i}`} className={`w-full px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main"}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-semibold">{name}</span>
+                          {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
+                        </div>
+                        {already ? <span className="text-green-600 text-[10px] font-semibold flex-shrink-0">Added</span>
+                          : <button onClick={addSugg} className="px-2 py-0.5 bg-accent text-white rounded text-[10px] font-semibold hover:opacity-90 flex-shrink-0">+ Add</button>}
+                      </div>
+                    </div>);
                 })}
               </div>
             </div>
@@ -1189,13 +1206,17 @@ function LandscapeTab({ brandId, orgId }) {
                     showToast(`${name} added`);
                   };
                   return (
-                    <button key={`g${i}`} disabled={already} onClick={addSugg}
-                      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main hover:border-accent"}`}>
-                      <span className="font-semibold">{name}</span>
-                      {s.country && <span className="text-hint ml-1">({s.country})</span>}
-                      {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
-                      {already && <span className="text-green-600 text-[10px]"> Added</span>}
-                    </button>);
+                    <div key={`g${i}`} className={`w-full px-3 py-2 rounded-lg border text-xs transition ${already?"bg-green-50 border-green-200 text-green-700":"bg-surface border-main text-main"}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-semibold">{name}</span>
+                          {s.country && <span className="text-hint ml-1">({s.country})</span>}
+                          {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
+                        </div>
+                        {already ? <span className="text-green-600 text-[10px] font-semibold flex-shrink-0">Added</span>
+                          : <button onClick={addSugg} className="px-2 py-0.5 bg-accent text-white rounded text-[10px] font-semibold hover:opacity-90 flex-shrink-0">+ Add</button>}
+                      </div>
+                    </div>);
                 })}
               </div>
             </div>
