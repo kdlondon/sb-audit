@@ -1060,6 +1060,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                       <div className="py-2 space-y-3">
                         {(dim.fields || []).filter(f => !skipKeys.has(f.key) && !skipKeys.has(f.db_key)).map(f => {
                           const dbKey = f.db_key || f.key;
+                          // Override values from framework for communication_intent
+                          const fieldValues = (dbKey === "communication_intent" && framework?.communicationIntents?.length)
+                            ? [...new Set([...framework.communicationIntents, ...(f.values || [])])]
+                            : f.values;
+                          const fWithValues = { ...f, values: fieldValues };
                           const val = cur[dbKey] ?? cur.custom_dimensions?.[f.key] ?? "";
                           const setVal = (v) => {
                             const update = { ...cur, [dbKey]: v };
@@ -1141,7 +1146,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                               <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
                               <div className="flex gap-1">
-                                {(f.values || []).map(v => (
+                                {(fWithValues.values || []).map(v => (
                                   <button key={v} type="button" onClick={() => {
                                     setFormScope(v);
                                     setGlobalBrandConfirmed(false);
@@ -1224,8 +1229,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           if (f.type === "url") return null;
 
                           // Single choice — always native dropdown
-                          if (f.type === "single_choice" && f.values?.length > 0) {
-                            const sorted = sortOpts(f.values);
+                          if (f.type === "single_choice" && fWithValues.values?.length > 0) {
+                            const sorted = sortOpts(fWithValues.values);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                                 <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
@@ -1243,8 +1248,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           }
 
                           // Multi-choice — DropdownCheckbox (≤5 chips, >5 dropdown)
-                          if (f.type === "multichoice" && f.values?.length > 0) {
-                            const sorted = sortOpts(f.values);
+                          if (f.type === "multichoice" && fWithValues.values?.length > 0) {
+                            const sorted = sortOpts(fWithValues.values);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                                 <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
@@ -1254,12 +1259,21 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                   onChange={v => setVal(v.join(", "))}
                                   allowOther={f.allow_other || false}
                                   onOtherAdded={async (newVal) => {
-                                    // Save to taxonomy_terms for this org
                                     const s = createClient();
-                                    await s.from("taxonomy_terms").insert({
-                                      organization_id: null, taxonomy_type: f.taxonomy_type || dbKey,
-                                      name: newVal, sort_order: 999, is_active: true,
-                                    });
+                                    if (dbKey === "communication_intent") {
+                                      // Communication intents: save to brand_frameworks.communication_intents
+                                      const { data: fw } = await s.from("brand_frameworks").select("id, communication_intents").eq("brand_id", brandId).single();
+                                      if (fw) {
+                                        const updated = [...(fw.communication_intents || []), newVal];
+                                        await s.from("brand_frameworks").update({ communication_intents: updated }).eq("id", fw.id);
+                                      }
+                                    } else {
+                                      // Other fields: save to taxonomy_terms
+                                      await s.from("taxonomy_terms").insert({
+                                        organization_id: orgId || null, taxonomy_type: f.taxonomy_type || dbKey,
+                                        name: newVal, sort_order: 999, is_active: true,
+                                      });
+                                    }
                                   }}
                                 />
                               </div>
