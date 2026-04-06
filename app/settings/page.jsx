@@ -384,7 +384,12 @@ function ProfileTab({ brandId, orgId }) {
     }
 
     setSaving(false);
-    showToast(error ? "Error saving" : "Profile saved");
+    if (error) {
+      console.error("Profile save error:", error);
+      showToast("Error saving: " + error.message);
+    } else {
+      showToast("Profile saved");
+    }
   };
 
   if (loading) {
@@ -602,7 +607,7 @@ function LandscapeTab({ brandId, orgId }) {
     // Load full brand data (scope, proximity live on brands table)
     const { data: brands } = await supabase
       .from("brands")
-      .select("id, name, country, category, sub_category, website, description, target_audience, value_proposition, brand_archetype, brand_tone, brand_profile, scope, proximity")
+      .select("*")
       .in("id", compIds)
       .order("name");
 
@@ -979,11 +984,50 @@ function LandscapeTab({ brandId, orgId }) {
     <div className="p-5">
       <div className="flex items-center justify-between max-w-6xl mx-auto mb-4">
         <p className="text-xs text-muted">Manage your competitive landscape. Local competitors are in your market; global references are cross-market benchmarks.</p>
-        <button onClick={aiSuggest} disabled={suggesting}
+        <button onClick={() => aiSuggest("local")} disabled={suggesting}
           className="px-4 py-1.5 border border-accent text-accent rounded-lg text-xs font-semibold hover:bg-accent-soft disabled:opacity-50">
-          {suggesting ? "Thinking..." : "AI suggest"}
+          {suggesting ? "Thinking..." : "AI suggest competitors"}
         </button>
       </div>
+
+      {/* AI Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-4 bg-accent-soft border border-accent/20 rounded-xl p-4">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-xs font-bold text-accent">AI Suggestions ({suggestions.length})</h4>
+            <button onClick={() => setSuggestions([])} className="text-[10px] text-hint hover:text-main">Dismiss</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {suggestions.map((s, i) => {
+              const name = s.name || s;
+              const already = [...localComps, ...globalRefs].some(c => c.brand?.name?.toLowerCase() === name.toLowerCase());
+              return (
+                <button key={i} disabled={already} onClick={async () => {
+                  const scope = s.type === "adjacent" ? "local" : "local";
+                  const { data: nb } = await supabase.from("brands").insert({
+                    name, organization_id: orgId, scope, proximity: s.type === "adjacent" ? "Adjacent" : "Direct",
+                    is_active: true, source: "ai_recommended",
+                  }).select("id").single();
+                  if (nb) {
+                    await supabase.from("brand_competitors").insert({ own_brand_id: brandId, competitor_brand_id: nb.id });
+                    setSuggestions(prev => prev.filter((_, j) => j !== i));
+                    showToast(`${name} added`);
+                    await loadCompetitors();
+                  }
+                }}
+                  className={`text-left px-3 py-2 rounded-lg border text-xs transition ${
+                    already ? "bg-green-50 border-green-200 text-green-700" : "bg-surface border-main text-main hover:border-accent"
+                  }`}>
+                  <span className="font-semibold">{name}</span>
+                  {s.type && <span className="text-hint ml-1">({s.type})</span>}
+                  {s.reason && <span className="text-hint block mt-0.5 text-[10px]">{s.reason}</span>}
+                  {already && <span className="text-green-600 text-[10px] ml-1">Already added</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-6xl mx-auto">
         {/* ── LOCAL COMPETITORS ── */}
