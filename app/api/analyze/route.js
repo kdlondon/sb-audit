@@ -105,7 +105,14 @@ export async function POST(request) {
         ? await loadBrandFramework(brand_id)
         : await loadFramework(project_id);
       if (framework) {
+        // DEBUG: log classification fields
+        const debugFields = buildClassificationFields(framework);
+        console.log("[Analyze] Classification fields keys:", Object.keys(debugFields || {}));
         prompt = buildDynamicPrompt(framework, context);
+        console.log("[Analyze] Prompt length:", prompt.length);
+        console.log("[Analyze] Prompt includes 'generations':", prompt.includes('generations'));
+        console.log("[Analyze] Prompt includes 'alpha':", prompt.includes('alpha'));
+        console.log("[Analyze] Prompt includes 'portrait':", prompt.includes('portrait'));
       }
     } catch (err) {
       console.error("Failed to load framework for analyze route:", err);
@@ -169,8 +176,15 @@ export async function POST(request) {
 
     const text = data.content?.map(c => c.text || "").join("") || "";
 
+    // DEBUG: log AI response
     try {
-      return Response.json({ success: true, analysis: JSON.parse(text) });
+      const parsed = JSON.parse(text);
+      console.log("[Analyze] AI response keys:", Object.keys(parsed));
+      console.log("[Analyze] AI portrait value:", parsed.portrait);
+      console.log("[Analyze] AI journey_phase value:", parsed.journey_phase);
+      console.log("[Analyze] AI category value:", parsed.category);
+      console.log("[Analyze] AI sub_category value:", parsed.sub_category);
+      return Response.json({ success: true, analysis: parsed });
     } catch {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
