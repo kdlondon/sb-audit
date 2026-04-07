@@ -309,6 +309,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [quickNewColName,setQuickNewColName]=useState("");
   const [showQuickNewCol,setShowQuickNewCol]=useState(false);
   const [collectionMenuOpen,setCollectionMenuOpen]=useState(null);
+  const [presentationMode,setPresentationMode]=useState(false);
+  const [presIndex,setPresIndex]=useState(0);
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
   const addBtnRef=useRef(null);
@@ -1076,7 +1078,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setAnalyzing(false);
   };
 
-  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());};
+  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
@@ -1695,7 +1697,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             )}
             {/* Edit collection modal */}
             {editingCollection&&(
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={()=>setEditingCollection(null)}>
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={()=>setEditingCollection(null)}>
                 <div className="bg-surface border border-main rounded-xl p-5 w-[400px] shadow-2xl" onClick={e=>e.stopPropagation()}>
                   <h3 className="text-sm font-bold text-main mb-3">Edit Collection</h3>
                   <div className="space-y-3">
@@ -1734,6 +1736,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 </div>
               </div>
               <div className="flex gap-2">
+                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-3 py-1.5 text-xs bg-white/10 border border-main rounded-lg text-main hover:bg-surface2 font-medium">Presentation</button>}
                 <div className="relative">
                   <button className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Generate Report ▾</button>
                 </div>
@@ -1950,6 +1953,80 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             <button className="text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
           </div>
           <img src={zoomImg} className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" onClick={e=>e.stopPropagation()} alt="" />
+        </div>,
+        document.body
+      )}
+
+      {/* Presentation mode — fullscreen slideshow */}
+      {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
+        <div className="fixed inset-0 bg-black flex flex-col" style={{zIndex:99999}}
+          onKeyDown={e=>{if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,collectionEntries.length-1));if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));if(e.key==="Escape")setPresentationMode(false);}} tabIndex={0} ref={el=>el&&el.focus()}>
+          {(()=>{
+            const entry=collectionEntries[presIndex];
+            if(!entry)return null;
+            const thumb=ytId(entry.url)?`https://img.youtube.com/vi/${ytId(entry.url)}/maxresdefault.jpg`:entry.image_url;
+            const extraImgs=entry.image_urls?JSON.parse(entry.image_urls||"[]"):[];
+            const brand=entry.competitor||entry.brand_name||entry.brand||"";
+            return(<>
+              {/* Close button */}
+              <button onClick={()=>setPresentationMode(false)} className="absolute top-4 right-4 text-white/40 hover:text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition z-10">×</button>
+              {/* Counter */}
+              <div className="absolute top-4 left-4 text-white/30 text-xs font-mono z-10">{presIndex+1} / {collectionEntries.length}</div>
+
+              {/* Main content area */}
+              <div className="flex-1 flex items-center justify-center relative overflow-hidden px-16">
+                {/* Left arrow */}
+                <button onClick={()=>setPresIndex(i=>Math.max(i-1,0))} disabled={presIndex===0}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition disabled:opacity-0 disabled:cursor-default z-10">&lsaquo;</button>
+
+                {/* Visual */}
+                <div className="max-w-[80vw] max-h-[70vh] flex items-center justify-center">
+                  {ytId(entry.url)?(
+                    <iframe width="960" height="540" src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="rounded-lg shadow-2xl" style={{maxWidth:"80vw",maxHeight:"70vh"}} />
+                  ):thumb?(
+                    <img src={thumb} className="max-w-[80vw] max-h-[70vh] object-contain rounded-lg shadow-2xl" alt="" />
+                  ):entry.url?(
+                    <div className="bg-white/5 rounded-xl p-8 text-center">
+                      <a href={entry.url} target="_blank" className="text-accent text-sm break-all hover:underline">{entry.url}</a>
+                    </div>
+                  ):(
+                    <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
+                  )}
+                </div>
+
+                {/* Right arrow */}
+                <button onClick={()=>setPresIndex(i=>Math.min(i+1,collectionEntries.length-1))} disabled={presIndex===collectionEntries.length-1}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition disabled:opacity-0 disabled:cursor-default z-10">&rsaquo;</button>
+              </div>
+
+              {/* Bottom info bar */}
+              <div className="bg-black/80 backdrop-blur-sm border-t border-white/10 px-8 py-4 flex-shrink-0">
+                <div className="max-w-4xl mx-auto">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    {brand&&<span className="text-white/90 text-sm font-bold">{brand}</span>}
+                    {entry.year&&<span className="text-white/40 text-sm">{entry.year}</span>}
+                    {entry.category&&<span className="text-white/30 text-xs bg-white/10 px-2 py-0.5 rounded">{entry.category}</span>}
+                    {entry.type&&<span className="text-white/30 text-xs bg-white/10 px-2 py-0.5 rounded">{entry.type}</span>}
+                    {entry.rating&&<span className="text-white/50 text-xs">{"★".repeat(Number(entry.rating))}</span>}
+                  </div>
+                  <h3 className="text-white text-base font-semibold mb-1">{entry.description||"Untitled"}</h3>
+                  {entry.synopsis&&<p className="text-white/50 text-xs leading-relaxed line-clamp-3">{entry.synopsis}</p>}
+                </div>
+              </div>
+
+              {/* Thumbnail strip */}
+              <div className="bg-black border-t border-white/5 px-4 py-2 flex-shrink-0 overflow-x-auto">
+                <div className="flex gap-1.5 justify-center">
+                  {collectionEntries.map((e,i)=>{
+                    const t=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/default.jpg`:e.image_url;
+                    return(<button key={e.id} onClick={()=>setPresIndex(i)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${i===presIndex?"border-accent opacity-100":"border-transparent opacity-40 hover:opacity-70"}`}>
+                      {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30 text-[8px]">{i+1}</div>}
+                    </button>);
+                  })}
+                </div>
+              </div>
+            </>);
+          })()}
         </div>,
         document.body
       )}
