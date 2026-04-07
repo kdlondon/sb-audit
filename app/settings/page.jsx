@@ -1739,17 +1739,32 @@ function DimensionBuilder({ initial, onSave, onCancel, saving }) {
               const fieldDescs = fields.filter(f => f.name).map(f =>
                 `${f.name} (${f.type}): ${f.values?.join(", ") || "free text"}`
               ).join("\n");
+              console.log("[AI Rules] Generating for:", name, "fields:", fields.length);
               const res = await fetch("/api/ai", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   skip_framework: true, max_tokens: 500,
-                  messages: [{ role: "user", content: `You are configuring an AI classification system for competitive intelligence.\n\nA custom dimension called "${name}" has these fields:\n${fieldDescs}\n\nWrite concise classification rules (2-4 sentences) telling the AI how to classify communication pieces into these fields. Focus on what to look for, whether to classify by explicit or implied meaning, and edge cases. Return ONLY the rules text.` }]
+                  messages: [{ role: "user", content: `You are configuring an AI classification system for competitive communication analysis (ads, campaigns, brand content).
+
+A custom analysis dimension called "${name}" has these fields:
+${fieldDescs}
+
+Write concise classification rules (2-4 sentences) that tell the AI how to classify a communication piece into these fields. Focus on:
+- What signals in the piece determine each field's value
+- Whether to classify based on explicit content or implied meaning
+- What to do when multiple values apply or none apply
+
+Return ONLY the rules text, no headers or formatting.` }]
                 })
               });
               const data = await res.json();
-              const text = data.content?.[0]?.text || "";
-              if (text) setRules(text);
-            } catch {}
+              console.log("[AI Rules] Response:", data);
+              const text = data.content?.[0]?.text || data.error || "";
+              if (text && !data.error) setRules(text);
+              else if (data.error) console.error("[AI Rules] Error:", data.error);
+            } catch (err) {
+              console.error("[AI Rules] Fetch error:", err);
+            }
             setGeneratingRules(false);
           }} className="text-[9px] text-accent hover:underline font-medium disabled:opacity-50">
             {generatingRules ? "Generating..." : "Generate with AI"}

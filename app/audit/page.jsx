@@ -1046,7 +1046,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                           ? isCustom ? "bg-purple-50 text-purple-700 border border-purple-300" : "bg-accent-soft text-accent border border-[var(--accent)]"
                           : "bg-surface2 border border-main text-main"
                       }`}>
-                      <span>{dim.name}{isCustom && <span className="text-hint font-normal ml-1">(custom)</span>}</span>
+                      <span>{isCustom ? `${di + 1}. ${dim.name}` : dim.name}{isCustom && <span className="text-hint font-normal ml-1">(custom)</span>}</span>
                       <span className="text-hint">{isOpen ? "−" : "+"}</span>
                     </div>
                     {isOpen && (
@@ -1095,9 +1095,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                     // Auto-fill from brand profile
                                     const s = createClient();
                                     const { data: bp } = await s.from("brands").select("country, category, sub_category").eq("id", selected.id).single();
-                                    if (bp?.country && !cur.country) updates.country = bp.country;
-                                    if (bp?.category && !cur.category) updates.category = bp.category;
-                                    if (bp?.sub_category && !cur.sub_category) updates.sub_category = bp.sub_category;
+                                    if (bp?.country) updates.country = bp.country;
+                                    if (bp?.category) updates.category = bp.category;
+                                    if (bp?.sub_category) updates.sub_category = bp.sub_category;
                                   }
                                   setCur(prev => ({...prev, ...updates}));
                                 }} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
@@ -1115,7 +1115,16 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                                   {cur.brand && cur.brand.length > 1 && !globalBrandConfirmed && (
                                     <div className="absolute z-40 mt-1 w-full bg-surface border border-main rounded-lg shadow-lg max-h-32 overflow-auto">
                                       {globalBrands.filter(b => b.name.toLowerCase().includes((cur.brand||"").toLowerCase())).slice(0,5).map(b => (
-                                        <button key={b.id} type="button" onClick={() => { setCur({...cur, brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global"}); setGlobalBrandConfirmed(true); }}
+                                        <button key={b.id} type="button" onClick={async () => {
+                                          const s = createClient();
+                                          const { data: bp } = await s.from("brands").select("country, category, sub_category").eq("id", b.id).single();
+                                          const updates = { brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global" };
+                                          if (bp?.country) updates.country = bp.country;
+                                          if (bp?.category) updates.category = bp.category;
+                                          if (bp?.sub_category) updates.sub_category = bp.sub_category;
+                                          setCur(prev => ({...prev, ...updates}));
+                                          setGlobalBrandConfirmed(true);
+                                        }}
                                           className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent-soft transition text-main">{b.name}</button>
                                       ))}
                                       {!globalBrands.some(b => b.name.toLowerCase() === (cur.brand||"").toLowerCase()) && cur.brand.length > 2 && (
