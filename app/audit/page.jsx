@@ -958,9 +958,20 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const result=await res.json();
       if(result.error){setToast({message:"AI error: "+result.error});setAnalyzing(false);return;}
       if(result.success&&result.analysis){
-        autoFill(result.analysis);
-        setToast({message:"✓ AI analysis complete"});
+        console.log("[Analyze] Response keys:", Object.keys(result.analysis).length, "fields");
+        console.log("[Analyze] Sample values — synopsis:", (result.analysis.synopsis||"").slice(0,50), "portrait:", result.analysis.portrait);
+        // Force overwrite all fields from AI (not just empty ones)
+        setCur(prev=>{
+          const u={...prev};
+          Object.entries(result.analysis).forEach(([k,v])=>{
+            if(v && v !== "undefined" && v !== "null") u[k]=v;
+          });
+          return u;
+        });
+        highlightFields(Object.keys(result.analysis).filter(k=>result.analysis[k]));
+        setToast({message:"✓ AI analysis complete — "+Object.keys(result.analysis).length+" fields"});
       }else{
+        console.log("[Analyze] No analysis in response:", result);
         setToast({message:"Analysis returned no data"});
       }
     }catch(err){
