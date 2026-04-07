@@ -578,23 +578,23 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
       const container=document.createElement("div");
       container.innerHTML=html;
-      container.style.position="fixed";
-      container.style.top="0";
-      container.style.left="0";
       container.style.width="680px";
-      container.style.zIndex="-1";
-      container.style.opacity="0";
-      container.style.pointerEvents="none";
+      container.style.background="white";
+      container.style.padding="20px";
       document.body.appendChild(container);
 
+      // Small delay to ensure rendering
+      await new Promise(r=>setTimeout(r,200));
+
       const html2pdf=(await import("html2pdf.js")).default;
-      await html2pdf(container,{
-        margin:[15,15,15,15],
+      await html2pdf().set({
+        margin:[10,10,10,10],
         filename:`${(entry.brand_name||entry.competitor||"case").replace(/[^a-zA-Z0-9]/g,"-")}-${entry.type||"brief"}-${entry.year||""}.pdf`,
         image:{type:"jpeg",quality:0.95},
-        html2canvas:{scale:2,useCORS:true},
+        html2canvas:{scale:2,useCORS:true,logging:false},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-      });
+      }).from(container).save();
+
       document.body.removeChild(container);
     }catch(err){
       console.error("[Download]",err);
