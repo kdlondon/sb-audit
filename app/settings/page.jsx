@@ -1451,10 +1451,11 @@ function SettingsContent() {
 function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshFramework }) {
   const supabase = createClient();
   const [expandedDims, setExpandedDims] = useState(new Set());
-  const [editingDim, setEditingDim] = useState(null); // index of custom dim being edited
-  const [newDim, setNewDim] = useState(null); // new dimension being created
+  const [editingDim, setEditingDim] = useState(null);
+  const [newDim, setNewDim] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [frameworkText, setFrameworkText] = useState(framework?.frameworkText || "");
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
   const toggleExpand = (key) => setExpandedDims(prev => {
@@ -1666,6 +1667,41 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
             + New dimension
           </button>
         )}
+      </div>
+
+      {/* ── SECTION 3: AI Analysis Context (framework_text) ── */}
+      <div className="mt-8 pt-6 border-t border-main">
+        <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">AI analysis context</h4>
+        <p className="text-[11px] text-hint mb-3">
+          This text is included in every AI analysis prompt. It provides detailed definitions, classification rules,
+          and context that improve how the AI classifies entries. For specialist frameworks, this contains the full
+          research methodology. For other tiers, it's optional but improves accuracy.
+        </p>
+        <textarea
+          value={frameworkText}
+          onChange={e => setFrameworkText(e.target.value)}
+          rows={12}
+          placeholder="Add detailed analysis context for the AI. Include:&#10;- Definitions of your custom dimensions and what each value means&#10;- Classification rules with examples&#10;- Edge cases and special instructions&#10;- Any research methodology or framework the AI should reference&#10;&#10;This is optional but significantly improves classification accuracy."
+          className="w-full px-3 py-2.5 bg-surface border border-main rounded-xl text-xs text-main font-mono leading-relaxed focus:outline-none focus:border-accent resize-y"
+        />
+        <div className="flex justify-between items-center mt-2">
+          <span className="text-[10px] text-hint">{frameworkText ? `${frameworkText.length} characters` : "Empty — AI will use dimension rules only"}</span>
+          <button onClick={async () => {
+            setSaving(true);
+            const fwId = framework?.id;
+            if (fwId) {
+              await supabase.from("brand_frameworks").update({ framework_text: frameworkText }).eq("id", fwId);
+            } else if (brandId) {
+              await supabase.from("project_frameworks").update({ framework_text: frameworkText }).eq("project_id", projectId);
+            }
+            refreshFramework?.();
+            setSaving(false);
+            showToast("AI context saved");
+          }} disabled={saving}
+            className="px-4 py-1.5 bg-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40">
+            {saving ? "Saving..." : "Save context"}
+          </button>
+        </div>
       </div>
 
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-main text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-xl animate-fadeIn" style={{ zIndex: 99999 }}>{toast}</div>}
