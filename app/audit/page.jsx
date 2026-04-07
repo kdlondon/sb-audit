@@ -533,47 +533,117 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         summary=d.content?.[0]?.text||"";
       }catch{}
 
-      // Build stars
       const stars=entry.rating?"★".repeat(Number(entry.rating))+"☆".repeat(5-Number(entry.rating)):"";
+      const now=new Date();
+      const dateStr=now.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+      const timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+      const userName=require("@/lib/role-context").useRole?.()?.userEmail||"";
 
-      // Technical card fields
-      const fields=[
-        ["Brand",entry.brand_name||entry.competitor],["Category",entry.category],["Sub-category",entry.sub_category],
-        ["Country",entry.country],["Year",entry.year],["Type",entry.type],
-        ["Communication Intent",entry.communication_intent],["Funnel Stage",entry.funnel],
-        ["Rating",stars],["Brand Archetype",entry.brand_archetype],["Tone",entry.tone_of_voice],
-        ["Execution Style",entry.execution_style],["Territory",entry.primary_territory],
-        ["Secondary Territory",entry.secondary_territory],["Main Slogan",entry.main_slogan],
-        ["Channel",entry.channel],["CTA",entry.cta],["Proximity",entry.category_proximity],
-      ].filter(([,v])=>v&&v.trim());
+      // Classification fields (two-column table)
+      const classFields=[
+        ["Category",entry.category],["Sub-category",entry.sub_category],["Country",entry.country],
+        ["Year",entry.year],["Type",entry.type],["Communication Intent",entry.communication_intent],
+        ["Funnel Stage",entry.funnel],["Rating",stars],["Brand Archetype",entry.brand_archetype],
+        ["Tone",entry.tone_of_voice],["Execution Style",entry.execution_style],
+        ["Creative Approach",entry.creative_approach],["Insight Type",entry.insight_type],
+        ["Territory",entry.primary_territory],["Secondary Territory",entry.secondary_territory],
+        ["Main Slogan",entry.main_slogan],["Channel",entry.channel],["CTA",entry.cta],
+        ["Proximity",entry.category_proximity],["Differentiation",entry.diff_claim],
+        ["Language Register",entry.language_register],["Brand Role",entry.bank_role],
+      ].filter(([,v])=>v&&String(v).trim());
 
       // Custom dimensions
-      const customHtml=entry.custom_dimensions&&Object.keys(entry.custom_dimensions).length>0
-        ?`<div style="margin-top:16px"><h3 style="font-size:13px;font-weight:700;margin-bottom:8px;color:#333">Custom Dimensions</h3>${Object.entries(entry.custom_dimensions).filter(([,v])=>v).map(([k,v])=>`<div style="font-size:11px;margin-bottom:3px"><span style="color:#888">${k.replace(/_/g," ")}:</span> <span style="color:#333">${v}</span></div>`).join("")}</div>`
-        :"";
+      const customEntries=entry.custom_dimensions&&Object.keys(entry.custom_dimensions).length>0
+        ?Object.entries(entry.custom_dimensions).filter(([,v])=>v&&String(v).trim()):[];
 
-      // Image
-      const imgHtml=entry.image_url?`<div style="text-align:center;margin:16px 0"><img src="${entry.image_url}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #ddd" crossorigin="anonymous"/></div>`:"";
+      // Images — collect all available
+      const images=[];
+      if(entry.image_url)images.push(entry.image_url);
+      try{const extra=JSON.parse(entry.image_urls||"[]");if(Array.isArray(extra))images.push(...extra);}catch{}
+      // YouTube thumbnail as fallback
+      const ytMatch=entry.url?.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);
+      if(ytMatch&&images.length===0)images.push(`https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`);
 
       const html=`
-        <div style="font-family:system-ui,-apple-system,sans-serif;color:#1a1a2e;line-height:1.6;padding:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0019FF;padding-bottom:12px;margin-bottom:20px">
-            <div><span style="font-size:18px;font-weight:800;color:#0a0f3c">Groundwork</span><span style="font-size:10px;color:#888;margin-left:8px">Competitive Intelligence Brief</span></div>
-            <span style="font-size:10px;color:#888">${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</span>
+        <div style="font-family:system-ui,-apple-system,sans-serif;color:#1a1a2e;line-height:1.5;padding:0">
+          <!-- HEADER -->
+          <div style="border-bottom:3px solid #0019FF;padding-bottom:14px;margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div>
+                <div style="font-size:20px;font-weight:800;color:#0a0f3c;letter-spacing:0.05em">GROUNDWORK</div>
+                <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.1em;margin-top:2px">Competitive Intelligence Brief</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:10px;color:#888">${dateStr} · ${timeStr}</div>
+              </div>
+            </div>
           </div>
-          ${imgHtml}
-          ${entry.url?`<div style="font-size:10px;color:#0019FF;margin-bottom:12px">${entry.url}</div>`:""}
-          <h2 style="font-size:16px;font-weight:700;margin:0 0 4px">${entry.description||entry.brand_name||"Case Brief"}</h2>
-          <div style="font-size:11px;color:#666;margin-bottom:16px">${entry.brand_name||""} · ${entry.year||""} · ${entry.type||""}</div>
-          ${summary?`<div style="background:#f8f8fc;border-left:3px solid #0019FF;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px"><h3 style="font-size:12px;font-weight:700;color:#0019FF;margin:0 0 8px">Executive Summary</h3><div style="font-size:11px;color:#333">${summary.replace(/\n/g,"<br>")}</div></div>`:""}
-          <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">${fields.map(([l,v])=>`<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;color:#888;width:140px;vertical-align:top">${l}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;color:#333">${v}</td></tr>`).join("")}</table>
-          ${entry.synopsis?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Synopsis</h3><div style="font-size:11px;color:#555">${entry.synopsis}</div></div>`:""}
-          ${entry.insight?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Insight</h3><div style="font-size:11px;color:#555">${entry.insight}</div></div>`:""}
-          ${entry.idea?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Idea</h3><div style="font-size:11px;color:#555">${entry.idea}</div></div>`:""}
-          ${entry.main_vp?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Value Proposition</h3><div style="font-size:11px;color:#555">${entry.main_vp}</div></div>`:""}
-          ${customHtml}
-          ${entry.analyst_comment?`<div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px"><h3 style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 4px">Analyst Notes</h3><div style="font-size:11px;color:#78350f">${entry.analyst_comment}</div></div>`:""}
-          <div style="margin-top:24px;padding-top:12px;border-top:1px solid #eee;text-align:center;font-size:9px;color:#aaa">Generated by Groundwork — Competitive Intelligence Platform · groundwork.kad.london</div>
+
+          <!-- TITLE + SOURCE -->
+          <h1 style="font-size:20px;font-weight:800;color:#0a0f3c;margin:0 0 6px;line-height:1.2">${entry.description||"Case Brief"}</h1>
+          <div style="font-size:12px;color:#555;margin-bottom:4px">
+            <strong>${entry.brand_name||entry.competitor||""}</strong>
+            ${entry.category?` · ${entry.category}`:""}${entry.sub_category?` / ${entry.sub_category}`:""}
+            ${entry.year?` · ${entry.year}`:""}${entry.type?` · ${entry.type}`:""}
+          </div>
+          ${entry.url?`<div style="font-size:10px;margin-bottom:16px"><a href="${entry.url}" style="color:#0019FF;text-decoration:none">${entry.url}</a></div>`:`<div style="margin-bottom:16px"></div>`}
+
+          <!-- EXECUTIVE SUMMARY -->
+          ${summary?`<div style="background:#f0f0ff;border-left:4px solid #0019FF;padding:14px 18px;border-radius:0 10px 10px 0;margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#0019FF;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Executive Summary</div>
+            <div style="font-size:11px;color:#333;line-height:1.7">${summary.replace(/\n\n/g,"</p><p style='margin:8px 0'>").replace(/\n/g,"<br>")}</div>
+          </div>`:""}
+
+          <!-- CLASSIFICATION TABLE -->
+          <div style="margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Classification</div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px">
+              ${classFields.map(([l,v],i)=>`<tr style="background:${i%2===0?"#fafafa":"white"}"><td style="padding:5px 10px;color:#888;width:160px;vertical-align:top;font-weight:500">${l}</td><td style="padding:5px 10px;color:#222">${v}</td></tr>`).join("")}
+            </table>
+          </div>
+
+          <!-- ANALYSIS -->
+          ${(entry.synopsis||entry.insight||entry.idea||entry.main_vp)?`
+          <div style="margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Analysis</div>
+            ${entry.synopsis?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#333;margin-bottom:3px">Synopsis</div><div style="font-size:11px;color:#555;line-height:1.6">${entry.synopsis}</div></div>`:""}
+            ${entry.insight?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#333;margin-bottom:3px">Insight</div><div style="font-size:11px;color:#555;line-height:1.6">${entry.insight}</div></div>`:""}
+            ${entry.idea?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#333;margin-bottom:3px">Creative Idea</div><div style="font-size:11px;color:#555;line-height:1.6">${entry.idea}</div></div>`:""}
+            ${entry.main_vp?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#333;margin-bottom:3px">Value Proposition</div><div style="font-size:11px;color:#555;line-height:1.6">${entry.main_vp}</div></div>`:""}
+            ${entry.r2b?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#333;margin-bottom:3px">Reason to Believe</div><div style="font-size:11px;color:#555;line-height:1.6">${entry.r2b}</div></div>`:""}
+          </div>`:""}
+
+          <!-- CUSTOM DIMENSIONS -->
+          ${customEntries.length>0?`
+          <div style="margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Framework Dimensions</div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px">
+              ${customEntries.map(([k,v],i)=>`<tr style="background:${i%2===0?"#faf8ff":"white"}"><td style="padding:5px 10px;color:#7c3aed;width:160px;vertical-align:top;font-weight:500;text-transform:capitalize">${k.replace(/_/g," ")}</td><td style="padding:5px 10px;color:#222">${v}</td></tr>`).join("")}
+            </table>
+          </div>`:""}
+
+          <!-- ANALYST NOTES -->
+          ${entry.analyst_comment?`
+          <div style="background:#fffbeb;border:1px solid #fde68a;padding:14px 16px;border-radius:10px;margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Analyst Notes</div>
+            <div style="font-size:11px;color:#78350f;line-height:1.6">${entry.analyst_comment}</div>
+          </div>`:""}
+
+          <!-- IMAGES -->
+          ${images.length>0?`
+          <div style="margin-bottom:20px">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Visual Reference</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${images.slice(0,4).map(url=>`<img src="${url}" style="max-width:${images.length===1?"100%":"48%"};max-height:250px;border-radius:8px;border:1px solid #ddd;object-fit:cover" crossorigin="anonymous"/>`).join("")}
+            </div>
+            ${entry.url?`<div style="font-size:9px;color:#888;margin-top:6px">Source: ${entry.url}</div>`:""}
+          </div>`:""}
+
+          <!-- FOOTER -->
+          <div style="margin-top:24px;padding-top:12px;border-top:2px solid #0019FF;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:9px;color:#888">Generated by <strong style="color:#0a0f3c">Groundwork</strong> — Competitive Intelligence Platform</div>
+            <div style="font-size:9px;color:#888">groundwork.kad.london</div>
+          </div>
         </div>`;
 
       const container=document.createElement("div");
@@ -589,7 +659,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const html2pdf=(await import("html2pdf.js")).default;
       await html2pdf().set({
         margin:[10,10,10,10],
-        filename:`${(entry.brand_name||entry.competitor||"case").replace(/[^a-zA-Z0-9]/g,"-")}-${entry.type||"brief"}-${entry.year||""}.pdf`,
+        filename:`${(entry.description||entry.brand_name||"case").replace(/[^a-zA-Z0-9 ]/g,"").replace(/\s+/g,"-").slice(0,60)}.pdf`,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,logging:false},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
