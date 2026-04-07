@@ -102,21 +102,22 @@ export async function POST(request) {
   let prompt;
   if (brand_id || project_id) {
     try {
+      console.log("[Analyze] Loading framework for brand_id:", brand_id);
       const framework = brand_id
         ? await loadBrandFramework(brand_id)
         : await loadFramework(project_id);
+      console.log("[Analyze] Framework loaded:", !!framework, "tier:", framework?.tier);
       if (framework) {
-        // DEBUG: log classification fields
         const debugFields = buildClassificationFields(framework);
-        console.log("[Analyze] Classification fields keys:", Object.keys(debugFields || {}));
+        console.log("[Analyze] Classification fields count:", Object.keys(debugFields || {}).length);
+        console.log("[Analyze] Has custom dims:", (framework.dimensions || framework.customDimensions || []).length);
         prompt = buildDynamicPrompt(framework, context);
-        console.log("[Analyze] Prompt length:", prompt.length);
-        console.log("[Analyze] Prompt includes 'generations':", prompt.includes('generations'));
-        console.log("[Analyze] Prompt includes 'alpha':", prompt.includes('alpha'));
-        console.log("[Analyze] Prompt includes 'portrait':", prompt.includes('portrait'));
+        console.log("[Analyze] Dynamic prompt built, length:", prompt.length);
+      } else {
+        console.log("[Analyze] No framework found — will use legacy prompt");
       }
     } catch (err) {
-      console.error("Failed to load framework for analyze route:", err);
+      console.error("[Analyze] FRAMEWORK ERROR:", err.message, err.stack?.split("\n")[1]);
     }
   }
   // Fallback to legacy prompt
