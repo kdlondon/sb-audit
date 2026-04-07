@@ -537,7 +537,6 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const now=new Date();
       const dateStr=now.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
       const timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
-      const userName=require("@/lib/role-context").useRole?.()?.userEmail||"";
 
       // Classification fields (two-column table)
       const classFields=[
