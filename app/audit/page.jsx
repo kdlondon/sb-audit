@@ -277,6 +277,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [selected,setSelected]=useState(new Set());
   const [uploading,setUploading]=useState(false);
   const [analyzing,setAnalyzing]=useState(false);
+  const [downloading,setDownloading]=useState(false);
   const [ytLoading,setYtLoading]=useState(false);
   const [showAddMenu,setShowAddMenu]=useState(false);
   const [dragOver,setDragOver]=useState(false);
@@ -517,6 +518,86 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     brand_archetype:OPTIONS.brandArchetype||[],
   };
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
+
+  const downloadCase=async(entry)=>{
+    setDownloading(true);
+    try{
+      // Generate AI summary
+      let summary="";
+      try{
+        const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          skip_framework:true,max_tokens:800,brand_id:brandId,
+          messages:[{role:"user",content:`Write a brief competitive intelligence summary (2-3 paragraphs) for a strategy audience. Cover: what this piece is, what insight/territory it exploits, and why it's relevant for competitive analysis.\n\nBrand: ${entry.brand_name||entry.competitor||""}\nTitle: ${entry.description||""}\nCategory: ${entry.category||""}\nYear: ${entry.year||""}\nType: ${entry.type||""}\nIntent: ${entry.communication_intent||""}\nSynopsis: ${entry.synopsis||""}\nInsight: ${entry.insight||""}\nIdea: ${entry.idea||""}\nTerritory: ${entry.primary_territory||""}\nExecution: ${entry.execution_style||""}\nAnalyst Notes: ${entry.analyst_comment||""}`}]
+        })});
+        const d=await res.json();
+        summary=d.content?.[0]?.text||"";
+      }catch{}
+
+      // Build stars
+      const stars=entry.rating?"★".repeat(Number(entry.rating))+"☆".repeat(5-Number(entry.rating)):"";
+
+      // Technical card fields
+      const fields=[
+        ["Brand",entry.brand_name||entry.competitor],["Category",entry.category],["Sub-category",entry.sub_category],
+        ["Country",entry.country],["Year",entry.year],["Type",entry.type],
+        ["Communication Intent",entry.communication_intent],["Funnel Stage",entry.funnel],
+        ["Rating",stars],["Brand Archetype",entry.brand_archetype],["Tone",entry.tone_of_voice],
+        ["Execution Style",entry.execution_style],["Territory",entry.primary_territory],
+        ["Secondary Territory",entry.secondary_territory],["Main Slogan",entry.main_slogan],
+        ["Channel",entry.channel],["CTA",entry.cta],["Proximity",entry.category_proximity],
+      ].filter(([,v])=>v&&v.trim());
+
+      // Custom dimensions
+      const customHtml=entry.custom_dimensions&&Object.keys(entry.custom_dimensions).length>0
+        ?`<div style="margin-top:16px"><h3 style="font-size:13px;font-weight:700;margin-bottom:8px;color:#333">Custom Dimensions</h3>${Object.entries(entry.custom_dimensions).filter(([,v])=>v).map(([k,v])=>`<div style="font-size:11px;margin-bottom:3px"><span style="color:#888">${k.replace(/_/g," ")}:</span> <span style="color:#333">${v}</span></div>`).join("")}</div>`
+        :"";
+
+      // Image
+      const imgHtml=entry.image_url?`<div style="text-align:center;margin:16px 0"><img src="${entry.image_url}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #ddd" crossorigin="anonymous"/></div>`:"";
+
+      const html=`
+        <div style="font-family:system-ui,-apple-system,sans-serif;color:#1a1a2e;line-height:1.6;padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0019FF;padding-bottom:12px;margin-bottom:20px">
+            <div><span style="font-size:18px;font-weight:800;color:#0a0f3c">Groundwork</span><span style="font-size:10px;color:#888;margin-left:8px">Competitive Intelligence Brief</span></div>
+            <span style="font-size:10px;color:#888">${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</span>
+          </div>
+          ${imgHtml}
+          ${entry.url?`<div style="font-size:10px;color:#0019FF;margin-bottom:12px">${entry.url}</div>`:""}
+          <h2 style="font-size:16px;font-weight:700;margin:0 0 4px">${entry.description||entry.brand_name||"Case Brief"}</h2>
+          <div style="font-size:11px;color:#666;margin-bottom:16px">${entry.brand_name||""} · ${entry.year||""} · ${entry.type||""}</div>
+          ${summary?`<div style="background:#f8f8fc;border-left:3px solid #0019FF;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px"><h3 style="font-size:12px;font-weight:700;color:#0019FF;margin:0 0 8px">Executive Summary</h3><div style="font-size:11px;color:#333">${summary.replace(/\n/g,"<br>")}</div></div>`:""}
+          <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">${fields.map(([l,v])=>`<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;color:#888;width:140px;vertical-align:top">${l}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;color:#333">${v}</td></tr>`).join("")}</table>
+          ${entry.synopsis?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Synopsis</h3><div style="font-size:11px;color:#555">${entry.synopsis}</div></div>`:""}
+          ${entry.insight?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Insight</h3><div style="font-size:11px;color:#555">${entry.insight}</div></div>`:""}
+          ${entry.idea?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Idea</h3><div style="font-size:11px;color:#555">${entry.idea}</div></div>`:""}
+          ${entry.main_vp?`<div style="margin-bottom:12px"><h3 style="font-size:12px;font-weight:700;color:#333;margin:0 0 4px">Value Proposition</h3><div style="font-size:11px;color:#555">${entry.main_vp}</div></div>`:""}
+          ${customHtml}
+          ${entry.analyst_comment?`<div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px"><h3 style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 4px">Analyst Notes</h3><div style="font-size:11px;color:#78350f">${entry.analyst_comment}</div></div>`:""}
+          <div style="margin-top:24px;padding-top:12px;border-top:1px solid #eee;text-align:center;font-size:9px;color:#aaa">Generated by Groundwork — Competitive Intelligence Platform · groundwork.kad.london</div>
+        </div>`;
+
+      const container=document.createElement("div");
+      container.innerHTML=html;
+      container.style.position="absolute";
+      container.style.left="-9999px";
+      container.style.width="680px";
+      document.body.appendChild(container);
+
+      const html2pdf=(await import("html2pdf.js")).default;
+      await html2pdf(container,{
+        margin:[15,15,15,15],
+        filename:`${(entry.brand_name||entry.competitor||"case").replace(/[^a-zA-Z0-9]/g,"-")}-${entry.type||"brief"}-${entry.year||""}.pdf`,
+        image:{type:"jpeg",quality:0.95},
+        html2canvas:{scale:2,useCORS:true},
+        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+      });
+      document.body.removeChild(container);
+    }catch(err){
+      console.error("[Download]",err);
+      setToast({message:"Error generating PDF: "+err.message});
+    }
+    setDownloading(false);
+  };
 
   const moveEntry=async(entry)=>{
     const toScope=entry.scope==="local"?"global":"local";
@@ -1510,8 +1591,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         {sb.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.analyst_comment}</div></div>}
         <div className="p-3 border-t border-main sticky bottom-0 bg-surface flex gap-2">
           <button onClick={()=>openForm(sb)} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">Edit</button>
-          <button onClick={()=>moveEntry(sb)} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition" title={`Move to ${scope==="local"?"Global":"Local"}`}>
-            {scope==="local"?"→ Global":"→ Local"}
+          <button onClick={()=>downloadCase(sb)} disabled={downloading} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition disabled:opacity-50">
+            {downloading?"Generating...":"↓ PDF"}
+          </button>
+          <button onClick={()=>moveEntry(sb)} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition" title={`Move to ${sb.scope==="local"?"Global":"Local"}`}>
+            {sb.scope==="local"?"→ Global":"→ Local"}
           </button>
         </div>
       </div>)}
