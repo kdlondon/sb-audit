@@ -98,6 +98,7 @@ export async function POST(request) {
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
   // Load framework and build prompt
+  console.log("[Analyze] Received brand_id:", brand_id, "project_id:", project_id);
   let prompt;
   if (brand_id || project_id) {
     try {
