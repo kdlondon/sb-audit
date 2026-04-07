@@ -578,9 +578,13 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
       const container=document.createElement("div");
       container.innerHTML=html;
-      container.style.position="absolute";
-      container.style.left="-9999px";
+      container.style.position="fixed";
+      container.style.top="0";
+      container.style.left="0";
       container.style.width="680px";
+      container.style.zIndex="-1";
+      container.style.opacity="0";
+      container.style.pointerEvents="none";
       document.body.appendChild(container);
 
       const html2pdf=(await import("html2pdf.js")).default;
