@@ -1729,78 +1729,77 @@ function DimensionBuilder({ initial, onSave, onCancel, saving }) {
         </div>
       </div>
 
+      {/* Fields — BEFORE classification rules */}
       <div>
+        <label className="block text-[9px] text-hint uppercase font-semibold mb-2">Fields</label>
+        <div className="space-y-2">
+          {fields.map((f, i) => (
+            <div key={i} className="bg-surface2 rounded-lg p-2 space-y-1.5">
+              <div className="flex gap-2 items-start">
+                <input value={f.name} onChange={e => updateField(i, { name: e.target.value })}
+                  placeholder="Field name" className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
+                <select value={f.type} onChange={e => updateField(i, { type: e.target.value })}
+                  className="px-2 py-1 bg-surface border border-main rounded text-xs text-main w-28">
+                  <option value="text">Text</option>
+                  <option value="single_choice">Single choice</option>
+                  <option value="multichoice">Multi-choice</option>
+                  <option value="textarea">Text area</option>
+                </select>
+                <button onClick={() => removeField(i)} className="text-red-400 hover:text-red-600 text-sm px-1">×</button>
+              </div>
+              {(f.type === "single_choice" || f.type === "multichoice") && (
+                <input defaultValue={(f.values || []).join(", ")}
+                  onBlur={e => updateField(i, { values: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
+                  placeholder="Options (comma-separated)"
+                  className="w-full px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
+              )}
+              <input value={f.description || ""} onChange={e => updateField(i, { description: e.target.value })}
+                placeholder="Description — what does this field measure? (optional, helps AI classify better)"
+                className="w-full px-2 py-1 bg-surface border border-main rounded text-[10px] text-muted focus:outline-none italic" />
+            </div>
+          ))}
+        </div>
+        <button onClick={addField} className="text-xs text-accent hover:underline mt-2">+ Add field</button>
+      </div>
+
+      {/* Classification rules — AFTER fields, uses field descriptions for AI context */}
+      <div className="pt-2 border-t border-main/30">
         <div className="flex justify-between items-center mb-1">
-          <label className="block text-[9px] text-hint uppercase font-semibold">Classification rules (for AI)</label>
-          <button type="button" disabled={generatingRules} onClick={async () => {
-            if (!name.trim() || fields.length === 0) return;
+          <label className="block text-[9px] text-hint uppercase font-semibold">Classification instructions (for AI)</label>
+          <button type="button" disabled={generatingRules || fields.filter(f=>f.name).length === 0} onClick={async () => {
             setGeneratingRules(true);
             try {
-              const fieldDescs = fields.filter(f => f.name).map(f =>
-                `${f.name} (${f.type}): ${f.values?.join(", ") || "free text"}`
-              ).join("\n");
-              console.log("[AI Rules] Generating for:", name, "fields:", fields.length);
+              const fieldDescs = fields.filter(f => f.name).map(f => {
+                let desc = `${f.name} (${f.type})`;
+                if (f.values?.length) desc += `: options are ${f.values.join(", ")}`;
+                else desc += ": free text";
+                if (f.description) desc += ` — ${f.description}`;
+                return desc;
+              }).join("\n");
               const res = await fetch("/api/ai", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   skip_framework: true, max_tokens: 500,
                   messages: [{ role: "user", content: `You are configuring an AI classification system for competitive communication analysis (ads, campaigns, brand content).
 
-A custom analysis dimension called "${name}" has these fields:
+A custom analysis dimension called "${name}" (${description || "no description"}) has these fields:
 ${fieldDescs}
 
-Write concise classification rules (2-4 sentences) that tell the AI how to classify a communication piece into these fields. Focus on:
-- What signals in the piece determine each field's value
-- Whether to classify based on explicit content or implied meaning
-- What to do when multiple values apply or none apply
-
-Return ONLY the rules text, no headers or formatting.` }]
+Write concise classification rules (3-5 sentences) that tell the AI how to classify a communication piece into these fields. For each field, explain what signals in the piece determine its value. Focus on whether to classify based on explicit content or implied meaning, and what to do for edge cases. Return ONLY the rules text.` }]
                 })
               });
               const data = await res.json();
-              console.log("[AI Rules] Response:", data);
-              const text = data.content?.[0]?.text || data.error || "";
-              if (text && !data.error) setRules(text);
-              else if (data.error) console.error("[AI Rules] Error:", data.error);
-            } catch (err) {
-              console.error("[AI Rules] Fetch error:", err);
-            }
+              const text = data.content?.[0]?.text || "";
+              if (text) setRules(text);
+            } catch (err) { console.error("[AI Rules]", err); }
             setGeneratingRules(false);
           }} className="text-[9px] text-accent hover:underline font-medium disabled:opacity-50">
             {generatingRules ? "Generating..." : "Generate with AI"}
           </button>
         </div>
-        <textarea value={rules} onChange={e => setRules(e.target.value)} rows={2}
-          placeholder="Instructions for AI on how to classify these fields..."
-          className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent resize-none" />
-      </div>
-
-      {/* Fields */}
-      <div>
-        <label className="block text-[9px] text-hint uppercase font-semibold mb-2">Fields</label>
-        <div className="space-y-2">
-          {fields.map((f, i) => (
-            <div key={i} className="flex gap-2 items-start bg-surface2 rounded-lg p-2">
-              <input value={f.name} onChange={e => updateField(i, { name: e.target.value })}
-                placeholder="Field name" className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
-              <select value={f.type} onChange={e => updateField(i, { type: e.target.value })}
-                className="px-2 py-1 bg-surface border border-main rounded text-xs text-main w-28">
-                <option value="text">Text</option>
-                <option value="single_choice">Single choice</option>
-                <option value="multichoice">Multi-choice</option>
-                <option value="textarea">Text area</option>
-              </select>
-              {(f.type === "single_choice" || f.type === "multichoice") && (
-                <input defaultValue={(f.values || []).join(", ")}
-                  onBlur={e => updateField(i, { values: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
-                  placeholder="Options (comma-separated)"
-                  className="flex-1 px-2 py-1 bg-surface border border-main rounded text-xs text-main focus:outline-none" />
-              )}
-              <button onClick={() => removeField(i)} className="text-red-400 hover:text-red-600 text-sm px-1">x</button>
-            </div>
-          ))}
-        </div>
-        <button onClick={addField} className="text-xs text-accent hover:underline mt-2">+ Add field</button>
+        <textarea value={rules} onChange={e => setRules(e.target.value)} rows={3}
+          placeholder="Instructions for AI on how to classify entries using these fields. Tip: add descriptions to fields above for better AI-generated rules."
+          className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent resize-y" />
       </div>
 
       <div className="flex gap-2 pt-2">
