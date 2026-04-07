@@ -1660,14 +1660,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
         <div className="section-bar px-5 py-2.5 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-main">Creative Source</h2>
-            <div className="flex bg-surface2 rounded-lg p-0.5">
-              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Local audit</button>
-              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Global benchmarks</button>
-              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${viewMode==="collections"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Collections</button>
+          <div className="flex items-center gap-5">
+            <h2 className="text-[15px] font-bold text-white">Creative Source</h2>
+            <div className="flex gap-1">
+              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Local audit</button>
+              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Global benchmarks</button>
+              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="collections"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Collections</button>
             </div>
-            {viewMode==="entries"&&<span className="text-xs text-hint">{fd.length} of {data.length}</span>}
+            {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
           {selected.size>0&&<div className="flex gap-2 items-center">
             <div className="relative">
@@ -1772,60 +1772,58 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
         {/* Collection Detail View */}
         {viewMode==="collections"&&activeCollection&&(
-          <div className="px-5 py-4">
-            <div className="flex items-center gap-3 mb-4">
-              <button onClick={()=>{setActiveCollection(null);loadCollections();router.push("/audit?view=collections",{scroll:false});}} className="text-sm text-accent hover:underline font-medium">&larr; Collections</button>
-            </div>
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-bold text-main">{activeCollection.name}</h3>
-                {activeCollection.description&&<p className="text-xs text-muted mt-1">{activeCollection.description}</p>}
-                {activeCollection.objective&&<p className="text-xs text-hint mt-1">Objective: {activeCollection.objective}</p>}
-                <div className="flex gap-2 mt-2">
-                  <span className="text-[10px] bg-accent-soft text-accent px-1.5 py-0.5 rounded font-medium">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${activeCollection.is_private?"bg-yellow-50 text-yellow-700":"bg-green-50 text-green-700"}`}>{activeCollection.is_private?"Private":"Shared"}</span>
-                  <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/audit?collection=${activeCollection.id}`);setToast({message:"Link copied"});}} className="text-[10px] text-accent hover:underline cursor-pointer">Copy link</button>
-                </div>
+          <div className="px-8 py-6 max-w-[1100px] mx-auto">
+            {/* Header row */}
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-3">
+                <h3 className="text-2xl font-bold text-main">{activeCollection.name}</h3>
+                <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
+                <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{activeCollection.is_private?"private":"shared"}</span>
               </div>
               <div className="flex gap-2">
-                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-3 py-1.5 text-xs bg-white/10 border border-main rounded-lg text-main hover:bg-surface2 font-medium">Presentation</button>}
-                <div className="relative">
-                  <button className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Generate Report</button>
-                </div>
-                <button onClick={()=>setEditingCollection(activeCollection)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main">Edit</button>
-                <button onClick={()=>deleteCollection(activeCollection.id)} className="px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-500 hover:bg-red-50">Delete</button>
+                <button className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Report</button>
+                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Presentation</button>}
+                <button onClick={()=>setEditingCollection(activeCollection)} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Edit</button>
+                <button onClick={()=>deleteCollection(activeCollection.id)} className="px-4 py-1.5 text-sm bg-red-500 text-white rounded-full font-medium hover:bg-red-600 transition">Delete</button>
               </div>
             </div>
-            <p className="text-[10px] text-hint mb-3">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
-            {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-8">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
-              <div className="flex flex-col gap-2">
+            {activeCollection.description&&<p className="text-sm text-muted mb-1">{activeCollection.description}</p>}
+            {activeCollection.objective&&<p className="text-sm text-hint italic mb-1">Objective: {activeCollection.objective}</p>}
+            <div className="flex gap-2 mb-4 mt-2">
+              <button onClick={()=>{setActiveCollection(null);loadCollections();router.push("/audit?view=collections",{scroll:false});}} className="text-xs text-muted hover:text-main transition">&larr; Back to collections</button>
+              <span className="text-xs text-hint">·</span>
+              <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/audit?collection=${activeCollection.id}`);setToast({message:"Link copied"});}} className="text-xs text-muted hover:text-main transition">Copy link</button>
+            </div>
+            <hr className="border-[var(--border)] mb-5"/>
+            <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
+            {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
+              <div className="flex flex-col gap-4">
                 {collectionEntries.map((e,idx)=>{
                   const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
                   return(<div key={e.id} draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
-                    className={`flex items-center gap-3 bg-surface border rounded-lg p-2 cursor-grab active:cursor-grabbing transition-all group ${dragOverIdx===idx?"border-accent border-2 bg-accent-soft":"border-main hover:border-[var(--accent)]"}`}>
+                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing transition-all group ${dragOverIdx===idx?"border-[var(--accent)] border-2 bg-accent-soft":"border-[#e0e0e0] hover:border-[#bbb]"}`}>
                     {/* Drag handle */}
-                    <div className="text-hint text-sm select-none flex-shrink-0 w-5 text-center cursor-grab opacity-40 group-hover:opacity-100">⠿</div>
+                    <div className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab group-hover:text-[#999] transition">☰</div>
                     {/* Thumbnail */}
-                    <div className="w-20 h-14 bg-surface2 rounded overflow-hidden flex-shrink-0 cursor-pointer" onClick={()=>setSb(e)}>
-                      {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-[9px]">No img</div>}
+                    <div className="w-[180px] h-[120px] bg-surface2 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer" onClick={()=>setSb(e)}>
+                      {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-xs">No image</div>}
                     </div>
                     {/* Entry info */}
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={()=>setSb(e)}>
-                      <div className="flex gap-1.5 items-center mb-0.5">
-                        {(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}
-                        <span className="text-xs font-medium text-main truncate">{e.description||"—"}</span>
-                        {e.year&&<span className="text-[10px] text-muted">{e.year}</span>}
-                        {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
+                      <div className="flex gap-2 items-center mb-1.5">
+                        {(e.competitor||e.brand_name)&&<span className="text-xs font-medium bg-[#333] text-white px-2 py-0.5 rounded">{e.competitor||e.brand_name}</span>}
+                        {e.rating&&<span className="text-sm">{"★".repeat(Number(e.rating))}</span>}
                       </div>
-                      <div className="text-[10px] text-muted truncate">{e.category}{e.type?` · ${e.type}`:""}{e.communication_intent?` · ${e.communication_intent}`:""}</div>
+                      <p className="text-base font-bold text-main mb-1">{e.description||"—"}{e.year?` (${e.year})`:""}</p>
+                      <p className="text-sm text-muted">{[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" • ")}</p>
                     </div>
                     {/* Custom title/note */}
-                    <div className="flex flex-col gap-1 w-[220px] flex-shrink-0" onClick={ev=>ev.stopPropagation()}>
-                      <input defaultValue={e._custom_title||""} placeholder="Slide title..." onBlur={ev=>updateEntryCustom(e.id,"custom_title",ev.target.value)} className="px-2 py-1 text-[11px] bg-transparent border border-transparent hover:border-main focus:border-accent rounded text-main placeholder:text-hint/50 focus:outline-none transition" />
-                      <input defaultValue={e._custom_note||""} placeholder="Analyst note..." onBlur={ev=>updateEntryCustom(e.id,"custom_note",ev.target.value)} className="px-2 py-0.5 text-[10px] bg-transparent border border-transparent hover:border-main focus:border-accent rounded text-muted placeholder:text-hint/50 focus:outline-none transition" />
+                    <div className="flex flex-col gap-2 w-[240px] flex-shrink-0" onClick={ev=>ev.stopPropagation()}>
+                      <input defaultValue={e._custom_title||""} placeholder="Slide title..." onBlur={ev=>updateEntryCustom(e.id,"custom_title",ev.target.value)} className="px-3 py-2 text-sm bg-white border border-[#e0e0e0] rounded-lg text-main placeholder:text-[#bbb] focus:outline-none focus:border-[#999] transition" />
+                      <input defaultValue={e._custom_note||""} placeholder="Analyst note..." onBlur={ev=>updateEntryCustom(e.id,"custom_note",ev.target.value)} className="px-3 py-2 text-sm bg-white border border-[#e0e0e0] rounded-lg text-muted placeholder:text-[#bbb] focus:outline-none focus:border-[#999] transition" />
                     </div>
-                    {/* Remove */}
-                    <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-hint hover:text-red-400 text-sm flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove">×</button>
+                    {/* Remove — hidden until hover */}
+                    <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
                   </div>);
                 })}
               </div>

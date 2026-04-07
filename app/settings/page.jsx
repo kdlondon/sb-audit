@@ -1408,16 +1408,16 @@ function SettingsContent() {
       {/* Header bar */}
       <div className="section-bar px-5 py-3 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-main">Settings</h2>
-          <div className="flex bg-surface2 rounded-lg p-0.5">
+          <h2 className="text-lg font-bold text-white">Settings</h2>
+          <div className="flex bg-white/15 rounded-lg p-0.5">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition ${
                   activeTab === t.key
-                    ? "bg-surface text-accent shadow-sm"
-                    : "text-muted"
+                    ? "bg-white/15 text-white shadow-sm"
+                    : "text-white/60"
                 }`}
               >
                 {t.label}

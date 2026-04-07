@@ -32,7 +32,7 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', system-ui, -apple-system, sans-serif);
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -97,13 +97,13 @@ a, button, input, select, textarea {
   opacity: 1 !important;
 }
 
-/* Section bar — fixed below nav, no scroll jank */
+/* Section bar — fixed below nav, dark charcoal */
 .section-bar {
   position: sticky;
   top: var(--nav-h);
   z-index: 30;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: #2d2d2d;
+  border-bottom: none;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }

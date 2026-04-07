@@ -186,17 +186,17 @@ export default function AdminDashboard() {
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         <div className="section-bar px-5 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-main">Platform Analytics</h2>
-            <span className="text-[10px] text-hint bg-accent-soft px-2 py-0.5 rounded-full font-semibold">Admin</span>
+            <h2 className="text-lg font-bold text-white">Platform Analytics</h2>
+            <span className="text-[10px] text-white bg-white/15 px-2 py-0.5 rounded-full font-semibold">Admin</span>
           </div>
           <div className="flex items-center gap-3">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              className="px-2 py-1 bg-surface border border-main rounded-lg text-xs text-main">
+              className="px-2 py-1 bg-white/15 border border-white/20 rounded-lg text-xs text-white">
               <option value="all">All projects</option>
               {(rawData?.projects || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))}
-              className="px-2 py-1 bg-surface border border-main rounded-lg text-xs text-main">
+              className="px-2 py-1 bg-white/15 border border-white/20 rounded-lg text-xs text-white">
               <option value={7}>Last 7 days</option>
               <option value={30}>Last 30 days</option>
               <option value={90}>Last 90 days</option>

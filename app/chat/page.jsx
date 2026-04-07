@@ -184,8 +184,8 @@ Answer precisely. Be strategic and conclusive. Reference specific brands, counts
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       <div className="section-bar px-5 py-3">
-        <h2 className="text-lg font-bold text-main">Chat with your data</h2>
-        <p className="text-xs text-muted">{dataLoaded ? `${data.length} entries loaded (${data.filter(e=>e._scope==="local").length} local + ${data.filter(e=>e._scope==="global").length} global)` : "Loading..."}</p>
+        <h2 className="text-lg font-bold text-white">Chat with your data</h2>
+        <p className="text-xs text-white/60">{dataLoaded ? `${data.length} entries loaded (${data.filter(e=>e._scope==="local").length} local + ${data.filter(e=>e._scope==="global").length} global)` : "Loading..."}</p>
       </div>
 
       <div className="flex-1 overflow-auto px-5 py-4 max-w-3xl w-full mx-auto">

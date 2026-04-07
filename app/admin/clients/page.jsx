@@ -150,17 +150,17 @@ export default function ClientsPage() {
         {/* HEADER BAR */}
         <div className="section-bar px-5 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-main">Client Management</h2>
-            <span className="text-[10px] text-hint bg-accent-soft px-2 py-0.5 rounded-full font-semibold">Admin</span>
+            <h2 className="text-lg font-bold text-white">Client Management</h2>
+            <span className="text-[10px] text-white bg-white/15 px-2 py-0.5 rounded-full font-semibold">Admin</span>
           </div>
           <div className="flex items-center gap-3">
             <input
               type="text" placeholder="Search clients..."
               value={search} onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 bg-surface border border-main rounded-lg text-xs text-main w-48 focus:outline-none focus:border-[var(--accent)]"
+              className="px-3 py-1.5 bg-white/15 border border-white/20 rounded-lg text-xs text-white w-48 focus:outline-none focus:border-white/40 placeholder:text-white/40"
             />
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="px-2 py-1.5 bg-surface border border-main rounded-lg text-xs text-main">
+              className="px-2 py-1.5 bg-white/15 border border-white/20 rounded-lg text-xs text-white">
               <option value="all">All statuses</option>
               {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
             </select>

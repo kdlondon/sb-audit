@@ -59,29 +59,25 @@ export default function Nav() {
 
   return (
     <div className="px-5 py-2 flex items-center justify-between sticky top-0"
-      style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 100, transform: "translateZ(0)" }}>
-      <div className="flex items-center gap-4">
+      style={{ background: "#c96b6b", borderBottom: "none", zIndex: 100, transform: "translateZ(0)" }}>
+      <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
-          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 24 }} />
-          <span className="text-sm font-bold text-white/80 uppercase tracking-[0.15em]">Groundwork</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
+          <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
           {process.env.NEXT_PUBLIC_ENV === "staging" && (
             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#facc15", color: "#0a0f3c" }}>Staging</span>
           )}
         </div>
-        <div className="border-l border-white/10 pl-4 flex items-center gap-2">
-          <button onClick={() => { clearBrand(); router.push("/dashboard"); }} className="text-[10px] text-white/30 hover:text-white/60 transition">← Dashboard</button>
-          <button onClick={() => { if (role !== "client" && role !== "viewer") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/audit"); }} className={`text-xs font-medium transition ${role === "client" || role === "viewer" ? "text-white/70 cursor-default" : "text-white/70 hover:text-white"}`}>
-            {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select brand")}
-          </button>
-        </div>
-        {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-2">
+        <button onClick={() => { if (role !== "client" && role !== "viewer") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/audit"); }} className={`text-sm font-semibold transition ${role === "client" || role === "viewer" ? "text-white cursor-default" : "text-white hover:text-white/90"}`}>
+          {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select brand")}
+        </button>
+        {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-1">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
-              className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition ${
-                pathname.startsWith(t.href) ? "text-white" : "text-white/40 hover:text-white/70"
+              className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${
+                pathname.startsWith(t.href) ? "text-white" : "text-white/70 hover:text-white/90"
               }`}
-              style={pathname.startsWith(t.href) ? { background: "rgba(255,255,255,0.08)" } : {}}>
+              style={pathname.startsWith(t.href) ? { background: "rgba(0,0,0,0.15)" } : {}}>
               {t.name}
             </button>
           ))}
@@ -98,26 +94,24 @@ export default function Nav() {
             <div className="ai-sparkle" style={{ top: "72%", left: "80%", animationDelay: "0.4s" }} />
           </div>
 
-          {/* Add — chartreuse — opens form directly (no dropdown) */}
+          {/* Add — yellow circle */}
           {canAccess(role, "audit") && (
             <button onClick={() => {
               if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"local"}}));}
               else{window.location.href="/audit?add=1";}
             }}
-              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
-              style={{ background: "#D4E520" }}>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#0a0f3c" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
-              <span className="text-[10px] font-bold uppercase tracking-wide overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap" style={{ color: "#0a0f3c" }}>Add</span>
+              className="h-[30px] w-[30px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+              style={{ background: "#e8b931" }}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
             </button>
           )}
 
-          {/* Chat — blue */}
+          {/* Chat — beige/tan circle */}
           {canAccess(role, "chat") && (
             <button onClick={() => router.push("/chat")}
-              className="group h-[28px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-out"
-              style={{ background: "#0019FF" }}>
+              className="h-[30px] w-[30px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+              style={{ background: "#d4c9a8" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-white overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Chat</span>
             </button>
           )}
 

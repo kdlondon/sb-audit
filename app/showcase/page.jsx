@@ -1880,8 +1880,8 @@ Return: {"title":"...","slides":[...slides...]}`;
         {/* Section bar */}
         <div className="section-bar px-5 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-main">Showcase</h2>
-            <p className="text-xs text-muted">Cinematic presentations powered by Knots & Dots</p>
+            <h2 className="text-lg font-bold text-white">Showcase</h2>
+            <p className="text-xs text-white/60">Cinematic presentations powered by Knots & Dots</p>
           </div>
           {canEdit && (
             <button onClick={() => nav({ new: 1 })} className="px-3 py-1.5 text-sm text-white rounded-lg font-semibold hover:opacity-90"

@@ -100,8 +100,8 @@ export default function MfaSetupPage() {
       <Nav />
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         <div className="section-bar px-5 py-3">
-          <h2 className="text-lg font-bold text-main">Security Settings</h2>
-          <p className="text-xs text-muted">Manage two-factor authentication for your account</p>
+          <h2 className="text-lg font-bold text-white">Security Settings</h2>
+          <p className="text-xs text-white/60">Manage two-factor authentication for your account</p>
         </div>
 
         <div className="max-w-xl mx-auto p-6 space-y-6">
