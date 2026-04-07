@@ -248,7 +248,7 @@ function MultiSelect({ fieldKey, value, opts, onChange, projectId, optKey }) {
   );
 }
 
-function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry}){
+function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry,initialCollectionId,clearInitialCollectionId}){
   const {framework,frameworkLoaded}=useFramework()||{};
   const {brandId,brand}=require("@/lib/brand-context").useBrand()||{};
   const {activeOrg,userEmail}=require("@/lib/role-context").useRole()||{};
@@ -550,6 +550,22 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
 
+  // Handle direct collection URL (?collection=<id> or ?view=collections)
+  useEffect(()=>{
+    if(!initialCollectionId||!brandId)return;
+    setViewMode("collections");
+    if(initialCollectionId==="list"){
+      loadCollections();
+      clearInitialCollectionId?.();
+    } else {
+      (async()=>{
+        const{data:col}=await supabase.from("collections").select("*").eq("id",initialCollectionId).single();
+        if(col)openCollection(col);
+        clearInitialCollectionId?.();
+      })();
+    }
+  },[initialCollectionId,brandId]);
+
   const createCollection=async(colData)=>{
     const{data:created,error}=await supabase.from("collections").insert({
       name:colData.name,
@@ -586,11 +602,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   const openCollection=async(col)=>{
     setActiveCollection(col);
-    const{data:links}=await supabase.from("collection_entries").select("entry_id").eq("collection_id",col.id);
+    // Update URL to include collection ID
+    router.push(`/audit?collection=${col.id}`,{scroll:false});
+    const{data:links}=await supabase.from("collection_entries").select("entry_id,sort_order,custom_title,custom_note").eq("collection_id",col.id).order("sort_order",{ascending:true});
     if(!links||links.length===0){setCollectionEntries([]);return;}
     const entryIds=links.map(l=>l.entry_id);
     const{data:entries}=await supabase.from("creative_source").select("*").in("id",entryIds);
-    setCollectionEntries(entries||[]);
+    // Merge custom fields and maintain sort order
+    const ordered=links.map(l=>{
+      const entry=(entries||[]).find(e=>e.id===l.entry_id);
+      return entry?{...entry,_custom_title:l.custom_title,_custom_note:l.custom_note,_sort_order:l.sort_order}:null;
+    }).filter(Boolean);
+    setCollectionEntries(ordered);
   };
 
   const addToCollection=async(collectionId,entryIds)=>{
@@ -615,6 +638,34 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       setActiveCollection(prev=>({...prev,entryCount:(prev.entryCount||1)-1}));
     }
     loadCollections();
+  };
+
+  // Drag-and-drop reorder
+  const dragRef=useRef(null);
+  const [dragOverIdx,setDragOverIdx]=useState(null);
+  const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";e.currentTarget.style.opacity="0.4";};
+  const handleReorderDragEnd=(e)=>{e.currentTarget.style.opacity="1";setDragOverIdx(null);};
+  const handleReorderDragOver=(e,idx)=>{e.preventDefault();e.dataTransfer.dropEffect="move";setDragOverIdx(idx);};
+  const handleReorderDrop=async(e,toIdx)=>{
+    e.preventDefault();setDragOverIdx(null);
+    const fromIdx=dragRef.current;if(fromIdx===null||fromIdx===toIdx)return;
+    const updated=[...collectionEntries];
+    const [moved]=updated.splice(fromIdx,1);
+    updated.splice(toIdx,0,moved);
+    setCollectionEntries(updated);
+    // Persist sort order
+    const colId=activeCollection?.id;if(!colId)return;
+    for(let i=0;i<updated.length;i++){
+      await supabase.from("collection_entries").update({sort_order:i}).eq("collection_id",colId).eq("entry_id",updated[i].id);
+    }
+  };
+
+  // Update custom title/note for an entry in a collection
+  const updateEntryCustom=async(entryId,field,value)=>{
+    if(!activeCollection?.id)return;
+    const update=field==="custom_title"?{custom_title:value}:{custom_note:value};
+    await supabase.from("collection_entries").update(update).eq("collection_id",activeCollection.id).eq("entry_id",entryId);
+    setCollectionEntries(prev=>prev.map(e=>e.id===entryId?{...e,[`_${field}`]:value}:e));
   };
 
   const downloadCase=async(entry)=>{
@@ -1723,7 +1774,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         {viewMode==="collections"&&activeCollection&&(
           <div className="px-5 py-4">
             <div className="flex items-center gap-3 mb-4">
-              <button onClick={()=>{setActiveCollection(null);loadCollections();}} className="text-sm text-accent hover:underline font-medium">&larr; Collections</button>
+              <button onClick={()=>{setActiveCollection(null);loadCollections();router.push("/audit?view=collections",{scroll:false});}} className="text-sm text-accent hover:underline font-medium">&larr; Collections</button>
             </div>
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -1733,35 +1784,48 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 <div className="flex gap-2 mt-2">
                   <span className="text-[10px] bg-accent-soft text-accent px-1.5 py-0.5 rounded font-medium">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${activeCollection.is_private?"bg-yellow-50 text-yellow-700":"bg-green-50 text-green-700"}`}>{activeCollection.is_private?"Private":"Shared"}</span>
+                  <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/audit?collection=${activeCollection.id}`);setToast({message:"Link copied"});}} className="text-[10px] text-accent hover:underline cursor-pointer">Copy link</button>
                 </div>
               </div>
               <div className="flex gap-2">
                 {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-3 py-1.5 text-xs bg-white/10 border border-main rounded-lg text-main hover:bg-surface2 font-medium">Presentation</button>}
                 <div className="relative">
-                  <button className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Generate Report ▾</button>
+                  <button className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Generate Report</button>
                 </div>
                 <button onClick={()=>setEditingCollection(activeCollection)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main">Edit</button>
-                <button onClick={()=>updateCollection(activeCollection.id,{is_private:!activeCollection.is_private})} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main">{activeCollection.is_private?"Make Shared":"Make Private"}</button>
                 <button onClick={()=>deleteCollection(activeCollection.id)} className="px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-500 hover:bg-red-50">Delete</button>
               </div>
             </div>
+            <p className="text-[10px] text-hint mb-3">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-8">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {collectionEntries.map(e=>{
+              <div className="flex flex-col gap-2">
+                {collectionEntries.map((e,idx)=>{
                   const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
-                  return(<div key={e.id} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative" onClick={()=>setSb(e)}>
-                    <button onClick={ev=>{ev.stopPropagation();removeFromCollection(activeCollection.id,e.id);}} className="absolute top-1 right-1 z-10 bg-black/60 text-white/80 hover:text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
-                    <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden">
-                      {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="text-hint text-xs">No preview</div>}
+                  return(<div key={e.id} draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
+                    className={`flex items-center gap-3 bg-surface border rounded-lg p-2 cursor-grab active:cursor-grabbing transition-all group ${dragOverIdx===idx?"border-accent border-2 bg-accent-soft":"border-main hover:border-[var(--accent)]"}`}>
+                    {/* Drag handle */}
+                    <div className="text-hint text-sm select-none flex-shrink-0 w-5 text-center cursor-grab opacity-40 group-hover:opacity-100">⠿</div>
+                    {/* Thumbnail */}
+                    <div className="w-20 h-14 bg-surface2 rounded overflow-hidden flex-shrink-0 cursor-pointer" onClick={()=>setSb(e)}>
+                      {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-[9px]">No img</div>}
                     </div>
-                    <div className="p-2.5">
-                      <div className="flex gap-1 mb-1">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
-                      <p className="text-xs font-medium text-main truncate">{e.description||"—"}</p>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-[10px] text-muted">{e.year||""}</span>
+                    {/* Entry info */}
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={()=>setSb(e)}>
+                      <div className="flex gap-1.5 items-center mb-0.5">
+                        {(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}
+                        <span className="text-xs font-medium text-main truncate">{e.description||"—"}</span>
+                        {e.year&&<span className="text-[10px] text-muted">{e.year}</span>}
                         {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
                       </div>
+                      <div className="text-[10px] text-muted truncate">{e.category}{e.type?` · ${e.type}`:""}{e.communication_intent?` · ${e.communication_intent}`:""}</div>
                     </div>
+                    {/* Custom title/note */}
+                    <div className="flex flex-col gap-1 w-[220px] flex-shrink-0" onClick={ev=>ev.stopPropagation()}>
+                      <input defaultValue={e._custom_title||""} placeholder="Slide title..." onBlur={ev=>updateEntryCustom(e.id,"custom_title",ev.target.value)} className="px-2 py-1 text-[11px] bg-transparent border border-transparent hover:border-main focus:border-accent rounded text-main placeholder:text-hint/50 focus:outline-none transition" />
+                      <input defaultValue={e._custom_note||""} placeholder="Analyst note..." onBlur={ev=>updateEntryCustom(e.id,"custom_note",ev.target.value)} className="px-2 py-0.5 text-[10px] bg-transparent border border-transparent hover:border-main focus:border-accent rounded text-muted placeholder:text-hint/50 focus:outline-none transition" />
+                    </div>
+                    {/* Remove */}
+                    <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-hint hover:text-red-400 text-sm flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove">×</button>
                   </div>);
                 })}
               </div>
@@ -1959,73 +2023,125 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
       {/* Presentation mode — fullscreen slideshow */}
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
-        <div className="fixed inset-0 bg-black flex flex-col" style={{zIndex:99999}}
-          onKeyDown={e=>{if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,collectionEntries.length-1));if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));if(e.key==="Escape")setPresentationMode(false);}} tabIndex={0} ref={el=>el&&el.focus()}>
+        <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
+          onKeyDown={e=>{
+            const totalSlides=collectionEntries.length+2; // +intro +outro
+            if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,totalSlides-1));
+            if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));
+            if(e.key==="Escape")setPresentationMode(false);
+          }} tabIndex={0} ref={el=>el&&el.focus()}>
           {(()=>{
-            const entry=collectionEntries[presIndex];
-            if(!entry)return null;
-            const thumb=ytId(entry.url)?`https://img.youtube.com/vi/${ytId(entry.url)}/maxresdefault.jpg`:entry.image_url;
-            const extraImgs=entry.image_urls?JSON.parse(entry.image_urls||"[]"):[];
-            const brand=entry.competitor||entry.brand_name||entry.brand||"";
-            return(<>
-              {/* Close button */}
-              <button onClick={()=>setPresentationMode(false)} className="absolute top-4 right-4 text-white/40 hover:text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition z-10">×</button>
+            const totalSlides=collectionEntries.length+2;
+            const isIntro=presIndex===0;
+            const isOutro=presIndex===totalSlides-1;
+            const entryIdx=presIndex-1;
+            const entry=!isIntro&&!isOutro?collectionEntries[entryIdx]:null;
+
+            // Navigation arrows (always visible)
+            const navArrows=(<>
+              <button onClick={()=>setPresIndex(i=>Math.max(i-1,0))} disabled={presIndex===0}
+                className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/5 transition disabled:opacity-0 z-10">&lsaquo;</button>
+              <button onClick={()=>setPresIndex(i=>Math.min(i+1,totalSlides-1))} disabled={presIndex===totalSlides-1}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/5 transition disabled:opacity-0 z-10">&rsaquo;</button>
+            </>);
+
+            // Close button
+            const closeBtn=<button onClick={()=>setPresentationMode(false)} className="absolute top-4 right-4 text-white/20 hover:text-white/60 text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition z-10">×</button>;
+
+            // ── INTRO SLIDE ──
+            if(isIntro){
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
+                {closeBtn}{navArrows}
+                <div className="text-center max-w-2xl px-8">
+                  <div className="text-white/30 text-[10px] uppercase tracking-[0.3em] mb-3">{brand?.name||"Groundwork"}</div>
+                  <div className="text-white/40 text-sm italic mb-6" style={{fontFamily:"Georgia,serif"}}>presents</div>
+                  <h1 className="text-white text-4xl md:text-6xl font-bold uppercase tracking-tight mb-4">{activeCollection?.name||"Collection"}</h1>
+                  {activeCollection?.description&&<p className="text-white/50 text-base mb-4">{activeCollection.description}</p>}
+                  {activeCollection?.objective&&<p className="text-white/30 text-sm italic" style={{fontFamily:"Georgia,serif"}}>{activeCollection.objective}</p>}
+                  <div className="mt-10 w-16 h-px bg-white/10 mx-auto"></div>
+                  <div className="mt-4 text-white/20 text-xs">{collectionEntries.length} cases</div>
+                </div>
+              </div>);
+            }
+
+            // ── OUTRO SLIDE ──
+            if(isOutro){
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
+                {closeBtn}{navArrows}
+                <div className="text-center max-w-lg px-8">
+                  <div className="text-white/10 text-6xl font-bold uppercase tracking-[0.2em] mb-6" style={{lineHeight:1}}>K<br/>&<br/>D.</div>
+                  <div className="w-16 h-px bg-white/10 mx-auto mb-6"></div>
+                  <h2 className="text-white text-3xl md:text-4xl font-bold uppercase tracking-tight mb-4">Thank You</h2>
+                  {activeCollection?.name&&<p className="text-white/40 text-sm mb-2">{activeCollection.name}</p>}
+                  <p className="text-white/20 text-xs mt-6">A Knots & Dots product</p>
+                  <p className="text-white/10 text-[10px] mt-2">groundwork by knots & dots &middot; {new Date().getFullYear()}</p>
+                </div>
+              </div>);
+            }
+
+            // ── ENTRY SLIDE ──
+            const brandName=entry.competitor||entry.brand_name||entry.brand||"";
+            const customTitle=entry._custom_title;
+            const customNote=entry._custom_note;
+            return(<div className="flex-1 flex flex-col relative" style={{background:"#111015"}}>
+              {closeBtn}
               {/* Counter */}
-              <div className="absolute top-4 left-4 text-white/30 text-xs font-mono z-10">{presIndex+1} / {collectionEntries.length}</div>
+              <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{entryIdx+1} / {collectionEntries.length}</div>
+              {navArrows}
 
-              {/* Main content area */}
-              <div className="flex-1 flex items-center justify-center relative overflow-hidden px-16">
-                {/* Left arrow */}
-                <button onClick={()=>setPresIndex(i=>Math.max(i-1,0))} disabled={presIndex===0}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition disabled:opacity-0 disabled:cursor-default z-10">&lsaquo;</button>
+              {/* Custom title overlay — above the visual */}
+              {(customTitle||customNote)&&(
+                <div className="px-16 pt-4 pb-2 flex-shrink-0">
+                  {customTitle&&<h3 className="text-white text-xl font-bold text-center">{customTitle}</h3>}
+                  {customNote&&<p className="text-white/50 text-sm text-center mt-1">{customNote}</p>}
+                </div>
+              )}
 
-                {/* Visual */}
-                <div className="max-w-[80vw] max-h-[70vh] flex items-center justify-center">
+              {/* Visual — takes most of the space */}
+              <div className="flex-1 flex items-center justify-center relative overflow-hidden px-16 pb-2">
+                <div className="max-w-[85vw] max-h-[60vh] flex items-center justify-center">
                   {ytId(entry.url)?(
-                    <iframe width="960" height="540" src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="rounded-lg shadow-2xl" style={{maxWidth:"80vw",maxHeight:"70vh"}} />
-                  ):thumb?(
-                    <img src={thumb} className="max-w-[80vw] max-h-[70vh] object-contain rounded-lg shadow-2xl" alt="" />
+                    <iframe key={entry.id} width="960" height="540" src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="rounded-lg shadow-2xl" style={{maxWidth:"85vw",maxHeight:"60vh"}} />
+                  ):entry.image_url?(
+                    <img src={entry.image_url} className="max-w-[85vw] max-h-[60vh] object-contain rounded-lg shadow-2xl" alt="" />
                   ):entry.url?(
                     <div className="bg-white/5 rounded-xl p-8 text-center">
-                      <a href={entry.url} target="_blank" className="text-accent text-sm break-all hover:underline">{entry.url}</a>
+                      <a href={entry.url} target="_blank" className="text-[#4060ff] text-sm break-all hover:underline">{entry.url}</a>
                     </div>
                   ):(
                     <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
                   )}
                 </div>
-
-                {/* Right arrow */}
-                <button onClick={()=>setPresIndex(i=>Math.min(i+1,collectionEntries.length-1))} disabled={presIndex===collectionEntries.length-1}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white text-4xl w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition disabled:opacity-0 disabled:cursor-default z-10">&rsaquo;</button>
               </div>
 
-              {/* Bottom info bar */}
-              <div className="bg-black/80 backdrop-blur-sm border-t border-white/10 px-8 py-4 flex-shrink-0">
+              {/* Case detail bar — tight below the visual, light gray */}
+              <div className="px-16 py-3 flex-shrink-0" style={{background:"#1a1a1f"}}>
                 <div className="max-w-4xl mx-auto">
-                  <div className="flex items-center gap-3 mb-1.5">
-                    {brand&&<span className="text-white/90 text-sm font-bold">{brand}</span>}
-                    {entry.year&&<span className="text-white/40 text-sm">{entry.year}</span>}
-                    {entry.category&&<span className="text-white/30 text-xs bg-white/10 px-2 py-0.5 rounded">{entry.category}</span>}
-                    {entry.type&&<span className="text-white/30 text-xs bg-white/10 px-2 py-0.5 rounded">{entry.type}</span>}
-                    {entry.rating&&<span className="text-white/50 text-xs">{"★".repeat(Number(entry.rating))}</span>}
+                  <div className="flex items-center gap-3 mb-1">
+                    {brandName&&<span className="text-white/80 text-sm font-bold">{brandName}</span>}
+                    {entry.year&&<span className="text-white/30 text-sm">{entry.year}</span>}
+                    {entry.category&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.category}</span>}
+                    {entry.type&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.type}</span>}
+                    {entry.communication_intent&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.communication_intent}</span>}
+                    {entry.rating&&<span className="text-white/40 text-[10px]">{"★".repeat(Number(entry.rating))}</span>}
                   </div>
-                  <h3 className="text-white text-base font-semibold mb-1">{entry.description||"Untitled"}</h3>
-                  {entry.synopsis&&<p className="text-white/50 text-xs leading-relaxed line-clamp-3">{entry.synopsis}</p>}
+                  <h3 className="text-white/70 text-sm font-medium">{entry.description||"Untitled"}</h3>
+                  {entry.synopsis&&<p className="text-white/30 text-xs leading-relaxed mt-1 line-clamp-2">{entry.synopsis}</p>}
                 </div>
               </div>
 
               {/* Thumbnail strip */}
-              <div className="bg-black border-t border-white/5 px-4 py-2 flex-shrink-0 overflow-x-auto">
+              <div className="px-4 py-2 flex-shrink-0 overflow-x-auto" style={{background:"#111015"}}>
                 <div className="flex gap-1.5 justify-center">
                   {collectionEntries.map((e,i)=>{
                     const t=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/default.jpg`:e.image_url;
-                    return(<button key={e.id} onClick={()=>setPresIndex(i)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${i===presIndex?"border-accent opacity-100":"border-transparent opacity-40 hover:opacity-70"}`}>
-                      {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30 text-[8px]">{i+1}</div>}
+                    return(<button key={e.id} onClick={()=>setPresIndex(i+1)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${i===entryIdx?"border-[#0019FF] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}>
+                      {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/20 text-[8px]">{i+1}</div>}
                     </button>);
                   })}
                 </div>
               </div>
-            </>);
+            </div>);
           })()}
         </div>,
         document.body
@@ -2038,6 +2154,7 @@ function AuditPageInner(){
   const[scope,setScope]=useState("local");
   const[pendingForm,setPendingForm]=useState(false);
   const[initialEntry,setInitialEntry]=useState(null);
+  const[initialCollectionId,setInitialCollectionId]=useState(null);
   const{projectId,brandId}=useProject();
   const filterField="project_id"; // Use project_id for data queries during transition
   const filterValue=projectId||brandId;
@@ -2059,6 +2176,11 @@ function AuditPageInner(){
         const match=(matches||[])[0];
         if(match){setScope(match.scope||"local");setInitialEntry(match);}
       })();
+    } else if(params.get("collection")){
+      setInitialCollectionId(params.get("collection"));
+    } else if(params.get("view")==="collections"){
+      // Just show collections tab (no specific collection)
+      setInitialCollectionId("list");
     } else if(s&&(s==="local"||s==="global")){
       handleAddWithScope(s);
       window.history.replaceState({},"","/audit");
@@ -2075,7 +2197,7 @@ function AuditPageInner(){
     return()=>window.removeEventListener("openAddForm",handler);
   },[scope]);
 
-  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} key={scope}/></ProjectGuard></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} key={scope}/></ProjectGuard></AuthGuard>);
 }
 
 export default function AuditPage(){
