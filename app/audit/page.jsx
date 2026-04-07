@@ -251,7 +251,7 @@ function MultiSelect({ fieldKey, value, opts, onChange, projectId, optKey }) {
 function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry}){
   const {framework,frameworkLoaded}=useFramework()||{};
   const {brandId,brand}=require("@/lib/brand-context").useBrand()||{};
-  const {activeOrg}=require("@/lib/role-context").useRole()||{};
+  const {activeOrg,userEmail}=require("@/lib/role-context").useRole()||{};
   const orgId=activeOrg?.id;
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
@@ -297,6 +297,18 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     return()=>document.removeEventListener("mousedown",handler);
   },[inlineEdit]);
   const [toast,setToast]=useState(null);
+  const [viewMode,setViewMode]=useState("entries"); // "entries" or "collections"
+  const [collections,setCollections]=useState([]);
+  const [collectionsLoading,setCollectionsLoading]=useState(false);
+  const [activeCollection,setActiveCollection]=useState(null); // viewing a specific collection
+  const [collectionEntries,setCollectionEntries]=useState([]);
+  const [showNewCollection,setShowNewCollection]=useState(false);
+  const [newCol,setNewCol]=useState({name:"",description:"",objective:"",is_private:false});
+  const [editingCollection,setEditingCollection]=useState(null);
+  const [showAddToCollection,setShowAddToCollection]=useState(false);
+  const [quickNewColName,setQuickNewColName]=useState("");
+  const [showQuickNewCol,setShowQuickNewCol]=useState(false);
+  const [collectionMenuOpen,setCollectionMenuOpen]=useState(null);
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
   const addBtnRef=useRef(null);
@@ -518,6 +530,90 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     brand_archetype:OPTIONS.brandArchetype||[],
   };
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
+
+  // ── COLLECTIONS ──────────────────────────────────────────────────────────────
+  const loadCollections=useCallback(async()=>{
+    if(!brandId)return;
+    setCollectionsLoading(true);
+    const{data:cols}=await supabase.from("collections").select("*").eq("brand_id",brandId).order("created_at",{ascending:false});
+    if(cols){
+      for(const c of cols){
+        const{count}=await supabase.from("collection_entries").select("*",{count:"exact",head:true}).eq("collection_id",c.id);
+        c.entryCount=count||0;
+      }
+      setCollections(cols);
+    }
+    setCollectionsLoading(false);
+  },[brandId]);
+
+  useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
+
+  const createCollection=async(colData)=>{
+    const{data:created,error}=await supabase.from("collections").insert({
+      name:colData.name,
+      description:colData.description||null,
+      objective:colData.objective||null,
+      is_private:colData.is_private||false,
+      brand_id:brandId,
+      organization_id:orgId||null,
+      created_by:userEmail||"",
+    }).select().single();
+    if(error){setToast({message:"Error creating collection: "+error.message});return null;}
+    setShowNewCollection(false);
+    setNewCol({name:"",description:"",objective:"",is_private:false});
+    loadCollections();
+    return created;
+  };
+
+  const updateCollection=async(id,updates)=>{
+    const{error}=await supabase.from("collections").update({...updates,updated_at:new Date().toISOString()}).eq("id",id);
+    if(error){setToast({message:"Error updating: "+error.message});return;}
+    setEditingCollection(null);
+    if(activeCollection?.id===id)setActiveCollection(prev=>({...prev,...updates}));
+    loadCollections();
+  };
+
+  const deleteCollection=async(id)=>{
+    if(!confirm("Delete this collection? Entries will not be deleted."))return;
+    await supabase.from("collection_entries").delete().eq("collection_id",id);
+    const{error}=await supabase.from("collections").delete().eq("id",id);
+    if(error){setToast({message:"Error deleting: "+error.message});return;}
+    if(activeCollection?.id===id)setActiveCollection(null);
+    loadCollections();
+  };
+
+  const openCollection=async(col)=>{
+    setActiveCollection(col);
+    const{data:links}=await supabase.from("collection_entries").select("entry_id").eq("collection_id",col.id);
+    if(!links||links.length===0){setCollectionEntries([]);return;}
+    const entryIds=links.map(l=>l.entry_id);
+    const{data:entries}=await supabase.from("creative_source").select("*").in("id",entryIds);
+    setCollectionEntries(entries||[]);
+  };
+
+  const addToCollection=async(collectionId,entryIds)=>{
+    for(const entryId of entryIds){
+      await supabase.from("collection_entries").insert({
+        collection_id:collectionId,
+        entry_id:entryId,
+        added_by:userEmail||"",
+      }).select();
+    }
+    setSelected(new Set());
+    setShowAddToCollection(false);
+    setToast({message:`Added ${entryIds.length} ${entryIds.length===1?"entry":"entries"} to collection`});
+    if(activeCollection?.id===collectionId)openCollection(activeCollection);
+    loadCollections();
+  };
+
+  const removeFromCollection=async(collectionId,entryId)=>{
+    await supabase.from("collection_entries").delete().eq("collection_id",collectionId).eq("entry_id",entryId);
+    if(activeCollection?.id===collectionId){
+      setCollectionEntries(prev=>prev.filter(e=>e.id!==entryId));
+      setActiveCollection(prev=>({...prev,entryCount:(prev.entryCount||1)-1}));
+    }
+    loadCollections();
+  };
 
   const downloadCase=async(entry)=>{
     setDownloading(true);
@@ -1512,15 +1608,165 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         {/* Bar 2 — Section bar: title + scope toggle */}
         <div className="section-bar px-5 py-2.5 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-main">Audit</h2>
+            <h2 className="text-lg font-bold text-main">Creative Source</h2>
             <div className="flex bg-surface2 rounded-lg p-0.5">
-              <button onClick={()=>onScopeChange("local")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="local"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Local audit</button>
-              <button onClick={()=>onScopeChange("global")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="global"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Global benchmarks</button>
+              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Local audit</button>
+              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Global benchmarks</button>
+              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${viewMode==="collections"?"bg-surface text-accent shadow-sm":"text-muted hover:text-main"}`}>Collections</button>
             </div>
-            <span className="text-xs text-hint">{fd.length} of {data.length}</span>
+            {viewMode==="entries"&&<span className="text-xs text-hint">{fd.length} of {data.length}</span>}
           </div>
-          {selected.size>0&&<button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>}
+          {selected.size>0&&<div className="flex gap-2 items-center">
+            <div className="relative">
+              <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Add to Collection</button>
+              {showAddToCollection&&(
+                <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[240px] max-h-[300px] overflow-auto">
+                  {collections.map(c=>(
+                    <button key={c.id} onClick={()=>addToCollection(c.id,[...selected])} className="w-full text-left px-3 py-2 text-sm text-main hover:bg-accent-soft border-b border-main flex justify-between items-center">
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-[10px] text-hint ml-2 shrink-0">{c.entryCount} entries</span>
+                    </button>
+                  ))}
+                  {!showQuickNewCol?(
+                    <button onClick={()=>setShowQuickNewCol(true)} className="w-full text-left px-3 py-2 text-sm text-accent hover:bg-accent-soft font-medium">+ New Collection</button>
+                  ):(
+                    <div className="p-2 flex gap-1">
+                      <input value={quickNewColName} onChange={e=>setQuickNewColName(e.target.value)} placeholder="Collection name..." className="flex-1 px-2 py-1 text-xs bg-surface border border-main rounded text-main" autoFocus onKeyDown={e=>{if(e.key==="Enter"&&quickNewColName.trim()){(async()=>{const c=await createCollection({name:quickNewColName.trim()});if(c){await addToCollection(c.id,[...selected]);setQuickNewColName("");setShowQuickNewCol(false);}})();}}} />
+                      <button onClick={async()=>{if(!quickNewColName.trim())return;const c=await createCollection({name:quickNewColName.trim()});if(c){await addToCollection(c.id,[...selected]);setQuickNewColName("");setShowQuickNewCol(false);}}} className="px-2 py-1 text-xs bg-accent text-white rounded font-semibold">Add</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>
+          </div>}
         </div>
+        {/* Collections View */}
+        {viewMode==="collections"&&!activeCollection&&(
+          <div className="px-5 py-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-semibold text-main">Collections</h3>
+              <button onClick={()=>setShowNewCollection(true)} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">+ New Collection</button>
+            </div>
+            {showNewCollection&&(
+              <div className="bg-surface border border-main rounded-lg p-4 mb-4">
+                <div className="space-y-3">
+                  <div><label className="text-xs font-medium text-muted block mb-1">Name *</label>
+                    <input value={newCol.name} onChange={e=>setNewCol({...newCol,name:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Collection name" autoFocus /></div>
+                  <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
+                    <input value={newCol.description} onChange={e=>setNewCol({...newCol,description:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Optional description" /></div>
+                  <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
+                    <input value={newCol.objective} onChange={e=>setNewCol({...newCol,objective:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Optional objective" /></div>
+                  <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" checked={newCol.is_private} onChange={e=>setNewCol({...newCol,is_private:e.target.checked})} /> Private (only visible to you)</label>
+                  <div className="flex gap-2">
+                    <button onClick={()=>{if(!newCol.name.trim()){setToast({message:"Name is required"});return;}createCollection(newCol);}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Save</button>
+                    <button onClick={()=>{setShowNewCollection(false);setNewCol({name:"",description:"",objective:"",is_private:false});}} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {collectionsLoading?(<div className="text-sm text-hint text-center py-8">Loading collections...</div>):(
+              collections.length===0?(<div className="text-sm text-hint text-center py-8">No collections yet. Create one to organize your entries.</div>):(
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {collections.map(c=>(
+                    <div key={c.id} onClick={()=>openCollection(c)} className="bg-surface border border-main rounded-lg p-4 cursor-pointer hover:border-[var(--accent)] transition relative group">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-sm font-bold text-main truncate pr-6">{c.name}</h4>
+                        <div className="relative">
+                          <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(collectionMenuOpen===c.id?null:c.id);}} className="text-hint hover:text-main text-lg leading-none opacity-0 group-hover:opacity-100 transition">...</button>
+                          {collectionMenuOpen===c.id&&(
+                            <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[120px] overflow-hidden">
+                              <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(null);setEditingCollection(c);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Edit</button>
+                              <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(null);deleteCollection(c.id);}} className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50">Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 mb-2 flex-wrap">
+                        <span className="text-[10px] bg-accent-soft text-accent px-1.5 py-0.5 rounded font-medium">{c.entryCount} {c.entryCount===1?"entry":"entries"}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${c.is_private?"bg-yellow-50 text-yellow-700 border border-yellow-200":"bg-green-50 text-green-700 border border-green-200"}`}>{c.is_private?"Private":"Shared"}</span>
+                      </div>
+                      {c.description&&<p className="text-xs text-muted mb-2 line-clamp-2">{c.description}</p>}
+                      <div className="text-[10px] text-hint">{c.created_by&&<span>By {c.created_by}</span>}{c.created_at&&<span> · {fmtDate(c.created_at)}</span>}</div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+            {/* Edit collection modal */}
+            {editingCollection&&(
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={()=>setEditingCollection(null)}>
+                <div className="bg-surface border border-main rounded-xl p-5 w-[400px] shadow-2xl" onClick={e=>e.stopPropagation()}>
+                  <h3 className="text-sm font-bold text-main mb-3">Edit Collection</h3>
+                  <div className="space-y-3">
+                    <div><label className="text-xs font-medium text-muted block mb-1">Name</label>
+                      <input defaultValue={editingCollection.name} onChange={e=>{editingCollection._name=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                    <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
+                      <input defaultValue={editingCollection.description||""} onChange={e=>{editingCollection._description=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                    <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
+                      <input defaultValue={editingCollection.objective||""} onChange={e=>{editingCollection._objective=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                    <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" defaultChecked={editingCollection.is_private} onChange={e=>{editingCollection._is_private=e.target.checked;}} /> Private</label>
+                    <div className="flex gap-2">
+                      <button onClick={()=>{updateCollection(editingCollection.id,{name:editingCollection._name??editingCollection.name,description:editingCollection._description??editingCollection.description,objective:editingCollection._objective??editingCollection.objective,is_private:editingCollection._is_private??editingCollection.is_private});}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Save</button>
+                      <button onClick={()=>setEditingCollection(null)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Collection Detail View */}
+        {viewMode==="collections"&&activeCollection&&(
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={()=>{setActiveCollection(null);loadCollections();}} className="text-sm text-accent hover:underline font-medium">&larr; Collections</button>
+            </div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-main">{activeCollection.name}</h3>
+                {activeCollection.description&&<p className="text-xs text-muted mt-1">{activeCollection.description}</p>}
+                {activeCollection.objective&&<p className="text-xs text-hint mt-1">Objective: {activeCollection.objective}</p>}
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] bg-accent-soft text-accent px-1.5 py-0.5 rounded font-medium">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${activeCollection.is_private?"bg-yellow-50 text-yellow-700":"bg-green-50 text-green-700"}`}>{activeCollection.is_private?"Private":"Shared"}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <button className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Generate Report ▾</button>
+                </div>
+                <button onClick={()=>setEditingCollection(activeCollection)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main">Edit</button>
+                <button onClick={()=>updateCollection(activeCollection.id,{is_private:!activeCollection.is_private})} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted hover:text-main">{activeCollection.is_private?"Make Shared":"Make Private"}</button>
+                <button onClick={()=>deleteCollection(activeCollection.id)} className="px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-500 hover:bg-red-50">Delete</button>
+              </div>
+            </div>
+            {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-8">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {collectionEntries.map(e=>{
+                  const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
+                  return(<div key={e.id} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative" onClick={()=>setSb(e)}>
+                    <button onClick={ev=>{ev.stopPropagation();removeFromCollection(activeCollection.id,e.id);}} className="absolute top-1 right-1 z-10 bg-black/60 text-white/80 hover:text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
+                    <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden">
+                      {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="text-hint text-xs">No preview</div>}
+                    </div>
+                    <div className="p-2.5">
+                      <div className="flex gap-1 mb-1">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
+                      <p className="text-xs font-medium text-main truncate">{e.description||"—"}</p>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-[10px] text-muted">{e.year||""}</span>
+                        {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
+                      </div>
+                    </div>
+                  </div>);
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode==="entries"&&<>
         {/* Bar 3 — Filter + sort + view + export */}
         <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) + 44px)"}}>
           <div className="flex gap-2 flex-wrap items-center">
@@ -1619,7 +1865,10 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
           <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
-              return(<div key={e.id} onClick={()=>setSb(e)} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group">
+              return(<div key={e.id} onClick={()=>setSb(e)} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative">
+                <div className={`absolute top-2 left-2 z-10 ${selected.size>0||selected.has(e.id)?"opacity-100":"opacity-0 group-hover:opacity-100"} transition`} onClick={ev=>ev.stopPropagation()}>
+                  <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
+                </div>
                 <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden relative">
                   {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="text-hint text-xs">No preview</div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
@@ -1636,6 +1885,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
             })}
           </div>
         )}
+        </>}
       </div>
 
       {showAddMenu&&typeof window!=="undefined"&&createPortal(
