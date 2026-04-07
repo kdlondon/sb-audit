@@ -1678,6 +1678,7 @@ function DimensionBuilder({ initial, onSave, onCancel, saving }) {
   const [name, setName] = useState(initial?.name || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [rules, setRules] = useState(initial?.classification_rules || "");
+  const [generatingRules, setGeneratingRules] = useState(false);
   const [fields, setFields] = useState(initial?.fields || []);
 
   const addField = () => {
@@ -1729,7 +1730,31 @@ function DimensionBuilder({ initial, onSave, onCancel, saving }) {
       </div>
 
       <div>
-        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Classification rules (for AI)</label>
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-[9px] text-hint uppercase font-semibold">Classification rules (for AI)</label>
+          <button type="button" disabled={generatingRules} onClick={async () => {
+            if (!name.trim() || fields.length === 0) return;
+            setGeneratingRules(true);
+            try {
+              const fieldDescs = fields.filter(f => f.name).map(f =>
+                `${f.name} (${f.type}): ${f.values?.join(", ") || "free text"}`
+              ).join("\n");
+              const res = await fetch("/api/ai", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  skip_framework: true, max_tokens: 500,
+                  messages: [{ role: "user", content: `You are configuring an AI classification system for competitive intelligence.\n\nA custom dimension called "${name}" has these fields:\n${fieldDescs}\n\nWrite concise classification rules (2-4 sentences) telling the AI how to classify communication pieces into these fields. Focus on what to look for, whether to classify by explicit or implied meaning, and edge cases. Return ONLY the rules text.` }]
+                })
+              });
+              const data = await res.json();
+              const text = data.content?.[0]?.text || "";
+              if (text) setRules(text);
+            } catch {}
+            setGeneratingRules(false);
+          }} className="text-[9px] text-accent hover:underline font-medium disabled:opacity-50">
+            {generatingRules ? "Generating..." : "Generate with AI"}
+          </button>
+        </div>
         <textarea value={rules} onChange={e => setRules(e.target.value)} rows={2}
           placeholder="Instructions for AI on how to classify these fields..."
           className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent resize-none" />

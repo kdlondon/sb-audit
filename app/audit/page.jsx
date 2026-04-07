@@ -1086,9 +1086,20 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
                               <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Brand</label>
                               {formScope === "local" ? (
-                                <select value={cur.competitor || cur.brand_name || ""} onChange={e => {
+                                <select value={cur.competitor || cur.brand_name || ""} onChange={async (e) => {
                                   const v = e.target.value;
-                                  setCur({...cur, brand_name: v, competitor: v, scope: "local"});
+                                  const selected = localCompetitors.find(b => b.name === v);
+                                  const updates = { brand_name: v, competitor: v, scope: "local" };
+                                  if (selected) {
+                                    updates.brand_id = selected.id;
+                                    // Auto-fill from brand profile
+                                    const s = createClient();
+                                    const { data: bp } = await s.from("brands").select("country, category, sub_category").eq("id", selected.id).single();
+                                    if (bp?.country && !cur.country) updates.country = bp.country;
+                                    if (bp?.category && !cur.category) updates.category = bp.category;
+                                    if (bp?.sub_category && !cur.sub_category) updates.sub_category = bp.sub_category;
+                                  }
+                                  setCur(prev => ({...prev, ...updates}));
                                 }} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
                                   <option value="">— Select competitor —</option>
                                   {localCompetitors.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
