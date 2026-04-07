@@ -658,7 +658,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const html2pdf=(await import("html2pdf.js")).default;
       await html2pdf().set({
         margin:[10,10,10,10],
-        filename:`${(entry.description||entry.brand_name||"case").replace(/[^a-zA-Z0-9 ]/g,"").replace(/\s+/g,"-").slice(0,60)}.pdf`,
+        filename:`${(entry.brand_name||entry.competitor||"Brand").replace(/[^a-zA-Z0-9]/g,"")}-${new Date().toLocaleDateString("en-US",{month:"numeric",day:"numeric",year:"numeric"}).replace(/\//g,"")}-${(entry.description||"case").split(/\s+/).slice(0,3).join("-").replace(/[^a-zA-Z0-9-]/g,"")}.pdf`,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,logging:false},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
