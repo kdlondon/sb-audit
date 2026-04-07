@@ -372,6 +372,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     const entry=data.find(x=>x.id===editParam);
     if(entry){
       setCur({...entry});
+      if(entry.scope) setFormScope(entry.scope);
       if(entry.url&&/youtube|youtu\.be/i.test(entry.url))setMaterialType("video");
       else if(entry.url&&/\.(mp4|mov|webm)(\?|$)/i.test(entry.url))setMaterialType("videoFile");
       else if(entry.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(entry.url))setMaterialType("document");
