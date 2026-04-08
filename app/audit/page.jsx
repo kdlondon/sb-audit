@@ -2529,12 +2529,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                       <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* Case detail bar — same max-width, centered */}
-              <div className="py-3 flex-shrink-0" style={{background:"#1a1a1f"}}>
-                <div className="mx-auto" style={{maxWidth:"min(960px, 80vw)"}}>
+                  {/* Case detail bar — directly below the visual */}
+                  <div className="py-3 mt-1 rounded-b-lg" style={{background:"#1a1a1f"}}>
                   <div className="flex items-center gap-3 mb-1">
                     {brandName&&<span className="text-white/80 text-[14px] font-bold">{brandName}</span>}
                     {entry.year&&<span className="text-white/30 text-[13px]">{entry.year}</span>}
@@ -2545,6 +2541,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>
                   <h3 className="text-white/70 text-[13px] font-medium">{entry.description||"Untitled"}</h3>
                   {entry.synopsis&&<p className="text-white/30 text-[12px] leading-relaxed mt-1 line-clamp-2">{entry.synopsis}</p>}
+                  </div>
                 </div>
               </div>
 
