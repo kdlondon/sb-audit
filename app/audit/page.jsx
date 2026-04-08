@@ -2001,22 +2001,24 @@ Write all output in English.`,
                   // Push cards apart at insertion point
                   const pushDown=showLineAbove;
                   const pushUp=isDragging&&insertIdx===idx+1&&dragRef.current!==idx&&dragRef.current!==idx+1&&idx<collectionEntries.length-1;
-                  return(<div key={e.id} className="relative" style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
+                  return(<div key={e.id} className="relative"
+                    draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd}
+                    onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
+                    style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
                     {/* Insertion indicator line — above */}
-                    {showLineAbove&&<div className="absolute left-4 right-4 top-[8px] flex items-center gap-2" style={{transition:"opacity 0.2s ease"}}>
+                    {showLineAbove&&<div className="absolute left-4 right-4 top-[8px] flex items-center gap-2 pointer-events-none" style={{transition:"opacity 0.2s ease"}}>
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                    </div>}
+                    {/* Insertion indicator line — below last */}
+                    {showLineBelow&&<div className="absolute left-4 right-4 bottom-[8px] flex items-center gap-2 pointer-events-none">
                       <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
                       <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
                       <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
                     </div>}
                     {/* The card */}
-                    {/* Insertion indicator line — below last */}
-                    {showLineBelow&&<div className="absolute left-4 right-4 bottom-[8px] flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
-                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
-                    </div>}
-                    <div draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
-                    style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), box-shadow 0.3s ease, opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
+                    <div style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
                     className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing group border-[#e0e0e0] hover:border-[#bbb]`}>
                     {/* Drag handle */}
                     <div className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab group-hover:text-[#999] transition">☰</div>
