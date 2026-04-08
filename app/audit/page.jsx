@@ -691,23 +691,40 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         funnel:e.funnel||"",
         brand_archetype:e.brand_archetype||"",
         main_slogan:e.main_slogan||"",
+        transcript:e.transcript?e.transcript.slice(0,500):"",
+        entry_door:e.entry_door||"",
+        channel:e.channel||"",
       }));
       const collectionContext=`Collection: "${activeCollection.name}"${activeCollection.description?`\nDescription: ${activeCollection.description}`:""}${activeCollection.objective?`\nObjective: ${activeCollection.objective}`:""}`;
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         skip_framework:true,
-        system:`You are a strategic storytelling consultant for competitive intelligence presentations. Your job is to analyze a set of competitive cases and suggest the optimal order and narrative annotations to create a compelling, coherent presentation.
+        system:`You are a senior creative strategist who builds compelling narrative arcs from competitive intelligence cases. You think like a documentary filmmaker — every case is a scene, and the presentation must flow like a story.
 
 ${collectionContext}
 
-You will receive a list of entries (competitive cases). Analyze them and suggest:
-1. The optimal order for storytelling (a clear narrative arc)
-2. A slide title for each entry (concise, compelling — max 8 words)
-3. An analyst note for each entry (1-2 sentences explaining why this case matters in the narrative flow, what insight it reveals, or how it connects to the next)
-4. A brief narrative summary explaining the overall storytelling logic
+You will receive a list of advertising/marketing cases (entries). Your job is to find the CONNECTIVE TISSUE between them and build a fluid, cohesive narrative.
+
+STORYTELLING RULES:
+- Find the KEY PATTERNS across cases: recurring themes, evolving strategies, contrasting approaches, emotional progressions, or strategic tensions.
+- Each slide title must CONNECT to the previous and next one. Titles should read like chapter headings of the same book — they must feel like a continuous thought, not isolated labels.
+- Think in narrative arcs: setup → tension → insight → resolution. Or: thesis → antithesis → synthesis.
+- Use transitions: "From X to Y", "But then...", "Meanwhile...", "The counterpoint", "What if instead...", "Building on this..."
+- Analyst notes must explicitly state HOW this case connects to the one before and after it. What pattern does it reinforce? What contrast does it reveal? What evolution does it show?
+- Group by strategic insight, NOT by brand. The story is about IDEAS and PATTERNS, not a brand-by-brand catalog.
+- If cases share similar approaches, place them together to build momentum. If one breaks the pattern, use it as a turning point.
+- The opening case should set the strategic question or theme. The closing case should deliver the key takeaway or provocation.
+
+TITLES STYLE:
+- Max 8 words. Evocative, not descriptive.
+- They should work as a sequence — reading just the titles should tell a mini-story.
+- Avoid generic titles like "Brand X Campaign" — instead use insight-driven titles like "When Trust Becomes the Product" or "The Shift from Features to Feelings".
+
+ANALYST NOTES:
+- 2 sentences max. First sentence: what this case reveals. Second sentence: how it connects to the narrative (bridges to next case or reinforces the pattern).
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no code fences. Use this exact structure:
 {
-  "narrative": "Brief explanation of the storytelling logic and arc (2-3 sentences)",
+  "narrative": "The overarching narrative logic — what story are we telling and why this order makes it compelling (3-4 sentences)",
   "entries": [
     {"id": "entry-uuid", "slide_title": "Title here", "analyst_note": "Note here"},
     ...
