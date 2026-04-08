@@ -512,8 +512,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       // Safety: remove any fields not in the allowed set that may have leaked in
       const finalAllowed=new Set(ALL_COLUMNS);
       Object.keys(e).forEach(k=>{if(!finalAllowed.has(k))delete e[k];});
+      console.log("[SAVE DEBUG] table:", table, "ALL_COLUMNS:", ALL_COLUMNS, "keys:", Object.keys(e), "e:", JSON.stringify(e).slice(0,500));
       const{error}=await supabase.from(table).insert(e);
-      if(error){setToast({message:"Error saving: "+error.message});return;}
+      if(error){console.error("[SAVE ERROR]", error.message, "object keys:", Object.keys(e));setToast({message:"Error saving: "+error.message});return;}
     }
     const wasEdit=!!eid;
     setCur({});setMaterialType("none");
