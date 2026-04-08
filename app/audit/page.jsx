@@ -647,7 +647,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [dragOverIdx,setDragOverIdx]=useState(null);
   const [dragHalf,setDragHalf]=useState(null); // "top" or "bottom" — which half of the card is hovered
   const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";};
-  const handleReorderDragEnd=(e)=>{setDragOverIdx(null);setDragHalf(null);};
+  const handleReorderDragEnd=(e)=>{dragRef.current=null;setDragOverIdx(null);setDragHalf(null);};
   const handleReorderDragOver=(e,idx)=>{
     e.preventDefault();e.dataTransfer.dropEffect="move";
     const rect=e.currentTarget.getBoundingClientRect();
@@ -662,7 +662,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     e.preventDefault();
     const fromIdx=dragRef.current;
     const insertAt=getInsertIdx();
-    setDragOverIdx(null);setDragHalf(null);
+    dragRef.current=null;setDragOverIdx(null);setDragHalf(null);
     if(fromIdx===null||insertAt===null)return;
     // Adjust insert index if dragging from above
     let finalIdx=insertAt;
