@@ -17,7 +17,8 @@ import { getFieldValue } from "@/lib/system-dimensions";
 
 function ytId(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?m[1]:null;}
 function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);return m?m[1]:null;}
-function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||u.includes("supabase.co/storage"));}
+function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||(u.includes("supabase.co/storage")&&!/\.(mp4|mov|webm|avi)(\?|$)/i.test(u)));}
+function isVideoFile(u){return u&&/\.(mp4|mov|webm|avi)(\?|$)/i.test(u);}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
 
 function ImageViewer({src,onCrop}){
@@ -1545,8 +1546,40 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   ):null;})()}
                 </div>
                 :materialType==="videoFile"&&cur.url&&!ytId(cur.url)?<div className="w-full">
-                  <video controls width="100%" style={{maxWidth:700,maxHeight:400,margin:"0 auto",display:"block"}} className="rounded-lg" src={cur.url} />
-                  <p className="text-center text-[10px] text-hint mt-2">{cur.url.split("/").pop()}</p>
+                  <video id="videofile-player" controls width="100%" style={{maxWidth:700,maxHeight:400,margin:"0 auto",display:"block"}} className="rounded-lg" src={cur.url} />
+                  <div className="flex items-center justify-center gap-3 mt-2">
+                    <button onClick={()=>{
+                      const v=document.getElementById("videofile-player");
+                      if(!v)return;
+                      const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
+                      c.getContext("2d").drawImage(v,0,0);
+                      c.toBlob(async(blob)=>{
+                        if(!blob)return;
+                        const url=await uploadFile(new File([blob],`still_${Date.now()}.jpg`,{type:"image/jpeg"}));
+                        if(url){
+                          if(!cur.image_url){setCur(prev=>({...prev,image_url:url}));}
+                          else{const extras=JSON.parse(cur.image_urls||"[]");extras.push(url);setCur(prev=>({...prev,image_urls:JSON.stringify(extras)}));}
+                          setToast({message:"Still captured"});
+                        }
+                      },"image/jpeg",0.9);
+                    }} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+                      Capture stills
+                    </button>
+                    <span className="text-[9px] text-hint flex items-center gap-1">
+                      <kbd className="px-1 py-0.5 bg-surface2 rounded text-[8px] font-mono border border-main">⌘V</kbd> paste screenshot
+                    </span>
+                  </div>
+                  {(cur.image_url||(cur.image_urls&&JSON.parse(cur.image_urls||"[]").length>0))&&(
+                    <div className="flex gap-2 items-center mt-3 px-2 overflow-x-auto pb-1">
+                      {[cur.image_url,...(cur.image_urls?JSON.parse(cur.image_urls||"[]"):[])].filter(Boolean).map((url,i)=>(
+                        <div key={i} className="relative group/still flex-shrink-0">
+                          <img src={url} className="h-14 w-20 object-cover rounded border border-main cursor-pointer" onClick={()=>setZoomImg(url)} />
+                          {i===0&&<span className="absolute -top-1 -left-1 bg-accent text-white text-[8px] px-1 rounded-sm">Main</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :materialType==="document"&&cur.url?<div className="flex flex-col items-center justify-center gap-3">
@@ -2275,7 +2308,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
                 </div>
                 <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden relative">
-                  {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="text-hint text-xs">No preview</div>}
+                  {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:isVideoFile(e.url)?<video src={e.url} className="w-full h-full object-cover" muted preload="metadata" onLoadedData={ev=>{ev.target.currentTime=1;}} />:<div className="text-hint text-xs">No preview</div>}
+                  {(ytId(e.url)||isVideoFile(e.url))&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
                 <div className="p-2.5">
@@ -2307,6 +2341,35 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {sb&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
+        {isVideoFile(sb.url)&&!ytId(sb.url)&&<div className="px-3 pt-2">
+          <video controls width="100%" className="rounded-md" src={sb.url} style={{maxHeight:240}} />
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <button onClick={()=>{
+              const v=document.querySelector(`video[src="${sb.url}"]`);
+              if(!v)return;
+              const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
+              c.getContext("2d").drawImage(v,0,0);
+              c.toBlob(async(blob)=>{
+                if(!blob)return;
+                const url=await uploadFile(blob.name?blob:new File([blob],`still_${Date.now()}.jpg`,{type:"image/jpeg"}));
+                if(url){
+                  if(!sb.image_url){
+                    await supabase.from("creative_source").update({image_url:url}).eq("id",sb.id);
+                    setSb({...sb,image_url:url});
+                  }else{
+                    const extras=JSON.parse(sb.image_urls||"[]");extras.push(url);
+                    await supabase.from("creative_source").update({image_urls:JSON.stringify(extras)}).eq("id",sb.id);
+                    setSb({...sb,image_urls:JSON.stringify(extras)});
+                  }
+                  setToast({message:"Still captured"});load();
+                }
+              },"image/jpeg",0.9);
+            }} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+              Capture still
+            </button>
+          </div>
+        </div>}
         {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2 relative group/sb">
           <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
           <button onClick={()=>{setCropSrc(sb.image_url);setCropTarget("sidebar");}} className="absolute top-3 right-4 bg-black/60 text-white/80 hover:text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/sb:opacity-100 transition backdrop-blur-sm" title="Crop image">Crop</button>
@@ -2318,7 +2381,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </div>
           )}
         </div>}
-        {sb.url&&!ytId(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
+        {sb.url&&!ytId(sb.url)&&!isVideoFile(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
         <div className="p-3">
           <div className="flex gap-1 flex-wrap mb-2">{(sb.competitor||sb.brand_name)&&<Tag v={sb.competitor||sb.brand_name}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
           <div className="flex gap-3 mt-1 flex-wrap">{sb.created_by&&<span className="text-[10px] text-hint">Added by <span className="text-main font-medium">{sb.created_by}</span></span>}{sb.created_at&&<span className="text-[10px] text-hint">Created <span className="text-main">{fmtDate(sb.created_at)}</span></span>}{sb.updated_at&&<span className="text-[10px] text-hint">Updated <span className="text-main">{fmtDate(sb.updated_at)}</span></span>}</div>
