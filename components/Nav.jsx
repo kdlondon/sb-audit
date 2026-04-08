@@ -57,9 +57,9 @@ export default function Nav() {
 
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
-  return (
-    <div className="px-5 py-2 flex items-center justify-between sticky top-0"
-      style={{ background: "#D07072", borderBottom: "none", zIndex: 100, transform: "translateZ(0)" }}>
+  return (<>
+    <div className="px-5 flex items-center justify-between fixed top-0 left-0 right-0"
+      style={{ background: "#D07072", borderBottom: "none", zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
           <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>
@@ -277,5 +277,8 @@ export default function Nav() {
         document.body
       )}
     </div>
+    {/* Spacer to offset fixed nav */}
+    <div style={{ height: "var(--nav-h)" }} />
+    </>
   );
 }

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --nav-h: 41px;
+  --nav-h: 70px;
   --bg: #FFFFFF;
   --surface: #ffffff;
   --surface2: #efeee9;
@@ -97,15 +97,26 @@ a, button, input, select, textarea {
   opacity: 1 !important;
 }
 
-/* Section bar — fixed below nav, dark charcoal */
+/* Section bar — fixed below nav */
 .section-bar {
-  position: sticky;
+  position: fixed;
   top: var(--nav-h);
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
   z-index: 30;
   background: #717171;
+  border-top: 3px solid #6BA4D9;
   border-bottom: none;
+  display: flex;
+  align-items: center;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+
+/* Content after section-bar needs offset */
+.section-bar + * {
+  padding-top: var(--nav-h);
 }
 
 /* Force GPU layer for all sticky elements */

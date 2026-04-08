@@ -1779,9 +1779,9 @@ Write all output in English.`,
           <div className="flex items-center gap-5">
             <h2 className="text-[15px] font-bold text-white">Creative Source</h2>
             <div className="flex gap-1">
-              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Local audit</button>
-              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Global benchmarks</button>
-              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="collections"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Collections</button>
+              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=local",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Local audit</button>
+              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=global",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Global benchmarks</button>
+              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="collections"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Collections</button>
             </div>
             {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
@@ -2398,9 +2398,10 @@ function AuditPageInner(){
     } else if(params.get("view")==="collections"){
       // Just show collections tab (no specific collection)
       setInitialCollectionId("list");
-    } else if(s&&(s==="local"||s==="global")){
+    } else if(params.get("add")&&s&&(s==="local"||s==="global")){
       handleAddWithScope(s);
-      window.history.replaceState({},"","/audit");
+    } else if(s&&(s==="local"||s==="global")){
+      setScope(s);
     }
   },[projectId]);
 
