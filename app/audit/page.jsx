@@ -2146,14 +2146,18 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
                   </div>
                   {/* Interstitial note — between cases, becomes a slide in presentation */}
-                  {idx<collectionEntries.length-1&&(
-                    <div className="flex items-center gap-3 py-2 px-8 group/inter">
-                      <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                      <input defaultValue={e._interstitial_note||""} placeholder="Add a transition note between slides..." onBlur={ev=>updateEntryCustom(e.id,"interstitial_note",ev.target.value)}
-                        className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[340px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
-                      <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                    </div>
-                  )}
+                  {/* Interstitial note — between cases */}
+                  <div className="flex items-center gap-3 py-2 px-8 group/inter">
+                    <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                    <input defaultValue={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
+                      placeholder={idx<collectionEntries.length-1?"Add a transition note between slides...":"Add a closing note (shows before thank you)..."}
+                      onBlur={ev=>{
+                        if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",ev.target.value);}
+                        else{const v=ev.target.value;supabase.from("collections").update({closing_note:v}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,closing_note:v}));}
+                      }}
+                      className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
+                    <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                  </div>
                   </div>);
                 })}
               </div>
@@ -2416,8 +2420,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
-            // Count slides: intro + intro_note? + entries + interstitials + outro
-            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length+(activeCollection?.intro_note?1:0);
+            // Count slides: intro + intro_note? + entries + interstitials + closing_note? + outro
+            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length+(activeCollection?.intro_note?1:0)+(activeCollection?.closing_note?1:0);
             const totalSlides=collectionEntries.length+interstitialCount+2;
             if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,totalSlides-1));
             if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));
@@ -2435,6 +2439,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 slideMap.push({type:"interstitial",text:ce._interstitial_note,entryIdx:i});
               }
             });
+            if(activeCollection?.closing_note){
+              slideMap.push({type:"interstitial",text:activeCollection.closing_note,entryIdx:-2});
+            }
             slideMap.push({type:"outro"});
             const totalSlides=slideMap.length;
             const currentSlide=slideMap[presIndex]||slideMap[0];
