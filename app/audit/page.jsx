@@ -2504,35 +2504,37 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{presIndex} / {totalSlides-2}</div>
               {navArrows}
 
-              {/* Content column — title, note, visual all left-aligned, same margins */}
-              <div className="flex-1 flex flex-col justify-center px-16 py-6 overflow-hidden">
-                {/* Custom title + note — tight above the visual */}
-                {(customTitle||customNote)&&(
-                  <div className="mb-3 max-w-4xl flex-shrink-0">
-                    {customTitle&&<h3 className="text-white text-[24px] font-black leading-tight">{customTitle}</h3>}
-                    {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1.5 leading-relaxed">{customNote}</p>}
-                  </div>
-                )}
-
-                {/* Visual */}
-                <div className="max-w-4xl flex-shrink-0">
-                  {ytId(entry.url)?(
-                    <div style={{aspectRatio:"16/9",maxHeight:"55vh"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
-                  ):entry.image_url?(
-                    <img src={entry.image_url} className="max-h-[55vh] object-contain rounded-lg shadow-2xl" alt="" />
-                  ):entry.url?(
-                    <div className="bg-white/5 rounded-xl p-8">
-                      <a href={entry.url} target="_blank" className="text-[#4060ff] text-sm break-all hover:underline">{entry.url}</a>
+              {/* Content column — everything in one centered block */}
+              <div className="flex-1 flex flex-col justify-center items-center py-4 overflow-hidden">
+                <div className="w-full" style={{maxWidth:"min(960px, 80vw)"}}>
+                  {/* Custom title + note — tight above the visual */}
+                  {(customTitle||customNote)&&(
+                    <div className="mb-2 flex-shrink-0">
+                      {customTitle&&<h3 className="text-white text-[24px] font-black leading-tight">{customTitle}</h3>}
+                      {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1 leading-relaxed">{customNote}</p>}
                     </div>
-                  ):(
-                    <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
                   )}
+
+                  {/* Visual */}
+                  <div className="flex-shrink-0">
+                    {ytId(entry.url)?(
+                      <div style={{aspectRatio:"16/9"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
+                    ):entry.image_url?(
+                      <img src={entry.image_url} className="w-full max-h-[55vh] object-contain rounded-lg shadow-2xl" alt="" />
+                    ):entry.url?(
+                      <div className="bg-white/5 rounded-xl p-8">
+                        <a href={entry.url} target="_blank" className="text-[#4060ff] text-sm break-all hover:underline">{entry.url}</a>
+                      </div>
+                    ):(
+                      <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Case detail bar */}
-              <div className="px-16 py-3 flex-shrink-0" style={{background:"#1a1a1f"}}>
-                <div className="max-w-4xl mx-auto">
+              {/* Case detail bar — same max-width, centered */}
+              <div className="py-3 flex-shrink-0" style={{background:"#1a1a1f"}}>
+                <div className="mx-auto" style={{maxWidth:"min(960px, 80vw)"}}>
                   <div className="flex items-center gap-3 mb-1">
                     {brandName&&<span className="text-white/80 text-[14px] font-bold">{brandName}</span>}
                     {entry.year&&<span className="text-white/30 text-[13px]">{entry.year}</span>}
