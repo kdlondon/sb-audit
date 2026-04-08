@@ -616,14 +616,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setActiveCollection(col);
     // Update URL to include collection ID
     router.push(`/audit?collection=${col.id}`,{scroll:false});
-    const{data:links}=await supabase.from("collection_entries").select("entry_id,sort_order,custom_title,custom_note").eq("collection_id",col.id).order("sort_order",{ascending:true});
+    const{data:links}=await supabase.from("collection_entries").select("entry_id,sort_order,custom_title,custom_note,interstitial_note").eq("collection_id",col.id).order("sort_order",{ascending:true});
     if(!links||links.length===0){setCollectionEntries([]);return;}
     const entryIds=links.map(l=>l.entry_id);
     const{data:entries}=await supabase.from("creative_source").select("*").in("id",entryIds);
     // Merge custom fields and maintain sort order
     const ordered=links.map(l=>{
       const entry=(entries||[]).find(e=>e.id===l.entry_id);
-      return entry?{...entry,_custom_title:l.custom_title,_custom_note:l.custom_note,_sort_order:l.sort_order}:null;
+      return entry?{...entry,_custom_title:l.custom_title,_custom_note:l.custom_note,_interstitial_note:l.interstitial_note,_sort_order:l.sort_order}:null;
     }).filter(Boolean);
     setCollectionEntries(ordered);
   };
@@ -692,7 +692,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   // Update custom title/note for an entry in a collection
   const updateEntryCustom=async(entryId,field,value)=>{
     if(!activeCollection?.id)return;
-    const update=field==="custom_title"?{custom_title:value}:{custom_note:value};
+    const updateMap={custom_title:{custom_title:value},custom_note:{custom_note:value},interstitial_note:{interstitial_note:value}};
+    const update=updateMap[field];
+    if(!update)return;
     await supabase.from("collection_entries").update(update).eq("collection_id",activeCollection.id).eq("entry_id",entryId);
     setCollectionEntries(prev=>prev.map(e=>e.id===entryId?{...e,[`_${field}`]:value}:e));
   };
@@ -2134,6 +2136,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     {/* Remove — hidden until hover */}
                     <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
                   </div>
+                  {/* Interstitial note — between cases, becomes a slide in presentation */}
+                  {idx<collectionEntries.length-1&&(
+                    <div className="flex items-center gap-3 py-2 px-8 group/inter">
+                      <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                      <input defaultValue={e._interstitial_note||""} placeholder="Add a transition note between slides..." onBlur={ev=>updateEntryCustom(e.id,"interstitial_note",ev.target.value)}
+                        className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[340px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
+                      <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                    </div>
+                  )}
                   </div>);
                 })}
               </div>
@@ -2396,17 +2407,30 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
-            const totalSlides=collectionEntries.length+2; // +intro +outro
+            // Count slides: intro + entries + interstitials + outro
+            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length;
+            const totalSlides=collectionEntries.length+interstitialCount+2;
             if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,totalSlides-1));
             if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));
             if(e.key==="Escape")setPresentationMode(false);
           }} tabIndex={0} ref={el=>el&&el.focus()}>
           {(()=>{
-            const totalSlides=collectionEntries.length+2;
-            const isIntro=presIndex===0;
-            const isOutro=presIndex===totalSlides-1;
-            const entryIdx=presIndex-1;
-            const entry=!isIntro&&!isOutro?collectionEntries[entryIdx]:null;
+            // Build slide map: intro, then for each entry: entry slide + optional interstitial slide, then outro
+            const slideMap=[{type:"intro"}];
+            collectionEntries.forEach((ce,i)=>{
+              slideMap.push({type:"entry",entryIdx:i});
+              if(ce._interstitial_note&&i<collectionEntries.length-1){
+                slideMap.push({type:"interstitial",text:ce._interstitial_note,entryIdx:i});
+              }
+            });
+            slideMap.push({type:"outro"});
+            const totalSlides=slideMap.length;
+            const currentSlide=slideMap[presIndex]||slideMap[0];
+            const isIntro=currentSlide.type==="intro";
+            const isOutro=currentSlide.type==="outro";
+            const isInterstitial=currentSlide.type==="interstitial";
+            const entryIdx=currentSlide.entryIdx??-1;
+            const entry=currentSlide.type==="entry"?collectionEntries[entryIdx]:null;
 
             // Navigation arrows (always visible)
             const navArrows=(<>
@@ -2450,6 +2474,20 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>);
             }
 
+            // ── INTERSTITIAL SLIDE ──
+            if(isInterstitial){
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
+                {closeBtn}{navArrows}
+                <div className="text-center max-w-2xl px-8">
+                  <div className="w-12 h-px bg-white/20 mx-auto mb-8"></div>
+                  <p className="text-white/80 text-2xl md:text-3xl leading-relaxed italic" style={{fontFamily:"Georgia, serif"}}>
+                    &ldquo;{currentSlide.text}&rdquo;
+                  </p>
+                  <div className="w-12 h-px bg-white/20 mx-auto mt-8"></div>
+                </div>
+              </div>);
+            }
+
             // ── ENTRY SLIDE ──
             const brandName=entry.competitor||entry.brand_name||entry.brand||"";
             const customTitle=entry._custom_title;
@@ -2457,7 +2495,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             return(<div className="flex-1 flex flex-col relative" style={{background:"#111015"}}>
               {closeBtn}
               {/* Counter */}
-              <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{entryIdx+1} / {collectionEntries.length}</div>
+              <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{presIndex} / {totalSlides-2}</div>
               {navArrows}
 
               {/* Custom title overlay — above the visual */}
@@ -2504,10 +2542,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               {/* Thumbnail strip */}
               <div className="px-4 py-2 flex-shrink-0 overflow-x-auto" style={{background:"#111015"}}>
                 <div className="flex gap-1.5 justify-center">
-                  {collectionEntries.map((e,i)=>{
-                    const t=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/default.jpg`:e.image_url;
-                    return(<button key={e.id} onClick={()=>setPresIndex(i+1)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${i===entryIdx?"border-[#0019FF] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}>
-                      {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/20 text-[8px]">{i+1}</div>}
+                  {slideMap.map((s,si)=>{
+                    if(s.type==="intro"||s.type==="outro")return null;
+                    if(s.type==="interstitial")return(<button key={`inter-${si}`} onClick={()=>setPresIndex(si)} className={`w-8 h-8 rounded-full flex-shrink-0 border-2 transition flex items-center justify-center ${si===presIndex?"border-purple-500 opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}><span className="text-white/40 text-[9px] italic" style={{fontFamily:"Georgia,serif"}}>&ldquo;&rdquo;</span></button>);
+                    const ce=collectionEntries[s.entryIdx];
+                    const t=ce?ytId(ce.url)?`https://img.youtube.com/vi/${ytId(ce.url)}/default.jpg`:ce.image_url:null;
+                    return(<button key={`entry-${si}`} onClick={()=>setPresIndex(si)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${si===presIndex?"border-[#0019FF] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}>
+                      {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/20 text-[8px]">{s.entryIdx+1}</div>}
                     </button>);
                   })}
                 </div>
