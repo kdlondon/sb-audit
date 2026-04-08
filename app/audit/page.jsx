@@ -645,9 +645,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   // Drag-and-drop reorder
   const dragRef=useRef(null);
   const [dragOverIdx,setDragOverIdx]=useState(null);
-  const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";e.currentTarget.style.opacity="0.4";};
-  const handleReorderDragEnd=(e)=>{e.currentTarget.style.opacity="1";setDragOverIdx(null);};
-  const handleReorderDragOver=(e,idx)=>{e.preventDefault();e.dataTransfer.dropEffect="move";setDragOverIdx(idx);};
+  const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";e.currentTarget.style.opacity="0.3";e.currentTarget.style.transform="scale(0.98)";};
+  const handleReorderDragEnd=(e)=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";setDragOverIdx(null);};
+  const handleReorderDragOver=(e,idx)=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragOverIdx!==idx)setDragOverIdx(idx);};
   const handleReorderDrop=async(e,toIdx)=>{
     e.preventDefault();setDragOverIdx(null);
     const fromIdx=dragRef.current;if(fromIdx===null||fromIdx===toIdx)return;
@@ -1879,14 +1879,51 @@ Write all output in English.`,
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{activeCollection.is_private?"private":"shared"}</span>
               </div>
-              <div className="flex gap-2">
-                {collectionEntries.length>=2&&<button onClick={requestAiStorytelling} disabled={aiStoryLoading} className="px-4 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full font-medium hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-50 flex items-center gap-1.5">
-                  {aiStoryLoading?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Analyzing...</>:<>✦ AI Storytelling</>}
+              <div className="flex gap-1.5 items-center">
+                {/* AI Storytelling */}
+                {collectionEntries.length>=2&&(aiStoryLoading?
+                  <div className="h-[34px] px-3 rounded-full bg-purple-100 flex items-center gap-1.5">
+                    <svg className="w-4 h-4 animate-spin text-purple-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
+                    <span className="text-[11px] font-medium text-purple-600">Analyzing...</span>
+                  </div>
+                :
+                  <button onClick={requestAiStorytelling} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-gradient-to-r hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor"/></svg>
+                    <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Storytelling</span>
+                  </button>
+                )}
+                {/* Report */}
+                <button className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Report</span>
+                </button>
+                {/* Presentation */}
+                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Presentation</span>
                 </button>}
-                <button className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Report</button>
-                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Presentation</button>}
-                <button onClick={()=>setEditingCollection(activeCollection)} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Edit</button>
-                <button onClick={()=>deleteCollection(activeCollection.id)} className="px-4 py-1.5 text-sm bg-red-500 text-white rounded-full font-medium hover:bg-red-600 transition">Delete</button>
+                {/* Export CSV */}
+                <button onClick={()=>{
+                  const keys=["competitor","brand_name","description","category","type","year","rating","communication_intent","portrait","journey_phase","funnel","brand_archetype","main_slogan","channel","url"];
+                  const header=keys.join(",");
+                  const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
+                  const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});
+                  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${(activeCollection.name||"collection").replace(/\s+/g,"_")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+                  setToast({message:"CSV exported"});
+                }} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Export</span>
+                </button>
+                {/* Edit */}
+                <button onClick={()=>setEditingCollection(activeCollection)} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Edit</span>
+                </button>
+                {/* Delete */}
+                <button onClick={()=>deleteCollection(activeCollection.id)} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-red-500 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[50px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Delete</span>
+                </button>
               </div>
             </div>
             {activeCollection.description&&<p className="text-sm text-muted mb-1">{activeCollection.description}</p>}
@@ -1939,8 +1976,12 @@ Write all output in English.`,
               <div className="flex flex-col gap-4">
                 {collectionEntries.map((e,idx)=>{
                   const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
+                  const isDragSource=dragRef.current===idx;
+                  const isAbove=dragOverIdx!==null&&dragRef.current!==null&&idx===dragOverIdx&&dragRef.current>dragOverIdx;
+                  const isBelow=dragOverIdx!==null&&dragRef.current!==null&&idx===dragOverIdx&&dragRef.current<dragOverIdx;
                   return(<div key={e.id} draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
-                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing transition-all group ${dragOverIdx===idx?"border-[var(--accent)] border-2 bg-accent-soft":"border-[#e0e0e0] hover:border-[#bbb]"}`}>
+                    style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), box-shadow 0.3s ease, border-color 0.2s ease, opacity 0.2s ease",transform:isAbove?"translateY(12px)":isBelow?"translateY(-12px)":"translateY(0)"}}
+                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing group ${dragOverIdx===idx?"border-purple-400 shadow-lg shadow-purple-100":"border-[#e0e0e0] hover:border-[#bbb]"}`}>
                     {/* Drag handle */}
                     <div className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab group-hover:text-[#999] transition">☰</div>
                     {/* Thumbnail */}
