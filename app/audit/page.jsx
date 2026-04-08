@@ -469,8 +469,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     e.custom_dimensions = merged.custom_dimensions || {};
     e.brand_id = merged.brand_id || brandId || null;
     e.organization_id = orgId || null;
-    // Clean undefined values
+    // Clean undefined values and ensure custom_dimensions is proper JSON
     Object.keys(e).forEach(k => { if (e[k] === undefined) delete e[k]; });
+    if (typeof e.custom_dimensions === "string") {
+      try { e.custom_dimensions = JSON.parse(e.custom_dimensions); } catch { e.custom_dimensions = {}; }
+    }
     return e;
   };
 
@@ -506,6 +509,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       e.project_id=projectId;
       e.brand_id=brandId;
       e.updated_at=new Date().toISOString();
+      // Safety: remove any fields not in the allowed set that may have leaked in
+      const finalAllowed=new Set(ALL_COLUMNS);
+      Object.keys(e).forEach(k=>{if(!finalAllowed.has(k))delete e[k];});
       const{error}=await supabase.from(table).insert(e);
       if(error){setToast({message:"Error saving: "+error.message});return;}
     }
