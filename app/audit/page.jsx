@@ -2504,23 +2504,24 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{presIndex} / {totalSlides-2}</div>
               {navArrows}
 
-              {/* Custom title + note — Inter Black 24 / Inter Regular 13 */}
-              {(customTitle||customNote)&&(
-                <div className="px-16 pt-5 pb-2 flex-shrink-0">
-                  {customTitle&&<h3 className="text-white text-[24px] font-black">{customTitle}</h3>}
-                  {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1.5 max-w-3xl">{customNote}</p>}
-                </div>
-              )}
+              {/* Content column — title, note, visual all left-aligned, same margins */}
+              <div className="flex-1 flex flex-col justify-center px-16 py-6 overflow-hidden">
+                {/* Custom title + note — tight above the visual */}
+                {(customTitle||customNote)&&(
+                  <div className="mb-3 max-w-4xl flex-shrink-0">
+                    {customTitle&&<h3 className="text-white text-[24px] font-black leading-tight">{customTitle}</h3>}
+                    {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1.5 leading-relaxed">{customNote}</p>}
+                  </div>
+                )}
 
-              {/* Visual — takes most of the space */}
-              <div className="flex-1 flex items-center justify-center relative overflow-hidden px-16 pb-2">
-                <div className="max-w-[85vw] max-h-[60vh] flex items-center justify-center">
+                {/* Visual */}
+                <div className="max-w-4xl flex-shrink-0">
                   {ytId(entry.url)?(
-                    <iframe key={entry.id} width="960" height="540" src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="rounded-lg shadow-2xl" style={{maxWidth:"85vw",maxHeight:"60vh"}} />
+                    <div style={{aspectRatio:"16/9",maxHeight:"55vh"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
                   ):entry.image_url?(
-                    <img src={entry.image_url} className="max-w-[85vw] max-h-[60vh] object-contain rounded-lg shadow-2xl" alt="" />
+                    <img src={entry.image_url} className="max-h-[55vh] object-contain rounded-lg shadow-2xl" alt="" />
                   ):entry.url?(
-                    <div className="bg-white/5 rounded-xl p-8 text-center">
+                    <div className="bg-white/5 rounded-xl p-8">
                       <a href={entry.url} target="_blank" className="text-[#4060ff] text-sm break-all hover:underline">{entry.url}</a>
                     </div>
                   ):(
