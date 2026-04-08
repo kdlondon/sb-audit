@@ -2118,12 +2118,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
             {/* Intro interstitial — before first case, becomes slide after intro */}
             {collectionEntries.length>0&&(
-              <div className="flex items-center gap-3 py-2 px-8 mb-2 group/inter">
-                <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                <MiniEditor key={`intro-${activeCollection?.id}`} value={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." minimal
+              <div className="flex justify-center py-3 px-8 mb-2">
+                <MiniEditor key={`intro-${activeCollection?.id}`} value={activeCollection?.intro_note||""} placeholder="Introduction note (shows as first slide after title)..." minimal
                   onBlur={html=>{supabase.from("collections").update({intro_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:html}));}}
-                  className="w-[450px]" editorClassName="text-sm italic text-center text-[var(--text2)]" />
-                <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                  className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
               </div>
             )}
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
@@ -2139,7 +2137,6 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   const pushDown=showLineAbove;
                   const pushUp=isDragging&&insertIdx===idx+1&&dragRef.current!==idx&&dragRef.current!==idx+1&&idx<collectionEntries.length-1;
                   return(<div key={e.id} className="relative"
-                    draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd}
                     onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
                     style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
                     {/* Insertion indicator line — above */}
@@ -2156,9 +2153,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     </div>}
                     {/* The card */}
                     <div style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
-                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing group border-[#e0e0e0] hover:border-[#bbb]`}>
-                    {/* Drag handle */}
-                    <div className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab group-hover:text-[#999] transition">☰</div>
+                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 group border-[#e0e0e0] hover:border-[#bbb]`}>
+                    {/* Drag handle — only this element is draggable */}
+                    <div draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd}
+                      className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab active:cursor-grabbing group-hover:text-[#999] transition">☰</div>
                     {/* Thumbnail */}
                     <div className="w-[180px] h-[120px] bg-surface2 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer" onClick={()=>setSb(e)}>
                       {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-xs">No image</div>}
@@ -2184,18 +2182,16 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>
                   {/* Interstitial note — between cases, becomes a slide in presentation */}
                   {/* Interstitial note — between cases */}
-                  <div className="flex items-center gap-3 py-2 px-8 group/inter">
-                    <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                  <div className="flex justify-center py-3 px-8">
                     <MiniEditor key={idx<collectionEntries.length-1?`inter-${e.id}`:`closing-${activeCollection?.id}`}
                       value={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
-                      placeholder={idx<collectionEntries.length-1?"Add a transition note between slides...":"Add a closing note (shows before thank you)..."}
+                      placeholder={idx<collectionEntries.length-1?"Transition note between slides...":"Closing note (before thank you)..."}
                       minimal
                       onBlur={html=>{
                         if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",html);}
                         else{supabase.from("collections").update({closing_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving closing note"});});setActiveCollection(prev=>({...prev,closing_note:html}));}
                       }}
-                      className="w-[450px]" editorClassName="text-sm italic text-center text-[var(--text2)]" />
-                    <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                      className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
                   </div>
                   </div>);
                 })}
@@ -2489,26 +2485,32 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
-            // Count slides: intro + intro_note? + entries + interstitials + closing_note? + outro
-            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length+(activeCollection?.intro_note?1:0)+(activeCollection?.closing_note?1:0);
+            const _hasText=(h)=>{if(!h)return false;return h.replace(/<[^>]*>/g,"").trim().length>0;};
+            const interstitialCount=collectionEntries.filter((ce,i)=>_hasText(ce._interstitial_note)&&i<collectionEntries.length-1).length+(_hasText(activeCollection?.intro_note)?1:0)+(_hasText(activeCollection?.closing_note)?1:0);
             const totalSlides=collectionEntries.length+interstitialCount+2;
+            // Don't navigate if user is editing text (input, textarea, contenteditable)
+            const tag=document.activeElement?.tagName;
+            const isEditing=tag==="INPUT"||tag==="TEXTAREA"||document.activeElement?.isContentEditable;
+            if(isEditing&&e.key!=="Escape")return;
             if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,totalSlides-1));
             if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));
             if(e.key==="Escape")setPresentationMode(false);
           }} tabIndex={0} ref={el=>el&&el.focus()}>
           {(()=>{
             // Build slide map: intro, then for each entry: entry slide + optional interstitial slide, then outro
+            // Helper: check if HTML has actual visible text
+            const hasText=(html)=>{if(!html)return false;const t=html.replace(/<[^>]*>/g,"").trim();return t.length>0;};
             const slideMap=[{type:"intro"}];
-            if(activeCollection?.intro_note){
+            if(hasText(activeCollection?.intro_note)){
               slideMap.push({type:"interstitial",text:activeCollection.intro_note,entryIdx:-1});
             }
             collectionEntries.forEach((ce,i)=>{
               slideMap.push({type:"entry",entryIdx:i});
-              if(ce._interstitial_note&&i<collectionEntries.length-1){
+              if(hasText(ce._interstitial_note)&&i<collectionEntries.length-1){
                 slideMap.push({type:"interstitial",text:ce._interstitial_note,entryIdx:i});
               }
             });
-            if(activeCollection?.closing_note){
+            if(hasText(activeCollection?.closing_note)){
               slideMap.push({type:"interstitial",text:activeCollection.closing_note,entryIdx:-2});
             }
             slideMap.push({type:"outro"});
@@ -2530,12 +2532,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
             // Close button
             const closeBtn=<button onClick={()=>setPresentationMode(false)} className="absolute top-4 right-4 text-white/20 hover:text-white/60 text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition z-10">×</button>;
+            const kdLogo=<img src="/knots-dots-logo.png" alt="K&D" className="absolute z-10" style={{top:30,left:30,height:28}} />;
 
             // ── INTRO SLIDE ── (Inter font throughout)
             if(isIntro){
               const countrySet=new Set(collectionEntries.map(ce=>ce.country).filter(Boolean));
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
-                {closeBtn}{navArrows}
+                {closeBtn}{kdLogo}{navArrows}
                 <div className="flex flex-col items-center max-w-3xl px-8">
                   {/* K&D logo */}
                   <img src="/knots-dots-logo.png" alt="K&D" className="mb-16" style={{height:48}} />
@@ -2558,7 +2561,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             // ── OUTRO SLIDE ──
             if(isOutro){
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
-                {closeBtn}{navArrows}
+                {closeBtn}{kdLogo}{navArrows}
                 <div className="text-center max-w-lg px-8">
                   <div className="text-white/10 text-6xl font-bold uppercase tracking-[0.2em] mb-6" style={{lineHeight:1}}>K<br/>&<br/>D.</div>
                   <div className="w-16 h-px bg-white/10 mx-auto mb-6"></div>
@@ -2585,7 +2588,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 }
               };
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0019FF"}}>
-                {closeBtn}{navArrows}
+                {closeBtn}{kdLogo}{navArrows}
                 <div className="max-w-4xl px-16 w-full">
                   <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark
                     editorClassName="text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]" />
@@ -2598,7 +2601,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             const customTitle=entry._custom_title;
             const customNote=entry._custom_note;
             return(<div className="flex-1 flex flex-col relative" style={{background:"#111015"}}>
-              {closeBtn}
+              {closeBtn}{kdLogo}
               {/* Counter */}
               <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{presIndex} / {totalSlides-2}</div>
               {navArrows}
@@ -2608,7 +2611,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <div className="w-full" style={{maxWidth:"min(960px, 80vw)"}}>
                   {/* Custom title + note — tight above the visual */}
                   {(customTitle||customNote||true)&&(
-                    <div className="mb-2 flex-shrink-0">
+                    <div className="flex-shrink-0" style={{marginBottom:60}}>
                       <input defaultValue={customTitle||""} placeholder="Slide title..." onBlur={ev=>{const v=ev.target.value;updateEntryCustom(entry.id,"custom_title",v);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_title:v}:ce));}}
                         className="text-white text-[24px] font-black leading-tight bg-transparent border-none focus:outline-none w-full placeholder:text-white/20" />
                       <MiniEditor key={`pres-note-${entry.id}`} value={customNote||""} placeholder="Analyst note..." minimal dark
@@ -2631,8 +2634,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                       <div className="bg-white/5 rounded-xl p-12 text-white/20 text-sm">No visual</div>
                     )}
                   </div>
-                  {/* Case detail bar — directly below the visual */}
-                  <div className="py-3 mt-1 rounded-b-lg" style={{background:"#1a1a1f"}}>
+                  {/* Case detail bar — below the visual with 30px gap */}
+                  <div className="py-3 rounded-b-lg" style={{background:"#1a1a1f",marginTop:30}}>
                   <div className="flex items-center gap-3 mb-1">
                     {brandName&&<span className="text-white/80 text-[14px] font-bold">{brandName}</span>}
                     {entry.year&&<span className="text-white/30 text-[13px]">{entry.year}</span>}
