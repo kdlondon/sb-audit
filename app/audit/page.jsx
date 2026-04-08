@@ -11,6 +11,7 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import dynamic from "next/dynamic";
 const ImageCropper = dynamic(() => import("@/components/ImageCropper"), { ssr: false });
+const MiniEditor = dynamic(() => import("@/components/MiniEditor"), { ssr: false });
 import DropdownCheckbox, { StarRating } from "@/components/DropdownCheckbox";
 import { getFieldValue } from "@/lib/system-dimensions";
 
@@ -2086,8 +2087,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             {collectionEntries.length>0&&(
               <div className="flex items-center gap-3 py-2 px-8 mb-2 group/inter">
                 <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                <input key={`intro-${activeCollection?.id}-${activeCollection?.intro_note||""}`} defaultValue={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." onBlur={ev=>{const v=ev.target.value;supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:v}));}}
-                  className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
+                <MiniEditor key={`intro-${activeCollection?.id}`} value={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." minimal
+                  onBlur={html=>{supabase.from("collections").update({intro_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:html}));}}
+                  className="w-[450px]" editorClassName="text-sm italic text-center text-[var(--text2)]" />
                 <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
               </div>
             )}
@@ -2138,9 +2140,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                       <p className="text-sm text-muted">{[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" • ")}</p>
                     </div>
                     {/* Custom title/note */}
-                    <div className="flex flex-col gap-2 w-[240px] flex-shrink-0" onClick={ev=>ev.stopPropagation()}>
-                      <input defaultValue={e._custom_title||""} placeholder="Slide title..." onBlur={ev=>updateEntryCustom(e.id,"custom_title",ev.target.value)} className="px-3 py-2 text-sm bg-white border border-[#e0e0e0] rounded-lg text-main placeholder:text-[#bbb] focus:outline-none focus:border-[#999] transition" />
-                      <input defaultValue={e._custom_note||""} placeholder="Analyst note..." onBlur={ev=>updateEntryCustom(e.id,"custom_note",ev.target.value)} className="px-3 py-2 text-sm bg-white border border-[#e0e0e0] rounded-lg text-muted placeholder:text-[#bbb] focus:outline-none focus:border-[#999] transition" />
+                    <div className="flex flex-col gap-1.5 w-[260px] flex-shrink-0" onClick={ev=>ev.stopPropagation()}>
+                      <input defaultValue={e._custom_title||""} placeholder="Slide title..." onBlur={ev=>updateEntryCustom(e.id,"custom_title",ev.target.value)} className="px-3 py-1.5 text-sm bg-white border border-[#e0e0e0] rounded-lg text-main placeholder:text-[#bbb] focus:outline-none focus:border-[#999] transition font-semibold" />
+                      <MiniEditor key={`note-${e.id}`} value={e._custom_note||""} onBlur={html=>updateEntryCustom(e.id,"custom_note",html)} placeholder="Analyst note..." minimal
+                        className="px-3 py-1.5 bg-white border border-[#e0e0e0] rounded-lg text-muted focus-within:border-[#999] transition min-h-[36px]"
+                        editorClassName="text-[13px] text-[var(--text2)] min-h-[20px]" />
                     </div>
                     {/* Remove — hidden until hover */}
                     <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
@@ -2149,14 +2153,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {/* Interstitial note — between cases */}
                   <div className="flex items-center gap-3 py-2 px-8 group/inter">
                     <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                    <input key={idx<collectionEntries.length-1?`inter-${e.id}-${e._interstitial_note||""}`:`closing-${activeCollection?.id}-${activeCollection?.closing_note||""}`}
-                      defaultValue={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
+                    <MiniEditor key={idx<collectionEntries.length-1?`inter-${e.id}`:`closing-${activeCollection?.id}`}
+                      value={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
                       placeholder={idx<collectionEntries.length-1?"Add a transition note between slides...":"Add a closing note (shows before thank you)..."}
-                      onBlur={ev=>{
-                        if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",ev.target.value);}
-                        else{const v=ev.target.value;supabase.from("collections").update({closing_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving closing note"});});setActiveCollection(prev=>({...prev,closing_note:v}));}
+                      minimal
+                      onBlur={html=>{
+                        if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",html);}
+                        else{supabase.from("collections").update({closing_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving closing note"});});setActiveCollection(prev=>({...prev,closing_note:html}));}
                       }}
-                      className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
+                      className="w-[450px]" editorClassName="text-sm italic text-center text-[var(--text2)]" />
                     <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
                   </div>
                   </div>);
@@ -2502,14 +2507,25 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>);
             }
 
-            // ── INTERSTITIAL SLIDE ── Inter Black 48, blue bg
+            // ── INTERSTITIAL SLIDE ── Inter Black 48, blue bg, editable
             if(isInterstitial){
+              const saveInterstitial=(html)=>{
+                const eidx=currentSlide.entryIdx;
+                if(eidx===-1){// intro
+                  supabase.from("collections").update({intro_note:html}).eq("id",activeCollection.id);
+                  setActiveCollection(prev=>({...prev,intro_note:html}));
+                }else if(eidx===-2){// closing
+                  supabase.from("collections").update({closing_note:html}).eq("id",activeCollection.id);
+                  setActiveCollection(prev=>({...prev,closing_note:html}));
+                }else{// between entries
+                  updateEntryCustom(collectionEntries[eidx]?.id,"interstitial_note",html);
+                }
+              };
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0019FF"}}>
                 {closeBtn}{navArrows}
-                <div className="max-w-4xl px-16">
-                  <p className="text-white text-[36px] md:text-[48px] font-black leading-[1.15]">
-                    {currentSlide.text}
-                  </p>
+                <div className="max-w-4xl px-16 w-full">
+                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark
+                    editorClassName="text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]" />
                 </div>
               </div>);
             }
@@ -2528,10 +2544,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="flex-1 flex flex-col justify-center items-center py-4 overflow-hidden">
                 <div className="w-full" style={{maxWidth:"min(960px, 80vw)"}}>
                   {/* Custom title + note — tight above the visual */}
-                  {(customTitle||customNote)&&(
+                  {(customTitle||customNote||true)&&(
                     <div className="mb-2 flex-shrink-0">
-                      {customTitle&&<h3 className="text-white text-[24px] font-black leading-tight">{customTitle}</h3>}
-                      {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1 leading-relaxed">{customNote}</p>}
+                      <input defaultValue={customTitle||""} placeholder="Slide title..." onBlur={ev=>{const v=ev.target.value;updateEntryCustom(entry.id,"custom_title",v);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_title:v}:ce));}}
+                        className="text-white text-[24px] font-black leading-tight bg-transparent border-none focus:outline-none w-full placeholder:text-white/20" />
+                      <MiniEditor key={`pres-note-${entry.id}`} value={customNote||""} placeholder="Analyst note..." minimal dark
+                        onBlur={html=>{updateEntryCustom(entry.id,"custom_note",html);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_note:html}:ce));}}
+                        className="mt-1" editorClassName="text-[13px] text-white/50 min-h-[18px]" />
                     </div>
                   )}
 
