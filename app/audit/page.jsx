@@ -642,18 +642,35 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     loadCollections();
   };
 
-  // Drag-and-drop reorder
+  // Drag-and-drop reorder — with insertion indicator
   const dragRef=useRef(null);
   const [dragOverIdx,setDragOverIdx]=useState(null);
-  const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";e.currentTarget.style.opacity="0.3";e.currentTarget.style.transform="scale(0.98)";};
-  const handleReorderDragEnd=(e)=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";setDragOverIdx(null);};
-  const handleReorderDragOver=(e,idx)=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragOverIdx!==idx)setDragOverIdx(idx);};
+  const [dragHalf,setDragHalf]=useState(null); // "top" or "bottom" — which half of the card is hovered
+  const handleReorderDragStart=(e,idx)=>{dragRef.current=idx;e.dataTransfer.effectAllowed="move";};
+  const handleReorderDragEnd=(e)=>{setDragOverIdx(null);setDragHalf(null);};
+  const handleReorderDragOver=(e,idx)=>{
+    e.preventDefault();e.dataTransfer.dropEffect="move";
+    const rect=e.currentTarget.getBoundingClientRect();
+    const half=(e.clientY-rect.top)<rect.height/2?"top":"bottom";
+    if(dragOverIdx!==idx||dragHalf!==half){setDragOverIdx(idx);setDragHalf(half);}
+  };
+  const getInsertIdx=()=>{
+    if(dragOverIdx===null||dragRef.current===null)return null;
+    return dragHalf==="top"?dragOverIdx:dragOverIdx+1;
+  };
   const handleReorderDrop=async(e,toIdx)=>{
-    e.preventDefault();setDragOverIdx(null);
-    const fromIdx=dragRef.current;if(fromIdx===null||fromIdx===toIdx)return;
+    e.preventDefault();
+    const fromIdx=dragRef.current;
+    const insertAt=getInsertIdx();
+    setDragOverIdx(null);setDragHalf(null);
+    if(fromIdx===null||insertAt===null)return;
+    // Adjust insert index if dragging from above
+    let finalIdx=insertAt;
+    if(fromIdx<insertAt)finalIdx--;
+    if(fromIdx===finalIdx)return;
     const updated=[...collectionEntries];
     const [moved]=updated.splice(fromIdx,1);
-    updated.splice(toIdx,0,moved);
+    updated.splice(finalIdx,0,moved);
     setCollectionEntries(updated);
     // Persist sort order
     const colId=activeCollection?.id;if(!colId)return;
@@ -1973,15 +1990,34 @@ Write all output in English.`,
             )}
             <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-0">
                 {collectionEntries.map((e,idx)=>{
                   const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
+                  const isDragging=dragRef.current!==null;
                   const isDragSource=dragRef.current===idx;
-                  const isAbove=dragOverIdx!==null&&dragRef.current!==null&&idx===dragOverIdx&&dragRef.current>dragOverIdx;
-                  const isBelow=dragOverIdx!==null&&dragRef.current!==null&&idx===dragOverIdx&&dragRef.current<dragOverIdx;
-                  return(<div key={e.id} draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
-                    style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), box-shadow 0.3s ease, border-color 0.2s ease, opacity 0.2s ease",transform:isAbove?"translateY(12px)":isBelow?"translateY(-12px)":"translateY(0)"}}
-                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing group ${dragOverIdx===idx?"border-purple-400 shadow-lg shadow-purple-100":"border-[#e0e0e0] hover:border-[#bbb]"}`}>
+                  const insertIdx=getInsertIdx();
+                  const showLineAbove=isDragging&&insertIdx===idx&&dragRef.current!==idx&&dragRef.current!==idx-1;
+                  const showLineBelow=isDragging&&idx===collectionEntries.length-1&&insertIdx===collectionEntries.length&&dragRef.current!==idx;
+                  // Push cards apart at insertion point
+                  const pushDown=showLineAbove;
+                  const pushUp=isDragging&&insertIdx===idx+1&&dragRef.current!==idx&&dragRef.current!==idx+1&&idx<collectionEntries.length-1;
+                  return(<div key={e.id} className="relative" style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
+                    {/* Insertion indicator line — above */}
+                    {showLineAbove&&<div className="absolute left-4 right-4 top-[8px] flex items-center gap-2" style={{transition:"opacity 0.2s ease"}}>
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                    </div>}
+                    {/* The card */}
+                    {/* Insertion indicator line — below last */}
+                    {showLineBelow&&<div className="absolute left-4 right-4 bottom-[8px] flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
+                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                    </div>}
+                    <div draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd} onDragOver={ev=>handleReorderDragOver(ev,idx)} onDrop={ev=>handleReorderDrop(ev,idx)}
+                    style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), box-shadow 0.3s ease, opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
+                    className={`flex items-center gap-5 bg-white border rounded-xl p-5 cursor-grab active:cursor-grabbing group border-[#e0e0e0] hover:border-[#bbb]`}>
                     {/* Drag handle */}
                     <div className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab group-hover:text-[#999] transition">☰</div>
                     {/* Thumbnail */}
@@ -2004,6 +2040,7 @@ Write all output in English.`,
                     </div>
                     {/* Remove — hidden until hover */}
                     <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
+                  </div>
                   </div>);
                 })}
               </div>
