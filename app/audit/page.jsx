@@ -1785,29 +1785,37 @@ Write all output in English.`,
             </div>
             {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
-          {selected.size>0&&<div className="flex gap-2 items-center">
+          {selected.size>0&&<div className="flex gap-1.5 items-center">
             <div className="relative">
-              <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Add to Collection</button>
+              <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}}
+                className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Collection</span>
+              </button>
               {showAddToCollection&&(
                 <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[240px] max-h-[300px] overflow-auto">
                   {collections.map(c=>(
-                    <button key={c.id} onClick={()=>addToCollection(c.id,[...selected])} className="w-full text-left px-3 py-2 text-sm text-main hover:bg-accent-soft border-b border-main flex justify-between items-center">
+                    <button key={c.id} onClick={()=>addToCollection(c.id,[...selected])} className="w-full text-left px-3 py-2 text-sm text-main hover:bg-[#f5f5f5] border-b border-main flex justify-between items-center">
                       <span className="truncate">{c.name}</span>
                       <span className="text-[10px] text-hint ml-2 shrink-0">{c.entryCount} entries</span>
                     </button>
                   ))}
                   {!showQuickNewCol?(
-                    <button onClick={()=>setShowQuickNewCol(true)} className="w-full text-left px-3 py-2 text-sm text-accent hover:bg-accent-soft font-medium">+ New Collection</button>
+                    <button onClick={()=>setShowQuickNewCol(true)} className="w-full text-left px-3 py-2 text-sm text-[#555] hover:bg-[#f5f5f5] font-medium">+ New Collection</button>
                   ):(
                     <div className="p-2 flex gap-1">
                       <input value={quickNewColName} onChange={e=>setQuickNewColName(e.target.value)} placeholder="Collection name..." className="flex-1 px-2 py-1 text-xs bg-surface border border-main rounded text-main" autoFocus onKeyDown={e=>{if(e.key==="Enter"&&quickNewColName.trim()){(async()=>{const c=await createCollection({name:quickNewColName.trim()});if(c){await addToCollection(c.id,[...selected]);setQuickNewColName("");setShowQuickNewCol(false);}})();}}} />
-                      <button onClick={async()=>{if(!quickNewColName.trim())return;const c=await createCollection({name:quickNewColName.trim()});if(c){await addToCollection(c.id,[...selected]);setQuickNewColName("");setShowQuickNewCol(false);}}} className="px-2 py-1 text-xs bg-accent text-white rounded font-semibold">Add</button>
+                      <button onClick={async()=>{if(!quickNewColName.trim())return;const c=await createCollection({name:quickNewColName.trim()});if(c){await addToCollection(c.id,[...selected]);setQuickNewColName("");setShowQuickNewCol(false);}}} className="px-2 py-1 text-xs bg-[#333] text-white rounded font-semibold">Add</button>
                     </div>
                   )}
                 </div>
               )}
             </div>
-            <button onClick={bulkDelete} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg font-semibold">Delete {selected.size}</button>
+            <button onClick={bulkDelete}
+              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-[#c0392b] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{selected.size}</span>
+            </button>
           </div>}
         </div>
         {/* Collections View */}
