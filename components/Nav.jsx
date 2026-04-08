@@ -59,7 +59,7 @@ export default function Nav() {
 
   return (
     <div className="px-5 py-2 flex items-center justify-between sticky top-0"
-      style={{ background: "#c96b6b", borderBottom: "none", zIndex: 100, transform: "translateZ(0)" }}>
+      style={{ background: "#D07072", borderBottom: "none", zIndex: 100, transform: "translateZ(0)" }}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
           <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>
@@ -94,32 +94,36 @@ export default function Nav() {
             <div className="ai-sparkle" style={{ top: "72%", left: "80%", animationDelay: "0.4s" }} />
           </div>
 
-          {/* Add — yellow circle */}
+          {/* Add — expands to "+ New entry" on hover, yellow bg on hover */}
           {canAccess(role, "audit") && (
             <button onClick={() => {
               if(pathname.startsWith("/audit")){window.dispatchEvent(new CustomEvent("openAddForm",{detail:{scope:"local"}}));}
               else{window.location.href="/audit?add=1";}
             }}
-              className="h-[30px] w-[30px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
-              style={{ background: "#e8b931" }}>
+              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+              onMouseEnter={e=>e.currentTarget.style.background="#F0C472"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[70px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">New entry</span>
             </button>
           )}
 
-          {/* Chat — beige/tan circle */}
+          {/* Chat — expands on hover */}
           {canAccess(role, "chat") && (
             <button onClick={() => router.push("/chat")}
-              className="h-[30px] w-[30px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
-              style={{ background: "#d4c9a8" }}>
+              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="flex-shrink-0"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Chat</span>
             </button>
           )}
 
-          {/* Settings — gray */}
+          {/* Settings — expands on hover */}
           {canAccess(role, "settings") && (
             <button onClick={() => router.push("/settings")}
-              className="h-[28px] w-[28px] rounded-full flex items-center justify-center hover:bg-white/10 transition">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" className="opacity-40 hover:opacity-80 transition"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[50px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Settings</span>
             </button>
           )}
         </div>

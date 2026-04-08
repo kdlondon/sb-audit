@@ -4,7 +4,7 @@
 
 :root {
   --nav-h: 41px;
-  --bg: #f5f4f0;
+  --bg: #FFFFFF;
   --surface: #ffffff;
   --surface2: #efeee9;
   --border: #ddd9d0;
@@ -102,7 +102,7 @@ a, button, input, select, textarea {
   position: sticky;
   top: var(--nav-h);
   z-index: 30;
-  background: #2d2d2d;
+  background: #717171;
   border-bottom: none;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
