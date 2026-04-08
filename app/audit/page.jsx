@@ -794,6 +794,7 @@ Write all output in English.`,
     setReportGenerating(true);
     try{
       const entriesData=collectionEntries.map((e,i)=>({
+        id:e.id,
         position:i+1,
         brand:e.competitor||e.brand_name||"",
         title:e.description||"",
@@ -823,7 +824,15 @@ ${activeCollection.description?`Description: ${activeCollection.description}`:""
 ${activeCollection.objective?`Objective: ${activeCollection.objective}`:""}
 Number of cases: ${entriesData.length}
 
-The user will provide specific instructions for what kind of report they need. Use ALL the case data provided to build a thorough, insight-driven report. Reference specific cases by name throughout.
+The user will provide specific instructions for what kind of report they need. Use ALL the case data provided to build a thorough, insight-driven report.
+
+CITATION FORMAT: [descriptive name](cite:ENTRY_ID) — e.g., [their Rise Entrepreneur campaign](cite:abc123)
+- Every case you mention MUST be cited using its exact ID from the data.
+- The descriptive name IS the link — do NOT mention the case name and then repeat it as a separate citation. One mention, as a link.
+- Use natural short names: "the Rise Entrepreneur spot", "their Built Different campaign", "the SumUp community ad"
+- NEVER create fake citation IDs. Every (cite:ID) MUST use an exact ID from the case data.
+- Do NOT place citations inside markdown table rows — only in prose and bullet points.
+- Include a ## Sources section at the end listing all cited cases with their citations.
 
 Structure the report with:
 - An executive summary

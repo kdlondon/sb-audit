@@ -767,7 +767,7 @@ CRITICAL RULES:
 - No filler, no hedging, no generic statements.
 - ALL output in English regardless of input language.
 - Return ONLY valid JSON — no markdown, no code blocks.
-- Citation links like [text](cite:ID) reference real audit entries — extract the entry descriptions and include them in slide entries.
+- Citation links like [text](cite:ID) reference real audit entries — extract BOTH the entry description AND the ID. Include the ID in slide entries so they link back to the original case.
 
 Return: {"title":"...","slides":[exactly 10 slide objects]}
 
@@ -783,16 +783,16 @@ SLIDE 3 — type:"cs_insight"
 Fields: human_insight (string — first-person quote 25-40 words, emotionally resonant)
 
 SLIDE 4 — type:"cs_brand_response"
-Fields: creative_proposition (3-6 words, displays VERY LARGE), proposition_description (one sentence), brand_archetype (string), brand_role (one sentence), emotional_positioning (5-10 words), rational_positioning (15-25 words), brand_territory (string), key_differentiators (array of 3 strings), entries (array of 2-3: {description, year})
+Fields: creative_proposition (3-6 words, displays VERY LARGE), proposition_description (one sentence), brand_archetype (string), brand_role (one sentence), emotional_positioning (5-10 words), rational_positioning (15-25 words), brand_territory (string), key_differentiators (array of 3 strings), entries (array of 2-3: {id, description, year} — id is the entry ID from cite:ID links)
 
 SLIDE 5 — type:"cs_proof_points"
-Fields: creative_proposition (same as slide 3), primary_proof (1-2 sentences), secondary_proofs (array of 3 strings), communication_focus (1-2 sentences), tone_voice (array of 3 strings), entries (array of 2-3: {description, year})
+Fields: creative_proposition (same as slide 3), primary_proof (1-2 sentences), secondary_proofs (array of 3 strings), communication_focus (1-2 sentences), tone_voice (array of 3 strings), entries (array of 2-3: {id, description, year})
 
 SLIDE 6 — type:"cs_product"
-Fields: approach (one sentence), key_messages (array of 3 strings), channels_formats (string), gap (one sentence), entries (array of 2-3: {description, year})
+Fields: approach (one sentence), key_messages (array of 3 strings), channels_formats (string), gap (one sentence), entries (array of 2-3: {id, description, year})
 
 SLIDE 7 — type:"cs_beyond_banking"
-Fields: beyond_banking (one paragraph), innovation (one paragraph), white_space (one sentence), entries (array of 1-2: {description, year})
+Fields: beyond_banking (one paragraph), innovation (one paragraph), white_space (one sentence), entries (array of 1-2: {id, description, year})
 
 SLIDE 8 — type:"cs_brand_assessment"
 Fields: strengths (array of 3: {label, explanation}), weaknesses (array of 2: {label, explanation})
@@ -820,7 +820,7 @@ RULES:
 - Return ONLY valid JSON — no markdown, no code blocks
 - Write in strategic, editorial tone — bold, provocative headlines
 - Keep body text concise — this is a presentation, not a report
-- Citation links like [text](cite:ID) reference real audit entries — extract the descriptions and use them
+- Citation links like [text](cite:ID) reference real audit entries — extract BOTH the description AND the ID. Include entry IDs in slide entries so they link back to the original case
 Return: {"title":"...","slides":[...slides...]}`;
 
     const systemPrompt = isCS ? csSystemPrompt : creativeSystemPrompt;
@@ -1524,7 +1524,11 @@ Return: {"title":"...","slides":[...slides...]}`;
                                     onClick={() => setMediaModal({ src: entry.image_url || entry.url, type: entry.url?.includes("youtube") ? "Video" : "Image" })}
                                     alt="" title="Click to preview" />}
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
+                                    {entry.id ? (
+                                      <a href={`/audit?id=${entry.id}`} target="_blank" rel="noopener" className="text-xs font-medium text-accent hover:underline truncate block" title="Open in Creative Source">{entry.description || "—"}</a>
+                                    ) : (
+                                      <p className="text-xs font-medium text-main truncate">{entry.description || "—"}</p>
+                                    )}
                                     <div className="flex gap-2 mt-0.5">
                                       {entry.year && <span className="text-[10px] text-hint">{entry.year}</span>}
                                       {entry.type && <span className="text-[10px] text-hint">{entry.type}</span>}
