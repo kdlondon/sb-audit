@@ -65,8 +65,8 @@ export default function MiniEditor({ value, onChange, onBlur, placeholder, class
 
   return (
     <div className={`group/editor ${className}`}>
-      {/* Toolbar — always visible for non-minimal, or visible on focus for minimal */}
-      <div className={`flex gap-0.5 mb-1 ${minimal ? "opacity-0 group-focus-within/editor:opacity-100 h-0 group-focus-within/editor:h-auto overflow-hidden transition-all" : ""}`}>
+      {/* Toolbar — always visible for non-minimal, hidden until focus for minimal */}
+      <div className={`flex gap-0.5 mb-1 ${minimal ? "hidden group-focus-within/editor:flex" : ""}`}>
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={btnClass(isActive("bold"))}>B</button>
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={btnClass(isActive("italic"))} style={{ fontStyle: "italic" }}>I</button>
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={btnClass(isActive("underline"))} style={{ textDecoration: "underline" }}>U</button>
