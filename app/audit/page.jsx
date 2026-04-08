@@ -2082,6 +2082,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>
             )}
             <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
+            {/* Intro interstitial — before first case, becomes slide after intro */}
+            {collectionEntries.length>0&&(
+              <div className="flex items-center gap-3 py-2 px-8 mb-2 group/inter">
+                <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+                <input defaultValue={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." onBlur={ev=>{const v=ev.target.value;supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,intro_note:v}));}}
+                  className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
+                <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
+              </div>
+            )}
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
               <div className="flex flex-col gap-0">
                 {collectionEntries.map((e,idx)=>{
@@ -2407,8 +2416,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
-            // Count slides: intro + entries + interstitials + outro
-            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length;
+            // Count slides: intro + intro_note? + entries + interstitials + outro
+            const interstitialCount=collectionEntries.filter((ce,i)=>ce._interstitial_note&&i<collectionEntries.length-1).length+(activeCollection?.intro_note?1:0);
             const totalSlides=collectionEntries.length+interstitialCount+2;
             if(e.key==="ArrowRight"||e.key===" ")setPresIndex(i=>Math.min(i+1,totalSlides-1));
             if(e.key==="ArrowLeft")setPresIndex(i=>Math.max(i-1,0));
@@ -2417,6 +2426,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           {(()=>{
             // Build slide map: intro, then for each entry: entry slide + optional interstitial slide, then outro
             const slideMap=[{type:"intro"}];
+            if(activeCollection?.intro_note){
+              slideMap.push({type:"interstitial",text:activeCollection.intro_note,entryIdx:-1});
+            }
             collectionEntries.forEach((ce,i)=>{
               slideMap.push({type:"entry",entryIdx:i});
               if(ce._interstitial_note&&i<collectionEntries.length-1){
