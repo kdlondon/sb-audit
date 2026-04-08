@@ -311,6 +311,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [collectionMenuOpen,setCollectionMenuOpen]=useState(null);
   const [presentationMode,setPresentationMode]=useState(false);
   const [presIndex,setPresIndex]=useState(0);
+  const [aiStoryLoading,setAiStoryLoading]=useState(false);
+  const [aiStorySuggestion,setAiStorySuggestion]=useState(null); // {narrative, entries:[{id,sort_order,custom_title,custom_note}]}
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
   const addBtnRef=useRef(null);
@@ -666,6 +668,86 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     const update=field==="custom_title"?{custom_title:value}:{custom_note:value};
     await supabase.from("collection_entries").update(update).eq("collection_id",activeCollection.id).eq("entry_id",entryId);
     setCollectionEntries(prev=>prev.map(e=>e.id===entryId?{...e,[`_${field}`]:value}:e));
+  };
+
+  // ── AI STORYTELLING ─────────────────────────────────────────────────────────
+  const requestAiStorytelling=async()=>{
+    if(!activeCollection||collectionEntries.length<2)return;
+    setAiStoryLoading(true);
+    setAiStorySuggestion(null);
+    try{
+      const entrySummaries=collectionEntries.map((e,i)=>({
+        id:e.id,
+        current_position:i,
+        brand:e.competitor||e.brand_name||"",
+        description:e.description||"",
+        category:e.category||"",
+        type:e.type||"",
+        year:e.year||"",
+        rating:e.rating||"",
+        communication_intent:e.communication_intent||"",
+        portrait:e.portrait||"",
+        journey_phase:e.journey_phase||"",
+        funnel:e.funnel||"",
+        brand_archetype:e.brand_archetype||"",
+        main_slogan:e.main_slogan||"",
+      }));
+      const collectionContext=`Collection: "${activeCollection.name}"${activeCollection.description?`\nDescription: ${activeCollection.description}`:""}${activeCollection.objective?`\nObjective: ${activeCollection.objective}`:""}`;
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        skip_framework:true,
+        system:`You are a strategic storytelling consultant for competitive intelligence presentations. Your job is to analyze a set of competitive cases and suggest the optimal order and narrative annotations to create a compelling, coherent presentation.
+
+${collectionContext}
+
+You will receive a list of entries (competitive cases). Analyze them and suggest:
+1. The optimal order for storytelling (a clear narrative arc)
+2. A slide title for each entry (concise, compelling — max 8 words)
+3. An analyst note for each entry (1-2 sentences explaining why this case matters in the narrative flow, what insight it reveals, or how it connects to the next)
+4. A brief narrative summary explaining the overall storytelling logic
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences. Use this exact structure:
+{
+  "narrative": "Brief explanation of the storytelling logic and arc (2-3 sentences)",
+  "entries": [
+    {"id": "entry-uuid", "slide_title": "Title here", "analyst_note": "Note here"},
+    ...
+  ]
+}
+
+The entries array must contain ALL entries in the suggested order (first = opening, last = closing). Every entry from the input must appear exactly once.
+Write all output in English.`,
+        messages:[{role:"user",content:`Here are the ${entrySummaries.length} entries to organize:\n\n${JSON.stringify(entrySummaries,null,2)}`}],
+        max_tokens:3000,
+      })});
+      const data=await res.json();
+      if(data.error){setToast({message:"AI error: "+data.error});setAiStoryLoading(false);return;}
+      const text=(data.content||[])[0]?.text||"";
+      const parsed=JSON.parse(text);
+      if(!parsed.entries||!Array.isArray(parsed.entries)){throw new Error("Invalid response structure");}
+      setAiStorySuggestion(parsed);
+    }catch(err){
+      console.error("AI storytelling error:",err);
+      setToast({message:"Failed to get AI suggestion. Try again."});
+    }
+    setAiStoryLoading(false);
+  };
+
+  const applyAiStorytelling=async()=>{
+    if(!aiStorySuggestion||!activeCollection)return;
+    const colId=activeCollection.id;
+    // Reorder and update titles/notes
+    for(let i=0;i<aiStorySuggestion.entries.length;i++){
+      const s=aiStorySuggestion.entries[i];
+      await supabase.from("collection_entries").update({
+        sort_order:i,
+        custom_title:s.slide_title||null,
+        custom_note:s.analyst_note||null,
+      }).eq("collection_id",colId).eq("entry_id",s.id);
+    }
+    // Refresh the collection view
+    await openCollection(activeCollection);
+    setAiStorySuggestion(null);
+    setToast({message:"Storytelling applied — entries reordered with titles and notes"});
   };
 
   const downloadCase=async(entry)=>{
@@ -1781,6 +1863,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{activeCollection.is_private?"private":"shared"}</span>
               </div>
               <div className="flex gap-2">
+                {collectionEntries.length>=2&&<button onClick={requestAiStorytelling} disabled={aiStoryLoading} className="px-4 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full font-medium hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                  {aiStoryLoading?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Analyzing...</>:<>✦ AI Storytelling</>}
+                </button>}
                 <button className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Report</button>
                 {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Presentation</button>}
                 <button onClick={()=>setEditingCollection(activeCollection)} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition">Edit</button>
@@ -1795,6 +1880,43 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
               <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/audit?collection=${activeCollection.id}`);setToast({message:"Link copied"});}} className="text-xs text-muted hover:text-main transition">Copy link</button>
             </div>
             <hr className="border-[var(--border)] mb-5"/>
+            {/* AI Storytelling Suggestion Panel */}
+            {aiStorySuggestion&&(
+              <div className="mb-6 border-2 border-purple-200 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-800 rounded-xl p-5 animate-fadeIn">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">✦</span>
+                    <h4 className="text-base font-bold text-main">AI Storytelling Suggestion</h4>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={()=>setAiStorySuggestion(null)} className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-full text-muted hover:text-main transition">Dismiss</button>
+                    <button onClick={applyAiStorytelling} className="px-4 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full font-semibold hover:from-purple-700 hover:to-indigo-700 transition">Apply — Reorder & Fill</button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted mb-4 italic">{aiStorySuggestion.narrative}</p>
+                <div className="space-y-2">
+                  {aiStorySuggestion.entries.map((s,i)=>{
+                    const entry=collectionEntries.find(e=>e.id===s.id);
+                    return(
+                      <div key={s.id} className="flex items-center gap-3 bg-white dark:bg-surface rounded-lg p-3 border border-purple-100 dark:border-purple-900">
+                        <span className="text-xs font-bold text-purple-600 w-6 text-center flex-shrink-0">{i+1}</span>
+                        <div className="w-12 h-8 bg-surface2 rounded overflow-hidden flex-shrink-0">
+                          {entry?.image_url?<img src={entry.image_url} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-[8px]">—</div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-main truncate">{entry?.description||s.id}</p>
+                          <p className="text-xs text-muted truncate">{entry?.competitor||entry?.brand_name||""}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-purple-700 dark:text-purple-400">{s.slide_title}</p>
+                          <p className="text-xs text-muted">{s.analyst_note}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
               <div className="flex flex-col gap-4">
