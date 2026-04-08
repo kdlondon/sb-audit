@@ -313,6 +313,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [collectionMenuOpen,setCollectionMenuOpen]=useState(null);
   const [presentationMode,setPresentationMode]=useState(false);
   const [presIndex,setPresIndex]=useState(0);
+  const [presAutoplay,setPresAutoplay]=useState(false);
+  // Auto-play YouTube after 6s on each slide
+  useEffect(()=>{
+    if(!presentationMode)return;
+    setPresAutoplay(false);
+    const timer=setTimeout(()=>setPresAutoplay(true),6000);
+    return()=>clearTimeout(timer);
+  },[presIndex,presentationMode]);
   const [aiStoryLoading,setAiStoryLoading]=useState(false);
   const [aiStorySuggestion,setAiStorySuggestion]=useState(null);
   const [showReportModal,setShowReportModal]=useState(false);
@@ -692,9 +700,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   };
 
   // Update custom title/note for an entry in a collection
+  const _cleanHtml=(v)=>{if(!v)return null;const t=v.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();return t.length>0?v:null;};
   const updateEntryCustom=async(entryId,field,value)=>{
     if(!activeCollection?.id)return;
-    const updateMap={custom_title:{custom_title:value},custom_note:{custom_note:value},interstitial_note:{interstitial_note:value}};
+    const cleanVal=(field==="custom_note"||field==="interstitial_note")?_cleanHtml(value):value;
+    const updateMap={custom_title:{custom_title:cleanVal},custom_note:{custom_note:cleanVal},interstitial_note:{interstitial_note:cleanVal}};
     const update=updateMap[field];
     if(!update)return;
     await supabase.from("collection_entries").update(update).eq("collection_id",activeCollection.id).eq("entry_id",entryId);
@@ -1473,7 +1483,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className={`flex items-center justify-center p-4 min-h-[250px] transition ${dragOver?"ring-2 ring-[var(--accent)] ring-inset":""}`} style={{background:dragOver?"var(--accent-soft)":"var(--surface2)"}}>
                 {materialType==="video"&&(y||vim)?(
                   <div className="w-full">
-                    <iframe ref={videoIframeRef} width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={y?`https://www.youtube.com/embed/${y}`:`https://player.vimeo.com/video/${vim}`} frameBorder="0" allowFullScreen className="rounded-lg" />
+                    <iframe ref={videoIframeRef} width="100%" height="350" style={{maxWidth:700,margin:"0 auto",display:"block"}} src={y?`https://www.youtube-nocookie.com/embed/${y}?rel=0&modestbranding=1&iv_load_policy=3`:`https://player.vimeo.com/video/${vim}`} frameBorder="0" allowFullScreen className="rounded-lg" />
                     {/* Capture tools bar */}
                     <div className="flex items-center justify-center gap-2 mt-3 px-4">
                       {captureActive?(
@@ -2120,7 +2130,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             {collectionEntries.length>0&&(
               <div className="flex justify-center py-3 px-8 mb-2">
                 <MiniEditor key={`intro-${activeCollection?.id}`} value={activeCollection?.intro_note||""} placeholder="Introduction note (shows as first slide after title)..." minimal
-                  onBlur={html=>{supabase.from("collections").update({intro_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:html}));}}
+                  onBlur={html=>{const v=_cleanHtml(html);supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:v}));}}
                   className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
               </div>
             )}
@@ -2336,7 +2346,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
       {sb&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
-        {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube.com/embed/${ytId(sb.url)}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
+        {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube-nocookie.com/embed/${ytId(sb.url)}?rel=0&modestbranding=1&iv_load_policy=3`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
         {isVideoFile(sb.url)&&!ytId(sb.url)&&<div className="px-3 pt-2">
           <video controls width="100%" className="rounded-md" src={sb.url} style={{maxHeight:240}} />
           <div className="flex items-center justify-center gap-2 mt-2">
@@ -2485,7 +2495,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {presentationMode&&collectionEntries.length>0&&typeof window!=="undefined"&&createPortal(
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
-            const _hasText=(h)=>{if(!h)return false;return h.replace(/<[^>]*>/g,"").trim().length>0;};
+            const _hasText=(h)=>{if(!h)return false;return h.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim().length>0;};
             const interstitialCount=collectionEntries.filter((ce,i)=>_hasText(ce._interstitial_note)&&i<collectionEntries.length-1).length+(_hasText(activeCollection?.intro_note)?1:0)+(_hasText(activeCollection?.closing_note)?1:0);
             const totalSlides=collectionEntries.length+interstitialCount+2;
             // Don't navigate if user is editing text (input, textarea, contenteditable)
@@ -2499,7 +2509,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           {(()=>{
             // Build slide map: intro, then for each entry: entry slide + optional interstitial slide, then outro
             // Helper: check if HTML has actual visible text
-            const hasText=(html)=>{if(!html)return false;const t=html.replace(/<[^>]*>/g,"").trim();return t.length>0;};
+            const hasText=(html)=>{if(!html)return false;const t=html.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();return t.length>0;};
             const slideMap=[{type:"intro"}];
             if(hasText(activeCollection?.intro_note)){
               slideMap.push({type:"interstitial",text:activeCollection.intro_note,entryIdx:-1});
@@ -2623,7 +2633,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {/* Visual */}
                   <div className="flex-shrink-0">
                     {ytId(entry.url)?(
-                      <div style={{aspectRatio:"16/9"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
+                      <div style={{aspectRatio:"16/9"}}><iframe key={`${entry.id}-${presAutoplay}`} src={`https://www.youtube-nocookie.com/embed/${ytId(entry.url)}?autoplay=${presAutoplay?1:0}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
                     ):entry.image_url?(
                       <img src={entry.image_url} className="w-full max-h-[55vh] object-contain rounded-lg shadow-2xl" alt="" />
                     ):entry.url?(
