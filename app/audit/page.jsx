@@ -2623,7 +2623,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {/* Visual */}
                   <div className="flex-shrink-0">
                     {ytId(entry.url)?(
-                      <div style={{aspectRatio:"16/9"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
+                      <div style={{aspectRatio:"16/9"}}><iframe key={entry.id} src={`https://www.youtube.com/embed/${ytId(entry.url)}?autoplay=0&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`} frameBorder="0" allowFullScreen className="w-full h-full rounded-lg shadow-2xl" /></div>
                     ):entry.image_url?(
                       <img src={entry.image_url} className="w-full max-h-[55vh] object-contain rounded-lg shadow-2xl" alt="" />
                     ):entry.url?(
