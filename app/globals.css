@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --nav-h: 70px;
+  --nav-h: 60px;
   --bg: #FFFFFF;
   --surface: #ffffff;
   --surface2: #efeee9;
@@ -106,7 +106,7 @@ a, button, input, select, textarea {
   height: var(--nav-h);
   z-index: 30;
   background: #717171;
-  border-top: 3px solid #6BA4D9;
+  border-top: none;
   border-bottom: none;
   display: flex;
   align-items: center;
@@ -114,9 +114,9 @@ a, button, input, select, textarea {
   -webkit-transform: translateZ(0);
 }
 
-/* Content after section-bar needs offset */
+/* Content after section-bar needs offset + breathing room */
 .section-bar + * {
-  padding-top: var(--nav-h);
+  padding-top: calc(var(--nav-h) + 50px);
 }
 
 /* Force GPU layer for all sticky elements */
