@@ -2612,7 +2612,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {/* Custom title + note — tight above the visual */}
                   {(customTitle||customNote||true)&&(
                     <div className="flex-shrink-0" style={{marginBottom:60}}>
-                      <input defaultValue={customTitle||""} placeholder="Slide title..." onBlur={ev=>{const v=ev.target.value;updateEntryCustom(entry.id,"custom_title",v);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_title:v}:ce));}}
+                      <input key={`pres-title-${entry.id}`} defaultValue={customTitle||""} placeholder="Slide title..." onBlur={ev=>{const v=ev.target.value;updateEntryCustom(entry.id,"custom_title",v);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_title:v}:ce));}}
                         className="text-white text-[24px] font-black leading-tight bg-transparent border-none focus:outline-none w-full placeholder:text-white/20" />
                       <MiniEditor key={`pres-note-${entry.id}`} value={customNote||""} placeholder="Analyst note..." minimal dark
                         onBlur={html=>{updateEntryCustom(entry.id,"custom_note",html);setCollectionEntries(prev=>prev.map(ce=>ce.id===entry.id?{...ce,_custom_note:html}:ce));}}
