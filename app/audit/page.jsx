@@ -2086,7 +2086,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             {collectionEntries.length>0&&(
               <div className="flex items-center gap-3 py-2 px-8 mb-2 group/inter">
                 <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                <input defaultValue={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." onBlur={ev=>{const v=ev.target.value;supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,intro_note:v}));}}
+                <input key={`intro-${activeCollection?.id}-${activeCollection?.intro_note||""}`} defaultValue={activeCollection?.intro_note||""} placeholder="Add an introduction note (shows as first slide after title)..." onBlur={ev=>{const v=ev.target.value;supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:v}));}}
                   className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
                 <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
               </div>
@@ -2149,11 +2149,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {/* Interstitial note — between cases */}
                   <div className="flex items-center gap-3 py-2 px-8 group/inter">
                     <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
-                    <input defaultValue={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
+                    <input key={idx<collectionEntries.length-1?`inter-${e.id}-${e._interstitial_note||""}`:`closing-${activeCollection?.id}-${activeCollection?.closing_note||""}`}
+                      defaultValue={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
                       placeholder={idx<collectionEntries.length-1?"Add a transition note between slides...":"Add a closing note (shows before thank you)..."}
                       onBlur={ev=>{
                         if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",ev.target.value);}
-                        else{const v=ev.target.value;supabase.from("collections").update({closing_note:v}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,closing_note:v}));}
+                        else{const v=ev.target.value;supabase.from("collections").update({closing_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving closing note"});});setActiveCollection(prev=>({...prev,closing_note:v}));}
                       }}
                       className="text-center text-sm italic text-muted placeholder:text-[#ccc] bg-transparent border-none focus:outline-none w-[400px] py-1 focus:placeholder:text-[#aaa] transition" style={{fontFamily:"Georgia, serif"}} />
                     <div className="flex-1 h-px bg-[#e8e8e8] group-focus-within/inter:bg-purple-200 transition"/>
