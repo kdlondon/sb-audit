@@ -1870,27 +1870,6 @@ Write all output in English.`,
                 </div>
               )
             )}
-            {/* Edit collection modal */}
-            {editingCollection&&(
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={()=>setEditingCollection(null)}>
-                <div className="bg-surface border border-main rounded-xl p-5 w-[400px] shadow-2xl" onClick={e=>e.stopPropagation()}>
-                  <h3 className="text-sm font-bold text-main mb-3">Edit Collection</h3>
-                  <div className="space-y-3">
-                    <div><label className="text-xs font-medium text-muted block mb-1">Name</label>
-                      <input defaultValue={editingCollection.name} onChange={e=>{editingCollection._name=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
-                    <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
-                      <input defaultValue={editingCollection.description||""} onChange={e=>{editingCollection._description=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
-                    <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
-                      <input defaultValue={editingCollection.objective||""} onChange={e=>{editingCollection._objective=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
-                    <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" defaultChecked={editingCollection.is_private} onChange={e=>{editingCollection._is_private=e.target.checked;}} /> Private</label>
-                    <div className="flex gap-2">
-                      <button onClick={()=>{updateCollection(editingCollection.id,{name:editingCollection._name??editingCollection.name,description:editingCollection._description??editingCollection.description,objective:editingCollection._objective??editingCollection.objective,is_private:editingCollection._is_private??editingCollection.is_private});}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Save</button>
-                      <button onClick={()=>setEditingCollection(null)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -2242,6 +2221,29 @@ Write all output in English.`,
             <button className="text-white/60 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition" onClick={()=>setZoomImg(null)}>×</button>
           </div>
           <img src={zoomImg} className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" onClick={e=>e.stopPropagation()} alt="" />
+        </div>,
+        document.body
+      )}
+
+      {/* Edit collection modal — portal to render above fixed bars */}
+      {editingCollection&&typeof window!=="undefined"&&createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center animate-fadeIn" style={{zIndex:99999}} onClick={()=>setEditingCollection(null)}>
+          <div className="bg-surface border border-main rounded-xl p-5 w-[400px] shadow-2xl" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-main mb-3">Edit Collection</h3>
+            <div className="space-y-3">
+              <div><label className="text-xs font-medium text-muted block mb-1">Name</label>
+                <input defaultValue={editingCollection.name} onChange={e=>{editingCollection._name=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+              <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
+                <input defaultValue={editingCollection.description||""} onChange={e=>{editingCollection._description=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+              <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
+                <input defaultValue={editingCollection.objective||""} onChange={e=>{editingCollection._objective=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+              <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" defaultChecked={editingCollection.is_private} onChange={e=>{editingCollection._is_private=e.target.checked;}} /> Private</label>
+              <div className="flex gap-2">
+                <button onClick={()=>{updateCollection(editingCollection.id,{name:editingCollection._name??editingCollection.name,description:editingCollection._description??editingCollection.description,objective:editingCollection._objective??editingCollection.objective,is_private:editingCollection._is_private??editingCollection.is_private});}} className="px-3 py-1.5 text-xs bg-[#333] text-white rounded-lg font-semibold">Save</button>
+                <button onClick={()=>setEditingCollection(null)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>,
         document.body
       )}
