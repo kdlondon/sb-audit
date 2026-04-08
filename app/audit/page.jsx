@@ -318,7 +318,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   useEffect(()=>{
     if(!presentationMode)return;
     setPresAutoplay(false);
-    const timer=setTimeout(()=>setPresAutoplay(true),6000);
+    const timer=setTimeout(()=>setPresAutoplay(true),10000);
     return()=>clearTimeout(timer);
   },[presIndex,presentationMode]);
   const [aiStoryLoading,setAiStoryLoading]=useState(false);
