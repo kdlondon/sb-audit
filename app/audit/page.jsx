@@ -312,7 +312,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [presentationMode,setPresentationMode]=useState(false);
   const [presIndex,setPresIndex]=useState(0);
   const [aiStoryLoading,setAiStoryLoading]=useState(false);
-  const [aiStorySuggestion,setAiStorySuggestion]=useState(null); // {narrative, entries:[{id,sort_order,custom_title,custom_note}]}
+  const [aiStorySuggestion,setAiStorySuggestion]=useState(null);
+  const [showReportModal,setShowReportModal]=useState(false);
+  const [reportInstructions,setReportInstructions]=useState("");
+  const [reportGenerating,setReportGenerating]=useState(false);
+  const [reportToast,setReportToast]=useState(null); // {reportId, title}
   const [sortPreset,setSortPreset]=useState("newest");
   const [addMenuPos,setAddMenuPos]=useState({top:0,right:0});
   const addBtnRef=useRef(null);
@@ -782,6 +786,91 @@ Write all output in English.`,
     await openCollection(activeCollection);
     setAiStorySuggestion(null);
     setToast({message:"Storytelling applied — entries reordered with titles and notes"});
+  };
+
+  // ── GENERATE REPORT FROM COLLECTION ────────────────────────────────────────
+  const generateCollectionReport=async()=>{
+    if(!activeCollection||collectionEntries.length===0||!reportInstructions.trim())return;
+    setReportGenerating(true);
+    try{
+      const entriesData=collectionEntries.map((e,i)=>({
+        position:i+1,
+        brand:e.competitor||e.brand_name||"",
+        title:e.description||"",
+        category:e.category||"",
+        type:e.type||"",
+        year:e.year||"",
+        rating:e.rating||"",
+        communication_intent:e.communication_intent||"",
+        main_slogan:e.main_slogan||"",
+        synopsis:e.synopsis||"",
+        insight:e.insight||"",
+        idea:e.idea||"",
+        primary_territory:e.primary_territory||"",
+        portrait:e.portrait||"",
+        brand_archetype:e.brand_archetype||"",
+        funnel:e.funnel||"",
+        journey_phase:e.journey_phase||"",
+        tone_of_voice:e.tone_of_voice||"",
+        transcript:e.transcript?e.transcript.slice(0,300):"",
+        slide_title:e._custom_title||"",
+        analyst_note:e._custom_note||"",
+      }));
+      const system=`You are a senior competitive intelligence analyst creating a professional report. Write in clear, analytical English with markdown formatting (## headers, **bold**, tables where appropriate).
+
+Collection: "${activeCollection.name}"
+${activeCollection.description?`Description: ${activeCollection.description}`:""}
+${activeCollection.objective?`Objective: ${activeCollection.objective}`:""}
+Number of cases: ${entriesData.length}
+
+The user will provide specific instructions for what kind of report they need. Use ALL the case data provided to build a thorough, insight-driven report. Reference specific cases by name throughout.
+
+Structure the report with:
+- An executive summary
+- Sections based on the user's instructions
+- Key findings and patterns
+- Strategic implications or recommendations
+
+Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, and strategic implications across the cases.`;
+
+      const userMsg=`USER INSTRUCTIONS:\n${reportInstructions.trim()}\n\nCASE DATA:\n${JSON.stringify(entriesData,null,2)}`;
+
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        use_opus:true,max_tokens:12000,system,brand_id:brandId,
+        messages:[{role:"user",content:userMsg}],
+      })});
+      const result=await res.json();
+      if(result.error){setToast({message:"AI error: "+result.error});setReportGenerating(false);return;}
+      const content=result.content?.map(c=>c.text||"").join("")||"No content generated.";
+
+      // Save to saved_reports
+      const{data:{session}}=await supabase.auth.getSession();
+      const reportId=String(Date.now());
+      const reportTitle=`${activeCollection.name} — Report`;
+      await supabase.from("saved_reports").insert({
+        id:reportId,
+        title:reportTitle,
+        scope:"local",
+        template_type:"collection",
+        sections:"",
+        competitors:collectionEntries.map(e=>e.competitor||e.brand_name||"").filter(Boolean).join(","),
+        custom_instructions:reportInstructions,
+        content,
+        created_by:session?.user?.email||"",
+        project_id:projectId,
+        brand_id:brandId,
+      });
+
+      setShowReportModal(false);
+      setReportInstructions("");
+      setReportToast({reportId,title:reportTitle});
+      // Auto-dismiss after 10s
+      setTimeout(()=>setReportToast(null),10000);
+    }catch(err){
+      console.error("Report generation error:",err);
+      setToast({message:"Failed to generate report. Try again."});
+    }
+    setReportGenerating(false);
   };
 
   const downloadCase=async(entry)=>{
@@ -1897,7 +1986,7 @@ Write all output in English.`,
                   </button>
                 )}
                 {/* Report */}
-                <button className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                <button onClick={()=>setShowReportModal(true)} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                   <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Report</span>
                 </button>
@@ -2243,6 +2332,46 @@ Write all output in English.`,
                 <button onClick={()=>setEditingCollection(null)} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
               </div>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Report generation modal */}
+      {showReportModal&&typeof window!=="undefined"&&createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center animate-fadeIn" style={{zIndex:99999}} onClick={()=>{if(!reportGenerating)setShowReportModal(false);}}>
+          <div className="bg-surface border border-main rounded-xl p-6 w-[500px] shadow-2xl" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-main mb-1">Generate Report</h3>
+            <p className="text-xs text-muted mb-4">from "{activeCollection?.name}" · {collectionEntries.length} entries</p>
+            <label className="text-xs font-medium text-muted block mb-1.5">What kind of report do you need?</label>
+            <textarea value={reportInstructions} onChange={e=>setReportInstructions(e.target.value)} rows={5} placeholder="E.g., Compare the storytelling approaches across these campaigns and identify which emotional territories are most effective for small business banking. Include a section on tone consistency and creative differentiation..." className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[#999] resize-none placeholder:text-[#bbb]" autoFocus disabled={reportGenerating} />
+            <div className="flex justify-between items-center mt-4">
+              <p className="text-[10px] text-hint">Uses Claude Opus · saves to Reports section</p>
+              <div className="flex gap-2">
+                <button onClick={()=>{setShowReportModal(false);setReportInstructions("");}} disabled={reportGenerating} className="px-3 py-1.5 text-sm border border-main rounded-full text-muted hover:text-main transition disabled:opacity-50">Cancel</button>
+                <button onClick={generateCollectionReport} disabled={reportGenerating||!reportInstructions.trim()} className="px-4 py-1.5 text-sm bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition disabled:opacity-50 flex items-center gap-1.5">
+                  {reportGenerating?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Generating...</>:"Generate Report"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Report ready toast */}
+      {reportToast&&typeof window!=="undefined"&&createPortal(
+        <div className="fixed bottom-6 right-6 animate-fadeIn" style={{zIndex:99999}}>
+          <div className="bg-white border border-[#e0e0e0] rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-[340px]">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-main">Report ready</p>
+              <p className="text-xs text-muted truncate">{reportToast.title}</p>
+            </div>
+            <button onClick={()=>{setReportToast(null);router.push(`/reports?report=${reportToast.reportId}`);}} className="px-3 py-1 text-xs bg-[#1a1a1a] text-white rounded-full font-medium hover:bg-black transition flex-shrink-0">View</button>
+            <button onClick={()=>setReportToast(null)} className="text-[#ccc] hover:text-[#999] text-lg flex-shrink-0">×</button>
           </div>
         </div>,
         document.body
