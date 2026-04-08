@@ -2443,18 +2443,26 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             // Close button
             const closeBtn=<button onClick={()=>setPresentationMode(false)} className="absolute top-4 right-4 text-white/20 hover:text-white/60 text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition z-10">×</button>;
 
-            // ── INTRO SLIDE ──
+            // ── INTRO SLIDE ── (Inter font throughout)
             if(isIntro){
+              const countrySet=new Set(collectionEntries.map(ce=>ce.country).filter(Boolean));
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
                 {closeBtn}{navArrows}
-                <div className="text-center max-w-2xl px-8">
-                  <div className="text-white/30 text-[10px] uppercase tracking-[0.3em] mb-3">{brand?.name||"Groundwork"}</div>
-                  <div className="text-white/40 text-sm italic mb-6" style={{fontFamily:"Georgia,serif"}}>presents</div>
-                  <h1 className="text-white text-4xl md:text-6xl font-bold uppercase tracking-tight mb-4">{activeCollection?.name||"Collection"}</h1>
-                  {activeCollection?.description&&<p className="text-white/50 text-base mb-4">{activeCollection.description}</p>}
-                  {activeCollection?.objective&&<p className="text-white/30 text-sm italic" style={{fontFamily:"Georgia,serif"}}>{activeCollection.objective}</p>}
-                  <div className="mt-10 w-16 h-px bg-white/10 mx-auto"></div>
-                  <div className="mt-4 text-white/20 text-xs">{collectionEntries.length} cases</div>
+                <div className="flex flex-col items-center max-w-3xl px-8">
+                  {/* K&D logo */}
+                  <img src="/knots-dots-logo.png" alt="K&D" className="mb-16" style={{height:48}} />
+                  {/* "presents" */}
+                  <p className="text-white/30 text-[15px] italic mb-4">presents</p>
+                  {/* Brand name — Inter Black 20 uppercase */}
+                  <p className="text-white/50 text-[20px] font-black uppercase tracking-[0.08em] mb-2">{brand?.name||"Groundwork"}</p>
+                  {/* Blue line */}
+                  <div className="w-full max-w-xl h-[2px] mb-10" style={{background:"#0019FF"}}/>
+                  {/* Collection name — Inter Black 48 uppercase */}
+                  <h1 className="text-white text-[40px] md:text-[48px] font-black uppercase tracking-tight leading-[1.1] text-center mb-4">{activeCollection?.name||"Collection"}</h1>
+                  {/* Blue line */}
+                  <div className="w-full max-w-xl h-[2px] mt-2 mb-10" style={{background:"#0019FF"}}/>
+                  {/* Stats — Inter Regular 15 */}
+                  <p className="text-white/30 text-[15px] font-normal">{collectionEntries.length} cases{countrySet.size>0?<span className="mx-2 text-white/15">|</span>:""}{countrySet.size>0?`${countrySet.size} ${countrySet.size===1?"country":"countries"}`:""}</p>
                 </div>
               </div>);
             }
@@ -2474,16 +2482,14 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>);
             }
 
-            // ── INTERSTITIAL SLIDE ──
+            // ── INTERSTITIAL SLIDE ── Inter Black 48, blue bg
             if(isInterstitial){
-              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0a0f3c"}}>
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0019FF"}}>
                 {closeBtn}{navArrows}
-                <div className="text-center max-w-2xl px-8">
-                  <div className="w-12 h-px bg-white/20 mx-auto mb-8"></div>
-                  <p className="text-white/80 text-2xl md:text-3xl leading-relaxed italic" style={{fontFamily:"Georgia, serif"}}>
-                    &ldquo;{currentSlide.text}&rdquo;
+                <div className="max-w-4xl px-16">
+                  <p className="text-white text-[36px] md:text-[48px] font-black leading-[1.15]">
+                    {currentSlide.text}
                   </p>
-                  <div className="w-12 h-px bg-white/20 mx-auto mt-8"></div>
                 </div>
               </div>);
             }
@@ -2498,11 +2504,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="absolute top-4 left-5 text-white/20 text-xs font-mono z-10">{presIndex} / {totalSlides-2}</div>
               {navArrows}
 
-              {/* Custom title overlay — above the visual */}
+              {/* Custom title + note — Inter Black 24 / Inter Regular 13 */}
               {(customTitle||customNote)&&(
-                <div className="px-16 pt-4 pb-2 flex-shrink-0">
-                  {customTitle&&<h3 className="text-white text-xl font-bold text-center">{customTitle}</h3>}
-                  {customNote&&<p className="text-white/50 text-sm text-center mt-1">{customNote}</p>}
+                <div className="px-16 pt-5 pb-2 flex-shrink-0">
+                  {customTitle&&<h3 className="text-white text-[24px] font-black">{customTitle}</h3>}
+                  {customNote&&<p className="text-white/50 text-[13px] font-normal mt-1.5 max-w-3xl">{customNote}</p>}
                 </div>
               )}
 
@@ -2523,19 +2529,19 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               </div>
 
-              {/* Case detail bar — tight below the visual, light gray */}
+              {/* Case detail bar */}
               <div className="px-16 py-3 flex-shrink-0" style={{background:"#1a1a1f"}}>
                 <div className="max-w-4xl mx-auto">
                   <div className="flex items-center gap-3 mb-1">
-                    {brandName&&<span className="text-white/80 text-sm font-bold">{brandName}</span>}
-                    {entry.year&&<span className="text-white/30 text-sm">{entry.year}</span>}
-                    {entry.category&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.category}</span>}
-                    {entry.type&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.type}</span>}
-                    {entry.communication_intent&&<span className="text-white/20 text-[10px] bg-white/5 px-2 py-0.5 rounded">{entry.communication_intent}</span>}
-                    {entry.rating&&<span className="text-white/40 text-[10px]">{"★".repeat(Number(entry.rating))}</span>}
+                    {brandName&&<span className="text-white/80 text-[14px] font-bold">{brandName}</span>}
+                    {entry.year&&<span className="text-white/30 text-[13px]">{entry.year}</span>}
+                    {entry.category&&<span className="text-white/20 text-[11px] bg-white/5 px-2 py-0.5 rounded">{entry.category}</span>}
+                    {entry.type&&<span className="text-white/20 text-[11px] bg-white/5 px-2 py-0.5 rounded">{entry.type}</span>}
+                    {entry.communication_intent&&<span className="text-white/20 text-[11px] bg-white/5 px-2 py-0.5 rounded">{entry.communication_intent}</span>}
+                    {entry.rating&&<span className="text-white/40 text-[11px]">{"★".repeat(Number(entry.rating))}</span>}
                   </div>
-                  <h3 className="text-white/70 text-sm font-medium">{entry.description||"Untitled"}</h3>
-                  {entry.synopsis&&<p className="text-white/30 text-xs leading-relaxed mt-1 line-clamp-2">{entry.synopsis}</p>}
+                  <h3 className="text-white/70 text-[13px] font-medium">{entry.description||"Untitled"}</h3>
+                  {entry.synopsis&&<p className="text-white/30 text-[12px] leading-relaxed mt-1 line-clamp-2">{entry.synopsis}</p>}
                 </div>
               </div>
 
