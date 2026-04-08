@@ -1904,7 +1904,7 @@ Write all output in English.`,
                 </button>}
                 {/* Export CSV */}
                 <button onClick={()=>{
-                  const keys=["competitor","brand_name","description","category","type","year","rating","communication_intent","portrait","journey_phase","funnel","brand_archetype","main_slogan","channel","url"];
+                  const keys=["competitor","brand","brand_name","description","country","category","category_proximity","year","type","communication_intent","funnel","rating","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","analyst_comment","entry_door","portrait","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim","created_at","updated_at"];
                   const header=keys.join(",");
                   const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
                   const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});
