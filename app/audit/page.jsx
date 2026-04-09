@@ -2035,7 +2035,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {/* Collection Detail View */}
         {viewMode==="collections"&&activeCollection&&(
-          <div className="px-8 py-6 max-w-[1100px] mx-auto">
+          <div className="px-8 py-6 max-w-[1100px] mx-auto min-h-screen" style={{backgroundImage:"radial-gradient(circle, #ccc 1px, transparent 1px)",backgroundSize:"24px 24px"}}>
             {/* Header row */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-3">
@@ -2682,12 +2682,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   updateEntryCustom(collectionEntries[eidx]?.id,"interstitial_note",html);
                 }
               };
-              const isClosing=currentSlide.entryIdx<=-2;
-              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:isClosing?"#FAF5EE":"#0019FF"}}>
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0019FF"}}>
                 {closeBtn}{kdLogo}{navArrows}
                 <div className="max-w-4xl px-16 w-full">
-                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark={!isClosing} minimal
-                    editorClassName={isClosing?"text-[#2a2a2a] text-[24px] font-normal leading-[1.5] min-h-[60px]":"text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]"} />
+                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark minimal
+                    editorClassName="text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px] [&_ul]:list-disc [&_ul]:pl-8 [&_ol]:list-decimal [&_ol]:pl-8" />
                 </div>
               </div>);
             }
