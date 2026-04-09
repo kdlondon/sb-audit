@@ -2035,7 +2035,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {/* Collection Detail View */}
         {viewMode==="collections"&&activeCollection&&(
-          <div className="px-8 py-6 max-w-[1100px] mx-auto min-h-screen" style={{backgroundImage:"radial-gradient(circle, #ccc 1px, transparent 1px)",backgroundSize:"24px 24px"}}>
+          <div className="min-h-screen" style={{background:"#ebebeb",backgroundImage:"radial-gradient(circle, #c8c8c8 1px, transparent 1px)",backgroundSize:"22px 22px"}}>
+          <div className="px-8 py-6 max-w-[1100px] mx-auto">
             {/* Header row */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-3">
@@ -2280,6 +2281,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </button>
               </div>
             </div>
+          </div>
           </div>
         )}
 
