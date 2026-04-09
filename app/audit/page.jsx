@@ -2632,11 +2632,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   updateEntryCustom(collectionEntries[eidx]?.id,"interstitial_note",html);
                 }
               };
-              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:"#0019FF"}}>
+              const isClosing=currentSlide.entryIdx<=-2;
+              return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:isClosing?"#FAF5EE":"#0019FF"}}>
                 {closeBtn}{kdLogo}{navArrows}
                 <div className="max-w-4xl px-16 w-full">
-                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark
-                    editorClassName="text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]" />
+                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark={!isClosing}
+                    editorClassName={isClosing?"text-[#2a2a2a] text-[24px] font-normal leading-[1.5] min-h-[60px]":"text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]"} />
                 </div>
               </div>);
             }

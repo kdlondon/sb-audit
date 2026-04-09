@@ -75,6 +75,9 @@ export default function MiniEditor({ value, onChange, onBlur, placeholder, class
       </div>
       <EditorContent editor={editor} />
       <style jsx global>{`
+        .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; margin: 0.25em 0; }
+        .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; margin: 0.25em 0; }
+        .ProseMirror li { margin: 0.1em 0; }
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
