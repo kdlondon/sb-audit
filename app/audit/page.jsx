@@ -2190,23 +2190,46 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     {/* Remove — hidden until hover */}
                     <button onClick={()=>removeFromCollection(activeCollection.id,e.id)} className="text-[#ccc] hover:text-red-400 text-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition" title="Remove from collection">×</button>
                   </div>
-                  {/* Interstitial note — between cases, becomes a slide in presentation */}
                   {/* Interstitial note — between cases */}
-                  <div className="flex justify-center py-3 px-8">
-                    <MiniEditor key={idx<collectionEntries.length-1?`inter-${e.id}`:`closing-${activeCollection?.id}`}
-                      value={idx<collectionEntries.length-1?(e._interstitial_note||""):(activeCollection?.closing_note||"")}
-                      placeholder={idx<collectionEntries.length-1?"Transition note between slides...":"Closing note (before thank you)..."}
-                      minimal
-                      onBlur={html=>{
-                        if(idx<collectionEntries.length-1){updateEntryCustom(e.id,"interstitial_note",html);}
-                        else{supabase.from("collections").update({closing_note:html}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving closing note"});});setActiveCollection(prev=>({...prev,closing_note:html}));}
-                      }}
-                      className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
-                  </div>
+                  {idx<collectionEntries.length-1&&(
+                    <div className="flex justify-center py-3 px-8">
+                      <MiniEditor key={`inter-${e.id}`}
+                        value={e._interstitial_note||""}
+                        placeholder="Transition note between slides..."
+                        minimal
+                        onBlur={html=>updateEntryCustom(e.id,"interstitial_note",html)}
+                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                    </div>
+                  )}
                   </div>);
                 })}
               </div>
             )}
+            {/* Closing notes — up to 5 slides before thank you */}
+            {collectionEntries.length>0&&(()=>{
+              let notes=[];
+              try{notes=JSON.parse(activeCollection?.closing_note||"[]");}catch{notes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
+              if(!Array.isArray(notes))notes=notes?[notes]:[];
+              const saveNotes=(updated)=>{const json=JSON.stringify(updated.filter(n=>_cleanHtml(n)));supabase.from("collections").update({closing_note:json}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,closing_note:json}));};
+              return(
+                <div className="px-8 py-4">
+                  <p className="text-xs text-hint uppercase font-semibold mb-3 text-center">Closing slides (before thank you)</p>
+                  <div className="flex flex-col items-center gap-2">
+                    {notes.map((n,i)=>(
+                      <div key={i} className="flex items-center gap-2">
+                        <MiniEditor key={`closing-${i}-${activeCollection?.id}`} value={n||""} placeholder={`Closing slide ${i+1}...`} minimal
+                          onBlur={html=>{const u=[...notes];u[i]=html;saveNotes(u);}}
+                          className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                        <button onClick={()=>{const u=[...notes];u.splice(i,1);saveNotes(u);}} className="text-[#ccc] hover:text-red-400 text-lg transition">×</button>
+                      </div>
+                    ))}
+                    {notes.length<5&&(
+                      <button onClick={()=>{const u=[...notes,""];saveNotes(u);}} className="text-xs text-muted hover:text-main border border-dashed border-[#ddd] rounded-lg px-4 py-2 hover:border-[#bbb] transition">+ Add closing slide</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2496,7 +2519,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         <div className="fixed inset-0 flex flex-col" style={{zIndex:99999,background:"#0a0f3c"}}
           onKeyDown={e=>{
             const _hasText=(h)=>{if(!h)return false;return h.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim().length>0;};
-            const interstitialCount=collectionEntries.filter((ce,i)=>_hasText(ce._interstitial_note)&&i<collectionEntries.length-1).length+(_hasText(activeCollection?.intro_note)?1:0)+(_hasText(activeCollection?.closing_note)?1:0);
+            let _cn=[];try{_cn=JSON.parse(activeCollection?.closing_note||"[]");}catch{_cn=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
+            if(!Array.isArray(_cn))_cn=_cn?[_cn]:[];
+            const interstitialCount=collectionEntries.filter((ce,i)=>_hasText(ce._interstitial_note)&&i<collectionEntries.length-1).length+(_hasText(activeCollection?.intro_note)?1:0)+_cn.filter(c=>_hasText(c)).length;
             const totalSlides=collectionEntries.length+interstitialCount+2;
             // Don't navigate if user is editing text (input, textarea, contenteditable)
             const tag=document.activeElement?.tagName;
@@ -2520,9 +2545,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 slideMap.push({type:"interstitial",text:ce._interstitial_note,entryIdx:i});
               }
             });
-            if(hasText(activeCollection?.closing_note)){
-              slideMap.push({type:"interstitial",text:activeCollection.closing_note,entryIdx:-2});
-            }
+            // Closing notes — parse as JSON array (backward compat: string → single item)
+            let _closingNotes=[];
+            try{_closingNotes=JSON.parse(activeCollection?.closing_note||"[]");}catch{_closingNotes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
+            if(!Array.isArray(_closingNotes))_closingNotes=_closingNotes?[_closingNotes]:[];
+            _closingNotes.forEach((cn,ci)=>{
+              if(hasText(cn))slideMap.push({type:"interstitial",text:cn,entryIdx:-2-ci});
+            });
             slideMap.push({type:"outro"});
             const totalSlides=slideMap.length;
             const currentSlide=slideMap[presIndex]||slideMap[0];
@@ -2588,11 +2617,17 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               const saveInterstitial=(html)=>{
                 const eidx=currentSlide.entryIdx;
                 if(eidx===-1){// intro
-                  supabase.from("collections").update({intro_note:html}).eq("id",activeCollection.id);
-                  setActiveCollection(prev=>({...prev,intro_note:html}));
-                }else if(eidx===-2){// closing
-                  supabase.from("collections").update({closing_note:html}).eq("id",activeCollection.id);
-                  setActiveCollection(prev=>({...prev,closing_note:html}));
+                  const v=_cleanHtml(html);
+                  supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id);
+                  setActiveCollection(prev=>({...prev,intro_note:v}));
+                }else if(eidx<=-2){// closing (array index = -(eidx+2))
+                  const ci=-(eidx+2);
+                  let notes=[];try{notes=JSON.parse(activeCollection?.closing_note||"[]");}catch{notes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
+                  if(!Array.isArray(notes))notes=notes?[notes]:[];
+                  notes[ci]=html;
+                  const json=JSON.stringify(notes.filter(n=>_cleanHtml(n)));
+                  supabase.from("collections").update({closing_note:json}).eq("id",activeCollection.id);
+                  setActiveCollection(prev=>({...prev,closing_note:json}));
                 }else{// between entries
                   updateEntryCustom(collectionEntries[eidx]?.id,"interstitial_note",html);
                 }
