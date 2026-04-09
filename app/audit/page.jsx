@@ -2043,7 +2043,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{activeCollection.is_private?"private":"shared"}</span>
               </div>
-              <div className="flex gap-1.5 items-center">
+              <div className="flex gap-1.5 items-center" style={{visibility:"hidden",height:0,overflow:"hidden"}}>
                 {/* AI Storytelling */}
                 {collectionEntries.length>=2&&(aiStoryLoading?
                   <div className="h-[34px] px-3 rounded-full bg-purple-100 flex items-center gap-1.5">
@@ -2234,6 +2234,52 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               </div>
             )}
+            {/* Floating action dock — fixed bottom center */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+              <div className="flex items-center gap-1 bg-white border border-[#e0e0e0] rounded-full px-3 py-2 shadow-xl shadow-black/10">
+                {/* AI Storytelling */}
+                {collectionEntries.length>=2&&(aiStoryLoading?
+                  <div className="h-[38px] px-3 rounded-full bg-purple-100 flex items-center gap-1.5">
+                    <svg className="w-4 h-4 animate-spin text-purple-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
+                  </div>
+                :
+                  <button onClick={requestAiStorytelling} title="AI Storytelling" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-gradient-to-r hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor"/></svg>
+                    <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Storytelling</span>
+                  </button>
+                )}
+                {/* Report */}
+                <button onClick={()=>setShowReportModal(true)} title="Generate Report" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Report</span>
+                </button>
+                {/* Presentation */}
+                {collectionEntries.length>0&&<button onClick={()=>{setPresentationMode(true);setPresIndex(0);}} title="Presentation" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Present</span>
+                </button>}
+                <div className="w-px h-5 bg-[#e8e8e8] mx-0.5"/>
+                {/* Export CSV */}
+                <button onClick={()=>{
+                  const keys=["competitor","brand","brand_name","description","country","category","category_proximity","year","type","communication_intent","funnel","rating","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","analyst_comment","entry_door","portrait","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim","created_at","updated_at"];
+                  const header=keys.join(",");const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
+                  const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${(activeCollection.name||"collection").replace(/\s+/g,"_")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);setToast({message:"CSV exported"});
+                }} title="Export CSV" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Export</span>
+                </button>
+                {/* Edit */}
+                <button onClick={()=>setEditingCollection(activeCollection)} title="Edit Collection" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[40px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Edit</span>
+                </button>
+                {/* Delete */}
+                <button onClick={()=>deleteCollection(activeCollection.id)} title="Delete" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-red-500 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[50px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Delete</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
