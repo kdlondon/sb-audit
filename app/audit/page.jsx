@@ -324,6 +324,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [aiStoryLoading,setAiStoryLoading]=useState(false);
   const [aiStorySuggestion,setAiStorySuggestion]=useState(null);
   const [showReportModal,setShowReportModal]=useState(false);
+  const [closingNotes,setClosingNotes]=useState([]);
   const [reportInstructions,setReportInstructions]=useState("");
   const [reportGenerating,setReportGenerating]=useState(false);
   const [reportToast,setReportToast]=useState(null); // {reportId, title}
@@ -571,6 +572,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   },[brandId]);
 
   useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
+  // Sync closing notes from activeCollection
+  useEffect(()=>{
+    if(!activeCollection)return;
+    let notes=[];
+    try{notes=JSON.parse(activeCollection.closing_note||"[]");}catch{notes=activeCollection.closing_note?[activeCollection.closing_note]:[];}
+    if(!Array.isArray(notes))notes=notes?[notes]:[];
+    setClosingNotes(notes);
+  },[activeCollection?.id,activeCollection?.closing_note]);
 
   // Handle direct collection URL (?collection=<id> or ?view=collections)
   useEffect(()=>{
@@ -701,6 +710,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   // Update custom title/note for an entry in a collection
   const _cleanHtml=(v)=>{if(!v)return null;const t=v.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();return t.length>0?v:null;};
+  const saveClosingNotes=(notes)=>{setClosingNotes(notes);const clean=notes.filter(n=>_cleanHtml(n));const json=JSON.stringify(clean);supabase.from("collections").update({closing_note:json}).eq("id",activeCollection?.id);setActiveCollection(prev=>prev?{...prev,closing_note:json}:prev);};
   const updateEntryCustom=async(entryId,field,value)=>{
     if(!activeCollection?.id)return;
     const cleanVal=(field==="custom_note"||field==="interstitial_note")?_cleanHtml(value):value;
@@ -2206,30 +2216,24 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>
             )}
             {/* Closing notes — up to 5 slides before thank you */}
-            {collectionEntries.length>0&&(()=>{
-              let notes=[];
-              try{notes=JSON.parse(activeCollection?.closing_note||"[]");}catch{notes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
-              if(!Array.isArray(notes))notes=notes?[notes]:[];
-              const saveNotes=(updated,persist=true)=>{const json=JSON.stringify(updated);setActiveCollection(prev=>({...prev,closing_note:json}));if(persist){const clean=JSON.stringify(updated.filter(n=>_cleanHtml(n)));supabase.from("collections").update({closing_note:clean}).eq("id",activeCollection.id);}};
-              return(
-                <div className="px-8 py-4">
-                  <p className="text-xs text-hint uppercase font-semibold mb-3 text-center">Closing slides (before thank you)</p>
-                  <div className="flex flex-col items-center gap-2">
-                    {notes.map((n,i)=>(
-                      <div key={i} className="flex items-center gap-2">
-                        <MiniEditor key={`closing-${i}-${activeCollection?.id}`} value={n||""} placeholder={`Closing slide ${i+1}...`} minimal
-                          onBlur={html=>{const u=[...notes];u[i]=html;saveNotes(u);}}
-                          className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
-                        <button onClick={()=>{const u=[...notes];u.splice(i,1);saveNotes(u);}} className="text-[#ccc] hover:text-red-400 text-lg transition">×</button>
-                      </div>
-                    ))}
-                    {notes.length<5&&(
-                      <button onClick={()=>{const u=[...notes,""];saveNotes(u,false);}} className="text-xs text-muted hover:text-main border border-dashed border-[#ddd] rounded-lg px-4 py-2 hover:border-[#bbb] transition">+ Add closing slide</button>
-                    )}
-                  </div>
+            {collectionEntries.length>0&&(
+              <div className="px-8 py-4">
+                <p className="text-xs text-hint uppercase font-semibold mb-3 text-center">Closing slides (before thank you)</p>
+                <div className="flex flex-col items-center gap-2">
+                  {closingNotes.map((n,i)=>(
+                    <div key={`cn-${i}`} className="flex items-center gap-2">
+                      <MiniEditor key={`closing-${i}-${activeCollection?.id}`} value={n||""} placeholder={`Closing slide ${i+1}...`} minimal
+                        onBlur={html=>{const u=[...closingNotes];u[i]=html;saveClosingNotes(u);}}
+                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                      <button onClick={()=>{const u=[...closingNotes];u.splice(i,1);saveClosingNotes(u);}} className="text-[#ccc] hover:text-red-400 text-lg transition">×</button>
+                    </div>
+                  ))}
+                  {closingNotes.length<5&&(
+                    <button onClick={()=>setClosingNotes(prev=>[...prev,""])} className="text-xs text-muted hover:text-main border border-dashed border-[#ddd] rounded-lg px-4 py-2 hover:border-[#bbb] transition">+ Add closing slide</button>
+                  )}
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </div>
         )}
 
@@ -2636,7 +2640,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               return(<div className="flex-1 flex flex-col items-center justify-center relative" style={{background:isClosing?"#FAF5EE":"#0019FF"}}>
                 {closeBtn}{kdLogo}{navArrows}
                 <div className="max-w-4xl px-16 w-full">
-                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark={!isClosing}
+                  <MiniEditor key={`pres-inter-${presIndex}`} value={currentSlide.text||""} onBlur={saveInterstitial} dark={!isClosing} minimal
                     editorClassName={isClosing?"text-[#2a2a2a] text-[24px] font-normal leading-[1.5] min-h-[60px]":"text-white text-[36px] md:text-[48px] font-black leading-[1.15] min-h-[60px]"} />
                 </div>
               </div>);
