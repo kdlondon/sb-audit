@@ -2210,7 +2210,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               let notes=[];
               try{notes=JSON.parse(activeCollection?.closing_note||"[]");}catch{notes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
               if(!Array.isArray(notes))notes=notes?[notes]:[];
-              const saveNotes=(updated)=>{const json=JSON.stringify(updated.filter(n=>_cleanHtml(n)));supabase.from("collections").update({closing_note:json}).eq("id",activeCollection.id);setActiveCollection(prev=>({...prev,closing_note:json}));};
+              const saveNotes=(updated,persist=true)=>{const json=JSON.stringify(updated);setActiveCollection(prev=>({...prev,closing_note:json}));if(persist){const clean=JSON.stringify(updated.filter(n=>_cleanHtml(n)));supabase.from("collections").update({closing_note:clean}).eq("id",activeCollection.id);}};
               return(
                 <div className="px-8 py-4">
                   <p className="text-xs text-hint uppercase font-semibold mb-3 text-center">Closing slides (before thank you)</p>
@@ -2224,7 +2224,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                       </div>
                     ))}
                     {notes.length<5&&(
-                      <button onClick={()=>{const u=[...notes,""];saveNotes(u);}} className="text-xs text-muted hover:text-main border border-dashed border-[#ddd] rounded-lg px-4 py-2 hover:border-[#bbb] transition">+ Add closing slide</button>
+                      <button onClick={()=>{const u=[...notes,""];saveNotes(u,false);}} className="text-xs text-muted hover:text-main border border-dashed border-[#ddd] rounded-lg px-4 py-2 hover:border-[#bbb] transition">+ Add closing slide</button>
                     )}
                   </div>
                 </div>

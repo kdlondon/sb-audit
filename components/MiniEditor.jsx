@@ -71,6 +71,7 @@ export default function MiniEditor({ value, onChange, onBlur, placeholder, class
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={btnClass(isActive("italic"))} style={{ fontStyle: "italic" }}>I</button>
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={btnClass(isActive("underline"))} style={{ textDecoration: "underline" }}>U</button>
         <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} className={btnClass(isActive("bulletList"))}>•</button>
+        <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} className={btnClass(isActive("orderedList"))}>1.</button>
       </div>
       <EditorContent editor={editor} />
       <style jsx global>{`
