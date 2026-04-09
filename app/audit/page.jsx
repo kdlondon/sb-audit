@@ -1932,7 +1932,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
 
   return(
-    <div className="min-h-screen" style={{background:"var(--bg)"}}>
+    <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
         <div className="section-bar px-5 py-2.5 flex justify-between items-center">
@@ -2035,8 +2035,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {/* Collection Detail View */}
         {viewMode==="collections"&&activeCollection&&(
-          <div className="min-h-screen" style={{background:"#ebebeb",backgroundImage:"radial-gradient(circle, #c8c8c8 1px, transparent 1px)",backgroundSize:"22px 22px"}}>
-          <div className="px-8 py-6 max-w-[1100px] mx-auto">
+          <div className="px-8 py-6 max-w-[1100px] mx-auto min-h-screen">
             {/* Header row */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-3">
@@ -2281,7 +2280,6 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </button>
               </div>
             </div>
-          </div>
           </div>
         )}
 
