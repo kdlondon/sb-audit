@@ -713,112 +713,152 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const _cleanHtml=(v)=>{if(!v)return null;const t=v.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();return t.length>0?v:null;};
   const saveClosingNotes=(notes)=>{setClosingNotes(notes);const clean=notes.filter(n=>_cleanHtml(n));const json=JSON.stringify(clean);supabase.from("collections").update({closing_note:json}).eq("id",activeCollection?.id);setActiveCollection(prev=>prev?{...prev,closing_note:json}:prev);};
 
+  // Shared slide data builder for PPTX and PDF
+  const _buildSlideData=()=>{
+    const strip=(h)=>h?h.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim():"";
+    const ytThumb=(u)=>{const m=u?.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?`https://img.youtube.com/vi/${m[1]}/mqdefault.jpg`:null;};
+    const countrySet=new Set(collectionEntries.map(e=>e.country).filter(Boolean));
+    let cNotes=[];try{cNotes=JSON.parse(activeCollection?.closing_note||"[]");}catch{cNotes=activeCollection?.closing_note?[activeCollection.closing_note]:[];}
+    if(!Array.isArray(cNotes))cNotes=[];
+    const slides=[];
+    // Intro
+    slides.push({type:"intro",brand:brand?.name||"Groundwork",title:activeCollection?.name||"",desc:activeCollection?.description||"",cases:collectionEntries.length,countries:countrySet.size});
+    // Intro note
+    const introText=strip(activeCollection?.intro_note||"");
+    if(introText)slides.push({type:"blue",text:introText});
+    // Entries
+    collectionEntries.forEach((e,idx)=>{
+      const thumb=ytThumb(e.url)||e.image_url||"";
+      slides.push({type:"entry",thumb,brand:e.competitor||e.brand_name||e.brand||"",title:e._custom_title||"",note:strip(e._custom_note||""),desc:e.description||"",year:e.year||"",rating:e.rating?Number(e.rating):0,meta:[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" · "),url:e.url||"",synopsis:(e.synopsis||"").slice(0,300)});
+      const inter=strip(e._interstitial_note||"");
+      if(inter&&idx<collectionEntries.length-1)slides.push({type:"blue",text:inter});
+    });
+    // Closing
+    cNotes.forEach(cn=>{const t=strip(cn);if(t)slides.push({type:"blue",text:t});});
+    // Outro
+    slides.push({type:"outro",title:activeCollection?.name||""});
+    return slides;
+  };
+
+  const exportCollectionPPTX=async()=>{
+    if(!activeCollection||collectionEntries.length===0)return;
+    setToast({message:"Generating PPTX..."});
+    try{
+      // Load pptxgenjs from CDN to avoid Node.js fs issues
+      if(!window.PptxGenJS){
+        await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
+      }
+      const PptxGenJS=window.PptxGenJS;
+      const pptx=new PptxGenJS();
+      pptx.layout="LAYOUT_WIDE";
+      pptx.author="Knots & Dots";
+      pptx.title=activeCollection.name||"Collection";
+      const slides=_buildSlideData();
+      for(const s of slides){
+        const sl=pptx.addSlide();
+        if(s.type==="intro"){
+          sl.background={fill:"0A0F3C"};
+          sl.addText("presents",{x:0,y:1.8,w:"100%",h:0.4,align:"center",fontSize:14,italic:true,color:"666680"});
+          sl.addText(s.brand.toUpperCase(),{x:0,y:2.3,w:"100%",h:0.5,align:"center",fontSize:18,bold:true,color:"8888AA",charSpacing:3});
+          sl.addShape(pptx.shapes.RECTANGLE,{x:1.5,y:2.9,w:10.3,h:0.03,fill:{color:"0019FF"}});
+          sl.addText(s.title.toUpperCase(),{x:0.8,y:3.2,w:11.7,h:1.4,align:"center",fontSize:40,bold:true,color:"FFFFFF",charSpacing:1});
+          sl.addShape(pptx.shapes.RECTANGLE,{x:1.5,y:4.8,w:10.3,h:0.03,fill:{color:"0019FF"}});
+          sl.addText(`${s.cases} cases${s.countries>0?`  |  ${s.countries} ${s.countries===1?"country":"countries"}`:""}`,{x:0,y:5.2,w:"100%",h:0.4,align:"center",fontSize:13,color:"666680"});
+        }else if(s.type==="blue"){
+          sl.background={fill:"0019FF"};
+          sl.addText(s.text,{x:1,y:1.5,w:11.3,h:4.5,fontSize:32,bold:true,color:"FFFFFF",valign:"middle",wrap:true,lineSpacingMultiple:1.2});
+        }else if(s.type==="entry"){
+          sl.background={fill:"111015"};
+          // Title + note top area
+          let yPos=0.6;
+          if(s.title){sl.addText(s.title,{x:1,y:yPos,w:11.3,h:0.5,fontSize:20,bold:true,color:"FFFFFF"});yPos+=0.55;}
+          if(s.note){sl.addText(s.note,{x:1,y:yPos,w:11.3,h:0.6,fontSize:11,color:"888899",wrap:true});yPos+=0.7;}
+          // Thumbnail
+          const imgY=yPos+0.3;
+          if(s.thumb){try{sl.addImage({path:s.thumb,x:1,y:imgY,w:7.5,h:4.2,rounding:true});}catch{}}
+          // Detail bar
+          const detY=imgY+4.5;
+          sl.addShape(pptx.shapes.RECTANGLE,{x:0,y:detY,w:"100%",h:1.3,fill:{color:"1A1A1F"}});
+          const detParts=[s.brand,s.year,s.meta].filter(Boolean).join("  ·  ");
+          sl.addText(detParts,{x:1,y:detY+0.15,w:11.3,h:0.35,fontSize:11,bold:true,color:"CCCCDD"});
+          sl.addText(s.desc,{x:1,y:detY+0.5,w:11.3,h:0.3,fontSize:10,color:"999999"});
+          if(s.url)sl.addText(s.url,{x:1,y:detY+0.85,w:11.3,h:0.25,fontSize:8,color:"4060FF",hyperlink:{url:s.url}});
+        }else if(s.type==="outro"){
+          sl.background={fill:"0A0F3C"};
+          sl.addText("K\n&\nD.",{x:0,y:1.2,w:"100%",h:2,align:"center",fontSize:48,bold:true,color:"151530",lineSpacingMultiple:0.9});
+          sl.addText("Thank You",{x:0,y:3.5,w:"100%",h:0.8,align:"center",fontSize:32,bold:true,color:"FFFFFF"});
+          if(s.title)sl.addText(s.title,{x:0,y:4.4,w:"100%",h:0.4,align:"center",fontSize:12,color:"666680"});
+          sl.addText("A Knots & Dots product",{x:0,y:5.5,w:"100%",h:0.3,align:"center",fontSize:9,color:"444460"});
+        }
+      }
+      await pptx.writeFile({fileName:`${(activeCollection.name||"Collection").replace(/\s+/g,"_")}.pptx`});
+      setToast({message:"PPTX exported"});
+    }catch(err){console.error("PPTX error:",err);setToast({message:"Error generating PPTX"});}
+  };
+
   const exportCollectionPDF=async()=>{
     if(!activeCollection||collectionEntries.length===0)return;
-    setToast({message:"Generating PDF..."});
+    setToast({message:"Generating PDF slides..."});
     try{
-      const ytUrl=(u)=>{const m=u?.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?`https://img.youtube.com/vi/${m[1]}/mqdefault.jpg`:null;};
-      const stripHtml=(h)=>h?h.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim():"";
-      const introText=stripHtml(activeCollection.intro_note||"");
-      let cNotes=[];try{cNotes=JSON.parse(activeCollection.closing_note||"[]");}catch{cNotes=activeCollection.closing_note?[activeCollection.closing_note]:[];}
-      if(!Array.isArray(cNotes))cNotes=[];
-
-      let html=`<div style="font-family:Inter,system-ui,sans-serif;color:#1a1a2e;max-width:680px;margin:0 auto;">`;
-      // Title page
-      html+=`<div style="text-align:center;padding:40px 0 30px;">
-        <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">${brand?.name||"Groundwork"}</p>
-        <h1 style="font-size:32px;font-weight:900;text-transform:uppercase;margin:0 0 12px;">${activeCollection.name||"Collection"}</h1>
-        ${activeCollection.description?`<p style="font-size:13px;color:#666;margin:0 0 6px;">${activeCollection.description}</p>`:""}
-        ${activeCollection.objective?`<p style="font-size:12px;color:#999;font-style:italic;margin:0;">${activeCollection.objective}</p>`:""}
-        <p style="font-size:11px;color:#bbb;margin-top:16px;">${collectionEntries.length} cases</p>
-      </div>`;
-      html+=`<hr style="border:none;border-top:2px solid #0019FF;margin:0 0 30px;"/>`;
-
-      // Intro note
-      if(introText){
-        html+=`<div style="background:#0019FF;color:white;padding:24px 30px;border-radius:8px;margin-bottom:24px;">
-          <p style="font-size:16px;font-weight:700;margin:0;line-height:1.5;">${introText}</p>
-        </div>`;
-      }
-
-      // Entries
-      collectionEntries.forEach((e,idx)=>{
-        const thumb=ytUrl(e.url)||e.image_url||"";
-        const brandName=e.competitor||e.brand_name||e.brand||"";
-        const title=e._custom_title||"";
-        const note=stripHtml(e._custom_note||"");
-        const meta=[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" · ");
-
-        html+=`<div style="border:1px solid #e0e0e0;border-radius:12px;padding:20px;margin-bottom:16px;page-break-inside:avoid;">`;
-        // Title + note
-        if(title) html+=`<h3 style="font-size:18px;font-weight:900;margin:0 0 4px;">${title}</h3>`;
-        if(note) html+=`<p style="font-size:12px;color:#666;margin:0 0 12px;line-height:1.5;">${note}</p>`;
-        // Thumbnail + info row
-        html+=`<div style="display:flex;gap:16px;align-items:start;">`;
-        if(thumb) html+=`<img src="${thumb}" style="width:200px;height:130px;object-fit:cover;border-radius:8px;flex-shrink:0;" crossorigin="anonymous"/>`;
-        html+=`<div style="flex:1;min-width:0;">`;
-        html+=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">`;
-        if(brandName) html+=`<span style="background:#333;color:white;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;">${brandName}</span>`;
-        if(e.year) html+=`<span style="font-size:12px;color:#999;">${e.year}</span>`;
-        if(e.rating) html+=`<span style="font-size:12px;">★</span>`.repeat(Number(e.rating));
-        html+=`</div>`;
-        html+=`<p style="font-size:14px;font-weight:700;margin:0 0 4px;">${e.description||"—"}</p>`;
-        if(meta) html+=`<p style="font-size:11px;color:#888;margin:0 0 6px;">${meta}</p>`;
-        if(e.url) html+=`<a href="${e.url}" style="font-size:10px;color:#0019FF;word-break:break-all;text-decoration:none;">${e.url}</a>`;
-        html+=`</div></div>`;
-        // Synopsis
-        if(e.synopsis) html+=`<p style="font-size:11px;color:#555;margin:10px 0 0;line-height:1.5;border-top:1px solid #f0f0f0;padding-top:8px;">${e.synopsis.slice(0,300)}${e.synopsis.length>300?"...":""}</p>`;
-        html+=`</div>`;
-
-        // Interstitial note after this entry
-        const interText=stripHtml(e._interstitial_note||"");
-        if(interText&&idx<collectionEntries.length-1){
-          html+=`<div style="background:#0019FF;color:white;padding:16px 24px;border-radius:8px;margin:8px 0 16px;text-align:center;">
-            <p style="font-size:14px;font-weight:700;margin:0;line-height:1.5;">${interText}</p>
+      const slides=_buildSlideData();
+      // Build HTML slides — landscape format
+      let html=`<div style="font-family:Inter,system-ui,sans-serif;">`;
+      slides.forEach((s,i)=>{
+        const pageBreak=i>0?'page-break-before:always;':'';
+        if(s.type==="intro"){
+          html+=`<div style="${pageBreak}background:#0a0f3c;color:white;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;box-sizing:border-box;">
+            <p style="font-size:12px;color:#666680;margin:0 0 8px;font-style:italic;">presents</p>
+            <p style="font-size:16px;color:#8888AA;text-transform:uppercase;letter-spacing:3px;margin:0 0 10px;font-weight:900;">${s.brand}</p>
+            <hr style="border:none;border-top:2px solid #0019FF;width:80%;margin:0 0 20px;"/>
+            <h1 style="font-size:36px;font-weight:900;text-transform:uppercase;margin:0 0 10px;text-align:center;line-height:1.15;">${s.title}</h1>
+            <hr style="border:none;border-top:2px solid #0019FF;width:80%;margin:10px 0 20px;"/>
+            <p style="font-size:12px;color:#666680;margin:0;">${s.cases} cases${s.countries>0?` | ${s.countries} countries`:""}</p>
+          </div>`;
+        }else if(s.type==="blue"){
+          html+=`<div style="${pageBreak}background:#0019FF;color:white;width:100%;height:100%;display:flex;align-items:center;padding:60px;box-sizing:border-box;">
+            <p style="font-size:28px;font-weight:900;margin:0;line-height:1.3;">${s.text}</p>
+          </div>`;
+        }else if(s.type==="entry"){
+          html+=`<div style="${pageBreak}background:#111015;color:white;width:100%;height:100%;padding:30px 40px;box-sizing:border-box;">`;
+          if(s.title) html+=`<h3 style="font-size:20px;font-weight:900;margin:0 0 4px;">${s.title}</h3>`;
+          if(s.note) html+=`<p style="font-size:11px;color:#888899;margin:0 0 16px;">${s.note}</p>`;
+          if(s.thumb) html+=`<img src="${s.thumb}" style="width:100%;max-height:55%;object-fit:contain;border-radius:8px;margin-bottom:12px;" crossorigin="anonymous"/>`;
+          html+=`<div style="background:#1a1a1f;border-radius:6px;padding:12px 16px;margin-top:8px;">`;
+          const parts=[s.brand,s.year,s.meta].filter(Boolean).join("  ·  ");
+          html+=`<p style="font-size:11px;font-weight:700;color:#ccccdd;margin:0 0 3px;">${parts}${s.rating?" "+"★".repeat(s.rating):""}</p>`;
+          html+=`<p style="font-size:10px;color:#999;margin:0;">${s.desc}</p>`;
+          if(s.url) html+=`<p style="font-size:8px;color:#4060ff;margin:4px 0 0;word-break:break-all;">${s.url}</p>`;
+          html+=`</div></div>`;
+        }else if(s.type==="outro"){
+          html+=`<div style="${pageBreak}background:#0a0f3c;color:white;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;box-sizing:border-box;">
+            <p style="font-size:48px;font-weight:900;color:#151530;margin:0 0 20px;line-height:0.9;">K<br/>&<br/>D.</p>
+            <h2 style="font-size:28px;font-weight:900;margin:0 0 8px;">Thank You</h2>
+            ${s.title?`<p style="font-size:11px;color:#666680;margin:0;">${s.title}</p>`:""}
+            <p style="font-size:8px;color:#444460;margin-top:20px;">A Knots & Dots product</p>
           </div>`;
         }
       });
-
-      // Closing notes
-      cNotes.forEach(cn=>{
-        const t=stripHtml(cn);
-        if(t){
-          html+=`<div style="background:#0019FF;color:white;padding:24px 30px;border-radius:8px;margin-bottom:12px;">
-            <p style="font-size:16px;font-weight:700;margin:0;line-height:1.5;">${t}</p>
-          </div>`;
-        }
-      });
-
-      // Footer
-      html+=`<div style="text-align:center;padding:30px 0;border-top:1px solid #eee;margin-top:20px;">
-        <p style="font-size:10px;color:#ccc;">Generated by Groundwork · Knots & Dots · ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
-      </div>`;
       html+=`</div>`;
 
       const container=document.createElement("div");
       container.innerHTML=html;
-      container.style.width="680px";
-      container.style.background="white";
-      container.style.padding="20px";
+      container.style.width="960px";
       document.body.appendChild(container);
       await new Promise(r=>setTimeout(r,300));
 
       const html2pdf=(await import("html2pdf.js")).default;
       await html2pdf().set({
-        margin:[10,10,10,10],
-        filename:`${(activeCollection.name||"Collection").replace(/\s+/g,"_")}_presentation.pdf`,
+        margin:0,
+        filename:`${(activeCollection.name||"Collection").replace(/\s+/g,"_")}_slides.pdf`,
         image:{type:"jpeg",quality:0.92},
         html2canvas:{scale:2,useCORS:true,logging:false},
-        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        pagebreak:{mode:["avoid-all","css","legacy"]}
+        jsPDF:{unit:"px",format:[960,540],orientation:"landscape"},
+        pagebreak:{mode:["css"]}
       }).from(container).save();
 
       document.body.removeChild(container);
-      setToast({message:"PDF exported"});
-    }catch(err){
-      console.error("PDF export error:",err);
-      setToast({message:"Error generating PDF"});
-    }
+      setToast({message:"PDF slides exported"});
+    }catch(err){console.error("PDF error:",err);setToast({message:"Error generating PDF"});}
   };
   const updateEntryCustom=async(entryId,field,value)=>{
     if(!activeCollection?.id)return;
@@ -2375,19 +2415,23 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Export</span>
                   </button>
                   {exportMenuOpen&&(
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white border border-[#e0e0e0] rounded-xl shadow-xl overflow-hidden w-[180px] animate-fadeIn">
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white border border-[#e0e0e0] rounded-xl shadow-xl overflow-hidden w-[200px] animate-fadeIn">
                       <button onClick={()=>{
                         const keys=["competitor","brand","brand_name","description","country","category","category_proximity","year","type","communication_intent","funnel","rating","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","analyst_comment","entry_door","portrait","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim","created_at","updated_at"];
                         const header=keys.join(",");const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
                         const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${(activeCollection.name||"collection").replace(/\s+/g,"_")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
                         setToast({message:"CSV exported"});setExportMenuOpen(false);
                       }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-[#f5f5f5] transition flex items-center gap-2.5">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[#999]"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-green-500"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         CSV — Data
+                      </button>
+                      <button onClick={()=>{exportCollectionPPTX();setExportMenuOpen(false);}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-[#f5f5f5] transition flex items-center gap-2.5 border-t border-[#f0f0f0]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-orange-500"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        PPTX — Slides
                       </button>
                       <button onClick={()=>{exportCollectionPDF();setExportMenuOpen(false);}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-[#f5f5f5] transition flex items-center gap-2.5 border-t border-[#f0f0f0]">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-red-400"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        PDF — Presentation
+                        PDF — Slides
                       </button>
                     </div>
                   )}
