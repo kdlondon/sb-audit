@@ -325,6 +325,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [aiStorySuggestion,setAiStorySuggestion]=useState(null);
   const [showReportModal,setShowReportModal]=useState(false);
   const [closingNotes,setClosingNotes]=useState([]);
+  const [exportMenuOpen,setExportMenuOpen]=useState(false);
   const [reportInstructions,setReportInstructions]=useState("");
   const [reportGenerating,setReportGenerating]=useState(false);
   const [reportToast,setReportToast]=useState(null); // {reportId, title}
@@ -711,6 +712,114 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   // Update custom title/note for an entry in a collection
   const _cleanHtml=(v)=>{if(!v)return null;const t=v.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim();return t.length>0?v:null;};
   const saveClosingNotes=(notes)=>{setClosingNotes(notes);const clean=notes.filter(n=>_cleanHtml(n));const json=JSON.stringify(clean);supabase.from("collections").update({closing_note:json}).eq("id",activeCollection?.id);setActiveCollection(prev=>prev?{...prev,closing_note:json}:prev);};
+
+  const exportCollectionPDF=async()=>{
+    if(!activeCollection||collectionEntries.length===0)return;
+    setToast({message:"Generating PDF..."});
+    try{
+      const ytUrl=(u)=>{const m=u?.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?`https://img.youtube.com/vi/${m[1]}/mqdefault.jpg`:null;};
+      const stripHtml=(h)=>h?h.replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").trim():"";
+      const introText=stripHtml(activeCollection.intro_note||"");
+      let cNotes=[];try{cNotes=JSON.parse(activeCollection.closing_note||"[]");}catch{cNotes=activeCollection.closing_note?[activeCollection.closing_note]:[];}
+      if(!Array.isArray(cNotes))cNotes=[];
+
+      let html=`<div style="font-family:Inter,system-ui,sans-serif;color:#1a1a2e;max-width:680px;margin:0 auto;">`;
+      // Title page
+      html+=`<div style="text-align:center;padding:40px 0 30px;">
+        <p style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">${brand?.name||"Groundwork"}</p>
+        <h1 style="font-size:32px;font-weight:900;text-transform:uppercase;margin:0 0 12px;">${activeCollection.name||"Collection"}</h1>
+        ${activeCollection.description?`<p style="font-size:13px;color:#666;margin:0 0 6px;">${activeCollection.description}</p>`:""}
+        ${activeCollection.objective?`<p style="font-size:12px;color:#999;font-style:italic;margin:0;">${activeCollection.objective}</p>`:""}
+        <p style="font-size:11px;color:#bbb;margin-top:16px;">${collectionEntries.length} cases</p>
+      </div>`;
+      html+=`<hr style="border:none;border-top:2px solid #0019FF;margin:0 0 30px;"/>`;
+
+      // Intro note
+      if(introText){
+        html+=`<div style="background:#0019FF;color:white;padding:24px 30px;border-radius:8px;margin-bottom:24px;">
+          <p style="font-size:16px;font-weight:700;margin:0;line-height:1.5;">${introText}</p>
+        </div>`;
+      }
+
+      // Entries
+      collectionEntries.forEach((e,idx)=>{
+        const thumb=ytUrl(e.url)||e.image_url||"";
+        const brandName=e.competitor||e.brand_name||e.brand||"";
+        const title=e._custom_title||"";
+        const note=stripHtml(e._custom_note||"");
+        const meta=[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" · ");
+
+        html+=`<div style="border:1px solid #e0e0e0;border-radius:12px;padding:20px;margin-bottom:16px;page-break-inside:avoid;">`;
+        // Title + note
+        if(title) html+=`<h3 style="font-size:18px;font-weight:900;margin:0 0 4px;">${title}</h3>`;
+        if(note) html+=`<p style="font-size:12px;color:#666;margin:0 0 12px;line-height:1.5;">${note}</p>`;
+        // Thumbnail + info row
+        html+=`<div style="display:flex;gap:16px;align-items:start;">`;
+        if(thumb) html+=`<img src="${thumb}" style="width:200px;height:130px;object-fit:cover;border-radius:8px;flex-shrink:0;" crossorigin="anonymous"/>`;
+        html+=`<div style="flex:1;min-width:0;">`;
+        html+=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">`;
+        if(brandName) html+=`<span style="background:#333;color:white;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;">${brandName}</span>`;
+        if(e.year) html+=`<span style="font-size:12px;color:#999;">${e.year}</span>`;
+        if(e.rating) html+=`<span style="font-size:12px;">★</span>`.repeat(Number(e.rating));
+        html+=`</div>`;
+        html+=`<p style="font-size:14px;font-weight:700;margin:0 0 4px;">${e.description||"—"}</p>`;
+        if(meta) html+=`<p style="font-size:11px;color:#888;margin:0 0 6px;">${meta}</p>`;
+        if(e.url) html+=`<a href="${e.url}" style="font-size:10px;color:#0019FF;word-break:break-all;text-decoration:none;">${e.url}</a>`;
+        html+=`</div></div>`;
+        // Synopsis
+        if(e.synopsis) html+=`<p style="font-size:11px;color:#555;margin:10px 0 0;line-height:1.5;border-top:1px solid #f0f0f0;padding-top:8px;">${e.synopsis.slice(0,300)}${e.synopsis.length>300?"...":""}</p>`;
+        html+=`</div>`;
+
+        // Interstitial note after this entry
+        const interText=stripHtml(e._interstitial_note||"");
+        if(interText&&idx<collectionEntries.length-1){
+          html+=`<div style="background:#0019FF;color:white;padding:16px 24px;border-radius:8px;margin:8px 0 16px;text-align:center;">
+            <p style="font-size:14px;font-weight:700;margin:0;line-height:1.5;">${interText}</p>
+          </div>`;
+        }
+      });
+
+      // Closing notes
+      cNotes.forEach(cn=>{
+        const t=stripHtml(cn);
+        if(t){
+          html+=`<div style="background:#0019FF;color:white;padding:24px 30px;border-radius:8px;margin-bottom:12px;">
+            <p style="font-size:16px;font-weight:700;margin:0;line-height:1.5;">${t}</p>
+          </div>`;
+        }
+      });
+
+      // Footer
+      html+=`<div style="text-align:center;padding:30px 0;border-top:1px solid #eee;margin-top:20px;">
+        <p style="font-size:10px;color:#ccc;">Generated by Groundwork · Knots & Dots · ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
+      </div>`;
+      html+=`</div>`;
+
+      const container=document.createElement("div");
+      container.innerHTML=html;
+      container.style.width="680px";
+      container.style.background="white";
+      container.style.padding="20px";
+      document.body.appendChild(container);
+      await new Promise(r=>setTimeout(r,300));
+
+      const html2pdf=(await import("html2pdf.js")).default;
+      await html2pdf().set({
+        margin:[10,10,10,10],
+        filename:`${(activeCollection.name||"Collection").replace(/\s+/g,"_")}_presentation.pdf`,
+        image:{type:"jpeg",quality:0.92},
+        html2canvas:{scale:2,useCORS:true,logging:false},
+        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+        pagebreak:{mode:["avoid-all","css","legacy"]}
+      }).from(container).save();
+
+      document.body.removeChild(container);
+      setToast({message:"PDF exported"});
+    }catch(err){
+      console.error("PDF export error:",err);
+      setToast({message:"Error generating PDF"});
+    }
+  };
   const updateEntryCustom=async(entryId,field,value)=>{
     if(!activeCollection?.id)return;
     const cleanVal=(field==="custom_note"||field==="interstitial_note")?_cleanHtml(value):value;
@@ -2259,15 +2368,30 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Present</span>
                 </button>}
                 <div className="w-px h-5 bg-[#e8e8e8] mx-0.5"/>
-                {/* Export CSV */}
-                <button onClick={()=>{
-                  const keys=["competitor","brand","brand_name","description","country","category","category_proximity","year","type","communication_intent","funnel","rating","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","analyst_comment","entry_door","portrait","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim","created_at","updated_at"];
-                  const header=keys.join(",");const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
-                  const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${(activeCollection.name||"collection").replace(/\s+/g,"_")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);setToast({message:"CSV exported"});
-                }} title="Export CSV" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Export</span>
-                </button>
+                {/* Export — dropdown with CSV + PDF */}
+                <div className="relative">
+                  <button onClick={()=>setExportMenuOpen(!exportMenuOpen)} title="Export" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Export</span>
+                  </button>
+                  {exportMenuOpen&&(
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white border border-[#e0e0e0] rounded-xl shadow-xl overflow-hidden w-[180px] animate-fadeIn">
+                      <button onClick={()=>{
+                        const keys=["competitor","brand","brand_name","description","country","category","category_proximity","year","type","communication_intent","funnel","rating","url","image_url","main_slogan","transcript","synopsis","insight","idea","primary_territory","secondary_territory","execution_style","analyst_comment","entry_door","portrait","journey_phase","client_lifecycle","moment_acquisition","moment_deepening","moment_unexpected","bank_role","pain_point_type","pain_point","language_register","main_vp","brand_attributes","emotional_benefit","rational_benefit","r2b","channel","cta","tone_of_voice","representation","industry_shown","business_size","brand_archetype","diff_claim","created_at","updated_at"];
+                        const header=keys.join(",");const rows=collectionEntries.map(e=>keys.map(k=>'"'+(e[k]||"").replace(/"/g,'""').replace(/\n/g," ")+'"').join(","));
+                        const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${(activeCollection.name||"collection").replace(/\s+/g,"_")}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+                        setToast({message:"CSV exported"});setExportMenuOpen(false);
+                      }} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-[#f5f5f5] transition flex items-center gap-2.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[#999]"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        CSV — Data
+                      </button>
+                      <button onClick={()=>{exportCollectionPDF();setExportMenuOpen(false);}} className="w-full text-left px-4 py-2.5 text-sm text-main hover:bg-[#f5f5f5] transition flex items-center gap-2.5 border-t border-[#f0f0f0]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-red-400"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        PDF — Presentation
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {/* Edit */}
                 <button onClick={()=>setEditingCollection(activeCollection)} title="Edit Collection" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[#1a1a1a] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
