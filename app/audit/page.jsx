@@ -12,6 +12,7 @@ import { useProject } from "@/lib/project-context";
 import dynamic from "next/dynamic";
 const ImageCropper = dynamic(() => import("@/components/ImageCropper"), { ssr: false });
 const MiniEditor = dynamic(() => import("@/components/MiniEditor"), { ssr: false });
+const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 import DropdownCheckbox, { StarRating } from "@/components/DropdownCheckbox";
 import { getFieldValue } from "@/lib/system-dimensions";
 
@@ -250,7 +251,7 @@ function MultiSelect({ fieldKey, value, opts, onChange, projectId, optKey }) {
   );
 }
 
-function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry,initialCollectionId,clearInitialCollectionId}){
+function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendingForm,projectId,initialEntry,clearInitialEntry,initialCollectionId,clearInitialCollectionId,initialViewMode}){
   const {framework,frameworkLoaded}=useFramework()||{};
   const {brandId,brand}=require("@/lib/brand-context").useBrand()||{};
   const {activeOrg,userEmail}=require("@/lib/role-context").useRole()||{};
@@ -299,7 +300,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     return()=>document.removeEventListener("mousedown",handler);
   },[inlineEdit]);
   const [toast,setToast]=useState(null);
-  const [viewMode,setViewMode]=useState("entries"); // "entries" or "collections"
+  const [viewMode,setViewMode]=useState(initialViewMode||"entries");
   const [collections,setCollections]=useState([]);
   const [collectionsLoading,setCollectionsLoading]=useState(false);
   const [activeCollection,setActiveCollection]=useState(null); // viewing a specific collection
@@ -2091,6 +2092,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=local",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Local audit</button>
               <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=global",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Global benchmarks</button>
               <button onClick={()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="collections"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Collections</button>
+              <button onClick={()=>{setViewMode("map");setActiveCollection(null);router.push("/audit?view=map",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="map"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Map</button>
             </div>
             {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
@@ -2451,6 +2453,83 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           </div>
         )}
 
+        {/* Map View — Globe with entries by country */}
+        {viewMode==="map"&&(()=>{
+          const COORDS=require("@/lib/country-coords").default;
+          // Aggregate entries by country (both local + global)
+          const countryMap={};
+          data.forEach(e=>{
+            const c=e.country||"Unknown";
+            if(!countryMap[c])countryMap[c]={country:c,entries:[],lat:0,lng:0};
+            countryMap[c].entries.push(e);
+          });
+          const points=Object.values(countryMap).map(g=>{
+            const coords=COORDS[g.country];
+            if(!coords)return null;
+            return{...g,lat:coords[0],lng:coords[1],size:Math.min(0.8,0.15+g.entries.length*0.05),color:g.entries.length>5?"#0019FF":g.entries.length>2?"#4060ff":"#7090ff"};
+          }).filter(Boolean);
+          return(
+            <div className="relative" style={{height:"calc(100vh - var(--nav-h) - var(--nav-h) - 50px)"}}>
+              {/* Selected country panel */}
+              {sb&&typeof sb==="object"&&sb._mapCountry&&(
+                <div className="absolute top-4 right-4 z-20 w-[340px] max-h-[80%] bg-white border border-[#e0e0e0] rounded-xl shadow-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#f0f0f0] flex justify-between items-center sticky top-0 bg-white">
+                    <div>
+                      <h3 className="text-sm font-bold text-main">{sb._mapCountry}</h3>
+                      <p className="text-[10px] text-muted">{sb._mapEntries?.length||0} entries</p>
+                    </div>
+                    <button onClick={()=>setSb(null)} className="text-hint hover:text-main text-lg">×</button>
+                  </div>
+                  <div className="overflow-auto max-h-[60vh]">
+                    {(sb._mapEntries||[]).map(e=>{
+                      const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
+                      return(
+                        <div key={e.id} onClick={()=>setSb(e)} className="flex gap-3 px-4 py-2.5 hover:bg-[#f9f9f9] cursor-pointer border-b border-[#f5f5f5] transition">
+                          <div className="w-16 h-11 bg-surface2 rounded overflow-hidden flex-shrink-0">
+                            {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-[8px]">—</div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-main truncate">{e.description||"—"}</p>
+                            <p className="text-[10px] text-muted truncate">{e.competitor||e.brand_name||e.brand||""}{e.year?` · ${e.year}`:""}</p>
+                          </div>
+                          {e.rating&&<span className="text-[10px] flex-shrink-0">{"★".repeat(Number(e.rating))}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <Globe
+                globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
+                backgroundColor="#111015"
+                pointsData={points}
+                pointLat="lat"
+                pointLng="lng"
+                pointAltitude={d=>d.size*0.1}
+                pointRadius={d=>d.size}
+                pointColor="color"
+                pointLabel={d=>`<div style="background:rgba(0,0,0,0.85);color:white;padding:8px 12px;border-radius:8px;font-family:Inter,system-ui;font-size:13px;"><b>${d.country}</b><br/><span style="color:#999;font-size:11px;">${d.entries.length} ${d.entries.length===1?"case":"cases"}</span></div>`}
+                onPointClick={d=>{setSb({_mapCountry:d.country,_mapEntries:d.entries});}}
+                atmosphereColor="#0019FF"
+                atmosphereAltitude={0.15}
+                animateIn={true}
+                width={typeof window!=="undefined"?window.innerWidth-(sb&&!sb._mapCountry?380:0):1200}
+                height={typeof window!=="undefined"?window.innerHeight-180:700}
+              />
+              {/* Legend */}
+              <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm border border-[#e0e0e0] rounded-lg px-4 py-3 shadow-lg">
+                <p className="text-[10px] font-semibold text-main uppercase tracking-wider mb-2">Cases by country</p>
+                <div className="flex gap-3 text-[10px] text-muted">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:"#7090ff"}}/>1–2</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:"#4060ff"}}/>3–5</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:"#0019FF"}}/>6+</span>
+                </div>
+                <p className="text-[9px] text-hint mt-1.5">{points.length} countries · {data.length} total entries</p>
+              </div>
+            </div>
+          );
+        })()}
+
         {viewMode==="entries"&&<>
         {/* Bar 3 — Filter + sort + view + export */}
         <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) + 44px)"}}>
@@ -2585,7 +2664,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         document.body
       )}
 
-      {sb&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
+      {sb&&!sb._mapCountry&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube-nocookie.com/embed/${ytId(sb.url)}?rel=0&modestbranding=1&iv_load_policy=3`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
         {isVideoFile(sb.url)&&!ytId(sb.url)&&<div className="px-3 pt-2">
@@ -2941,6 +3020,7 @@ function AuditPageInner(){
   const[pendingForm,setPendingForm]=useState(false);
   const[initialEntry,setInitialEntry]=useState(null);
   const[initialCollectionId,setInitialCollectionId]=useState(null);
+  const[initialViewMode,setInitialViewMode]=useState(null);
   const{projectId,brandId}=useProject();
   const filterField="project_id"; // Use project_id for data queries during transition
   const filterValue=projectId||brandId;
@@ -2965,8 +3045,9 @@ function AuditPageInner(){
     } else if(params.get("collection")){
       setInitialCollectionId(params.get("collection"));
     } else if(params.get("view")==="collections"){
-      // Just show collections tab (no specific collection)
       setInitialCollectionId("list");
+    } else if(params.get("view")==="map"){
+      setInitialViewMode("map");
     } else if(params.get("add")&&s&&(s==="local"||s==="global")){
       handleAddWithScope(s);
     } else if(s&&(s==="local"||s==="global")){
@@ -2984,7 +3065,7 @@ function AuditPageInner(){
     return()=>window.removeEventListener("openAddForm",handler);
   },[scope]);
 
-  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} key={scope}/></ProjectGuard></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></ProjectGuard></AuthGuard>);
 }
 
 export default function AuditPage(){
