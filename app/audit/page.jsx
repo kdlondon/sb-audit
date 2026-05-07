@@ -327,6 +327,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [showReportModal,setShowReportModal]=useState(false);
   const [closingNotes,setClosingNotes]=useState([]);
   const [exportMenuOpen,setExportMenuOpen]=useState(false);
+  const [mapData,setMapData]=useState([]);
   const [reportInstructions,setReportInstructions]=useState("");
   const [reportGenerating,setReportGenerating]=useState(false);
   const [reportToast,setReportToast]=useState(null); // {reportId, title}
@@ -574,6 +575,14 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   },[brandId]);
 
   useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
+  // Load all entries (both scopes) for map view
+  useEffect(()=>{
+    if(viewMode!=="map"||!projectId)return;
+    (async()=>{
+      const{data:all}=await supabase.from("creative_source").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
+      setMapData(all||[]);
+    })();
+  },[viewMode,projectId]);
   // Sync closing notes from activeCollection
   useEffect(()=>{
     if(!activeCollection)return;
@@ -2456,11 +2465,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         {/* Map View — Globe with entries by country */}
         {viewMode==="map"&&(()=>{
           const COORDS=require("@/lib/country-coords").default;
-          // Aggregate entries by country (both local + global)
+          // Aggregate all entries by country (both local + global)
           const countryMap={};
-          data.forEach(e=>{
-            const c=e.country||"Unknown";
-            if(!countryMap[c])countryMap[c]={country:c,entries:[],lat:0,lng:0};
+          mapData.forEach(e=>{
+            const c=(e.country||"").trim();
+            if(!c)return;
+            if(!countryMap[c])countryMap[c]={country:c,entries:[]};
             countryMap[c].entries.push(e);
           });
           const points=Object.values(countryMap).map(g=>{
@@ -2524,7 +2534,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:"#4060ff"}}/>3–5</span>
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:"#0019FF"}}/>6+</span>
                 </div>
-                <p className="text-[9px] text-hint mt-1.5">{points.length} countries · {data.length} total entries</p>
+                <p className="text-[9px] text-hint mt-1.5">{points.length} countries · {mapData.length} total entries</p>
               </div>
             </div>
           );
