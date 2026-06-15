@@ -61,8 +61,13 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-    if (!challenge) { setError("MFA challenge failed"); setLoading(false); return; }
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+    if (challengeError || !challenge) {
+      console.error("MFA challenge error:", challengeError);
+      setError("MFA factor may be invalid. Please contact your admin to reset MFA.");
+      setLoading(false);
+      return;
+    }
 
     const { error: verifyError } = await supabase.auth.mfa.verify({
       factorId: mfaFactorId,
@@ -71,7 +76,8 @@ export default function LoginPage() {
     });
 
     if (verifyError) {
-      setError("Invalid code. Please try again.");
+      console.error("MFA verify error:", verifyError);
+      setError(verifyError.message || "Invalid code. Please try again.");
       setMfaCode("");
       setLoading(false);
       return;
