@@ -6,3 +6,4 @@ node_modules/
 *.log
 SB_App_Handoff_V4.md
 .claude/worktrees/
+.codex/
