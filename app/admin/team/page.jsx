@@ -26,10 +26,9 @@ function ModuleTabs({ active, router }) {
 }
 
 export default function KDTeamPage() {
-  const { userEmail } = useRole() || {};
+  const { userEmail, isPlatformAdmin, loading: roleLoading } = useRole() || {};
   const router = useRouter();
   const supabase = createClient();
-  const isKD = (userEmail || "").toLowerCase().endsWith("@kad.london");
 
   const [platformOrgId, setPlatformOrgId] = useState(null);
   const [members, setMembers] = useState([]);
@@ -60,7 +59,7 @@ export default function KDTeamPage() {
   };
   useEffect(() => { load(); }, []);
 
-  if (userEmail && !isKD) { router.replace("/dashboard"); return null; }
+  if (!roleLoading && userEmail && !isPlatformAdmin) { router.replace("/dashboard"); return null; }
 
   const createMember = async () => {
     if (!form.email.trim() || !form.password.trim()) return;

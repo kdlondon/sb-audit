@@ -186,7 +186,7 @@ export default function Nav() {
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client profile</button>
             <button onClick={() => { setMenuOpen(false); router.push("/profile"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">User profile</button>
-            {isKD && (
+            {isPlatformAdmin && (
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Platform Admin</button>
             )}
