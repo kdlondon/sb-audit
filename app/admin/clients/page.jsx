@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/role-context";
 import Nav from "@/components/Nav";
 import AuthGuard from "@/components/AuthGuard";
+import CountryInput from "@/components/CountryInput";
+
+// Same industries as the "add a case" form (lib/options.js industryShown)
+const INDUSTRIES = ["Construction-trades", "Professional services", "Food-hospitality", "Retail", "Tech-digital", "Manufacturing", "General", "Other"];
 
 const STATUS_COLORS = {
   active: { bg: "bg-green-100", text: "text-green-700" },
@@ -152,15 +156,25 @@ export default function ClientsPage() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" }) : "—";
   const formatCurrency = (v) => v ? `$${Number(v).toLocaleString()}` : "—";
 
+  const deleteClient = async (c, e) => {
+    e?.stopPropagation();
+    if (!confirm(`Delete client "${c.name}"?\n\nThis removes the client record${c.organization_id ? " and its organization (and its members)" : ""}. Projects are not deleted. This cannot be undone.`)) return;
+    await supabase.from("clients").delete().eq("id", c.id);
+    if (c.organization_id) await supabase.from("organizations").delete().eq("id", c.organization_id);
+    showToast("Client deleted");
+    loadData();
+  };
+
   return (
     <AuthGuard>
       <Nav />
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         {/* HEADER BAR */}
         <div className="section-bar px-5 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-white">Client Management</h2>
-            <span className="text-[10px] text-white bg-white/15 px-2 py-0.5 rounded-full font-semibold">Admin</span>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-white">Platform Admin</h2>
+            <span className="text-white/30">/</span>
+            <span className="text-xs font-semibold text-white bg-white/15 px-3 py-1 rounded-full">Client Management</span>
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -218,13 +232,15 @@ export default function ClientsPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Industry</label>
-                  <input value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })} placeholder="Financial services"
-                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                  <select value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                    <option value="">Select industry…</option>
+                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Country</label>
-                  <input value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} placeholder="United Kingdom"
-                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                  <CountryInput value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="United Kingdom" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Company Size</label>
@@ -300,6 +316,7 @@ export default function ClientsPage() {
                     <th className="px-4 py-3 text-[10px] text-muted uppercase font-semibold">Entries</th>
                     <th className="px-4 py-3 text-[10px] text-muted uppercase font-semibold">Last Activity</th>
                     <th className="px-4 py-3 text-[10px] text-muted uppercase font-semibold">Contract End</th>
+                    <th className="px-4 py-3 text-[10px] text-muted uppercase font-semibold"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -341,6 +358,10 @@ export default function ClientsPage() {
                         <td className="px-4 py-3 text-sm text-main">{st.entries}</td>
                         <td className="px-4 py-3 text-xs text-hint">{st.lastActivity ? formatDate(st.lastActivity) : "—"}</td>
                         <td className="px-4 py-3 text-xs text-hint">{formatDate(c.contract_end)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={(e) => deleteClient(c, e)} title="Delete client"
+                            className="text-xs text-red-400 hover:text-red-600 font-medium">Delete</button>
+                        </td>
                       </tr>
                     );
                   })}

@@ -123,6 +123,20 @@ export default function ClientDetailPage() {
   const addUserToClient = async () => {
     if (!newUser.email.trim() || !newUser.password.trim()) return;
     setAddingUser(true);
+
+    // Older clients have organization_id = null. A user must belong to an org,
+    // so create + link one on the fly before creating the user.
+    let orgId = client?.organization_id || null;
+    if (!orgId && client) {
+      const slug = (client.name || "client").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + String(client.id).slice(0, 6);
+      const { data: newOrg, error: orgErr } = await supabase.from("organizations")
+        .insert({ name: client.name, slug, type: "client", plan: client.tier || "standard", status: "active" })
+        .select().single();
+      if (orgErr || !newOrg) { showToast("Error creating organization: " + (orgErr?.message || "unknown")); setAddingUser(false); return; }
+      orgId = newOrg.id;
+      await supabase.from("clients").update({ organization_id: orgId }).eq("id", client.id);
+    }
+
     const res = await fetch("/api/create-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -130,7 +144,7 @@ export default function ClientDetailPage() {
         email: newUser.email.trim(),
         password: newUser.password.trim(),
         role: "analyst",
-        organization_id: client?.organization_id || null,
+        organization_id: orgId,
       }),
     });
     let result;

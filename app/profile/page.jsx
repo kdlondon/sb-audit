@@ -1,66 +1,82 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+import { useRole } from "@/lib/role-context";
+import Nav from "@/components/Nav";
 import AuthGuard from "@/components/AuthGuard";
 
-const PROFILES = [
-  { name: "Laura", color: "#E11D48" },
-  { name: "Alexei", color: "#0019FF" },
-  { name: "James", color: "#1D9A42" },
-  { name: "Jenny", color: "#D97706" },
-  { name: "Other", color: "#6B7280" },
-];
+const ROLE_LABELS = { full_admin: "Admin", platform_admin: "Platform Admin", org_admin: "Admin", analyst: "Analyst", client: "Client", viewer: "Viewer" };
 
-export default function ProfilePage() {
-  const router = useRouter();
-  const [showOther, setShowOther] = useState(false);
-  const [otherName, setOtherName] = useState("");
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between items-center py-2.5 border-b border-main last:border-0">
+      <span className="text-xs text-muted">{label}</span>
+      <span className="text-sm text-main font-medium">{value || "—"}</span>
+    </div>
+  );
+}
 
-  const selectProfile = (name) => {
-    localStorage.setItem("groundwork_profile", name);
-    router.replace("/showcase");
+export default function UserProfilePage() {
+  const { userEmail, role, orgRole, activeOrg } = useRole() || {};
+  const supabase = createClient();
+
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null); // { type, text }
+
+  const changePassword = async () => {
+    setMsg(null);
+    if (pw.length < 6) { setMsg({ type: "err", text: "Password must be at least 6 characters." }); return; }
+    if (pw !== pw2) { setMsg({ type: "err", text: "Passwords don't match." }); return; }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setSaving(false);
+    if (error) { setMsg({ type: "err", text: error.message }); return; }
+    setPw(""); setPw2("");
+    setMsg({ type: "ok", text: "Password updated." });
   };
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: "#0a0f3c" }}>
-        <div className="mb-12 flex items-center gap-2">
-          <img src="/knots-dots-logo.png" alt="K&D" style={{ height: 24 }} />
-          <span className="text-[11px] font-bold text-white/50 uppercase tracking-[0.15em]">Groundwork</span>
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-white mb-10">Who&apos;s watching?</h1>
+      <Nav />
+      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+        <div className="max-w-2xl mx-auto p-8">
+          <h1 className="text-2xl font-bold text-main mb-1">User profile</h1>
+          <p className="text-sm text-muted mb-8">Your personal details and password.</p>
 
-        {!showOther ? (
-          <div className="flex items-center gap-8">
-            {PROFILES.map(p => (
-              <button key={p.name}
-                onClick={() => p.name === "Other" ? setShowOther(true) : selectProfile(p.name)}
-                className="flex flex-col items-center gap-3 group transition">
-                <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-white transition-all group-hover:scale-110 group-hover:ring-2 group-hover:ring-white/40"
-                  style={{ backgroundColor: p.color }}>
-                  {p.name === "Other" ? "+" : p.name[0]}
+          <div className="space-y-5">
+            {/* Details */}
+            <div className="bg-surface border border-main rounded-xl p-5">
+              <h2 className="text-sm font-bold text-main mb-3">Details</h2>
+              <Row label="Email" value={userEmail} />
+              <Row label="Role" value={ROLE_LABELS[orgRole] || ROLE_LABELS[role] || role} />
+              <Row label="Organization" value={activeOrg?.name} />
+            </div>
+
+            {/* Change password */}
+            <div className="bg-surface border border-main rounded-xl p-5">
+              <h2 className="text-sm font-bold text-main mb-3">Change password</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">New password</label>
+                  <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Min 6 characters"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
                 </div>
-                <span className="text-sm text-white/60 group-hover:text-white transition">{p.name}</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-4">
-            <input value={otherName} onChange={e => setOtherName(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && otherName.trim()) selectProfile(otherName.trim()); }}
-              placeholder="Enter your name"
-              className="px-6 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-center text-lg focus:outline-none focus:border-white/50 w-[280px] placeholder-white/30"
-              autoFocus />
-            <div className="flex gap-3">
-              <button onClick={() => setShowOther(false)}
-                className="px-5 py-2 text-sm text-white/40 hover:text-white/70 transition">Back</button>
-              <button onClick={() => { if (otherName.trim()) selectProfile(otherName.trim()); }}
-                disabled={!otherName.trim()}
-                className="px-6 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 disabled:opacity-30 transition"
-                style={{ backgroundColor: "#0019FF" }}>Continue</button>
+                <div>
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Confirm new password</label>
+                  <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} placeholder="Repeat password"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
+                {msg && <p className={`text-xs ${msg.type === "ok" ? "text-green-600" : "text-red-500"}`}>{msg.text}</p>}
+                <button onClick={changePassword} disabled={saving || !pw || !pw2}
+                  className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                  {saving ? "Saving..." : "Update password"}
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </AuthGuard>
   );

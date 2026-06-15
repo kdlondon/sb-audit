@@ -57,8 +57,9 @@ export default function Nav() {
 
   // Platform Admin is K&D-staff-only
   const isKD = (userEmail || "").toLowerCase().endsWith("@kad.london");
-  // Level 1 (Home) = simple bar, no tabs/action icons. Level 2 (Project) = full bar.
-  const homeMode = pathname === "/dashboard";
+  // Simple bar (no tabs / no action icons): Home + account pages + admin.
+  // Full bar (tabs + icons): only inside a project.
+  const simpleBar = ["/dashboard", "/client-profile", "/profile"].includes(pathname) || pathname.startsWith("/admin");
   const clientLabel = pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || activeOrg?.name || "");
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
@@ -79,7 +80,7 @@ export default function Nav() {
             <span className="text-sm font-semibold text-white whitespace-nowrap">{clientLabel}</span>
           </div>
         )}
-        {!homeMode && !pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-2">
+        {!simpleBar && <div className="flex gap-0.5 ml-2">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
               className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${
@@ -93,7 +94,7 @@ export default function Nav() {
       </div>
 
       <div className="flex items-center gap-2" ref={menuRef}>
-        {!homeMode && (<>
+        {!simpleBar && (<>
         {/* Sparkles background */}
         <div className="relative flex items-center gap-2">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -153,7 +154,7 @@ export default function Nav() {
 
         {/* Simple absolute dropdown — no portal needed */}
         {menuOpen && (
-          <div className="absolute right-4 top-12 w-56 bg-surface border border-main rounded-xl shadow-2xl py-1 animate-fadeIn"
+          <div className="absolute right-4 top-12 w-56 bg-surface border border-main rounded-xl shadow-2xl py-1"
             style={{ zIndex: 99999 }}>
             <div className="px-4 py-3 border-b border-main">
               <p className="text-sm font-medium text-main truncate">{userEmail}</p>
@@ -180,10 +181,6 @@ export default function Nav() {
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client profile</button>
             <button onClick={() => { setMenuOpen(false); router.push("/profile"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">User profile</button>
-            {(isOrgAdmin || canAccess(role, "users")) && (
-              <button onClick={() => { setMenuOpen(false); router.push("/users"); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Team</button>
-            )}
             {isKD && (
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Platform Admin</button>
