@@ -14,7 +14,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { selectBrand, selectProject } = useBrand();
-  const { role, userId, activeOrg, isPlatformAdmin, isOrgAdmin, loading: roleLoading } = useRole() || { loading: true };
+  const { role, userId, activeOrg, orgRole, isPlatformAdmin, isOrgAdmin, loading: roleLoading } = useRole() || { loading: true };
   const supabase = createClient();
   const isAdmin = role === "full_admin" || isPlatformAdmin || isOrgAdmin;
 
@@ -33,6 +33,14 @@ export default function ClientDashboard() {
       const { data: cl } = await supabase.from("clients").select("id").eq("organization_id", activeOrg.id).maybeSingle();
       if (cl?.id) {
         const { data } = await supabase.from("projects").select(cols).eq("client_id", cl.id).order("created_at", { ascending: false });
+        projectList = data || [];
+      }
+    } else if (activeOrg?.type === "platform" && orgRole === "analyst") {
+      // K&D Analyst: projects of their assigned clients
+      const { data: assigns } = await supabase.from("kd_client_assignments").select("client_id").eq("user_id", userId);
+      const clientIds = [...new Set((assigns || []).map(a => a.client_id).filter(Boolean))];
+      if (clientIds.length > 0) {
+        const { data } = await supabase.from("projects").select(cols).in("client_id", clientIds).order("created_at", { ascending: false });
         projectList = data || [];
       }
     } else {
@@ -60,7 +68,7 @@ export default function ClientDashboard() {
     if (roleLoading) return;
     if (role && userId) load();
     else if (!role) { setBrands([]); setLoading(false); }
-  }, [role, userId, roleLoading, activeOrg]);
+  }, [role, userId, roleLoading, activeOrg, orgRole]);
 
   const enterBrand = async (p) => {
     // p is a project row. Set it as the active project (brand context falls back to it).

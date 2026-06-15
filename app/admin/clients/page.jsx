@@ -174,7 +174,11 @@ export default function ClientsPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-white">Platform Admin</h2>
             <span className="text-white/30">/</span>
-            <span className="text-xs font-semibold text-white bg-white/15 px-3 py-1 rounded-full">Client Management</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => router.push("/admin/team")}
+                className="text-xs font-semibold px-3 py-1 rounded-full transition text-white/50 hover:text-white/80">K&D Team</button>
+              <button className="text-xs font-semibold px-3 py-1 rounded-full transition bg-white/20 text-white">Client Management</button>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <input
