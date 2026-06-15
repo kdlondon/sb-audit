@@ -349,27 +349,35 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
       });
     });
 
+    // NOTE: supabase-js does NOT throw on database errors — it returns { error }.
+    // Every insert below is checked. Critical failures (project, framework) abort
+    // and surface the real error; non-critical ones are collected as warnings so
+    // the user gets an honest result instead of a false "All set!".
+    const warnings = [];
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session expired — please log in again.");
       const email = session?.user?.email || "";
       const projectId = "proj_" + Date.now();
       const projectName = bp.name ? `${bp.name} Competitive Audit` : "New Audit";
 
-      // Create project
-      await supabase.from("projects").insert({
+      // Create project (CRITICAL — abort if this fails)
+      const { error: projErr } = await supabase.from("projects").insert({
         id: projectId, name: projectName, client_name: bp.name || "",
         description: [bp.category, bp.market && `Market: ${bp.market}`, bp.proposition].filter(Boolean).join(" · "),
         created_by: email, organization_id: activeOrg?.id || null,
       });
+      if (projErr) throw new Error(`Couldn't create the project: ${projErr.message}`);
 
-      // Grant access
-      await supabase.from("project_access").insert({ user_id: session.user.id, email, project_id: projectId });
+      // Grant access (CRITICAL — without it the creator can't see the project)
+      const { error: accessErr } = await supabase.from("project_access").insert({ user_id: session.user.id, email, project_id: projectId });
+      if (accessErr) throw new Error(`Project created but access couldn't be granted: ${accessErr.message}`);
 
-      // Create framework (Tier 1 Essential)
+      // Create framework (Tier 1 Essential) (CRITICAL — audit/AI need it)
       const selectedLocal = localComps.filter(c => c.selected);
       const selectedGlobal = globalRefs.filter(g => g.selected);
 
-      await supabase.from("project_frameworks").insert({
+      const { error: fwErr } = await supabase.from("project_frameworks").insert({
         project_id: projectId,
         name: `${bp.name} Framework`,
         tier: "essential",
@@ -390,17 +398,23 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
         local_competitors: selectedLocal.map(c => ({ name: c.name, type: "direct" })),
         global_benchmarks: selectedGlobal.map(g => ({ name: g.name, country: g.market || "" })),
       });
+      if (fwErr) throw new Error(`Project created but its framework couldn't be saved: ${fwErr.message}`);
+
+      // --- From here, failures are non-fatal: the project exists. Collect warnings. ---
 
       // Dropdown options — competitors
       const compNames = selectedLocal.map(c => c.name);
       if (compNames.length > 0) {
-        await supabase.from("dropdown_options").insert(compNames.map((name, i) => ({ project_id: projectId, category: "competitor", value: name, sort_order: i })));
-        await supabase.from("project_brands").insert(compNames.map(name => ({ project_id: projectId, brand_name: name, scope: "local", category: "", country: "", status: "active", urls: [] })));
+        const { error: e1 } = await supabase.from("dropdown_options").insert(compNames.map((name, i) => ({ project_id: projectId, category: "competitor", value: name, sort_order: i })));
+        if (e1) warnings.push(`competitor dropdowns (${e1.message})`);
+        const { error: e2 } = await supabase.from("project_brands").insert(compNames.map(name => ({ project_id: projectId, brand_name: name, scope: "local", category: "", country: "", status: "active", urls: [] })));
+        if (e2) warnings.push(`local brands (${e2.message})`);
       }
 
       // Dropdown options — global brands
       if (selectedGlobal.length > 0) {
-        await supabase.from("project_brands").insert(selectedGlobal.map(g => ({ project_id: projectId, brand_name: g.name, scope: "global", category: "", country: g.market || "", status: "active", urls: [] })));
+        const { error: e3 } = await supabase.from("project_brands").insert(selectedGlobal.map(g => ({ project_id: projectId, brand_name: g.name, scope: "global", category: "", country: g.market || "", status: "active", urls: [] })));
+        if (e3) warnings.push(`global brands (${e3.message})`);
       }
 
       // Default dropdown options
@@ -412,9 +426,11 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
         ...["Awareness","Consideration","Conversion","Retention","Advocacy"].map((v,i)=>({category:"funnel",value:v,sort_order:i})),
         ...["Video","Print","Digital","Social","OOH","Website","Blog","Event"].map((v,i)=>({category:"type",value:v,sort_order:i})),
       ];
-      await supabase.from("dropdown_options").insert(defaults.map(d=>({...d, project_id: projectId})));
+      const { error: e4 } = await supabase.from("dropdown_options").insert(defaults.map(d=>({...d, project_id: projectId})));
+      if (e4) warnings.push(`default dropdowns (${e4.message})`);
 
       // Import accepted videos
+      let importedVideos = 0;
       for (let i = 0; i < acceptedVideos.length; i++) {
         const vid = acceptedVideos[i];
         const entry = {
@@ -428,13 +444,20 @@ Return JSON: [{"name":"Brand","market":"Country"}]. No other text.`;
         };
         if (vid.scope === "global") { entry.brand = vid.brandName; entry.country = ""; }
         else { entry.competitor = vid.brandName; }
-        await supabase.from("creative_source").insert(entry);
+        const { error: ev } = await supabase.from("creative_source").insert(entry);
+        if (ev) warnings.push(`video "${vid.title}" (${ev.message})`);
+        else importedVideos++;
       }
 
       selectProject(projectId, projectName);
-      addAI(`**All set!** ${acceptedVideos.length} entries imported across ${compNames.length + selectedGlobal.length} brands.\n\nTip: Go to **Audit** and click "Analyze with AI" on each entry to auto-classify.\n\nClick **Go to Scout** to continue discovering content.`);
+      const summary = `**Project created!** ${importedVideos} of ${acceptedVideos.length} entries imported across ${compNames.length + selectedGlobal.length} brands.`;
+      if (warnings.length > 0) {
+        addAI(`${summary}\n\n⚠️ Some extras didn't save: ${warnings.join("; ")}.\nThe project itself is ready — you can add these manually in Audit/Settings. Please send this message to the team so they can fix it.`);
+      } else {
+        addAI(`${summary}\n\nTip: Go to **Audit** and click "Analyze with AI" on each entry to auto-classify.\n\nClick **Go to Scout** to continue discovering content.`);
+      }
     } catch (err) {
-      addAI(`Error: ${err.message}. Please try again.`);
+      addAI(`**Couldn't finish setup.** ${err.message}\n\nNothing partial was kept that would block a retry — please try again, and if it keeps failing send this exact message to the team.`);
     }
     setSaving(false);
   };
