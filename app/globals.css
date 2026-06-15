@@ -11,8 +11,9 @@
   --text: #0a0f3c;
   --text2: #5a5e7a;
   --text3: #8e90a6;
-  --accent: #0019FF;
-  --accent-soft: #eef0ff;
+  --accent: #111111;
+  --accent-soft: #f1f1f1;
+  --accent-hover: #3d3d3d;
   --navy: #0a0f3c;
   --chartreuse: #D4E520;
 }
@@ -25,8 +26,9 @@
   --text: #e8e6f0;
   --text2: #9094b0;
   --text3: #5c6080;
-  --accent: #4060ff;
-  --accent-soft: #151a35;
+  --accent: #333333;
+  --accent-soft: #1e1e1e;
+  --accent-hover: #4a4a4a;
   --navy: #0a0f3c;
   --chartreuse: #D4E520;
 }
@@ -48,6 +50,7 @@ select, input, textarea, button { font-family: inherit; }
 .text-muted { color: var(--text2); }
 .text-hint { color: var(--text3); }
 .bg-accent { background: var(--accent); }
+.bg-accent:hover { background: var(--accent-hover); }
 .bg-accent-soft { background: var(--accent-soft); }
 .text-accent { color: var(--accent); }
 

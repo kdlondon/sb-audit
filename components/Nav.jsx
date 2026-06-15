@@ -7,8 +7,8 @@ import { useRole, canAccess } from "@/lib/role-context";
 import { useEffect, useState, useRef } from "react";
 
 const mainTabs = [
-  { name: "Scout", href: "/scout", module: "scout" },
   { name: "Creative Source", href: "/audit", module: "audit" },
+  { name: "Scout", href: "/scout", module: "scout" },
   { name: "Report", href: "/reports", module: "reports" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
@@ -55,8 +55,11 @@ export default function Nav() {
     router.replace("/login");
   };
 
-  // Platform Admin (Client Management, K&D Admins) is K&D-staff-only
+  // Platform Admin is K&D-staff-only
   const isKD = (userEmail || "").toLowerCase().endsWith("@kad.london");
+  // Level 1 (Home) = simple bar, no tabs/action icons. Level 2 (Project) = full bar.
+  const homeMode = pathname === "/dashboard";
+  const clientLabel = pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || activeOrg?.name || "");
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
   return (<>
@@ -70,13 +73,13 @@ export default function Nav() {
             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#facc15", color: "#0a0f3c" }}>Staging</span>
           )}
         </div>
-        <button onClick={() => { if (role !== "client" && role !== "viewer") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/audit"); }} className={`text-sm font-semibold transition ${role === "client" || role === "viewer" ? "text-white cursor-default" : "text-white hover:text-white/90"}`}>
-          {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select project")}
-        </button>
-        {!pathname.startsWith("/admin") && activeOrg?.name && (
-          <span className="text-[11px] font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full whitespace-nowrap" title="Current client">{activeOrg.name}</span>
+        {clientLabel && (
+          <div className="flex items-center gap-2">
+            <span className="text-white/30">|</span>
+            <span className="text-sm font-semibold text-white whitespace-nowrap">{clientLabel}</span>
+          </div>
         )}
-        {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-1">
+        {!homeMode && !pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-2">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
               className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${
@@ -90,6 +93,7 @@ export default function Nav() {
       </div>
 
       <div className="flex items-center gap-2" ref={menuRef}>
+        {!homeMode && (<>
         {/* Sparkles background */}
         <div className="relative flex items-center gap-2">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -134,6 +138,7 @@ export default function Nav() {
         </div>
 
         <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+        </>)}
 
         {/* Profile button */}
         <button onClick={() => setMenuOpen(!menuOpen)}
@@ -171,31 +176,23 @@ export default function Nav() {
                 ))}
               </div>
             )}
-            <button onClick={() => { setMenuOpen(false); router.push("/reports"); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Dashboard</button>
-            {canAccess(role, "settings") && (
-              <button onClick={() => { setMenuOpen(false); router.push("/settings"); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Settings</button>
-            )}
+            <button onClick={() => { setMenuOpen(false); router.push("/client-profile"); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client profile</button>
+            <button onClick={() => { setMenuOpen(false); router.push("/profile"); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">User profile</button>
             {(isOrgAdmin || canAccess(role, "users")) && (
               <button onClick={() => { setMenuOpen(false); router.push("/users"); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
-                {isKD ? "K&D Admins" : "Team Management"}
-              </button>
+                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Team</button>
             )}
-            {isPlatformAdmin && isKD && (
+            {isKD && (
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client Management</button>
+                className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Platform Admin</button>
             )}
-            <button onClick={() => { setMenuOpen(false); router.push("/mfa-setup"); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Security (MFA)</button>
             <div className="border-t border-main my-1" />
             <button onClick={() => { toggleDark(); setMenuOpen(false); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
               {dark ? "Light mode" : "Dark mode"}
             </button>
-            <button onClick={() => { setMenuOpen(false); clearBrand(); router.push("/dashboard"); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch project</button>
             <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
               What's new

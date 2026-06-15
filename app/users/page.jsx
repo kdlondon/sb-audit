@@ -50,13 +50,20 @@ export default function UsersPage() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
   const loadData = async () => {
-    const [usersRes, projectsRes, accessRes] = await Promise.all([
+    const [usersRes, projectsRes, accessRes, membersRes] = await Promise.all([
       supabase.from("user_roles").select("*").order("created_at", { ascending: true }),
       supabase.from("projects").select("id, name").order("name"),
       supabase.from("project_access").select("*"),
+      activeOrg?.id ? supabase.from("organization_members").select("user_id").eq("organization_id", activeOrg.id) : Promise.resolve({ data: null }),
     ]);
 
-    setUsers(usersRes.data || []);
+    // Scope the team to the current organization's members (when recorded)
+    let userList = usersRes.data || [];
+    if (membersRes?.data && membersRes.data.length > 0) {
+      const orgUserIds = new Set(membersRes.data.map(m => m.user_id));
+      userList = userList.filter(u => orgUserIds.has(u.user_id));
+    }
+    setUsers(userList);
     setProjects(projectsRes.data || []);
 
     // Build access map: { userId: [projectId, ...] }
@@ -71,7 +78,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (role === "full_admin") loadData();
-  }, [role]);
+  }, [role, activeOrg?.id]);
 
   // Redirect non-admins
   if (role && !isPlatformAdmin && !isOrgAdmin && role !== "full_admin") {
@@ -227,8 +234,8 @@ export default function UsersPage() {
             {/* HEADER */}
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h1 className="text-xl font-bold text-main">User Management</h1>
-                <p className="text-xs text-muted mt-1">Manage roles and project access</p>
+                <h1 className="text-xl font-bold text-main">Team</h1>
+                <p className="text-xs text-muted mt-1">Manage the users in your organization</p>
               </div>
               <button onClick={() => setShowInvite(!showInvite)}
                 className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">

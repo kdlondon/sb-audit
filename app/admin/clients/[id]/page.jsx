@@ -56,6 +56,9 @@ export default function ClientDetailPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [newNote, setNewNote] = useState("");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ email: "", password: "" });
+  const [addingUser, setAddingUser] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -72,6 +75,7 @@ export default function ClientDetailPage() {
     setClientProjects(prjs);
 
     const projectIds = prjs.map(p => p.id);
+    const userMap = {};
     if (projectIds.length > 0) {
       const [csRes, reportsRes, showcasesRes, accessRes] = await Promise.all([
         supabase.from("creative_source").select("id, project_id, created_at, created_by, scope").in("project_id", projectIds),
@@ -84,17 +88,25 @@ export default function ClientDetailPage() {
       setReports(reportsRes.data || []);
       setShowcases(showcasesRes.data || []);
 
-      // Deduplicate team users by email
-      const userMap = {};
       (accessRes.data || []).forEach(a => {
         if (!userMap[a.email]) userMap[a.email] = { email: a.email, user_id: a.user_id, projects: [] };
         const projName = prjs.find(p => p.id === a.project_id)?.name || a.project_id;
         userMap[a.email].projects.push(projName);
       });
-      setTeamUsers(Object.values(userMap));
     } else {
-      setLocalEntries([]); setGlobalEntries([]); setReports([]); setShowcases([]); setTeamUsers([]);
+      setLocalEntries([]); setGlobalEntries([]); setReports([]); setShowcases([]);
     }
+
+    // Include this client's organization members (users created for the client,
+    // even before they have project access yet)
+    if (clientData.organization_id) {
+      const { data: members } = await supabase.from("organization_members")
+        .select("user_id, email, role").eq("organization_id", clientData.organization_id);
+      (members || []).forEach(m => {
+        if (!userMap[m.email]) userMap[m.email] = { email: m.email, user_id: m.user_id, projects: [] };
+      });
+    }
+    setTeamUsers(Object.values(userMap));
 
     // Load activity log
     const { data: logData } = await supabase
@@ -106,6 +118,29 @@ export default function ClientDetailPage() {
     setActivityLog(logData || []);
 
     setLoading(false);
+  };
+
+  const addUserToClient = async () => {
+    if (!newUser.email.trim() || !newUser.password.trim()) return;
+    setAddingUser(true);
+    const res = await fetch("/api/create-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: newUser.email.trim(),
+        password: newUser.password.trim(),
+        role: "analyst",
+        organization_id: client?.organization_id || null,
+      }),
+    });
+    let result;
+    try { result = await res.json(); } catch { result = { error: "Invalid response from server" }; }
+    if (result.error) { showToast("Error: " + result.error); setAddingUser(false); return; }
+    showToast(`User created for ${client?.name || "this client"}`);
+    setNewUser({ email: "", password: "" });
+    setShowAddUser(false);
+    setAddingUser(false);
+    loadData();
   };
 
   useEffect(() => {
@@ -407,7 +442,27 @@ export default function ClientDetailPage() {
 
           {/* SECTION 4: TEAM */}
           <div className="bg-surface border border-main rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-main mb-4">Team</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-semibold text-main">Team</h3>
+              <button onClick={() => setShowAddUser(!showAddUser)} className="text-xs font-semibold text-accent hover:underline">
+                {showAddUser ? "Cancel" : "+ Add user"}
+              </button>
+            </div>
+            {showAddUser && (
+              <div className="mb-4 p-3 border border-main rounded-lg bg-surface2 space-y-2">
+                <input value={newUser.email} onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
+                  placeholder="user@email.com" type="email"
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                <input value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))}
+                  placeholder="Temporary password (min 6 chars)" type="text"
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                <button onClick={addUserToClient} disabled={addingUser || !newUser.email.trim() || !newUser.password.trim()}
+                  className="w-full px-3 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                  {addingUser ? "Creating..." : "Create user"}
+                </button>
+                <p className="text-[10px] text-hint">Creates a login for this client's organization. Email invites coming later.</p>
+              </div>
+            )}
             {teamUsers.length > 0 ? (
               <div className="space-y-2">
                 {teamUsers.map((u, i) => (

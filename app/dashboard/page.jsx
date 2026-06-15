@@ -134,8 +134,8 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Recent Activity */}
-          {recentEntries.length > 0 && (
+          {/* Recent Activity — hidden for now */}
+          {false && recentEntries.length > 0 && (
             <div>
               <h2 className="text-sm font-bold text-main mb-3">Recent activity</h2>
               <div className="space-y-1">
