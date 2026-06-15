@@ -57,7 +57,7 @@ export default function ClientDetailPage() {
   const [toast, setToast] = useState("");
   const [newNote, setNewNote] = useState("");
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState({ email: "", password: "" });
+  const [newUser, setNewUser] = useState({ email: "", password: "", role: "analyst" });
   const [addingUser, setAddingUser] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
@@ -103,7 +103,8 @@ export default function ClientDetailPage() {
       const { data: members } = await supabase.from("organization_members")
         .select("user_id, email, role").eq("organization_id", clientData.organization_id);
       (members || []).forEach(m => {
-        if (!userMap[m.email]) userMap[m.email] = { email: m.email, user_id: m.user_id, projects: [] };
+        if (!userMap[m.email]) userMap[m.email] = { email: m.email, user_id: m.user_id, projects: [], role: m.role };
+        else userMap[m.email].role = m.role;
       });
     }
     setTeamUsers(Object.values(userMap));
@@ -143,7 +144,7 @@ export default function ClientDetailPage() {
       body: JSON.stringify({
         email: newUser.email.trim(),
         password: newUser.password.trim(),
-        role: "analyst",
+        role: newUser.role,
         organization_id: orgId,
       }),
     });
@@ -151,9 +152,34 @@ export default function ClientDetailPage() {
     try { result = await res.json(); } catch { result = { error: "Invalid response from server" }; }
     if (result.error) { showToast("Error: " + result.error); setAddingUser(false); return; }
     showToast(`User created for ${client?.name || "this client"}`);
-    setNewUser({ email: "", password: "" });
+    setNewUser({ email: "", password: "", role: "analyst" });
     setShowAddUser(false);
     setAddingUser(false);
+    loadData();
+  };
+
+  const updateClientUserRole = async (user, newRole) => {
+    if (!client?.organization_id) { showToast("This client has no organization yet."); return; }
+    const { error } = await supabase.from("organization_members").update({ role: newRole })
+      .eq("organization_id", client.organization_id).eq("user_id", user.user_id);
+    if (error) { showToast("Error: " + error.message); return; }
+    // Keep legacy user_roles in sync
+    const legacy = newRole === "org_admin" ? "full_admin" : newRole === "viewer" ? "client" : "analyst";
+    await supabase.from("user_roles").update({ role: legacy }).eq("user_id", user.user_id);
+    showToast("Role updated");
+    loadData();
+  };
+
+  const removeClientUser = async (user) => {
+    if (!confirm(`Remove "${user.email}" from ${client?.name || "this client"}?\n\nThis deletes their login account and all access. This cannot be undone.`)) return;
+    const res = await fetch("/api/delete-user", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.user_id }),
+    });
+    let result;
+    try { result = await res.json(); } catch { result = { error: "Invalid response from server" }; }
+    if (result.error) { showToast("Error: " + result.error); return; }
+    showToast("User removed");
     loadData();
   };
 
@@ -470,6 +496,12 @@ export default function ClientDetailPage() {
                 <input value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))}
                   placeholder="Temporary password (min 6 chars)" type="text"
                   className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                <select value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}
+                  className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
+                  <option value="org_admin">Superadmin — full access to this client</option>
+                  <option value="analyst">Analyst — all modules in assigned projects</option>
+                  <option value="viewer">Viewer — Report &amp; Showcase only</option>
+                </select>
                 <button onClick={addUserToClient} disabled={addingUser || !newUser.email.trim() || !newUser.password.trim()}
                   className="w-full px-3 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
                   {addingUser ? "Creating..." : "Create user"}
@@ -481,16 +513,23 @@ export default function ClientDetailPage() {
               <div className="space-y-2">
                 {teamUsers.map((u, i) => (
                   <div key={u.email} className="flex items-center gap-3 py-2 border-b border-main last:border-0">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase"
-                      style={{ background: "#4060ff22", color: "#4060ff" }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase flex-shrink-0"
+                      style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
                       {u.email[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-main truncate">{u.email}</p>
-                      <p className="text-[10px] text-hint">
-                        {u.projects.join(", ")}
+                      <p className="text-[10px] text-hint truncate">
+                        {u.projects.length ? u.projects.join(", ") : "No project access yet"}
                       </p>
                     </div>
+                    <select value={u.role || "analyst"} onChange={(e) => updateClientUserRole(u, e.target.value)}
+                      className="text-[11px] px-2 py-1 bg-surface border border-main rounded-md text-main flex-shrink-0">
+                      <option value="org_admin">Superadmin</option>
+                      <option value="analyst">Analyst</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <button onClick={() => removeClientUser(u)} className="text-[11px] text-red-400 hover:text-red-600 font-medium flex-shrink-0">Remove</button>
                   </div>
                 ))}
               </div>

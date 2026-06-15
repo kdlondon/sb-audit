@@ -20,6 +20,7 @@ export default function UserProfilePage() {
   const { userEmail, role, orgRole, activeOrg } = useRole() || {};
   const supabase = createClient();
 
+  const [currentPw, setCurrentPw] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [saving, setSaving] = useState(false);
@@ -27,13 +28,19 @@ export default function UserProfilePage() {
 
   const changePassword = async () => {
     setMsg(null);
-    if (pw.length < 6) { setMsg({ type: "err", text: "Password must be at least 6 characters." }); return; }
-    if (pw !== pw2) { setMsg({ type: "err", text: "Passwords don't match." }); return; }
+    if (!currentPw) { setMsg({ type: "err", text: "Enter your current password." }); return; }
+    if (pw.length < 6) { setMsg({ type: "err", text: "New password must be at least 6 characters." }); return; }
+    if (pw !== pw2) { setMsg({ type: "err", text: "New passwords don't match." }); return; }
     setSaving(true);
+
+    // Verify the current password by re-authenticating with it.
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: userEmail, password: currentPw });
+    if (signInErr) { setSaving(false); setMsg({ type: "err", text: "Current password is incorrect." }); return; }
+
     const { error } = await supabase.auth.updateUser({ password: pw });
     setSaving(false);
     if (error) { setMsg({ type: "err", text: error.message }); return; }
-    setPw(""); setPw2("");
+    setCurrentPw(""); setPw(""); setPw2("");
     setMsg({ type: "ok", text: "Password updated." });
   };
 
@@ -58,6 +65,11 @@ export default function UserProfilePage() {
             <div className="bg-surface border border-main rounded-xl p-5">
               <h2 className="text-sm font-bold text-main mb-3">Change password</h2>
               <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Current password</label>
+                  <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="Your current password"
+                    className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
                 <div>
                   <label className="block text-[10px] text-muted uppercase font-semibold mb-1">New password</label>
                   <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Min 6 characters"
