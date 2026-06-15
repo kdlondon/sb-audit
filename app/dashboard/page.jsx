@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useBrand } from "@/lib/brand-context";
 import { useRole } from "@/lib/role-context";
 import AuthGuard from "@/components/AuthGuard";
+import Nav from "@/components/Nav";
 
 export default function ClientDashboard() {
   const [brands, setBrands] = useState([]);
@@ -95,34 +96,19 @@ export default function ClientDashboard() {
   return (
     <AuthGuard>
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-        {/* Header */}
-        <div className="px-6 py-4 flex justify-between items-center" style={{ background: "#0a0f3c", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="flex items-center gap-3">
-            <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 22 }} />
-            <div>
-              <p className="text-sm font-semibold text-white">Groundwork</p>
-              <p className="text-[10px] text-white/40">{activeOrg?.name || "Competitive Intelligence Platform"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {isPlatformAdmin && (
-              <button onClick={() => router.push("/admin/clients")} className="text-[11px] text-white/30 hover:text-white/60 transition">Platform Admin</button>
-            )}
-            <button onClick={handleLogout} className="text-[11px] text-white/25 hover:text-white/50 transition">Sign out</button>
-          </div>
-        </div>
+        <Nav />
 
         <div className="max-w-4xl mx-auto p-8">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-main">Your Brands</h1>
-            <p className="text-sm text-muted mt-1">Select a brand to start working, or add a new one.</p>
+            <h1 className="text-2xl font-bold text-main">Your Projects</h1>
+            <p className="text-sm text-muted mt-1">Select a project to start working, or add a new one.</p>
           </div>
 
           {isAdmin && (
             <div className="mb-6">
               <button onClick={() => router.push("/onboarding")}
                 className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
-                + New Brand
+                + New Project
               </button>
             </div>
           )}
@@ -143,8 +129,8 @@ export default function ClientDashboard() {
 
           {brands.length === 0 && (
             <div className="text-center py-20 text-hint">
-              <p className="text-lg mb-2">No brands yet</p>
-              <p className="text-sm">{isAdmin ? "Add your first brand to get started" : "No brands have been assigned to you yet"}</p>
+              <p className="text-lg mb-2">No projects yet</p>
+              <p className="text-sm">{isAdmin ? "Add your first project to get started" : "No projects have been assigned to you yet"}</p>
             </div>
           )}
 

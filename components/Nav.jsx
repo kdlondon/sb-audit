@@ -55,6 +55,8 @@ export default function Nav() {
     router.replace("/login");
   };
 
+  // Platform Admin (Client Management, K&D Admins) is K&D-staff-only
+  const isKD = (userEmail || "").toLowerCase().endsWith("@kad.london");
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
   return (<>
@@ -69,8 +71,11 @@ export default function Nav() {
           )}
         </div>
         <button onClick={() => { if (role !== "client" && role !== "viewer") router.push(pathname.startsWith("/admin") ? "/admin/clients" : "/audit"); }} className={`text-sm font-semibold transition ${role === "client" || role === "viewer" ? "text-white cursor-default" : "text-white hover:text-white/90"}`}>
-          {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select brand")}
+          {pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || "Select project")}
         </button>
+        {!pathname.startsWith("/admin") && activeOrg?.name && (
+          <span className="text-[11px] font-medium text-white/70 bg-white/10 px-2 py-0.5 rounded-full whitespace-nowrap" title="Current client">{activeOrg.name}</span>
+        )}
         {!pathname.startsWith("/admin") && <div className="flex gap-0.5 ml-1">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
@@ -175,10 +180,10 @@ export default function Nav() {
             {(isOrgAdmin || canAccess(role, "users")) && (
               <button onClick={() => { setMenuOpen(false); router.push("/users"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">
-                {isPlatformAdmin ? "K&D Admins" : "Team Management"}
+                {isKD ? "K&D Admins" : "Team Management"}
               </button>
             )}
-            {isPlatformAdmin && (
+            {isPlatformAdmin && isKD && (
               <button onClick={() => { setMenuOpen(false); router.push("/admin/clients"); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Client Management</button>
             )}
@@ -190,7 +195,7 @@ export default function Nav() {
               {dark ? "Light mode" : "Dark mode"}
             </button>
             <button onClick={() => { setMenuOpen(false); clearBrand(); router.push("/dashboard"); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch brand</button>
+              className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition">Switch project</button>
             <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
               What's new

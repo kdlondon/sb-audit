@@ -120,9 +120,15 @@ export default function UsersPage() {
   };
 
   const deleteUser = async (user) => {
-    if (!confirm(`Remove "${user.email}" from the platform?\n\nThis will remove their role and all project access. The Supabase auth account will remain (delete it from the Supabase dashboard if needed).`)) return;
-    await supabase.from("project_access").delete().eq("user_id", user.user_id);
-    await supabase.from("user_roles").delete().eq("user_id", user.user_id);
+    if (!confirm(`Remove "${user.email}" from the platform?\n\nThis deletes their login account and all roles/project access. They will no longer be able to sign in. This cannot be undone.`)) return;
+    const res = await fetch("/api/delete-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.user_id }),
+    });
+    let result;
+    try { result = await res.json(); } catch { result = { error: "Invalid response from server" }; }
+    if (result.error) { showToast("Error: " + result.error); return; }
     setSelectedUser(null);
     showToast("User removed");
     loadData();
@@ -185,6 +191,29 @@ export default function UsersPage() {
     setShowInvite(false);
     setInviting(false);
     loadData();
+  };
+
+  const [resettingMfa, setResettingMfa] = useState(null);
+
+  const resetMfa = async (user) => {
+    if (!confirm(`Reset all MFA factors for "${user.email}"?\n\nThey will be able to log in with just their password and can re-enroll MFA afterwards.`)) return;
+    setResettingMfa(user.user_id);
+    try {
+      const res = await fetch("/api/reset-mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`MFA reset for ${user.email} (${data.removed} factor${data.removed !== 1 ? "s" : ""} removed)`);
+      } else {
+        showToast("Error: " + (data.error || "Failed to reset MFA"));
+      }
+    } catch {
+      showToast("Error: Failed to reset MFA");
+    }
+    setResettingMfa(null);
   };
 
   const selectedUserData = users.find(u => u.user_id === selectedUser);
@@ -380,8 +409,13 @@ export default function UsersPage() {
                       })}
                     </div>
 
-                    {/* Delete user */}
-                    <div className="mt-6 pt-4 border-t border-main">
+                    {/* MFA & Delete */}
+                    <div className="mt-6 pt-4 border-t border-main space-y-3">
+                      <button onClick={() => resetMfa(selectedUserData)} disabled={resettingMfa === selectedUserData.user_id}
+                        className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                        {resettingMfa === selectedUserData.user_id ? "Resetting..." : "Reset MFA"}
+                      </button>
+                      <br />
                       <button onClick={() => deleteUser(selectedUserData)}
                         className="text-xs text-red-400 hover:text-red-600 font-medium">
                         Remove user from platform
@@ -402,8 +436,13 @@ export default function UsersPage() {
                     </div>
                     <p className="text-xs text-muted">Full Admins automatically have access to all projects and all modules. No project assignment needed.</p>
 
-                    {/* Delete user */}
-                    <div className="mt-6 pt-4 border-t border-main">
+                    {/* MFA & Delete */}
+                    <div className="mt-6 pt-4 border-t border-main space-y-3">
+                      <button onClick={() => resetMfa(selectedUserData)} disabled={resettingMfa === selectedUserData.user_id}
+                        className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                        {resettingMfa === selectedUserData.user_id ? "Resetting..." : "Reset MFA"}
+                      </button>
+                      <br />
                       <button onClick={() => deleteUser(selectedUserData)}
                         className="text-xs text-red-400 hover:text-red-600 font-medium">
                         Remove user from platform
