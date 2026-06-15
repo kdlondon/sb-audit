@@ -34,7 +34,14 @@ export default function LoginPage() {
     // through after the password. The MFA verification screen and the
     // verifyTotp/verifyEmailOtp helpers below are kept intact (just no longer
     // reached) so MFA can be re-enabled later by restoring the factor checks.
-    router.replace("/projects");
+    // Clear any cached brand/project/org from a previous user, then do a FULL
+    // reload so every provider re-reads the new session (fixes stale identity
+    // where a freshly-logged-in user still saw the previous user's email).
+    try {
+      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "groundwork_profile"]
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+    window.location.href = "/projects";
   };
 
   const verifyTotp = async (e) => {

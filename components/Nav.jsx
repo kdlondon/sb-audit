@@ -51,8 +51,13 @@ export default function Nav() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearProject();
-    router.replace("/login");
+    // Clear cached brand/project/org and full-reload so providers reset (no
+    // identity bleed into the next user that logs in on this browser).
+    try {
+      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "groundwork_profile"]
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+    window.location.href = "/login";
   };
 
   // Platform Admin is K&D-staff-only
