@@ -28,31 +28,12 @@ export default function LoginPage() {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err) { setError("Invalid email or password"); setLoading(false); return; }
 
-    // Check if user has MFA enrolled
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    const totpFactor = factors?.totp?.find(f => f.status === "verified");
-
-    if (totpFactor) {
-      // User has TOTP MFA — need verification
-      setMfaFactorId(totpFactor.id);
-      setMfaMethod("totp");
-      setMfaStep(true);
-      setLoading(false);
-      return;
-    }
-
-    // Check if user has email MFA enabled (stored in user metadata)
-    const user = data?.user;
-    if (user?.user_metadata?.mfa_email_enabled) {
-      // Send email OTP
-      setMfaMethod("email");
-      setMfaStep(true);
-      await sendEmailOtp(email);
-      setLoading(false);
-      return;
-    }
-
-    // No MFA — proceed
+    // MFA DISABLED (2026-06-15) — it was locking users out and the admin
+    // "Reset MFA" escape hatch was unavailable (needs the Supabase service
+    // role key, which is not configured). Logging in now goes straight
+    // through after the password. The MFA verification screen and the
+    // verifyTotp/verifyEmailOtp helpers below are kept intact (just no longer
+    // reached) so MFA can be re-enabled later by restoring the factor checks.
     router.replace("/projects");
   };
 
