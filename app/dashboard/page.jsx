@@ -13,43 +13,45 @@ export default function ClientDashboard() {
   const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { selectBrand } = useBrand();
+  const { selectBrand, selectProject } = useBrand();
   const { role, userId, activeOrg, isPlatformAdmin, isOrgAdmin, loading: roleLoading } = useRole() || { loading: true };
   const supabase = createClient();
   const isAdmin = role === "full_admin" || isPlatformAdmin || isOrgAdmin;
 
   const load = async () => {
-    const orgId = activeOrg?.id;
+    // Show the PROJECTS a user can access, by role:
+    //  - K&D Superadmin (platform_admin / full_admin): all projects
+    //  - Client Superadmin (org_admin): all projects of their client
+    //  - Analyst / Viewer: only projects assigned via project_access
+    const cols = "id, name, client_id, created_at";
+    let projectList = [];
 
-    // Load own brands only
-    let q = supabase.from("brands").select("*").eq("proximity", "own_brand").eq("is_active", true).order("updated_at", { ascending: false });
-    if (orgId) q = q.eq("organization_id", orgId);
-    const { data: brandsData } = await q;
-    setBrands(brandsData || []);
-
-    // For each own brand, count total entries via brand_competitors
-    const counts = {};
-    for (const b of (brandsData || [])) {
-      const { data: comps } = await supabase.from("brand_competitors").select("competitor_brand_id").eq("own_brand_id", b.id);
-      const compIds = (comps || []).map(c => c.competitor_brand_id);
-      if (compIds.length > 0) {
-        const { count } = await supabase.from("creative_source").select("*", { count: "exact", head: true }).in("brand_id", compIds);
-        counts[b.id] = count || 0;
-      } else {
-        // Fallback: count by organization_id
-        const { count } = await supabase.from("creative_source").select("*", { count: "exact", head: true }).eq("organization_id", b.organization_id);
-        counts[b.id] = count || 0;
+    if (isPlatformAdmin) {
+      const { data } = await supabase.from("projects").select(cols).order("created_at", { ascending: false });
+      projectList = data || [];
+    } else if (isOrgAdmin && activeOrg?.id) {
+      const { data: cl } = await supabase.from("clients").select("id").eq("organization_id", activeOrg.id).maybeSingle();
+      if (cl?.id) {
+        const { data } = await supabase.from("projects").select(cols).eq("client_id", cl.id).order("created_at", { ascending: false });
+        projectList = data || [];
+      }
+    } else {
+      const { data: access } = await supabase.from("project_access").select("project_id").eq("user_id", userId);
+      const ids = [...new Set((access || []).map(a => a.project_id).filter(Boolean))];
+      if (ids.length > 0) {
+        const { data } = await supabase.from("projects").select(cols).in("id", ids).order("created_at", { ascending: false });
+        projectList = data || [];
       }
     }
-    setCaseCounts(counts);
+    setBrands(projectList);
 
-    // Recent activity — entries from this org
-    const { data: recent } = await supabase
-      .from("creative_source")
-      .select("id, brand_name, description, scope, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setRecentEntries(recent || []);
+    // Entry counts per project
+    const counts = {};
+    for (const p of projectList) {
+      const { count } = await supabase.from("creative_source").select("*", { count: "exact", head: true }).eq("project_id", p.id);
+      counts[p.id] = count || 0;
+    }
+    setCaseCounts(counts);
 
     setLoading(false);
   };
@@ -60,22 +62,11 @@ export default function ClientDashboard() {
     else if (!role) { setBrands([]); setLoading(false); }
   }, [role, userId, roleLoading, activeOrg]);
 
-  const enterBrand = async (b) => {
-    // Find project_id from any entry in the same organization
-    const { data: cs } = await supabase
-      .from("creative_source")
-      .select("project_id")
-      .eq("organization_id", b.organization_id)
-      .not("project_id", "is", null)
-      .limit(1)
-      .single();
-    const projId = cs?.project_id || null;
-
-    selectBrand(b.id, b.name, projId);
-    if (projId) {
-      localStorage.setItem("sb-project-id", projId);
-      localStorage.setItem("sb-project-name", b.name);
-    }
+  const enterBrand = async (p) => {
+    // p is a project row. Set it as the active project (brand context falls back to it).
+    selectProject(p.id, p.name);
+    localStorage.setItem("sb-project-id", p.id);
+    localStorage.setItem("sb-project-name", p.name);
     router.push(role === "client" || role === "viewer" ? "/showcase" : "/audit");
   };
 
