@@ -59,6 +59,7 @@ export default function ClientDetailPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", password: "", role: "analyst" });
   const [addingUser, setAddingUser] = useState(false);
+  const [expandedUser, setExpandedUser] = useState(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -89,9 +90,10 @@ export default function ClientDetailPage() {
       setShowcases(showcasesRes.data || []);
 
       (accessRes.data || []).forEach(a => {
-        if (!userMap[a.email]) userMap[a.email] = { email: a.email, user_id: a.user_id, projects: [] };
+        if (!userMap[a.email]) userMap[a.email] = { email: a.email, user_id: a.user_id, projects: [], projectIds: [] };
         const projName = prjs.find(p => p.id === a.project_id)?.name || a.project_id;
         userMap[a.email].projects.push(projName);
+        userMap[a.email].projectIds.push(a.project_id);
       });
     } else {
       setLocalEntries([]); setGlobalEntries([]); setReports([]); setShowcases([]);
@@ -103,7 +105,7 @@ export default function ClientDetailPage() {
       const { data: members } = await supabase.from("organization_members")
         .select("user_id, email, role").eq("organization_id", clientData.organization_id);
       (members || []).forEach(m => {
-        if (!userMap[m.email]) userMap[m.email] = { email: m.email, user_id: m.user_id, projects: [], role: m.role };
+        if (!userMap[m.email]) userMap[m.email] = { email: m.email, user_id: m.user_id, projects: [], projectIds: [], role: m.role };
         else userMap[m.email].role = m.role;
       });
     }
@@ -167,6 +169,16 @@ export default function ClientDetailPage() {
     const legacy = newRole === "org_admin" ? "full_admin" : newRole === "viewer" ? "client" : "analyst";
     await supabase.from("user_roles").update({ role: legacy }).eq("user_id", user.user_id);
     showToast("Role updated");
+    loadData();
+  };
+
+  const toggleUserProject = async (user, projectId) => {
+    const has = (user.projectIds || []).includes(projectId);
+    if (has) {
+      await supabase.from("project_access").delete().eq("user_id", user.user_id).eq("project_id", projectId);
+    } else {
+      await supabase.from("project_access").insert({ user_id: user.user_id, email: user.email, project_id: projectId });
+    }
     loadData();
   };
 
@@ -511,27 +523,54 @@ export default function ClientDetailPage() {
             )}
             {teamUsers.length > 0 ? (
               <div className="space-y-2">
-                {teamUsers.map((u, i) => (
-                  <div key={u.email} className="flex items-center gap-3 py-2 border-b border-main last:border-0">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase flex-shrink-0"
-                      style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-                      {u.email[0]}
+                {teamUsers.map((u, i) => {
+                  const isSuper = (u.role || "analyst") === "org_admin";
+                  return (
+                  <div key={u.email} className="py-2 border-b border-main last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase flex-shrink-0"
+                        style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                        {u.email[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-main truncate">{u.email}</p>
+                        <p className="text-[10px] text-hint truncate">
+                          {isSuper ? "All projects (Superadmin)" : (u.projects.length ? u.projects.join(", ") : "No projects assigned")}
+                        </p>
+                      </div>
+                      <select value={u.role || "analyst"} onChange={(e) => updateClientUserRole(u, e.target.value)}
+                        className="text-[11px] px-2 py-1 bg-surface border border-main rounded-md text-main flex-shrink-0">
+                        <option value="org_admin">Superadmin</option>
+                        <option value="analyst">Analyst</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                      {!isSuper && (
+                        <button onClick={() => setExpandedUser(expandedUser === u.user_id ? null : u.user_id)}
+                          className="text-[11px] px-2 py-1 border border-main rounded-md text-muted hover:text-main flex-shrink-0 whitespace-nowrap">
+                          Projects ({(u.projectIds || []).length})
+                        </button>
+                      )}
+                      <button onClick={() => removeClientUser(u)} className="text-[11px] text-red-400 hover:text-red-600 font-medium flex-shrink-0">Remove</button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-main truncate">{u.email}</p>
-                      <p className="text-[10px] text-hint truncate">
-                        {u.projects.length ? u.projects.join(", ") : "No project access yet"}
-                      </p>
-                    </div>
-                    <select value={u.role || "analyst"} onChange={(e) => updateClientUserRole(u, e.target.value)}
-                      className="text-[11px] px-2 py-1 bg-surface border border-main rounded-md text-main flex-shrink-0">
-                      <option value="org_admin">Superadmin</option>
-                      <option value="analyst">Analyst</option>
-                      <option value="viewer">Viewer</option>
-                    </select>
-                    <button onClick={() => removeClientUser(u)} className="text-[11px] text-red-400 hover:text-red-600 font-medium flex-shrink-0">Remove</button>
+                    {!isSuper && expandedUser === u.user_id && (
+                      <div className="mt-2 ml-11 p-3 border border-main rounded-lg bg-surface2 space-y-1.5">
+                        <p className="text-[10px] text-muted uppercase font-semibold mb-1">Assign projects</p>
+                        {clientProjects.length === 0 ? (
+                          <p className="text-[11px] text-hint">This client has no projects linked yet.</p>
+                        ) : clientProjects.map(p => {
+                          const has = (u.projectIds || []).includes(p.id);
+                          return (
+                            <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input type="checkbox" checked={has} onChange={() => toggleUserProject(u, p.id)} />
+                              <span className={has ? "text-main font-medium" : "text-muted"}>{p.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-hint text-center py-6">No team members with project access.</p>
