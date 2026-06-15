@@ -11,6 +11,7 @@ export default function ClientDashboard() {
   const [brands, setBrands] = useState([]);
   const [caseCounts, setCaseCounts] = useState({});
   const [recentEntries, setRecentEntries] = useState([]);
+  const [clientNames, setClientNames] = useState({});
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { selectBrand, selectProject } = useBrand();
@@ -53,6 +54,17 @@ export default function ClientDashboard() {
     }
     setBrands(projectList);
 
+    // Client names for grouping
+    const cids = [...new Set(projectList.map(p => p.client_id).filter(Boolean))];
+    if (cids.length > 0) {
+      const { data: cls } = await supabase.from("clients").select("id, name").in("id", cids);
+      const map = {};
+      (cls || []).forEach(c => { map[c.id] = c.name; });
+      setClientNames(map);
+    } else {
+      setClientNames({});
+    }
+
     // Entry counts per project
     const counts = {};
     for (const p of projectList) {
@@ -75,6 +87,7 @@ export default function ClientDashboard() {
     selectProject(p.id, p.name);
     localStorage.setItem("sb-project-id", p.id);
     localStorage.setItem("sb-project-name", p.name);
+    localStorage.setItem("sb-client-name", clientNames[p.client_id] || "");
     router.push(role === "client" || role === "viewer" ? "/showcase" : "/audit");
   };
 
@@ -112,21 +125,30 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Brand Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-            {brands.map(b => (
-              <div key={b.id} onClick={() => enterBrand(b)}
-                className="bg-surface border border-main rounded-xl p-5 cursor-pointer hover:border-accent transition group">
-                <h3 className="text-base font-bold text-main group-hover:text-accent transition">{b.display_name || b.name}</h3>
-                <div className="flex items-center gap-3 text-xs text-hint mt-2">
-                  <span>{caseCounts[b.id] || 0} cases</span>
-                  {b.updated_at && <span>· {timeAgo(b.updated_at)}</span>}
+          {/* Projects grouped by client */}
+          {brands.length > 0 ? (
+            <div className="space-y-8 mb-10">
+              {Object.entries(brands.reduce((acc, p) => { const k = p.client_id || "__none__"; (acc[k] = acc[k] || []).push(p); return acc; }, {})).map(([cid, projs]) => (
+                <div key={cid}>
+                  <h2 className="text-xs font-bold text-muted uppercase tracking-wide mb-3">
+                    {cid === "__none__" ? "Unassigned" : (clientNames[cid] || "Client")}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {projs.map(b => (
+                      <div key={b.id} onClick={() => enterBrand(b)}
+                        className="bg-surface border border-main rounded-xl p-5 cursor-pointer hover:border-accent transition group">
+                        <h3 className="text-base font-bold text-main group-hover:text-accent transition">{b.name}</h3>
+                        <div className="flex items-center gap-3 text-xs text-hint mt-2">
+                          <span>{caseCounts[b.id] || 0} cases</span>
+                          {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {brands.length === 0 && (
+              ))}
+            </div>
+          ) : (
             <div className="text-center py-20 text-hint">
               <p className="text-lg mb-2">No projects yet</p>
               <p className="text-sm">{isAdmin ? "Add your first project to get started" : "No projects have been assigned to you yet"}</p>

@@ -38,7 +38,7 @@ export default function LoginPage() {
     // reload so every provider re-reads the new session (fixes stale identity
     // where a freshly-logged-in user still saw the previous user's email).
     try {
-      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "groundwork_profile"]
+      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "sb-client-name", "groundwork_profile"]
         .forEach(k => localStorage.removeItem(k));
     } catch {}
     window.location.href = "/projects";

@@ -24,6 +24,7 @@ export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [clientCtx, setClientCtx] = useState("");
   const menuRef = useRef(null);
   const addRef = useRef(null);
 
@@ -31,6 +32,11 @@ export default function Nav() {
     const saved = localStorage.getItem("sb-dark");
     if (saved === "true") { setDark(true); document.documentElement.classList.add("dark"); }
   }, []);
+
+  // Current client (set when entering a project) — shown in the project-level bar
+  useEffect(() => {
+    try { setClientCtx(localStorage.getItem("sb-client-name") || ""); } catch {}
+  }, [pathname]);
 
   useEffect(() => {
     if (!menuOpen && !addMenuOpen) return;
@@ -54,7 +60,7 @@ export default function Nav() {
     // Clear cached brand/project/org and full-reload so providers reset (no
     // identity bleed into the next user that logs in on this browser).
     try {
-      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "groundwork_profile"]
+      ["gw-active-brand", "gw-active-brand-name", "gw-active-org", "sb-project-id", "sb-project-name", "sb-client-name", "groundwork_profile"]
         .forEach(k => localStorage.removeItem(k));
     } catch {}
     window.location.href = "/login";
@@ -65,7 +71,9 @@ export default function Nav() {
   // Simple bar (no tabs / no action icons): Home + account pages + admin.
   // Full bar (tabs + icons): only inside a project.
   const simpleBar = ["/dashboard", "/client-profile", "/profile"].includes(pathname) || pathname.startsWith("/admin");
-  const clientLabel = pathname.startsWith("/admin") ? "Platform Admin" : (brandName || projectName || activeOrg?.name || "");
+  const clientLabel = pathname.startsWith("/admin")
+    ? "Platform Admin"
+    : (!simpleBar ? (clientCtx || activeOrg?.name || projectName || brandName) : activeOrg?.name) || "";
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
   return (<>
