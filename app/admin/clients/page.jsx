@@ -122,15 +122,24 @@ export default function ClientsPage() {
       status: form.status === "active" ? "active" : "active",
     }).select().single();
 
+    if (orgError) {
+      showToast("Error: " + orgError.message);
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase.from("clients").insert({
       ...form,
       slug,
+      // Empty date strings ("") fail on Postgres `date` columns — coerce to null
+      contract_start: form.contract_start || null,
+      contract_end: form.contract_end || null,
       monthly_value: form.monthly_value ? Number(form.monthly_value) : null,
       created_by: session?.user?.id || null,
       organization_id: orgData?.id || null,
     });
-    if (error || orgError) {
-      showToast("Error: " + (error?.message || orgError?.message));
+    if (error) {
+      showToast("Error: " + error.message);
     } else {
       showToast("Client added");
       setForm({ name: "", primary_contact_name: "", primary_contact_email: "", website: "", industry: "", country: "", company_size: "", status: "lead", tier: "standard", contract_start: "", contract_end: "", monthly_value: "", notes: "" });
