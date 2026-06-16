@@ -1,4 +1,23 @@
 import { fetchTranscriptFor } from "@/lib/transcript-provider";
+import { createClient } from "@supabase/supabase-js";
+
+// IG CDN image URLs are hotlink-restricted/expiring, so re-host the thumbnail in our
+// own storage ("media" bucket) and return that stable URL.
+async function rehost(imgUrl) {
+  try {
+    const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!sUrl || !sKey || !imgUrl) return imgUrl;
+    const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
+    const r = await fetch(imgUrl);
+    if (!r.ok) return imgUrl;
+    const buf = Buffer.from(await r.arrayBuffer());
+    const path = `ig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+    const { error } = await admin.storage.from("media").upload(path, buf, { contentType: "image/jpeg", upsert: false });
+    if (error) return imgUrl;
+    const { data } = admin.storage.from("media").getPublicUrl(path);
+    return data?.publicUrl || imgUrl;
+  } catch { return imgUrl; }
+}
 
 // Fetch a single Instagram post/reel via the Apify Instagram Scraper, and (for reels)
 // its transcript via Supadata. Returns normalized fields for the audit autofill.
@@ -23,11 +42,12 @@ export async function POST(request) {
     if (!item) return Response.json({ error: "No data found for that URL" }, { status: 404 });
 
     const isReel = item.type === "Video" || item.productType === "clips" || !!item.videoUrl;
+    const rawThumb = item.displayUrl || (item.images && item.images[0]) || "";
     const result = {
       platform: "instagram",
       kind: isReel ? "reel" : "post",
       caption: item.caption || "",
-      thumbnail: item.displayUrl || (item.images && item.images[0]) || "",
+      thumbnail: await rehost(rawThumb),
       videoUrl: item.videoUrl || "",
       owner: item.ownerUsername || item.ownerFullName || "",
       likes: item.likesCount ?? null,
