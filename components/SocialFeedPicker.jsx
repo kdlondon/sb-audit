@@ -123,6 +123,18 @@ export default function SocialFeedPicker({
             brand_id: null,
             organization_id: null,
             updated_at: new Date().toISOString(),
+            // Namespaced under "_" keys so the framework's dynamic-dimension renderer skips them.
+            custom_dimensions: {
+              _social: { format: p.kind || "" },
+              _meta: {
+                platform,
+                likes: p.likes ?? null,
+                comments: p.comments ?? null,
+                views: p.views ?? null,
+                posted_at: p.timestamp || "",
+                hashtags: p.hashtags || [],
+              },
+            },
           };
           if (scope === "global") entry.brand = owner; else entry.competitor = owner;
           const { error } = await supabase.from("creative_source").insert(entry);
