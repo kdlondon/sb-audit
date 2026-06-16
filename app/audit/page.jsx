@@ -436,10 +436,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       setCur({...entry});
       if(entry.scope) setFormScope(entry.scope);
       if(entry.url&&/youtube|youtu\.be/i.test(entry.url))setMaterialType("video");
+      else if(entry.url&&/(instagram\.com|tiktok\.com)/i.test(entry.url))setMaterialType("social");
       else if(entry.url&&/\.(mp4|mov|webm)(\?|$)/i.test(entry.url))setMaterialType("videoFile");
       else if(entry.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(entry.url))setMaterialType("document");
-      else if(entry.url)setMaterialType("web");
       else if(entry.image_url)setMaterialType("image");
+      else if(entry.url)setMaterialType("web");
       else setMaterialType("none");
     }
   },[editParam,data]);
@@ -1848,7 +1849,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">{ytLoading&&!cur.transcript?<span className="text-accent animate-pulse">Bringing the transcript…</span>:"Paste from YouTube or type what you see"}</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder={ytLoading&&!cur.transcript?"Bringing the transcript…":"Paste the video transcript, ad copy, or any text content here..."} className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
-                {materialType==="social"&&(()=>{
+                {(materialType==="social"||cur.type==="Social post")&&(()=>{
                   const social=cur.custom_dimensions?._social||{};
                   const meta=cur.custom_dimensions?._meta||{};
                   const setSocial=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_social:{...((prev.custom_dimensions||{})._social||{}),[k]:v}}}));

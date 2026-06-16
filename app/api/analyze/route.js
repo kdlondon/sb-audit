@@ -65,8 +65,8 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
 // so the taxonomy stays consistent instead of inventing a new label per post.
 function socialFieldsBlock(pillars) {
   const pillarRule = (pillars && pillars.length)
-    ? `Choose EXACTLY one from this EXISTING project pillar list when any reasonably fits: ${pillars.join(" | ")}. Reuse an existing pillar even if the wording isn't perfect. ONLY if none genuinely fits, propose a new concise pillar (1-3 words, Title Case).`
-    : `Propose a concise content pillar (1-3 words, Title Case).`;
+    ? `Suggest the content territory/pillar this post belongs to. For consistency, PREFER one of these already seen in the project when it reasonably fits: ${pillars.join(" | ")}. If none fits, suggest a new concise one (1-3 words, Title Case). This is a first-pass signal, not a forced taxonomy — final grouping happens at report time.`
+    : `Suggest a concise content pillar (1-3 words, Title Case).`;
   return `,
   "content_pillar": "The content territory/pillar this post belongs to. ${pillarRule}",
   "post_objective": "MUST be one of: Awareness | Engagement | Conversión | Comunidad",
