@@ -256,6 +256,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const {brandId,brand}=require("@/lib/brand-context").useBrand()||{};
   const {activeOrg,userEmail}=require("@/lib/role-context").useRole()||{};
   const orgId=activeOrg?.id;
+  // brand_id is a UUID column; in the project-centric flow brandId is the project-id
+  // string ("proj_..."), not a valid uuid. Null it out so creative_source saves work.
+  const safeBrandId=brandId&&!String(brandId).startsWith("proj_")?brandId:null;
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
@@ -614,7 +617,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       description:colData.description||null,
       objective:colData.objective||null,
       is_private:colData.is_private||false,
-      brand_id:brandId,
+      brand_id:safeBrandId,
       organization_id:orgId||null,
       created_by:userEmail||"",
     }).select().single();
@@ -1034,7 +1037,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       const userMsg=`USER INSTRUCTIONS:\n${reportInstructions.trim()}\n\nCASE DATA:\n${JSON.stringify(entriesData,null,2)}`;
 
       const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        use_opus:true,max_tokens:12000,system,brand_id:brandId,
+        use_opus:true,max_tokens:12000,system,brand_id:safeBrandId,
         messages:[{role:"user",content:userMsg}],
       })});
       const result=await res.json();
@@ -1056,7 +1059,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         content,
         created_by:session?.user?.email||"",
         project_id:projectId,
-        brand_id:brandId,
+        brand_id:safeBrandId,
       });
 
       setShowReportModal(false);
@@ -1078,7 +1081,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       let summary="";
       try{
         const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-          skip_framework:true,max_tokens:800,brand_id:brandId,
+          skip_framework:true,max_tokens:800,brand_id:safeBrandId,
           messages:[{role:"user",content:`Write a brief competitive intelligence summary (2-3 paragraphs) for a strategy audience. Cover: what this piece is, what insight/territory it exploits, and why it's relevant for competitive analysis.\n\nBrand: ${entry.brand_name||entry.competitor||""}\nTitle: ${entry.description||""}\nCategory: ${entry.category||""}\nYear: ${entry.year||""}\nType: ${entry.type||""}\nIntent: ${entry.communication_intent||""}\nSynopsis: ${entry.synopsis||""}\nInsight: ${entry.insight||""}\nIdea: ${entry.idea||""}\nTerritory: ${entry.primary_territory||""}\nExecution: ${entry.execution_style||""}\nAnalyst Notes: ${entry.analyst_comment||""}`}]
         })});
         const d=await res.json();
@@ -1294,7 +1297,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         setAnalyzing(true);
         try{
           const context=`Document: ${fileName}`;
-          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context,project_id:projectId,brand_id:brandId})});
+          const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({documentBase64:docBase64,documentMediaType:docMediaType,context,project_id:projectId,brand_id:safeBrandId})});
           if(res.ok){
             const result=await res.json();
             if(result.success&&result.analysis){
@@ -1499,7 +1502,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           extraImageBase64:extraBase64,
           context:context.join("\n"),
           project_id:projectId,
-          brand_id:brandId
+          brand_id:safeBrandId
         })
       });
       if(!res.ok){

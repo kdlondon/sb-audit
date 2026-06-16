@@ -616,6 +616,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
    ═══════════════════════════════════════════════════════════════ */
 function LandscapeTab({ brandId, orgId }) {
   const supabase = createClient();
+  const { projectId } = useProject() || {};
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
@@ -669,8 +670,15 @@ function LandscapeTab({ brandId, orgId }) {
       .eq("own_brand_id", brandId);
 
     if (!comps || comps.length === 0) {
-      setLocalComps([]);
-      setGlobalRefs([]);
+      // Project-centric projects store competitors in project_frameworks (not brand_competitors).
+      if (projectId) {
+        const { data: pf } = await supabase.from("project_frameworks").select("local_competitors, global_benchmarks").eq("project_id", projectId).single();
+        setLocalComps((pf?.local_competitors || []).map((c, i) => ({ competitor_brand_id: `pf_l_${i}`, fromFramework: true, brand: { id: `pf_l_${i}`, name: c.name, scope: "local", proximity: c.type || "direct" }, entryCount: 0 })));
+        setGlobalRefs((pf?.global_benchmarks || []).map((g, i) => ({ competitor_brand_id: `pf_g_${i}`, fromFramework: true, brand: { id: `pf_g_${i}`, name: g.name, scope: "global", country: g.country || "" }, entryCount: 0 })));
+      } else {
+        setLocalComps([]);
+        setGlobalRefs([]);
+      }
       setLoading(false);
       return;
     }
@@ -697,7 +705,7 @@ function LandscapeTab({ brandId, orgId }) {
     setLocalComps(merged.filter((c) => c.brand.scope === "local"));
     setGlobalRefs(merged.filter((c) => c.brand.scope === "global"));
     setLoading(false);
-  }, [brandId]);
+  }, [brandId, projectId]);
 
   useEffect(() => {
     loadCompetitors();
@@ -1504,20 +1512,22 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
     return "Text";
   };
 
-  // Save custom dimensions to brand_frameworks
+  // Save custom dimensions. Project-centric projects store them in
+  // project_frameworks.dimensions (what framework-context loads); legacy brand-based
+  // projects use brand_frameworks.custom_dimensions.
   const saveCustomDims = async (updatedDims) => {
     setSaving(true);
-    const fwId = framework?.id;
-    if (fwId) {
-      // Update existing brand_framework
-      await supabase.from("brand_frameworks").update({ custom_dimensions: updatedDims }).eq("id", fwId);
-    } else if (brandId) {
-      // Try project_frameworks fallback
-      await supabase.from("project_frameworks").update({ dimensions: updatedDims }).eq("project_id", projectId);
+    let error = null;
+    if (projectId) {
+      const { error: e } = await supabase.from("project_frameworks").update({ dimensions: updatedDims }).eq("project_id", projectId);
+      error = e;
+    } else if (framework?.id) {
+      const { error: e } = await supabase.from("brand_frameworks").update({ custom_dimensions: updatedDims }).eq("id", framework.id);
+      error = e;
     }
     refreshFramework?.();
     setSaving(false);
-    showToast("Framework saved");
+    showToast(error ? ("Error: " + error.message) : "Framework saved");
     setEditingDim(null);
     setNewDim(null);
   };
