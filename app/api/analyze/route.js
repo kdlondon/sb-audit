@@ -164,7 +164,9 @@ export async function POST(request) {
       }
     }
 
-    messageContent.push({ type: "text", text: prompt });
+    // Strip lone/stray surrogate code units (e.g. emoji halves left by client-side
+    // slicing of captions) — they make the outgoing JSON invalid and Anthropic 400s.
+    messageContent.push({ type: "text", text: prompt.replace(/[\uD800-\uDFFF]/g, "") });
 
     const messages = [{ role: "user", content: messageContent }];
 

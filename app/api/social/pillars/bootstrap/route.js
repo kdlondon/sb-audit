@@ -23,8 +23,9 @@ export async function POST(request) {
     .limit(sample);
   if (!rows || rows.length === 0) return Response.json({ error: "No social posts found for this project" }, { status: 404 });
 
+  const clean = (s) => String(s || "").replace(/[\uD800-\uDFFF]/g, "").replace(/\s+/g, " ").trim();
   const corpus = rows
-    .map((r) => `- [${r.brand_name || r.competitor || r.brand || "?"}] ${(r.synopsis || r.description || "").replace(/\s+/g, " ").slice(0, 200)}`)
+    .map((r) => `- [${clean(r.brand_name || r.competitor || r.brand || "?")}] ${clean(r.synopsis || r.description).slice(0, 200)}`)
     .join("\n")
     .slice(0, 12000);
 
