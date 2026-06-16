@@ -22,10 +22,11 @@ const COUNTRIES = [
 
 export { COUNTRIES };
 
-export default function CountryInput({ value, onChange, placeholder }) {
+export default function CountryInput({ value, onChange, placeholder, options, dropUp, className }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const LIST = options || COUNTRIES;
 
   useEffect(() => { setQuery(value || ""); }, [value]);
 
@@ -36,7 +37,7 @@ export default function CountryInput({ value, onChange, placeholder }) {
   }, []);
 
   const filtered = query.length > 0
-    ? COUNTRIES.filter(c => c.toLowerCase().startsWith(query.toLowerCase())).slice(0, 8)
+    ? LIST.filter(c => c.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     : [];
 
   return (
@@ -46,10 +47,10 @@ export default function CountryInput({ value, onChange, placeholder }) {
         onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => { if (query.length > 0) setOpen(true); }}
         placeholder={placeholder || "Type to search..."}
-        className="w-full px-2.5 py-1.5 bg-surface border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent"
+        className={className || "w-full px-2.5 py-1.5 bg-surface border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent"}
       />
       {open && filtered.length > 0 && (
-        <div className="absolute left-0 right-0 bg-surface border border-main rounded-lg shadow-lg overflow-hidden" style={{ top: "100%", marginTop: 2, zIndex: 9999, maxHeight: 200, overflowY: "auto" }}>
+        <div className="absolute left-0 right-0 bg-surface border border-main rounded-lg shadow-lg overflow-hidden" style={{ [dropUp ? "bottom" : "top"]: "100%", [dropUp ? "marginBottom" : "marginTop"]: 2, zIndex: 9999, maxHeight: 200, overflowY: "auto" }}>
           {filtered.map(c => (
             <button key={c} type="button" onMouseDown={() => { setQuery(c); onChange(c); setOpen(false); }}
               className="w-full text-left px-3 py-1.5 text-xs text-main hover:bg-accent-soft transition">

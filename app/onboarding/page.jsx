@@ -12,6 +12,7 @@ const OBJECTIVES = [
   "Creative inspiration & benchmarking", "Innovation scan", "Brand consistency audit",
   "Category landscape map", "Tone & territory analysis",
 ];
+const CATEGORIES = ["Banking & Financial Services", "Insurance", "Fintech", "Retail", "E-commerce", "Telecommunications", "Technology", "Software / SaaS", "Automotive", "Food & Beverage", "Consumer Goods (CPG)", "Healthcare", "Pharmaceuticals", "Travel & Hospitality", "Airlines", "Energy & Utilities", "Real Estate", "Education", "Media & Entertainment", "Fashion & Apparel", "Beauty & Cosmetics", "Sports", "Government / Public Sector", "Non-profit", "Other"];
 const SUGGEST_MODEL = "claude-sonnet-4-6";
 const DEFAULT_INTENTS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"];
 const DEFAULT_DIMS = ["archetype", "tone", "execution", "funnel", "rating"];
@@ -62,6 +63,8 @@ function OnboardingContent() {
 
   const addAI = (text) => setMsgs(m => [...m, { role: "ai", text }]);
   const addUser = (text) => setMsgs(m => [...m, { role: "user", text }]);
+  // Show a brief "typing" indicator before the assistant's next message.
+  const askAI = async (text) => { setBusy(true); await new Promise(r => setTimeout(r, 650)); setBusy(false); addAI(text); };
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgs, phase, busy]);
 
@@ -112,14 +115,15 @@ function OnboardingContent() {
     const results = [];
     await Promise.all(all.map(async (brand) => {
       try {
-        const sr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "search", query: `${brand.name} ad commercial`, maxResults: 30, finalLimit: 8, publishedAfter: cutoff, contentType: "official", minDuration: 30, maxDuration: 90 }) });
+        const sr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "search", query: `${brand.name} ad commercial`, maxResults: 30, finalLimit: 8, publishedAfter: cutoff, contentType: "official", minSeconds: 30, maxSeconds: 90 }) });
         const sd = await sr.json();
-        let vids = (sd.videos || []);
+        // Backstop the duration filter (30–90s) in case the API returns longer pieces
+        let vids = (sd.videos || []).filter(v => !v.durationSeconds || (v.durationSeconds >= 30 && v.durationSeconds <= 90));
         if (vids.length) {
           try {
-            const rr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rank", brand: brand.name, keywords: brand.name, market: bp.market, videos: vids }) });
+            const rr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rank", brand: brand.name, keywords: brand.name, market: bp.market, videos: vids, model: "claude-opus-4-8" }) });
             const rd = await rr.json();
-            if (Array.isArray(rd.videos) && rd.videos.length) vids = rd.videos;
+            if (Array.isArray(rd.videos) && rd.videos.length) vids = rd.videos.filter(v => !v.durationSeconds || (v.durationSeconds >= 30 && v.durationSeconds <= 90));
           } catch {}
         }
         const best = vids[0];
@@ -201,9 +205,9 @@ function OnboardingContent() {
   const submitClient = () => {
     if (clientMode === "existing") { const c = clients.find(x => x.id === clientId); if (!c) return; setClientName(c.name); addUser(c.name); }
     else { if (!clientName.trim()) return; addUser(`${clientName.trim()} (new client)`); }
-    setPhase("brand"); addAI("Got it. What's the focus brand we'll be auditing?");
+    setPhase("brand"); askAI("Got it. What's the focus brand we'll be auditing?");
   };
-  const submitText = (val, next, q) => { if (!val.trim()) return; addUser(val.trim()); setInput(""); setPhase(next); if (q) addAI(q); };
+  const submitText = (val, next, q) => { if (!val.trim()) return; addUser(val.trim()); setInput(""); setPhase(next); if (q) askAI(q); };
 
   const toggleObj = (o) => setObjectives(p => p.includes(o) ? p.filter(x => x !== o) : [...p, o]);
   const toggleLocal = (i) => setLocalComps(p => p.map((c, j) => j === i ? { ...c, selected: !c.selected } : c));
@@ -298,24 +302,31 @@ function OnboardingContent() {
           {phase === "brand" && <TextSend value={input} setValue={setInput} placeholder="Focus brand (e.g. Scotiabank)" onSend={() => { setBp(b => ({ ...b, name: input.trim() })); submitText(input, "market", "Which is the primary market?"); }} />}
           {phase === "market" && (
             <>
-              <div className="flex-1"><CountryInput value={bp.market} onChange={v => setBp(b => ({ ...b, market: v }))} placeholder="Primary market" /></div>
-              <button onClick={() => { if (!bp.market.trim()) return; addUser(bp.market); setPhase("category"); addAI("What category or industry are they in?"); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
+              <div className="flex-1"><CountryInput value={bp.market} onChange={v => setBp(b => ({ ...b, market: v }))} placeholder="Primary market" dropUp className={inputCls} /></div>
+              <button onClick={() => { if (!bp.market.trim()) return; addUser(bp.market); setPhase("category"); askAI("What category or industry are they in?"); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
             </>
           )}
-          {phase === "category" && <TextSend value={input} setValue={setInput} placeholder="Category / industry" onSend={() => { setBp(b => ({ ...b, category: input.trim() })); submitText(input, "objectives", "What are the objectives of this study? (pick any)"); }} />}
-          {phase === "objectives" && <button onClick={() => { addUser(objectives.length ? objectives.join(", ") : "Skip"); setPhase("vp"); addAI("Now the part only you know — what's the value proposition / positioning?"); }} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Continue</button>}
+          {phase === "category" && (
+            <>
+              <div className="flex-1"><CountryInput value={bp.category} onChange={v => setBp(b => ({ ...b, category: v }))} options={CATEGORIES} dropUp className={inputCls} placeholder="Category / industry" /></div>
+              <button onClick={() => { if (!bp.category.trim()) return; addUser(bp.category); setPhase("objectives"); askAI("What are the objectives of this study? (pick any)"); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
+            </>
+          )}
+          {phase === "objectives" && <button onClick={() => { addUser(objectives.length ? objectives.join(", ") : "Skip"); setPhase("vp"); askAI("Now the part only you know — what's the value proposition / positioning?"); }} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Continue</button>}
           {phase === "vp" && <TextSend value={input} setValue={setInput} placeholder="Value proposition / positioning" onSend={() => { setProfile(p => ({ ...p, positioning: input.trim() })); submitText(input, "diff", "And the key differentiator?"); }} />}
           {phase === "diff" && <TextSend value={input} setValue={setInput} placeholder="Key differentiator" onSend={() => { setProfile(p => ({ ...p, differentiator: input.trim() })); submitText(input, "audience", "Briefly, who's the target audience?"); }} />}
           {phase === "audience" && <TextSend value={input} setValue={setInput} placeholder="Audience summary" onSend={() => { setProfile(p => ({ ...p, audience: input.trim() })); addUser(input.trim()); setInput(""); setPhase("local"); fetchLocal(); }} />}
           {phase === "local" && (
             <>
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} placeholder="Add a competitor + Enter" className={inputCls} />
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} placeholder="Add a competitor" className={inputCls} />
+              <button onClick={() => { if (input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} className="px-3 py-2.5 border border-main rounded-xl text-xs text-muted">Add</button>
               <button onClick={() => { addUser(`${localComps.filter(c => c.selected).length} local competitors`); setPhase("global"); fetchGlobal(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
             </>
           )}
           {phase === "global" && (
             <>
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} placeholder="Add a reference + Enter" className={inputCls} />
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} placeholder="Add a reference" className={inputCls} />
+              <button onClick={() => { if (input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} className="px-3 py-2.5 border border-main rounded-xl text-xs text-muted">Add</button>
               <button onClick={() => { addUser(`${globalRefs.filter(g => g.selected).length} global references`); runScout(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
             </>
           )}
