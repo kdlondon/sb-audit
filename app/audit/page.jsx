@@ -1136,7 +1136,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
       // Custom dimensions
       const customEntries=entry.custom_dimensions&&Object.keys(entry.custom_dimensions).length>0
-        ?Object.entries(entry.custom_dimensions).filter(([,v])=>v&&String(v).trim()):[];
+        ?Object.entries(entry.custom_dimensions).filter(([k,v])=>!k.startsWith("_")&&v&&String(v).trim()):[];
 
       // Images — collect all available
       const images=[];
@@ -1557,6 +1557,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           Object.entries(result.analysis).forEach(([k,v])=>{
             if(v && v !== "undefined" && v !== "null") u[k]=v;
           });
+          u.custom_dimensions={...(u.custom_dimensions||{}),_ai_analyzed_at:new Date().toISOString()};
           return u;
         });
         highlightFields(Object.keys(result.analysis).filter(k=>result.analysis[k]));
@@ -1831,6 +1832,27 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">{ytLoading&&!cur.transcript?<span className="text-accent animate-pulse">Bringing the transcript…</span>:"Paste from YouTube or type what you see"}</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder={ytLoading&&!cur.transcript?"Bringing the transcript…":"Paste the video transcript, ad copy, or any text content here..."} className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
+                {materialType==="social"&&(()=>{
+                  const social=cur.custom_dimensions?._social||{};
+                  const meta=cur.custom_dimensions?._meta||{};
+                  const setSocial=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_social:{...((prev.custom_dimensions||{})._social||{}),[k]:v}}}));
+                  return(<div className="border border-main rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-semibold text-muted">Social content</span>
+                      {meta.platform&&<span className="text-[9px] text-hint">{meta.platform}{meta.likes!=null?` · ❤ ${meta.likes.toLocaleString()}`:""}{meta.comments!=null?` · 💬 ${meta.comments.toLocaleString()}`:""}{meta.views!=null?` · ▶ ${meta.views.toLocaleString()}`:""}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Formato</label>
+                        <select value={social.format||""} onChange={e=>setSocial("format",e.target.value)} className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main"><option value="">—</option>{["reel","carousel","static","story","video","slideshow"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                      <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Objetivo</label>
+                        <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main"><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                    </div>
+                    <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Content pillar</label>
+                      <input value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
+                    <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Códigos visuales</label>
+                      <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Estilo visual recurrente, paleta, recursos…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
+                  </div>);
+                })()}
                 {(cur.image_url||cur.transcript||cur.analyst_comment)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
               </div>
             </div>
@@ -2688,7 +2710,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 };
                 return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#0019FF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2 py-2.5">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}</td>
+                  <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold text-white" style={{background:"linear-gradient(90deg,#7c3aed,#2563eb)"}}>✦</span>}</span></td>
                   <IC field="category" className=""><Tag v={e.category}/></IC>
                   <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
