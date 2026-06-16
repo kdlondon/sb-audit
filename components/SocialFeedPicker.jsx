@@ -2,9 +2,17 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
 
-const proxied = (u) => (u ? `/api/instagram/thumb?u=${encodeURIComponent(u)}` : "");
+const proxied = (u) => (u ? `/api/social/thumb?u=${encodeURIComponent(u)}` : "");
 
-const KIND_BADGE = { reel: "🎬 Reel", carousel: "🖼 Carrusel", post: "🖼 Post" };
+const KIND_BADGE = {
+  reel: "🎬 Reel", carousel: "🖼 Carrusel", post: "🖼 Post",
+  video: "🎬 Vídeo", slideshow: "🖼 Slideshow",
+};
+
+const PLATFORM_META = {
+  instagram: { label: "Instagram", placeholder: "@competidor.oficial  o  instagram.com/competidor" },
+  tiktok: { label: "TikTok", placeholder: "@competidor  o  tiktok.com/@competidor" },
+};
 
 function timeAgo(ts) {
   if (!ts) return "";
@@ -18,9 +26,11 @@ function timeAgo(ts) {
   return `hace ${Math.floor(days / 365)} a`;
 }
 
-// Browse a competitor's Instagram feed and bulk-import selected posts as audit entries.
-// Shared by Audit (Social tab) and Scout. project-scoped, framework-aware defaults.
-export default function InstagramFeedPicker({
+// Browse a competitor's social feed (Instagram / TikTok) and bulk-import selected
+// pieces as audit entries. Shared by Audit (Social tab) and Scout. Project-scoped,
+// framework-aware defaults.
+export default function SocialFeedPicker({
+  platforms = ["instagram", "tiktok"],
   projectId,
   scope = "local",
   defaultCountry = "",
@@ -28,6 +38,7 @@ export default function InstagramFeedPicker({
   defaultSubCategory = "",
   onImported,
 }) {
+  const [platform, setPlatform] = useState(platforms[0]);
   const [handle, setHandle] = useState("");
   const [limit, setLimit] = useState(12);
   const [posts, setPosts] = useState([]);
@@ -38,13 +49,16 @@ export default function InstagramFeedPicker({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
 
+  const reset = () => { setPosts([]); setSelected(new Set()); setError(""); setFilterKind("all"); };
+  const switchPlatform = (p) => { if (p === platform) return; setPlatform(p); setHandle(""); reset(); };
+
   const fetchFeed = async () => {
     if (!handle.trim() || loading) return;
-    setLoading(true); setError(""); setPosts([]); setSelected(new Set());
+    setLoading(true); reset();
     try {
-      const res = await fetch("/api/instagram/feed", {
+      const res = await fetch("/api/social/feed", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle, limit }),
+        body: JSON.stringify({ platform, handle, limit }),
       });
       const d = await res.json();
       if (d.error) setError(d.error);
@@ -57,6 +71,7 @@ export default function InstagramFeedPicker({
     const n = new Set(prev); n.has(url) ? n.delete(url) : n.add(url); return n;
   });
 
+  const kinds = [...new Set(posts.map((p) => p.kind))];
   const visible = posts.filter((p) => filterKind === "all" || p.kind === filterKind);
   const allSelected = visible.length > 0 && visible.every((p) => selected.has(p.url));
   const toggleAll = () => setSelected((prev) => {
@@ -82,7 +97,7 @@ export default function InstagramFeedPicker({
         const my = idx++;
         const p = chosen[my];
         try {
-          const res = await fetch("/api/instagram/import", {
+          const res = await fetch("/api/social/import", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url: p.url, thumbnail: p.thumbnail, kind: p.kind }),
           });
@@ -124,15 +139,27 @@ export default function InstagramFeedPicker({
 
   return (
     <div className="space-y-3">
+      {/* Platform tabs */}
+      {platforms.length > 1 && (
+        <div className="flex bg-surface2 rounded-lg p-0.5 w-fit">
+          {platforms.map((p) => (
+            <button key={p} onClick={() => switchPlatform(p)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition ${platform === p ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
+              {PLATFORM_META[p]?.label || p}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Handle input */}
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Perfil de Instagram</label>
+          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Perfil de {PLATFORM_META[platform]?.label || platform}</label>
           <input
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && fetchFeed()}
-            placeholder="@competidor.oficial  o  instagram.com/competidor"
+            placeholder={PLATFORM_META[platform]?.placeholder || "@perfil"}
             className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main"
           />
         </div>
@@ -153,11 +180,13 @@ export default function InstagramFeedPicker({
         <>
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex gap-1">
-              {["all", "reel", "carousel", "post"].map((k) => (
+            <div className="flex gap-1 flex-wrap">
+              <button onClick={() => setFilterKind("all")}
+                className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === "all" ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>Todos</button>
+              {kinds.map((k) => (
                 <button key={k} onClick={() => setFilterKind(k)}
                   className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === k ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>
-                  {k === "all" ? "Todos" : KIND_BADGE[k]}
+                  {KIND_BADGE[k] || k}
                 </button>
               ))}
             </div>

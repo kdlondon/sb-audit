@@ -8,7 +8,7 @@ import { useFramework } from "@/lib/framework-context";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
-import InstagramFeedPicker from "@/components/InstagramFeedPicker";
+import SocialFeedPicker from "@/components/SocialFeedPicker";
 import { useProject } from "@/lib/project-context";
 import dynamic from "next/dynamic";
 const ImageCropper = dynamic(() => import("@/components/ImageCropper"), { ssr: false });
@@ -1677,9 +1677,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         <div className="flex" style={{height:"calc(100vh - 52px)"}}>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="bg-surface border-b border-main px-4 py-3 flex-shrink-0">
-              {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social (IG)"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
+              {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
               ):(<div className="space-y-2">
-                <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["social","Social (IG)"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
+                <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
                 {materialType==="video"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube / Vimeo)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
                 {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
                 {materialType==="web"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
@@ -1691,7 +1691,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>
                   {socialMode==="single"
                     ? <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Instagram post / reel URL</label><input value={cur.url||""} onChange={e=>setSocialUrl(e.target.value)} placeholder="https://www.instagram.com/p/... or /reel/..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
-                    : <InstagramFeedPicker
+                    : <SocialFeedPicker
+                        platforms={["instagram","tiktok"]}
                         projectId={projectId}
                         scope={formScope}
                         defaultCountry={framework?.primaryMarket||""}
