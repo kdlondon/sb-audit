@@ -2650,7 +2650,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {viewMode==="entries"&&<>
         {/* Bar 3 — Filter + sort + view + export */}
-        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) + 44px)",paddingTop:"8px",marginTop:"calc(var(--nav-h) + 10px)"}}>
+        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)"}}>
           <div className="flex gap-2 flex-wrap items-center">
             <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
             {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
@@ -2676,7 +2676,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           <div className="px-5 pb-5 overflow-x-auto">
             <table className="w-full border-collapse text-xs mt-1">
               <thead><tr className="border-b-2 border-main">
-                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold sticky z-[28] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{top:"calc(var(--nav-h) + 80px)",boxShadow:"inset 0 -2px 0 var(--border)"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):" ↕"}</span>}</th>))}<th className="sticky z-[28] bg-surface" style={{top:"calc(var(--nav-h) + 80px)",boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
+                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th></th>
               </tr></thead>
               <tbody>{fd.map(e=>{
                 const IC=({field,children,className=""})=>{

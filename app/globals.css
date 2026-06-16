@@ -117,9 +117,10 @@ a, button, input, select, textarea {
   -webkit-transform: translateZ(0);
 }
 
-/* Content after section-bar needs offset + breathing room */
+/* Content after section-bar needs offset to clear the fixed nav + section-bar,
+   plus a small breathing gap. */
 .section-bar + * {
-  padding-top: calc(var(--nav-h) + 50px);
+  padding-top: calc(var(--nav-h) + 12px);
 }
 
 /* Force GPU layer for all sticky elements */
