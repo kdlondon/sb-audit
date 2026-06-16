@@ -381,6 +381,22 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     })();
   },[load]);
 
+  // Project-centric brand dropdowns: source competitors from the project framework
+  // (project_frameworks.local_competitors / global_benchmarks). The brand_competitors
+  // path above only works for legacy brand-centric projects (real brand uuid); here
+  // brandId is a "proj_..." string. Framework objects carry no real brand uuid, so we
+  // tag them fromFramework + synthetic id and the selector skips the brands lookup.
+  useEffect(()=>{
+    if(!framework)return;
+    const market=framework.primaryMarket||"";
+    const cat=framework.industry||"";
+    const sub=framework.subCategory||"";
+    const locals=(framework.localCompetitors||[]).map((c,i)=>({id:`fw_l_${i}`,name:c.name,country:market,category:cat,sub_category:sub,fromFramework:true}));
+    const globals=(framework.globalBenchmarks||[]).map((g,i)=>({id:`fw_g_${i}`,name:g.name,country:g.country||"",category:cat,sub_category:sub,fromFramework:true}));
+    if(locals.length)setLocalCompetitors(locals);
+    if(globals.length)setGlobalBrands(globals);
+  },[framework]);
+
   // Sync sidebar from URL entryParam (browser back/forward)
   useEffect(()=>{
     if(!entryParam){return;}
@@ -393,17 +409,20 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   useEffect(()=>{
     if(!editParam)return;
     if(editParam==="new"){
-      // Pre-fill defaults from active brand
+      // Pre-fill defaults from the project framework (project-centric). brandId is a
+      // "proj_..." string here, not a brand uuid, so we can't query the brands table —
+      // the framework already carries the project's primary market + category.
       (async()=>{
         const defaults = { scope: formScope };
-        if(brandId){
+        if(framework?.primaryMarket) defaults.country = framework.primaryMarket;
+        if(framework?.industry) defaults.category = framework.industry;
+        if(framework?.subCategory) defaults.sub_category = framework.subCategory;
+        // Legacy brand-centric fallback (real brand uuid)
+        if(!defaults.country && brandId && !String(brandId).startsWith("proj_")){
           const s=createClient();
           const{data:ownBrand}=await s.from("brands").select("market,category").eq("id",brandId).single();
           if(ownBrand?.market) defaults.country = ownBrand.market;
           if(ownBrand?.category) defaults.category = ownBrand.category;
-        } else {
-          if(brand?.market) defaults.country = brand.market;
-          if(brand?.category) defaults.category = brand.category;
         }
         setCur(defaults);
       })();
@@ -1860,7 +1879,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                   const v = e.target.value;
                                   const selected = localCompetitors.find(b => b.name === v);
                                   const updates = { brand_name: v, competitor: v, scope: "local" };
-                                  if (selected) {
+                                  if (selected?.fromFramework) {
+                                    if (selected.country) updates.country = selected.country;
+                                    if (selected.category) updates.category = selected.category;
+                                    if (selected.sub_category) updates.sub_category = selected.sub_category;
+                                  } else if (selected) {
                                     updates.brand_id = selected.id;
                                     // Auto-fill from brand profile
                                     const s = createClient();
@@ -1886,12 +1909,19 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                     <div className="absolute z-40 mt-1 w-full bg-surface border border-main rounded-lg shadow-lg max-h-32 overflow-auto">
                                       {globalBrands.filter(b => b.name.toLowerCase().includes((cur.brand||"").toLowerCase())).slice(0,5).map(b => (
                                         <button key={b.id} type="button" onClick={async () => {
-                                          const s = createClient();
-                                          const { data: bp } = await s.from("brands").select("country, category, sub_category").eq("id", b.id).single();
-                                          const updates = { brand_name: b.name, brand: b.name, brand_id: b.id, scope: "global" };
-                                          if (bp?.country) updates.country = bp.country;
-                                          if (bp?.category) updates.category = bp.category;
-                                          if (bp?.sub_category) updates.sub_category = bp.sub_category;
+                                          const updates = { brand_name: b.name, brand: b.name, scope: "global" };
+                                          if (b.fromFramework) {
+                                            if (b.country) updates.country = b.country;
+                                            if (b.category) updates.category = b.category;
+                                            if (b.sub_category) updates.sub_category = b.sub_category;
+                                          } else {
+                                            const s = createClient();
+                                            const { data: bp } = await s.from("brands").select("country, category, sub_category").eq("id", b.id).single();
+                                            updates.brand_id = b.id;
+                                            if (bp?.country) updates.country = bp.country;
+                                            if (bp?.category) updates.category = bp.category;
+                                            if (bp?.sub_category) updates.sub_category = bp.sub_category;
+                                          }
                                           setCur(prev => ({...prev, ...updates}));
                                           setGlobalBrandConfirmed(true);
                                         }}
