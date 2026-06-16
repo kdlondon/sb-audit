@@ -2651,7 +2651,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {viewMode==="entries"&&<>
         {/* Bar 3 — Filter + sort + view + export */}
-        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)"}}>
+        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)",paddingTop:"0.5rem",marginTop:"var(--nav-h)"}}>
           <div className="flex gap-2 flex-wrap items-center">
             <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
             {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
