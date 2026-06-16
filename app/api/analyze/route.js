@@ -60,8 +60,21 @@ Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks)
 CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrait, entry door, journey phase, and richness — do not guess generically.`;
 }
 
+// Social-content extra fields (added only when analyzing a social post). Pillars use a
+// CONTROLLED VOCABULARY: the model must reuse an existing project pillar when one fits,
+// so the taxonomy stays consistent instead of inventing a new label per post.
+function socialFieldsBlock(pillars) {
+  const pillarRule = (pillars && pillars.length)
+    ? `Choose EXACTLY one from this EXISTING project pillar list when any reasonably fits: ${pillars.join(" | ")}. Reuse an existing pillar even if the wording isn't perfect. ONLY if none genuinely fits, propose a new concise pillar (1-3 words, Title Case).`
+    : `Propose a concise content pillar (1-3 words, Title Case).`;
+  return `,
+  "content_pillar": "The content territory/pillar this post belongs to. ${pillarRule}",
+  "post_objective": "MUST be one of: Awareness | Engagement | Conversión | Comunidad",
+  "visual_codes": "Recurring visual style/codes — palette, framing, recurring graphic elements or format treatment (1 short phrase)"`;
+}
+
 // Build a dynamic classification prompt from framework
-function buildDynamicPrompt(framework, context) {
+function buildDynamicPrompt(framework, context, { social = false, pillars = [] } = {}) {
   const frameworkContext = buildPromptContext(framework);
   const fields = buildClassificationFields(framework);
   const lang = framework.language || "English";
@@ -75,7 +88,7 @@ function buildDynamicPrompt(framework, context) {
   return `${frameworkContext}
 
 You are classifying a competitive communication piece for the ${brandName} competitive audit in the ${industry} category.
-
+${social ? "\nThis is a SOCIAL MEDIA POST. Base your analysis primarily on the post CAPTION/COPY provided in the context plus the image. Identify the brand's recurring content pattern, not just this single post.\n" : ""}
 LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language. Write ALL your output fields in ${lang}. Translate any copy, slogans, insights, synopses, and pain points into ${lang} as needed. Do not output in any other language.
 
 ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
@@ -83,7 +96,7 @@ ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
 Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks) with these fields. For dropdown fields, pick EXACTLY one of the provided options.
 
 {
-${fieldEntries}
+${fieldEntries}${social ? socialFieldsBlock(pillars) : ""}
 }
 
 CRITICAL: Return ONLY the JSON object.${framework.frameworkText ? " Use the FRAMEWORK DEFINITIONS above for any framework-specific dimensions — do not guess generically." : ""}`;
@@ -93,7 +106,7 @@ export async function POST(request) {
   // const denied = await requireAuth(request); // TODO: fix auth with Supabase SSR
   // if (denied) return denied;
 
-  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id, brand_id } = await request.json();
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id, brand_id, social = false, pillars = [] } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -111,7 +124,7 @@ export async function POST(request) {
         const debugFields = buildClassificationFields(framework);
         console.log("[Analyze] Classification fields count:", Object.keys(debugFields || {}).length);
         console.log("[Analyze] Has custom dims:", (framework.dimensions || framework.customDimensions || []).length);
-        prompt = buildDynamicPrompt(framework, context);
+        prompt = buildDynamicPrompt(framework, context, { social, pillars });
         console.log("[Analyze] Dynamic prompt built, length:", prompt.length);
       } else {
         console.log("[Analyze] No framework found — will use legacy prompt");

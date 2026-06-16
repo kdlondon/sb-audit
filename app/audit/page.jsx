@@ -1506,10 +1506,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     const imgUrl=cur.image_url;const transcript=cur.transcript;const notes=cur.analyst_comment;
     if(!imgUrl&&!transcript){setToast({message:"Add an image or transcript first"});return;}
     setAnalyzing(true);
+    const isSocial=materialType==="social";
     try{
       let context=[];
       if(cur.competitor)context.push(`Brand: ${cur.competitor}`);
       if(cur.brand)context.push(`Brand: ${cur.brand}`);
+      if(cur.synopsis)context.push(`Caption/copy: ${String(cur.synopsis).slice(0,1500)}`);
       if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);
       if(notes)context.push(`Analyst observations: ${notes}`);
 
@@ -1538,7 +1540,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           extraImageBase64:extraBase64,
           context:context.join("\n"),
           project_id:projectId,
-          brand_id:safeBrandId
+          brand_id:safeBrandId,
+          social:isSocial,
+          pillars:isSocial?(OPTIONS.content_pillar||[]):[]
         })
       });
       if(!res.ok){
@@ -1551,15 +1555,27 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       if(result.success&&result.analysis){
         console.log("[Analyze] Response keys:", Object.keys(result.analysis).length, "fields");
         console.log("[Analyze] Sample values — synopsis:", (result.analysis.synopsis||"").slice(0,50), "portrait:", result.analysis.portrait);
-        // Force overwrite all fields from AI (not just empty ones)
+        // Force overwrite all fields from AI; route social-only fields into _social.
+        const SOCIAL_KEYS=["content_pillar","post_objective","visual_codes"];
         setCur(prev=>{
           const u={...prev};
+          const socialUpd={};
           Object.entries(result.analysis).forEach(([k,v])=>{
-            if(v && v !== "undefined" && v !== "null") u[k]=v;
+            if(!(v && v !== "undefined" && v !== "null"))return;
+            if(SOCIAL_KEYS.includes(k)) socialUpd[k]=v; else u[k]=v;
           });
-          u.custom_dimensions={...(u.custom_dimensions||{}),_ai_analyzed_at:new Date().toISOString()};
+          u.custom_dimensions={
+            ...(u.custom_dimensions||{}),
+            ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
+            _ai_analyzed_at:new Date().toISOString(),
+          };
           return u;
         });
+        // Grow the controlled pillar vocabulary if the AI proposed a genuinely new one.
+        const newPillar=result.analysis.content_pillar;
+        if(isSocial&&newPillar&&!(OPTIONS.content_pillar||[]).some(p=>p.toLowerCase()===String(newPillar).toLowerCase())){
+          try{await supabase.from("dropdown_options").insert({project_id:projectId,category:"content_pillar",value:newPillar,sort_order:999});}catch{}
+        }
         highlightFields(Object.keys(result.analysis).filter(k=>result.analysis[k]));
         setToast({message:"✓ AI analysis complete — "+Object.keys(result.analysis).length+" fields"});
       }else{
@@ -1848,7 +1864,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main"><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
                     </div>
                     <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Content pillar</label>
-                      <input value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
+                      <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
+                      <datalist id="content-pillars">{(OPTIONS.content_pillar||[]).map(p=><option key={p} value={p}/>)}</datalist></div>
                     <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Códigos visuales</label>
                       <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Estilo visual recurrente, paleta, recursos…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
                   </div>);
