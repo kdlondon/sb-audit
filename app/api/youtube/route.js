@@ -1,4 +1,6 @@
 import { requireAuth } from "@/lib/api-auth";
+import { fetchTranscript } from "@/lib/transcript-provider";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request) {
   // const denied = await requireAuth(request); // TODO: fix auth with Supabase SSR
@@ -38,6 +40,31 @@ export async function POST(request) {
       result.thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     } catch {}
   }
+
+  // ── Transcript (auto) — cached in youtube_transcripts to avoid re-paying the provider.
+  // Non-blocking: any failure (no key, no captions) just leaves transcript empty.
+  try {
+    const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const admin = (sUrl && sKey) ? createClient(sUrl, sKey, { auth: { persistSession: false } }) : null;
+
+    let transcript = "";
+    if (admin) {
+      const { data: cached } = await admin.from("youtube_transcripts").select("transcript").eq("video_id", videoId).maybeSingle();
+      if (cached?.transcript) transcript = cached.transcript;
+    }
+    if (!transcript) {
+      const r = await fetchTranscript(`https://www.youtube.com/watch?v=${videoId}`);
+      if (r.transcript) {
+        transcript = r.transcript;
+        if (admin) await admin.from("youtube_transcripts").upsert({
+          video_id: videoId, transcript, language: r.language || "",
+          provider: process.env.TRANSCRIPT_PROVIDER || "supadata", fetched_at: new Date().toISOString(),
+        });
+      }
+    }
+    if (transcript) result.transcript = transcript;
+  } catch {}
 
   return Response.json(result);
 }
