@@ -2674,10 +2674,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
 
         {listMode==="list"?(
-          <div className="px-5 pb-5 overflow-x-auto">
-            <table className="w-full border-collapse text-xs mt-1">
+          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) * 2 - 46px)"}}>
+            <table className="w-full border-collapse text-xs">
               <thead><tr className="border-b-2 border-main">
-                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th></th>
+                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
               </tr></thead>
               <tbody>{fd.map(e=>{
                 const IC=({field,children,className=""})=>{
