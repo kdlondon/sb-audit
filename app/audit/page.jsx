@@ -484,7 +484,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     e.insight_type = merged.insight_type || "";
     e.creative_approach = merged.creative_approach || "";
     e.custom_dimensions = merged.custom_dimensions || {};
-    e.brand_id = merged.brand_id || brandId || null;
+    e.brand_id = merged.brand_id || safeBrandId || null;
     e.organization_id = orgId || null;
     // Clean undefined values and ensure custom_dimensions is proper JSON
     Object.keys(e).forEach(k => { if (e[k] === undefined) delete e[k]; });
@@ -524,7 +524,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       const{data:{session}}=await supabase.auth.getSession();
       e.created_by=session?.user?.email||"";
       e.project_id=projectId;
-      e.brand_id=brandId;
+      e.brand_id=safeBrandId;
       e.updated_at=new Date().toISOString();
       // Safety: remove any fields not in the allowed set that may have leaked in
       const finalAllowed=new Set(ALL_COLUMNS);

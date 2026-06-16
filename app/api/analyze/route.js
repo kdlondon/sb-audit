@@ -64,7 +64,7 @@ CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrai
 function buildDynamicPrompt(framework, context) {
   const frameworkContext = buildPromptContext(framework);
   const fields = buildClassificationFields(framework);
-  const langInstruction = getLanguageInstruction(framework);
+  const lang = framework.language || "English";
 
   const brandName = framework.brandName || "this brand";
   const industry = framework.industry || "the given industry";
@@ -76,7 +76,7 @@ function buildDynamicPrompt(framework, context) {
 
 You are classifying a competitive communication piece for the ${brandName} competitive audit in the ${industry} category.
 
-LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language. Regardless of the source material language, ALL your output fields must be written in English. Translate any copy, slogans, insights, synopses, and pain points into English.${langInstruction}
+LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language. Write ALL your output fields in ${lang}. Translate any copy, slogans, insights, synopses, and pain points into ${lang} as needed. Do not output in any other language.
 
 ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
 

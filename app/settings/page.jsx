@@ -22,13 +22,7 @@ const TONE_OPTIONS = [
   "Institutional", "Playful", "Urgent", "Other",
 ];
 
-const LANGUAGE_OPTIONS = [
-  "English", "Spanish", "French", "German", "Italian", "Portuguese",
-  "Dutch", "Arabic", "Mandarin", "Japanese", "Korean", "Hindi",
-  "Turkish", "Polish", "Swedish", "Danish", "Norwegian", "Finnish",
-  "Greek", "Czech", "Romanian", "Hungarian", "Hebrew", "Thai",
-  "Vietnamese", "Indonesian", "Malay", "Tagalog", "Other",
-];
+const LANGUAGE_OPTIONS = ["English", "French", "Spanish", "Portuguese", "Italian"];
 
 /* ═══════════════════════════════════════════════════════════════
    BRAND PROFILE CARD — reusable display for crawled profiles
