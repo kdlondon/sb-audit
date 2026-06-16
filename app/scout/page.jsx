@@ -138,6 +138,9 @@ function VideoPreview({ videoId, title, onClose }) {
 /* ─── MAIN COMPONENT ─── */
 export default function ScoutPage() {
   const { projectId, projectName, brandId } = useProject();
+  // brand_id is a UUID column; in the project-centric flow brandId is the project-id
+  // string ("proj_..."), which is NOT a valid uuid. Null it out so saves don't fail.
+  const safeBrandId = brandId && !String(brandId).startsWith("proj_") ? brandId : null;
   const filterField = "project_id"; // Use project_id for data queries during transition
   const filterValue = projectId || brandId;
   const { role } = useRole();
@@ -448,7 +451,7 @@ Rules:
     const { data: { session } } = await supabase.auth.getSession();
     const entry = {
       project_id: projectId,
-      brand_id: brandId,
+      brand_id: safeBrandId,
       video_id: v.videoId,
       title: v.title || "",
       channel: v.channel || "",
@@ -506,7 +509,7 @@ Rules:
     const entry = {
       id: String(Date.now()) + "_saved",
       project_id: projectId,
-      brand_id: brandId,
+      brand_id: safeBrandId,
       created_by: session?.user?.email || "",
       updated_at: new Date().toISOString(),
       url: item.url,
@@ -548,7 +551,7 @@ Rules:
         const analyzeRes = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: item.thumbnail, context: contextParts.join("\n"), project_id: projectId, brand_id: brandId }),
+          body: JSON.stringify({ imageUrl: item.thumbnail, context: contextParts.join("\n"), project_id: projectId, brand_id: safeBrandId }),
         });
         const analysis = await analyzeRes.json();
         if (analysis.success && analysis.analysis) {
@@ -703,7 +706,7 @@ Rules:
       const entry = {
         id: String(Date.now()) + "_" + i,
         project_id: projectId,
-        brand_id: brandId,
+        brand_id: safeBrandId,
         created_by: session?.user?.email || "",
         updated_at: new Date().toISOString(),
         url: `https://www.youtube.com/watch?v=${v.videoId}`,
@@ -756,7 +759,7 @@ Rules:
               imageUrl: v.thumbnail,
               context: contextParts.join("\n"),
               project_id: projectId,
-              brand_id: brandId,
+              brand_id: safeBrandId,
             }),
           });
           const analysis = await analyzeRes.json();

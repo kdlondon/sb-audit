@@ -162,7 +162,7 @@ function OnboardingContent() {
 
       const { error: fErr } = await supabase.from("project_frameworks").insert({
         project_id: projectId, name: `${bp.name} Framework`, tier: "essential",
-        brand_name: bp.name, brand_positioning: profile.positioning || "", brand_differentiator: profile.differentiator || "", brand_audience: profile.audience || "", brand_description: profile.positioning || "",
+        brand_name: bp.name, brand_positioning: profile.positioning || "", brand_differentiator: profile.differentiator || "", brand_audience: profile.audience || "", brand_description: "",
         industry: bp.category || "", primary_market: bp.market || "", language: "English", objectives,
         communication_intents: DEFAULT_INTENTS, standard_dimensions: DEFAULT_DIMS, brand_categories: ["Leader", "Challenger", "Niche", "Emerging", "Other"],
         local_competitors: selLocal.map(c => ({ name: c.name, type: c.proximity || "direct" })), global_benchmarks: selGlobal.map(g => ({ name: g.name, country: g.country || "" })),
