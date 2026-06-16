@@ -1507,7 +1507,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     const imgUrl=cur.image_url;const transcript=cur.transcript;const notes=cur.analyst_comment;
     if(!imgUrl&&!transcript){setToast({message:"Add an image or transcript first"});return;}
     setAnalyzing(true);
-    const isSocial=materialType==="social";
+    const isSocial=materialType==="social"||cur.type==="Social post";
     try{
       let context=[];
       if(cur.competitor)context.push(`Brand: ${cur.competitor}`);
@@ -1571,8 +1571,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
             _ai_analyzed_at:new Date().toISOString(),
           };
-          // Social posts always run through social channels — ensure Channel distribution is set.
-          if(isSocial&&!u.channel) u.channel="Social media";
+          // Social posts always run through social channels — set Channel (distribution).
+          if(isSocial) u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
           return u;
         });
         // Grow the controlled pillar vocabulary if the AI proposed a genuinely new one.

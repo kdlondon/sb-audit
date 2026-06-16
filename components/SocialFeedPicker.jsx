@@ -111,7 +111,7 @@ export default function SocialFeedPicker({
             type: "Social post",
             url: p.url,
             brand_name: owner,
-            description: caption.split("\n")[0].slice(0, 120),
+            description: "",
             synopsis: caption,
             image_url: meta?.thumbnail || "",
             transcript: meta?.transcript || "",
