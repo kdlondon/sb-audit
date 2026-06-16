@@ -259,6 +259,9 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   // brand_id is a UUID column; in the project-centric flow brandId is the project-id
   // string ("proj_..."), not a valid uuid. Null it out so creative_source saves work.
   const safeBrandId=brandId&&!String(brandId).startsWith("proj_")?brandId:null;
+  // uuid columns (brand_id, organization_id) must never receive a non-uuid value
+  // such as a project-id string ("proj_..."), or Postgres rejects the whole save.
+  const safeUuid=(v)=>(typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))?v:null;
   const [data,setData]=useState([]);
   const [OPTIONS,setOPTIONS]=useState(STATIC_OPTIONS);
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
@@ -491,6 +494,10 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     if (typeof e.custom_dimensions === "string") {
       try { e.custom_dimensions = JSON.parse(e.custom_dimensions); } catch { e.custom_dimensions = {}; }
     }
+    // Final guard: uuid columns must hold a real uuid or null (covers insert AND update,
+    // including editing legacy entries whose brand_id leaked a "proj_..." string).
+    e.brand_id = safeUuid(e.brand_id);
+    e.organization_id = safeUuid(e.organization_id);
     return e;
   };
 
