@@ -4,7 +4,7 @@ export async function POST(request) {
   // const denied = await requireAuth(request); // TODO: fix auth with Supabase SSR
   // if (denied) return denied;
 
-  const { brand_name, industry, market, global_markets, type, exclude } = await request.json();
+  const { brand_name, industry, market, global_markets, type, exclude, model } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -28,7 +28,7 @@ Return ONLY a JSON array with exactly 5 items: [{"name": "Brand Name", "type": "
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: model || "claude-sonnet-4-6",
         max_tokens: 1500,
         messages: [{ role: "user", content: prompt }],
       }),

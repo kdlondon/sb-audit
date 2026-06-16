@@ -19,9 +19,13 @@ tablas. Onboarding = crear el estudio; Settings = editarlo después.
 
 - **Proyecto = Estudio = unidad de configuración.** Cada estudio se configura
   independiente. Sin plantillas de organización por ahora (mejora futura).
-- **Escribe en las tablas vivas:** `brands` + `brand_frameworks` (NO en las legacy
-  `project_frameworks` / `project_brands`). Es lo que leen Audit, Settings,
-  Dashboard, Scout, Reports.
+- **Tablas (revisado 2026-06-16, tras el modelo proyecto-céntrico):** el framework del
+  estudio vive en **`project_frameworks` (por `project_id`)** — es lo que carga
+  `framework-context` al entrar a un proyecto (igual que el Scotiabank que funciona).
+  Los competidores/referencias en `brands` (por `project_id`). El `projects` row lleva
+  **`client_id`** (clave para que el proyecto aparezca agrupado bajo su cliente en la home).
+- **Cada proyecto pertenece a un CLIENTE.** En P1 se elige un cliente existente **o se
+  crea uno al vuelo**. Para usuarios de cliente, se autoselecciona su cliente.
 - **Perspectiva dual:** "Mi marca" (1ª persona) vs "Cliente que investigo" (3ª
   persona). Solo cambia el copy; el modelo de datos es el mismo.
 - **Formato híbrido:** formularios para datos duros + IA como asistente fuerte
@@ -33,17 +37,18 @@ tablas. Onboarding = crear el estudio; Settings = editarlo después.
 ## Jerarquía de datos
 
 ```
-organizations (cuenta: K&D / agencia / cliente)
-   └── projects (= un estudio)              ← projects.organization_id
-         └── brands (filas por marca)        ← brands.project_id
-              ├── marca foco  proximity="own_brand"  → brand_frameworks (config del estudio)
-              ├── competidor  proximity="direct"|"adjacent"
+clients (el cliente de K&D)                   ← clients.id (+ organization_id)
+   └── projects (= un estudio)                 ← projects.client_id + organization_id
+         ├── project_frameworks (config)        ← por project_id  ← marca foco = brand_name
+         └── brands (competidores/referencias)  ← por project_id
+              ├── competidor  scope="local"  proximity="direct"|"adjacent"
               └── referencia global  scope="global"
 ```
 
-La **config del estudio vive en `brand_frameworks`** de la marca foco
-(`proximity="own_brand"`). El framework-context lee `brand_frameworks` por
-`brand_id` (ver `lib/framework-context.js`).
+La **config del estudio vive en `project_frameworks`** (por `project_id`), que es lo
+que `framework-context` carga al entrar a un proyecto (ver `lib/framework-context.js`,
+fallback por `project_id`). La **marca foco** es el campo `brand_name` del framework
+(no necesita una fila `brands` propia en este modelo).
 
 ---
 
@@ -69,6 +74,9 @@ La **config del estudio vive en `brand_frameworks`** de la marca foco
 
 ### P1 · Brief *(formulario)*
 Campos:
+- **Cliente** (a quién pertenece el proyecto): desplegable de clientes existentes **o**
+  escribir uno nuevo → se **crea al vuelo** (fila en `clients` + su organización). Para
+  usuarios de cliente: autoseleccionado y oculto.
 - **Toggle** "Mi marca" / "Cliente que investigo" → guía el copy.
 - **Marca foco** (texto).
 - **Mercado principal** (country search — reusar `components/CountryInput.jsx`).
@@ -117,11 +125,13 @@ en la primera versión.)*
 1. **Scout en paralelo** (`Promise.all`, NO loop secuencial): 1 pieza por marca
    seleccionada vía `/api/youtube-scout`. Mostrar progreso. El usuario espera (~10–15 s).
 2. Aceptar/saltar piezas.
-3. **Guardar todo** con verificación de error por insert (ya implementado en el
-   `finalize()` actual — portar esa lógica): `brands`, `brand_frameworks`,
-   `dropdown_options`, `creative_source` (entries). Cargar **4 dimensiones signature
-   por default** (no escribir custom_dimensions).
-4. `selectBrand(focusBrandId, name, projectId)` y navegar a Audit.
+3. **Guardar todo** con verificación de error por insert (portar el patrón robusto):
+   `clients` (si es nuevo) → `projects` (con **`client_id`**) → `project_frameworks` →
+   `brands` (competidores/referencias) → `dropdown_options` → `project_access` (creador)
+   → `creative_source` (entries). Las **4 dimensiones signature** van por default (no se
+   escribe `custom_dimensions`).
+4. `selectProject(projectId, projectName)` + guardar `sb-client-name` (el cliente) y
+   navegar a Audit.
 5. Mensaje final honesto: piezas importadas + *"Personaliza dimensiones y completa el
    perfil en Settings del proyecto."*
 
@@ -131,12 +141,13 @@ en la primera versión.)*
 
 | Pantalla | Tabla | Campos clave |
 |---|---|---|
-| P1 | `projects` | id, name, organization_id, created_by |
-| P1 | `brands` (foco) | name, project_id, organization_id, proximity="own_brand", scope="local", country, category |
-| P1/P2 | `brand_frameworks` (foco) | brand_id, project_id, tier="essential", objectives[], brand_positioning, brand_differentiator, brand_audience, communication_intents (default), standard_dimensions (default), language="English" |
+| P1 | `clients` (solo si es nuevo) | name, organization_id, status="active" — crear al vuelo |
+| P1 | `projects` | id, name, **client_id**, organization_id, created_by |
+| P1/P2 | `project_frameworks` (por project_id) | project_id, tier="essential", **brand_name** (marca foco), objectives[], brand_positioning, brand_differentiator, brand_audience, industry, primary_market, communication_intents (default), standard_dimensions (default), language="English", local_competitors[], global_benchmarks[] |
 | P3 | `brands` (competidores) | name, project_id, scope="local", proximity, country |
 | P4 | `brands` (referencias) | name, project_id, scope="global", country |
 | Crear | `dropdown_options` | defaults + competidores (category="competitor") |
+| Crear | `project_access` | otorgar acceso al creador (user_id, email, project_id) |
 | Crear | `creative_source` | entries de video aceptados (project_id, brand_name, scope, url, image_url, description, type="Video") |
 
 > **Dimensiones signature por default** = `SYSTEM_DIMENSIONS` de
@@ -206,7 +217,8 @@ en la primera versión.)*
 3. **P2 Perfil mínimo** (3 campos).
 4. **P3 Local** con `/api/suggest-competitors` (modelo actualizado).
 5. **P4 Global** (misma categoría).
-6. **Crear:** scout en paralelo + guardado robusto en `brands`/`brand_frameworks`/
-   `creative_source` + `selectBrand` + navegación.
-7. Verificar el ciclo completo: crear estudio → aparece en Audit/Settings con su
-   framework y marcas. (Aquí se valida que ya NO usamos las tablas legacy.)
+6. **Crear:** cliente (si nuevo) + scout en paralelo + guardado robusto
+   (`projects`+`client_id` / `project_frameworks` / `brands` / `project_access` /
+   `creative_source`) + `selectProject` + navegación.
+7. Verificar el ciclo completo: crear estudio → **aparece en la home bajo su cliente** +
+   abre en Audit con su framework + el header muestra el cliente.
