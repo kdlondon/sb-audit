@@ -23,8 +23,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
+import { useFramework } from "@/lib/framework-context";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
+import InstagramFeedPicker from "@/components/InstagramFeedPicker";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
 
@@ -138,6 +140,8 @@ function VideoPreview({ videoId, title, onClose }) {
 /* ─── MAIN COMPONENT ─── */
 export default function ScoutPage() {
   const { projectId, projectName, brandId } = useProject();
+  const { framework } = useFramework() || {};
+  const [source, setSource] = useState("youtube"); // youtube | instagram
   // brand_id is a UUID column; in the project-centric flow brandId is the project-id
   // string ("proj_..."), which is NOT a valid uuid. Null it out so saves don't fail.
   const safeBrandId = brandId && !String(brandId).startsWith("proj_") ? brandId : null;
@@ -828,8 +832,31 @@ Rules:
             </div>
           )}
 
+          {/* ─── SOURCE TOGGLE (YouTube / Instagram) ─── */}
+          <div className="max-w-2xl mx-auto mb-4 flex justify-center">
+            <div className="flex bg-surface2 rounded-lg p-0.5">
+              {[["youtube","YouTube"],["instagram","Instagram"]].map(([k,l])=>(
+                <button key={k} onClick={()=>setSource(k)} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition ${source===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* ─── INSTAGRAM FEED ─── */}
+          {source==="instagram" && (
+            <div className="max-w-2xl mx-auto mb-6 bg-surface border border-main rounded-2xl shadow-sm p-4">
+              <InstagramFeedPicker
+                projectId={projectId}
+                scope="global"
+                defaultCountry={framework?.primaryMarket||""}
+                defaultCategory={framework?.industry||""}
+                defaultSubCategory={framework?.subCategory||""}
+                onImported={(n)=>setToast(`✓ ${n} entr${n===1?"y":"ies"} importada${n===1?"":"s"} del feed`)}
+              />
+            </div>
+          )}
+
           {/* ─── SEARCH INPUT (chat-style) ─── */}
-          <div className={`${!showEmptyState ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
+          <div className={`${source==="instagram" ? "hidden" : ""} ${!showEmptyState ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
             <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
