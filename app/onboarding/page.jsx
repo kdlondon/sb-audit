@@ -18,7 +18,7 @@ const OBJECTIVES = [
 ];
 const SHOW_CHANNELS_TIMEWINDOW = false; // built later; not saved yet
 const STEPS = ["Brief", "Profile", "Local", "Global", "Create"];
-const SUGGEST_MODEL = "claude-opus-4-8";
+const SUGGEST_MODEL = "claude-sonnet-4-6"; // fast; was opus (too slow)
 
 const DEFAULT_INTENTS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"];
 const DEFAULT_DIMS = ["archetype", "tone", "execution", "funnel", "rating"];
@@ -69,6 +69,7 @@ function OnboardingContent() {
   // Create / scout
   const [scoutResults, setScoutResults] = useState({});
   const [scoutStatus, setScoutStatus] = useState({});
+  const [acceptedVids, setAcceptedVids] = useState([]);
   const [scouting, setScouting] = useState(false);
   const [scoutDone, setScoutDone] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,9 +110,10 @@ function OnboardingContent() {
   const fetchGlobal = async () => {
     setLoadingGlobal(true);
     try {
+      const exclude = [bp.name, ...localComps.map(c => c.name)].filter(Boolean).join(", ");
       const res = await fetch("/api/suggest-competitors", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brand_name: bp.name, industry: bp.category, type: "global", model: SUGGEST_MODEL }),
+        body: JSON.stringify({ brand_name: bp.name, industry: bp.category, type: "global", exclude, model: SUGGEST_MODEL }),
       });
       const data = await res.json();
       const sugg = Array.isArray(data.suggestions) ? data.suggestions : [];
@@ -127,12 +129,12 @@ function OnboardingContent() {
     const all = [...local, ...global];
     if (all.length === 0) { setScoutDone(true); return; }
     setScouting(true);
-    const cutoff = new Date(Date.now() - 730 * 86400000).toISOString();
+    const cutoff = new Date(Date.now() - 365 * 86400000).toISOString(); // last year
     await Promise.all(all.map(async (brand) => {
       try {
         const res = await fetch("/api/youtube-scout", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "search", query: `"${brand.name}" official commercial advert`, maxResults: 3, publishedAfter: cutoff, contentType: "official", minDuration: 15, maxDuration: 180 }),
+          body: JSON.stringify({ action: "search", query: `"${brand.name}" official commercial advert`, maxResults: 4, publishedAfter: cutoff, contentType: "official", minDuration: 30, maxDuration: 90 }),
         });
         const data = await res.json();
         const vids = (data.videos || [])
@@ -214,18 +216,10 @@ function OnboardingContent() {
       if (aErr) warn.push(`access (${aErr.message})`);
 
       // --- non-critical below ---
+      // (Competitors live in dropdown_options + project_frameworks.local_competitors/
+      //  global_benchmarks. The `brands` table is org-level and has no project_id.)
 
-      // 5. Competitor + reference brands
-      const brandRows = [
-        ...selectedLocal.map(c => ({ name: c.name, project_id: projectId, organization_id: orgId, scope: "local", proximity: c.proximity || "direct", is_active: true })),
-        ...selectedGlobal.map(g => ({ name: g.name, project_id: projectId, organization_id: orgId, scope: "global", proximity: "Direct", country: g.country || "", is_active: true })),
-      ];
-      if (brandRows.length) {
-        const { error: bErr } = await supabase.from("brands").insert(brandRows);
-        if (bErr) warn.push(`brands (${bErr.message})`);
-      }
-
-      // 6. Dropdown options — competitors + defaults
+      // 5. Dropdown options — competitors + defaults
       const compNames = selectedLocal.map(c => c.name);
       const defaults = [
         ...DEFAULT_INTENTS.map((v, i) => ({ category: "communicationIntent", value: v, sort_order: i })),
@@ -237,12 +231,9 @@ function OnboardingContent() {
       const { error: dErr } = await supabase.from("dropdown_options").insert(defaults.map(d => ({ ...d, project_id: projectId })));
       if (dErr) warn.push(`dropdowns (${dErr.message})`);
 
-      // 7. Seed accepted videos
+      // 6. Seed accepted videos (tracked directly in acceptedVids)
       let imported = 0;
-      const accepted = [];
-      Object.entries(scoutResults).forEach(([brandName, vids]) => {
-        (vids || []).forEach(v => { if (scoutStatus[`${brandName}:${v.videoId}`] === "accepted") accepted.push({ ...v, brandName }); });
-      });
+      const accepted = acceptedVids;
       for (let i = 0; i < accepted.length; i++) {
         const v = accepted[i];
         const entry = {
@@ -440,8 +431,8 @@ function OnboardingContent() {
                       </div>
                       {st === "accepted" ? <span className="text-[10px] text-green-600 font-semibold">Added</span> : st === "skipped" ? <span className="text-[10px] text-hint">Skipped</span> : (
                         <div className="flex gap-1">
-                          <button onClick={() => setScoutStatus(p => ({ ...p, [key]: "accepted" }))} className="px-2 py-1 bg-accent text-white rounded text-[10px] font-semibold">✓</button>
-                          <button onClick={() => setScoutStatus(p => ({ ...p, [key]: "skipped" }))} className="px-2 py-1 border border-main rounded text-[10px] text-muted">✕</button>
+                          <button onClick={() => { setScoutStatus(p => ({ ...p, [key]: "accepted" })); setAcceptedVids(a => [...a.filter(x => x.videoId !== v.videoId), { ...v, brandName }]); }} className="px-2 py-1 bg-accent text-white rounded text-[10px] font-semibold">✓</button>
+                          <button onClick={() => { setScoutStatus(p => ({ ...p, [key]: "skipped" })); setAcceptedVids(a => a.filter(x => x.videoId !== v.videoId)); }} className="px-2 py-1 border border-main rounded text-[10px] text-muted">✕</button>
                         </div>
                       )}
                     </div>
