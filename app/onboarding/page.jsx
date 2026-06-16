@@ -186,10 +186,19 @@ function OnboardingContent() {
       const { error: dErr } = await supabase.from("dropdown_options").insert(defaults.map(d => ({ ...d, project_id: projectId })));
       if (dErr) warn.push(`dropdowns (${dErr.message})`);
 
+      // Fetch transcripts (parallel) so seed videos save with them too
+      const transcripts = {};
+      await Promise.all(acceptedVids.map(async (v) => {
+        try {
+          const r = await fetch("/api/youtube", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${v.videoId}` }) });
+          const m = await r.json();
+          if (m.transcript) transcripts[v.videoId] = m.transcript;
+        } catch {}
+      }));
       let imported = 0;
       for (let i = 0; i < acceptedVids.length; i++) {
         const v = acceptedVids[i];
-        const entry = { id: String(Date.now()) + "_" + i, project_id: projectId, created_by: email, updated_at: new Date().toISOString(), url: `https://www.youtube.com/watch?v=${v.videoId}`, image_url: v.thumbnail || "", description: v.title || "", year: v.year || (v.publishedAt ? String(v.publishedAt).slice(0, 4) : ""), type: "Video", synopsis: v.description || "", scope: v.scope || "local", brand_name: v.brandName || "" };
+        const entry = { id: String(Date.now()) + "_" + i, project_id: projectId, created_by: email, updated_at: new Date().toISOString(), url: `https://www.youtube.com/watch?v=${v.videoId}`, image_url: v.thumbnail || "", description: v.title || "", year: v.year || (v.publishedAt ? String(v.publishedAt).slice(0, 4) : ""), type: "Video", synopsis: v.description || "", transcript: transcripts[v.videoId] || "", scope: v.scope || "local", brand_name: v.brandName || "" };
         if (v.scope === "global") entry.brand = v.brandName; else entry.competitor = v.brandName;
         const { error: eErr } = await supabase.from("creative_source").insert(entry);
         if (eErr) warn.push(`video "${(v.title || "").slice(0, 30)}" (${eErr.message})`); else imported++;

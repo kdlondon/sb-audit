@@ -10,7 +10,7 @@ export async function POST(request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
-  const model = use_opus ? "claude-opus-4-20250514" : "claude-sonnet-4-20250514";
+  const model = use_opus ? "claude-opus-4-8" : "claude-sonnet-4-6";
 
   // Build system prompt with dynamic framework context
   let enrichedSystem = system || "";

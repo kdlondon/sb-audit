@@ -486,15 +486,15 @@ Rules:
     setImporting(true);
     setImportProgress({ current: 1, total: 1, label: `Processing: ${(item.title || "").slice(0, 40)}...` });
     const { data: { session } } = await supabase.auth.getSession();
-    // Use user-provided transcript first, then try auto-fetch
+    // Use user-provided transcript first, then auto-fetch via Supadata (/api/youtube)
     let transcript = transcripts[item.video_id] || "";
     if (!transcript) {
       setImportProgress({ current: 1, total: 1, label: `Fetching transcript: ${(item.title || "").slice(0, 40)}...` });
       try {
-        const tRes = await fetch("/api/youtube-scout", {
+        const tRes = await fetch("/api/youtube", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "transcript", videoId: item.video_id }),
+          body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${item.video_id}` }),
         });
         const tData = await tRes.json();
         transcript = tData.transcript || "";
@@ -687,15 +687,15 @@ Rules:
 
       setImportProgress({ current: i + 1, total: toImport.length, label: `Processing: ${v.title.slice(0, 40)}...` });
 
-      // Use user-provided transcript or try auto-fetch
+      // Use user-provided transcript or auto-fetch via Supadata (/api/youtube)
       let transcript = transcripts[v.videoId] || "";
       if (!transcript) {
         setImportProgress({ current: i + 1, total: toImport.length, label: `Fetching transcript: ${v.title.slice(0, 40)}...` });
         try {
-          const tRes = await fetch("/api/youtube-scout", {
+          const tRes = await fetch("/api/youtube", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "transcript", videoId: v.videoId }),
+            body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${v.videoId}` }),
           });
           const tData = await tRes.json();
           transcript = tData.transcript || "";
