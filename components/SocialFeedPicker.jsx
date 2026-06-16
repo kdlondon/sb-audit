@@ -125,9 +125,13 @@ export default function SocialFeedPicker({
             updated_at: new Date().toISOString(),
             // Namespaced under "_" keys so the framework's dynamic-dimension renderer skips them.
             custom_dimensions: {
-              _social: { format: p.kind || "" },
+              _social: {
+                format: p.kind || "",
+                platform: ({ instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", linkedin: "LinkedIn", youtube: "YouTube" }[platform] || ""),
+              },
               _meta: {
                 platform,
+                caption,
                 likes: p.likes ?? null,
                 comments: p.comments ?? null,
                 views: p.views ?? null,

@@ -1512,7 +1512,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       let context=[];
       if(cur.competitor)context.push(`Brand: ${cur.competitor}`);
       if(cur.brand)context.push(`Brand: ${cur.brand}`);
-      if(cur.synopsis)context.push(`Caption/copy: ${String(cur.synopsis).slice(0,1500)}`);
+      const captionTxt=cur.custom_dimensions?._meta?.caption||cur.synopsis||"";
+      if(captionTxt)context.push(`Caption/copy: ${String(captionTxt).slice(0,1500)}`);
       if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);
       if(notes)context.push(`Analyst observations: ${notes}`);
 
@@ -1570,6 +1571,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
             _ai_analyzed_at:new Date().toISOString(),
           };
+          // Social posts always run through social channels — ensure Channel distribution is set.
+          if(isSocial&&!u.channel) u.channel="Social media";
           return u;
         });
         // Grow the controlled pillar vocabulary if the AI proposed a genuinely new one.
@@ -1849,29 +1852,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">{ytLoading&&!cur.transcript?<span className="text-accent animate-pulse">Bringing the transcript…</span>:"Paste from YouTube or type what you see"}</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder={ytLoading&&!cur.transcript?"Bringing the transcript…":"Paste the video transcript, ad copy, or any text content here..."} className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
-                {(materialType==="social"||cur.type==="Social post")&&(()=>{
-                  const social=cur.custom_dimensions?._social||{};
-                  const meta=cur.custom_dimensions?._meta||{};
-                  const setSocial=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_social:{...((prev.custom_dimensions||{})._social||{}),[k]:v}}}));
-                  return(<div className="border border-main rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-semibold text-muted">Social content</span>
-                      {meta.platform&&<span className="text-[9px] text-hint">{meta.platform}{meta.likes!=null?` · ❤ ${meta.likes.toLocaleString()}`:""}{meta.comments!=null?` · 💬 ${meta.comments.toLocaleString()}`:""}{meta.views!=null?` · ▶ ${meta.views.toLocaleString()}`:""}</span>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Formato</label>
-                        <select value={social.format||""} onChange={e=>setSocial("format",e.target.value)} className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main"><option value="">—</option>{["reel","carousel","static","story","video","slideshow"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-                      <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Objetivo</label>
-                        <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main"><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-                    </div>
-                    <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Content pillar</label>
-                      <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" />
-                      <datalist id="content-pillars">{(OPTIONS.content_pillar||[]).map(p=><option key={p} value={p}/>)}</datalist></div>
-                    <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Códigos visuales</label>
-                      <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Estilo visual recurrente, paleta, recursos…" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
-                  </div>);
-                })()}
-                {(cur.image_url||cur.transcript||cur.analyst_comment)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
+                {cur.type==="Social post"&&<div><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Caption</label><span className="text-[9px] text-hint">Texto del post — se envía a la IA</span></div><textarea value={cur.custom_dimensions?._meta?.caption||""} onChange={e=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_meta:{...((prev.custom_dimensions||{})._meta||{}),caption:e.target.value}}}))} rows={4} placeholder="Caption / copy del post social..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>}
+                {(cur.image_url||cur.transcript||cur.analyst_comment||cur.custom_dimensions?._meta?.caption)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
               </div>
             </div>
           </div>
@@ -2178,6 +2160,36 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>
                 );
               })}
+              {cur.type==="Social post"&&(()=>{
+                const social=cur.custom_dimensions?._social||{};
+                const meta=cur.custom_dimensions?._meta||{};
+                const setSocial=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_social:{...((prev.custom_dimensions||{})._social||{}),[k]:v}}}));
+                const platformVal=social.platform||({instagram:"Instagram",tiktok:"TikTok",facebook:"Facebook",linkedin:"LinkedIn",youtube:"YouTube"}[meta.platform]||"");
+                const open=sec===99;
+                const lbl="block text-[9px] text-hint uppercase font-semibold mb-0.5";
+                const inp="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main";
+                return(<div className="mb-1">
+                  <div onClick={()=>setSec(open?-1:99)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${open?"bg-purple-50 text-purple-700 border border-purple-300":"bg-surface2 border border-main text-main"}`}>
+                    <span>5. Social content</span><span className="text-hint">{open?"−":"+"}</span>
+                  </div>
+                  {open&&(<div className="py-2 space-y-3">
+                    {meta.platform&&<div className="text-[9px] text-hint">{meta.platform}{meta.likes!=null?` · ❤ ${meta.likes.toLocaleString()}`:""}{meta.comments!=null?` · 💬 ${meta.comments.toLocaleString()}`:""}{meta.views!=null?` · ▶ ${meta.views.toLocaleString()}`:""}</div>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className={lbl}>Platform</label>
+                        <select value={platformVal} onChange={e=>setSocial("platform",e.target.value)} className={inp}><option value="">—</option>{["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                      <div><label className={lbl}>Format</label>
+                        <select value={social.format||""} onChange={e=>setSocial("format",e.target.value)} className={inp}><option value="">—</option>{["reel","carousel","static","story","video","slideshow"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                    </div>
+                    <div><label className={lbl}>Objetivo</label>
+                      <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className={inp}><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                    <div><label className={lbl}>Content pillar</label>
+                      <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className={inp} />
+                      <datalist id="content-pillars">{(OPTIONS.content_pillar||[]).map(p=><option key={p} value={p}/>)}</datalist></div>
+                    <div><label className={lbl}>Códigos visuales</label>
+                      <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Estilo visual recurrente, paleta, recursos…" className={inp} /></div>
+                  </div>)}
+                </div>);
+              })()}
             </div>
             <div className="p-3 border-t border-main"><button onClick={save} className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">{eid?"Save changes":"Save entry"}</button></div>
           </div>
