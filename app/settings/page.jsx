@@ -304,6 +304,7 @@ function MultiUrlInput({ label, urls, onChange, max = 10 }) {
    ═══════════════════════════════════════════════════════════════ */
 function ProfileTab({ brandId, orgId, refreshFramework }) {
   const supabase = createClient();
+  const { projectId } = useProject() || {};
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
@@ -344,37 +345,53 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!brandId) return;
+    if (!projectId && !brandId) { setLoading(false); return; }
     setLoading(true);
 
-    // Load brand
-    const { data: brand } = await supabase.from("brands").select("*").eq("id", brandId).single();
-    if (brand) {
-      setName(brand.name || "");
-      setWebsite(brand.website || "");
-      setDescription(brand.description || "");
-      setCategory(brand.category || "");
-      setSubCategory(brand.sub_category || "");
-      setMarket(brand.market || "");
-      setMarketsToObserve(brand.markets_to_observe || []);
-      setTargetAudience(brand.target_audience || "");
-      setValueProposition(brand.value_proposition || "");
-      setKeyDifferentiator(brand.key_differentiator || "");
-      setR2b(brand.r2b || "");
-      setBrandTone(brand.brand_tone || "");
-      setBrandArchetype(brand.brand_archetype || "");
+    // Primary: project_frameworks by project_id (what the onboarding + Audit use)
+    let loaded = false;
+    if (projectId) {
+      const { data: fw } = await supabase.from("project_frameworks").select("*").eq("project_id", projectId).single();
+      if (fw) {
+        loaded = true;
+        setName(fw.brand_name || "");
+        setWebsite("");
+        setDescription(fw.brand_description || "");
+        setCategory(fw.industry || "");
+        setSubCategory(fw.sub_category || "");
+        setMarket(fw.primary_market || "");
+        setMarketsToObserve(fw.global_markets || []);
+        setTargetAudience(fw.brand_audience || "");
+        setValueProposition(fw.brand_positioning || "");
+        setKeyDifferentiator(fw.brand_differentiator || "");
+        setR2b("");
+        setBrandTone(fw.brand_tone || "");
+        setBrandArchetype("");
+        setCommunicationIntents(fw.communication_intents || ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"]);
+        setLanguage(fw.language || "English");
+      }
     }
 
-    // Load brand_frameworks for communication_intents + language
-    const { data: fw } = await supabase.from("brand_frameworks").select("communication_intents, language").eq("brand_id", brandId).single();
-    if (fw) {
-      setCommunicationIntents(fw.communication_intents || ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"]);
-      setLanguage(fw.language || "English");
+    // Fallback: legacy brand-based projects (brands + brand_frameworks)
+    if (!loaded && brandId) {
+      const { data: brand } = await supabase.from("brands").select("*").eq("id", brandId).single();
+      if (brand) {
+        setName(brand.name || ""); setWebsite(brand.website || ""); setDescription(brand.description || "");
+        setCategory(brand.category || ""); setSubCategory(brand.sub_category || ""); setMarket(brand.market || "");
+        setMarketsToObserve(brand.markets_to_observe || []); setTargetAudience(brand.target_audience || "");
+        setValueProposition(brand.value_proposition || ""); setKeyDifferentiator(brand.key_differentiator || "");
+        setR2b(brand.r2b || ""); setBrandTone(brand.brand_tone || ""); setBrandArchetype(brand.brand_archetype || "");
+      }
+      const { data: bfw } = await supabase.from("brand_frameworks").select("communication_intents, language").eq("brand_id", brandId).single();
+      if (bfw) {
+        setCommunicationIntents(bfw.communication_intents || ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"]);
+        setLanguage(bfw.language || "English");
+      }
     }
 
     await loadTaxonomy();
     setLoading(false);
-  }, [brandId]);
+  }, [projectId, brandId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -405,44 +422,44 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
   };
 
   const save = async () => {
-    if (!brandId) return;
+    if (!projectId && !brandId) return;
     setSaving(true);
+    let error = null;
 
-    // Save to brands table
-    const { error } = await supabase.from("brands").update({
-      name: name.trim(),
-      website: website.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      sub_category: subCategory.trim(),
-      market: market.trim(),
-      markets_to_observe: marketsToObserve,
-      target_audience: targetAudience.trim(),
-      value_proposition: valueProposition.trim(),
-      key_differentiator: keyDifferentiator.trim(),
-      r2b: r2b.trim(),
-      brand_tone: brandTone.trim(),
-      brand_archetype: brandArchetype,
-    }).eq("id", brandId);
-
-    // Save to brand_frameworks (communication_intents + language)
-    const { data: existingFw } = await supabase.from("brand_frameworks").select("id").eq("brand_id", brandId).single();
-    if (existingFw) {
-      await supabase.from("brand_frameworks").update({
+    if (projectId) {
+      // Save to project_frameworks (what Audit + onboarding use)
+      const { error: e } = await supabase.from("project_frameworks").update({
+        brand_name: name.trim(),
+        brand_description: description.trim(),
+        industry: category.trim(),
+        sub_category: subCategory.trim(),
+        primary_market: market.trim(),
+        global_markets: marketsToObserve,
+        brand_audience: targetAudience.trim(),
+        brand_positioning: valueProposition.trim(),
+        brand_differentiator: keyDifferentiator.trim(),
+        brand_tone: brandTone.trim(),
         communication_intents: communicationIntents,
         language,
-      }).eq("id", existingFw.id);
+      }).eq("project_id", projectId);
+      error = e;
+    } else if (brandId) {
+      const { error: e } = await supabase.from("brands").update({
+        name: name.trim(), website: website.trim(), description: description.trim(),
+        category: category.trim(), sub_category: subCategory.trim(), market: market.trim(),
+        markets_to_observe: marketsToObserve, target_audience: targetAudience.trim(),
+        value_proposition: valueProposition.trim(), key_differentiator: keyDifferentiator.trim(),
+        r2b: r2b.trim(), brand_tone: brandTone.trim(), brand_archetype: brandArchetype,
+      }).eq("id", brandId);
+      error = e;
+      const { data: existingFw } = await supabase.from("brand_frameworks").select("id").eq("brand_id", brandId).single();
+      if (existingFw) await supabase.from("brand_frameworks").update({ communication_intents: communicationIntents, language }).eq("id", existingFw.id);
     }
 
-    // Refresh framework context so entry form picks up new communication_intents
     refreshFramework?.();
     setSaving(false);
-    if (error) {
-      console.error("Profile save error:", error);
-      showToast("Error saving: " + error.message);
-    } else {
-      showToast("Profile saved");
-    }
+    if (error) { console.error("Profile save error:", error); showToast("Error saving: " + error.message); }
+    else { showToast("Profile saved"); }
   };
 
   if (loading) {
