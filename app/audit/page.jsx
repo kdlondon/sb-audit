@@ -1571,7 +1571,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     setAnalyzing(false);
   };
 
-  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
+  const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/(instagram\.com|tiktok\.com)/i.test(e.url))setMaterialType("social");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
@@ -1817,7 +1817,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     </div>
                   )}
                 </div>
-                :materialType==="social"&&cur.image_url?<div className="w-full"><img src={cur.image_url} alt="" className="w-full rounded-lg border border-main" style={{maxHeight:350,objectFit:"contain"}} /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open on Instagram ↗</a></div></div>
+                :materialType==="social"&&(cur.url||cur.image_url)?<div className="w-full">{cur.image_url?<img src={cur.image_url} alt="" className="w-full rounded-lg border border-main" style={{maxHeight:350,objectFit:"contain"}} />:<div className="w-full rounded-lg border border-main bg-surface2 flex items-center justify-center text-hint text-xs" style={{height:200}}>Sin miniatura</div>}<div className="mt-2 text-center">{cur.url&&<a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">{/tiktok\.com/i.test(cur.url||"")?"Abrir en TikTok ↗":"Abrir en Instagram ↗"}</a>}</div></div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :materialType==="document"&&cur.url?<div className="flex flex-col items-center justify-center gap-3">
                   <div className="w-16 h-20 rounded-lg bg-surface border-2 border-main flex items-center justify-center">

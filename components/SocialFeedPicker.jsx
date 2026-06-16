@@ -99,7 +99,7 @@ export default function SocialFeedPicker({
         try {
           const res = await fetch("/api/social/import", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: p.url, thumbnail: p.thumbnail, kind: p.kind }),
+            body: JSON.stringify({ platform, url: p.url, thumbnail: p.thumbnail, kind: p.kind }),
           });
           const meta = await res.json().catch(() => ({}));
           const owner = p.owner || handle.replace(/^@/, "").trim();
