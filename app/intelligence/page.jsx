@@ -6,9 +6,20 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, Treemap } from "recharts";
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
+const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
+const PillarCell = ({ x, y, width, height, name, value, index }) => {
+  const fill = PASTEL[(index || 0) % PASTEL.length];
+  return (
+    <g style={{ cursor: "pointer" }}>
+      <rect x={x} y={y} width={width} height={height} fill={fill} stroke="var(--surface)" strokeWidth={3} rx={6} />
+      {width > 78 && height > 34 && <text x={x + 9} y={y + 19} fontSize={11} fontWeight={700} fill="#27324a">{name}</text>}
+      {width > 78 && height > 52 && <text x={x + 9} y={y + 35} fontSize={10} fill="#5a6478">{value} contenidos</text>}
+    </g>
+  );
+};
 const TYPE_LABEL = { white_space: "Espacio libre", differential: "Diferencial", engagement: "Engagement", timing: "Timing", creative: "Creativo", strategic: "Estratégico" };
 const DIM_CHIPS = [["", "Todos"], ["white_space", "Espacio libre"], ["differential", "Diferencial"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creativo"], ["strategic", "Estratégico"]];
 const Bookmark = ({ on }) => (
@@ -50,8 +61,21 @@ function IntelligenceContent() {
   const [dimension, setDimension] = useState("");
   const [picks, setPicks] = useState([]);
   const [picksOpen, setPicksOpen] = useState(false);
-  const [openPillar, setOpenPillar] = useState(null);
-  const [pillarBrand, setPillarBrand] = useState("");
+  const [exBrand, setExBrand] = useState("");
+  const [exPillar, setExPillar] = useState(null);
+  const [subData, setSubData] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [exSub, setExSub] = useState("");
+
+  const drillPillar = async (pillar, brand) => {
+    setExPillar(pillar); setExSub(""); setSubData(null); setSubLoading(true);
+    try {
+      const res = await fetch("/api/intelligence/subpillars", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, pillar, brand: brand || undefined }) });
+      const dt = await res.json();
+      setSubData(dt.error ? { error: dt.error } : dt);
+    } catch (e) { setSubData({ error: e.message }); }
+    setSubLoading(false);
+  };
 
   // Restore last generation + analyst picks for this project (persist so they don't vanish)
   useEffect(() => {
@@ -269,53 +293,61 @@ function IntelligenceContent() {
           </div>
         ) : tab === "explore" ? (
           d.pillarGroups.length === 0 ? <NeedsAnalysis pct={d.analyzedPct} /> : (() => {
-            const grp = d.pillarGroups.find((g) => g.pillar === openPillar);
-            const posts = grp ? (pillarBrand ? grp.posts.filter((p) => p.brand === pillarBrand) : grp.posts) : [];
+            const exRows = exBrand ? d.rows.filter((r) => r.brand === exBrand) : d.rows;
+            const pmap = {}; exRows.forEach((r) => { if (!r.pillar) return; const p = (pmap[r.pillar] ||= { count: 0, eng: 0 }); p.count++; p.eng += r.eng; });
+            const tree = Object.entries(pmap).map(([name, v]) => ({ name, size: v.count, avgEng: Math.round(v.eng / v.count) })).filter((g) => g.size >= 2).sort((a, b) => b.size - a.size);
+            const subPosts = subData?.posts ? (exSub ? subData.posts.filter((p) => p.subpillar === exSub) : subData.posts) : [];
+            const csvDownload = () => {
+              const head = ["pilar", "subpilar", "marca", "likes", "comments", "url"];
+              const subBy = {}; (subData?.posts || []).forEach((p) => (subBy[p.url] = p.subpillar));
+              const lines = exRows.filter((r) => r.pillar).map((r) => [r.pillar, subBy[r.url] || "", r.brand, r.likes, r.comments, r.url]);
+              const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+              const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `mapa-contenido-${projectName || "proyecto"}.csv`; a.click();
+            };
             return (
               <div>
-                <p className="text-xs text-muted mb-3">Cada burbuja es un <b>pilar de contenido</b> (tamaño = volumen, color = engagement). Haz click para ver los ejemplos.</p>
-                {/* Pillar clusters */}
-                <div className="flex flex-wrap gap-3">
-                  {d.pillarGroups.map((g) => {
-                    const size = 88 + Math.round(70 * (g.count / d.maxPillarCount));
-                    const heat = Math.min(1, g.avgEng / 8000);
-                    const bg = `rgba(124,58,237,${0.12 + heat * 0.5})`;
-                    return (
-                      <button key={g.pillar} onClick={() => { setOpenPillar(g.pillar); setPillarBrand(""); }}
-                        className="rounded-full flex flex-col items-center justify-center text-center p-2 border transition hover:scale-105"
-                        style={{ width: size, height: size, background: bg, borderColor: openPillar === g.pillar ? "#7c3aed" : "var(--border)" }}>
-                        <span className="text-[10px] font-bold text-main leading-tight line-clamp-3">{g.pillar}</span>
-                        <span className="text-[9px] text-muted mt-0.5">{g.count} · ❤{g.avgEng.toLocaleString()}</span>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap items-center">
+                    <span className="text-[10px] font-mono uppercase tracking-wide text-hint mr-1">Competidor</span>
+                    <button onClick={() => { setExBrand(""); if (exPillar) drillPillar(exPillar, ""); }} className={`px-3 py-1 rounded-full text-[11px] border ${!exBrand ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>Todos</button>
+                    {d.brands.map((b) => <button key={b} onClick={() => { setExBrand(b); if (exPillar) drillPillar(exPillar, b); }} className={`px-3 py-1 rounded-full text-[11px] border ${exBrand === b ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>{b}</button>)}
+                  </div>
+                  <button onClick={csvDownload} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ CSV</button>
                 </div>
 
-                {/* Drill-down panel */}
-                {grp && (
-                  <div className="mt-5 border-t border-main pt-4">
-                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                      <div>
-                        <h3 className="text-base font-bold text-main">{grp.pillar}</h3>
-                        <p className="text-[11px] text-muted">{grp.count} contenidos · {grp.brands.length} marcas · engagement promedio {grp.avgEng.toLocaleString()}</p>
-                      </div>
-                      <div className="flex gap-1 flex-wrap">
-                        <button onClick={() => setPillarBrand("")} className={`px-2 py-1 rounded text-[11px] ${!pillarBrand ? "bg-accent text-white" : "bg-surface2 text-muted"}`}>Todas</button>
-                        {grp.brands.map((b) => <button key={b} onClick={() => setPillarBrand(b)} className={`px-2 py-1 rounded text-[11px] ${pillarBrand === b ? "bg-accent text-white" : "bg-surface2 text-muted"}`}>{b}</button>)}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                      {posts.map((p, i) => (
-                        <a key={i} href={p.url || "#"} target="_blank" rel="noopener" className="block bg-surface border border-main rounded-lg overflow-hidden hover:border-[var(--accent)] transition">
-                          <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">sin imagen</div>}</div>
-                          <div className="p-1.5">
-                            <div className="text-[10px] font-semibold text-main truncate">{p.brand}</div>
-                            <div className="text-[9px] text-hint">❤ {p.likes.toLocaleString()} · 💬 {p.comments.toLocaleString()}</div>
-                            <div className="text-[9px] text-muted line-clamp-2 mt-0.5">{(p.caption || "").split("\n")[0]}</div>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
+                {!exPillar ? (
+                  <>
+                    <p className="text-xs text-muted mb-2">Mapa de <b>territorios de conversación</b> (tamaño = volumen). Haz click en un territorio para ver sus <b>subpilares</b>.</p>
+                    <ResponsiveContainer width="100%" height={380}>
+                      <Treemap data={tree} dataKey="size" stroke="var(--surface)" content={<PillarCell />} isAnimationActive={false} onClick={(n) => n?.name && drillPillar(n.name, exBrand)} />
+                    </ResponsiveContainer>
+                  </>
+                ) : (
+                  <div>
+                    <button onClick={() => { setExPillar(null); setSubData(null); }} className="text-xs text-accent mb-3">← Volver al mapa</button>
+                    <h3 className="text-base font-bold text-main">{exPillar}{exBrand ? ` · ${exBrand}` : ""}</h3>
+                    {subLoading && <p className="text-sm text-accent animate-pulse mt-2">La IA está agrupando en subpilares… (~10s)</p>}
+                    {subData?.error && <p className="text-xs text-red-500 mt-2">{subData.error}</p>}
+                    {subData?.subpillars && (
+                      <>
+                        <div className="flex gap-1.5 flex-wrap my-3">
+                          <button onClick={() => setExSub("")} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${!exSub ? "bg-main text-white" : "bg-surface2 text-muted"}`}>Todos · {subData.posts.length}</button>
+                          {subData.subpillars.map((s, i) => <button key={s.name} onClick={() => setExSub(s.name)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: exSub === s.name ? PASTEL[i % PASTEL.length] : PASTEL[i % PASTEL.length] + "55", color: "#27324a" }}>{s.name} · {s.count}</button>)}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                          {subPosts.map((p, i) => (
+                            <a key={i} href={p.url || "#"} target="_blank" rel="noopener" className="block bg-surface border border-main rounded-lg overflow-hidden hover:border-[var(--accent)] transition">
+                              <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">sin imagen</div>}</div>
+                              <div className="p-1.5">
+                                <div className="text-[9px] font-mono uppercase tracking-wide text-hint truncate">{p.subpillar}</div>
+                                <div className="text-[10px] font-semibold text-main truncate">{p.brand}</div>
+                                <div className="text-[9px] text-hint">❤ {p.likes.toLocaleString()} · 💬 {p.comments.toLocaleString()}</div>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
