@@ -10,6 +10,7 @@ const mainTabs = [
   { name: "Creative Source", href: "/audit", module: "audit" },
   { name: "Scout", href: "/scout", module: "scout" },
   { name: "Intelligence", href: "/intelligence", module: "reports" },
+  { name: "Report", href: "/reports", module: "reports" },
   { name: "Showcase", href: "/showcase", module: "showcase" },
 ];
 
