@@ -1664,7 +1664,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
   const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/(instagram\.com|tiktok\.com)/i.test(e.url))setMaterialType("social");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
 
-  let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
+  let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>{
+    if(!v)return true;
+    const ev=k==="platform"?(e.custom_dimensions?._social?.platform||""):(e[k]||"");
+    return ev.includes(v);
+  }));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
   else if(sortPreset==="oldest")fd=[...fd].sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
   else if(sortPreset==="updated")fd=[...fd].sort((a,b)=>(b.updated_at||b.created_at||"").localeCompare(a.updated_at||a.created_at||""));
@@ -2275,8 +2279,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   }
 
   // ── LIST ──
-  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"portrait",label:"Portrait"},{key:"journey_phase",label:"Phase"},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
-  const filterKeys=scope==="local"?[["competitor","Competitor"],["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["client_lifecycle","Lifecycle",OPTIONS.clientLifecycle],["brand_archetype","Archetype",OPTIONS.brandArchetype]]:[["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["portrait","Portrait"],["journey_phase","Phase",OPTIONS.journeyPhase],["category_proximity","Proximity",OPTIONS.categoryProximity],["brand_archetype","Archetype",OPTIONS.brandArchetype]];
+  const EXEC_OPTS=["Live action","Animation","Mixed media","Typography","Stock footage","UGC","Illustration","Cinematic","Documentary","Manifesto","Motion graphics","Photography","Data visualisation","Interactive","AR/VR","Other"];
+  const PLATFORM_OPTS=["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"];
+  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"execution_style",label:"Execution"},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
+  const filterKeys=scope==="local"?[["competitor","Competitor"],["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]]:[["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
@@ -2819,8 +2825,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
                   <IC field="type" className="text-muted">{e.type||"—"}</IC>
                   <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
-                  <IC field="portrait" className="text-main">{e.portrait||"—"}</IC>
-                  <IC field="journey_phase" className="text-main">{e.journey_phase||"—"}</IC>
+                  <IC field="execution_style" className="text-main">{e.execution_style||"—"}</IC>
+                  <td className="px-2 py-2.5 text-muted">{e.custom_dimensions?._social?.platform||"—"}</td>
                   <IC field="rating" className="text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</IC>
                   <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
                   <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
