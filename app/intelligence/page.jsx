@@ -51,6 +51,20 @@ function IntelligenceContent() {
   const [dimension, setDimension] = useState("");
   const [picks, setPicks] = useState([]);
   const [picksOpen, setPicksOpen] = useState(false);
+  const [report, setReport] = useState(null);
+  const [repLoading, setRepLoading] = useState(false);
+  const [repErr, setRepErr] = useState("");
+  const genReport = async () => {
+    if (repLoading) return;
+    setRepLoading(true); setRepErr("");
+    try {
+      const res = await fetch("/api/intelligence/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, picks }) });
+      const dt = await res.json();
+      if (dt.error) setRepErr(dt.error);
+      else { setReport(dt.report); try { localStorage.setItem(`gw-report-${projectId}`, JSON.stringify(dt.report)); } catch {} }
+    } catch (e) { setRepErr(e.message); }
+    setRepLoading(false);
+  };
   const [exBrand, setExBrand] = useState("");
   const [exPillar, setExPillar] = useState(null);
   const [subData, setSubData] = useState(null);
@@ -72,6 +86,7 @@ function IntelligenceContent() {
     if (!projectId) return;
     try { const s = localStorage.getItem(`gw-insights-${projectId}`); if (s) setInsights(JSON.parse(s)); } catch {}
     try { const p = localStorage.getItem(`gw-picks-${projectId}`); setPicks(p ? JSON.parse(p) : []); } catch {}
+    try { const r = localStorage.getItem(`gw-report-${projectId}`); if (r) setReport(JSON.parse(r)); } catch {}
   }, [projectId]);
 
   const genInsights = async () => {
@@ -163,6 +178,7 @@ function IntelligenceContent() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
       <div className="section-bar px-5 py-2.5 flex justify-between items-center">
         <div className="flex items-center gap-5">
           <h2 className="text-[15px] font-bold text-white">Intelligence</h2>
@@ -351,10 +367,62 @@ function IntelligenceContent() {
             );
           })()
         ) : (
-          <div className="bg-surface border border-main rounded-xl p-8 text-center">
-            <h3 className="text-base font-bold text-main">Generate — reporte</h3>
-            <p className="text-sm text-muted mt-1 mb-4">Genera el reporte de Social Media Benchmark para el cliente.</p>
-            <Link href="/reports" className="inline-block px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold">Ir a generación de reportes →</Link>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+              <div>
+                <h3 className="text-base font-bold text-main">Generate — reporte</h3>
+                <p className="text-xs text-muted">Junta tus {picks.length} Analyst Picks + el mapa + los datos en un documento para el cliente.</p>
+              </div>
+              <div className="flex gap-2">
+                {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Descargar PDF</button>}
+                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{repLoading ? "Componiendo…" : report ? "Regenerar" : "Generar reporte"}</button>
+              </div>
+            </div>
+            {repErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{repErr}</div>}
+            {repLoading && <p className="text-sm text-accent animate-pulse">Componiendo el reporte… (~15s)</p>}
+            {!report && !repLoading && <div className="border border-dashed border-main rounded-xl p-12 text-center"><p className="text-sm text-muted max-w-[430px] mx-auto">Marca tus mejores insights en <b>Analyst Picks</b> y dale a <b>Generar reporte</b>. La IA compone el resumen ejecutivo y las recomendaciones alrededor de tus picks.</p></div>}
+            {report && (
+              <div id="intel-report" className="bg-surface border border-main rounded-xl px-8 py-10 max-w-[820px] mx-auto">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Media Benchmark · {projectName}</div>
+                <h1 className="text-3xl font-bold text-main mt-2 leading-tight">{report.title}</h1>
+                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} marcas · {d.total} contenidos analizados</div>
+
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">Resumen ejecutivo</h2>
+                <p className="text-[15px] text-main leading-relaxed">{report.executive_summary}</p>
+
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Mapa de territorios</h2>
+                <div className="flex flex-wrap gap-1.5">
+                  {d.pillarGroups.map((g, i) => (
+                    <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
+                      <div className="text-[11px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.pillar}</div>
+                      <div className="text-[9px] font-mono mt-1" style={{ color: "#52607a" }}>{g.count} · ❤{g.avgEng.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {picks.length > 0 && (<>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Insights clave</h2>
+                  <div className="space-y-4">
+                    {picks.map((p, i) => (
+                      <div key={i} className="border-l-2 border-[#7c3aed] pl-4">
+                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "#2563eb" }}>{p.stat}</span>}</div>
+                        <h4 className="text-[15px] font-bold text-main leading-snug">{p.headline}</h4>
+                        <p className="text-xs text-muted leading-relaxed mt-0.5">{p.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>)}
+
+                {Array.isArray(report.recommendations) && report.recommendations.length > 0 && (<>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Recomendaciones</h2>
+                  <ol className="space-y-2">
+                    {report.recommendations.map((r, i) => (
+                      <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[#7c3aed]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
+                    ))}
+                  </ol>
+                </>)}
+              </div>
+            )}
           </div>
         )}
       </div>
