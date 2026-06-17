@@ -9,6 +9,14 @@ import { useProject } from "@/lib/project-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
+const TYPE_META = {
+  white_space: { icon: "🎯", label: "Espacio libre", bg: "#dbeafe", fg: "#1d4ed8" },
+  differential: { icon: "⚡", label: "Diferencial", bg: "#ede9fe", fg: "#6d28d9" },
+  engagement: { icon: "📈", label: "Engagement", bg: "#dcfce7", fg: "#15803d" },
+  timing: { icon: "⏰", label: "Timing", bg: "#fef3c7", fg: "#b45309" },
+  creative: { icon: "🎨", label: "Creativo", bg: "#fce7f3", fg: "#be185d" },
+  strategic: { icon: "🧭", label: "Estratégico", bg: "#e2e8f0", fg: "#334155" },
+};
 const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };
 const num = (v) => (typeof v === "number" ? v : Number(v) || 0);
 
@@ -39,6 +47,20 @@ function IntelligenceContent() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
+  const [insights, setInsights] = useState(null);
+  const [insLoading, setInsLoading] = useState(false);
+  const [insErr, setInsErr] = useState("");
+
+  const genInsights = async () => {
+    if (insLoading) return;
+    setInsLoading(true); setInsErr("");
+    try {
+      const res = await fetch("/api/intelligence/insights", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId }) });
+      const dt = await res.json();
+      if (dt.error) setInsErr(dt.error); else setInsights(dt.insights || []);
+    } catch (e) { setInsErr(e.message); }
+    setInsLoading(false);
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -171,10 +193,42 @@ function IntelligenceContent() {
             </Card>
           </div>
         ) : tab === "insights" ? (
-          <div className="bg-surface border border-main rounded-xl p-8 text-center">
-            <span className="text-3xl">✦</span>
-            <h3 className="text-base font-bold text-main mt-2">Insights generados por IA</h3>
-            <p className="text-sm text-muted mt-1 max-w-[420px] mx-auto">Espacios libres, tu diferencial, mejores horas para publicar, qué engancha. Se construye en la siguiente fase.</p>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-main">Insights</h3>
+                <p className="text-xs text-muted">Conclusiones estratégicas auto-generadas a partir de {d.total} contenidos analizados.</p>
+              </div>
+              <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>
+                {insLoading ? "Generando…" : insights ? "↻ Regenerar" : "✦ Generar insights"}
+              </button>
+            </div>
+            {insErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{insErr}</div>}
+            {insLoading && <p className="text-sm text-accent animate-pulse">La IA está leyendo el panorama competitivo… (~15s)</p>}
+            {!insights && !insLoading && (
+              <div className="bg-surface border border-main rounded-xl p-8 text-center">
+                <span className="text-3xl">✦</span>
+                <p className="text-sm text-muted mt-2 max-w-[420px] mx-auto">Dale a <b>Generar insights</b> para que la IA identifique espacios libres, tu diferencial, qué engancha, mejores horas y abordajes creativos.</p>
+              </div>
+            )}
+            {insights && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {insights.map((ins, i) => {
+                  const meta = TYPE_META[ins.type] || TYPE_META.strategic;
+                  return (
+                    <div key={i} className="bg-surface border border-main rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">{meta.icon}</span>
+                        <span className="text-[9px] uppercase font-bold tracking-wide px-2 py-0.5 rounded-full" style={{ background: meta.bg, color: meta.fg }}>{meta.label}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-main leading-snug mb-1">{ins.headline}</h4>
+                      <p className="text-xs text-muted leading-relaxed">{ins.body}</p>
+                      {ins.evidence && <p className="text-[10px] text-hint mt-2 pt-2 border-t border-main">📊 {ins.evidence}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : tab === "explore" ? (
           <div className="bg-surface border border-main rounded-xl p-8 text-center">

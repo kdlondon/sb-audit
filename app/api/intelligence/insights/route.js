@@ -1,0 +1,91 @@
+import { createClient } from "@supabase/supabase-js";
+import { loadFramework } from "@/lib/framework-loader";
+
+// Generate Social Media Benchmark insights for a project: aggregate the analyzed social
+// entries into a compact competitive summary, then ask Claude for conclusive, comparative,
+// actionable insights (white space, differential opportunity, timing, engagement, creative).
+const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };
+const num = (v) => (typeof v === "number" ? v : Number(v) || 0);
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export async function POST(request) {
+  const { project_id } = await request.json();
+  if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
+
+  const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
+  const { data: rows } = await admin.from("creative_source").select("competitor,brand,brand_name,communication_intent,tone_of_voice,execution_style,primary_territory,custom_dimensions").eq("project_id", project_id).eq("type", "Social post");
+  if (!rows || rows.length === 0) return Response.json({ error: "No social posts found" }, { status: 404 });
+
+  let framework = null; try { framework = await loadFramework(project_id); } catch {}
+  const client = framework?.brandName || "the client brand";
+  const category = framework?.industry || "the category";
+  const lang = framework?.language || "English";
+
+  // Aggregate
+  const all = rows.map((e) => {
+    const cd = cdOf(e), s = cd._social || {}, m = cd._meta || {};
+    return {
+      brand: e.competitor || e.brand || e.brand_name || "—",
+      pillar: s.content_pillar || "Unclassified",
+      format: s.format || "—",
+      hero: /hero/i.test(e.communication_intent || ""),
+      tone: e.tone_of_voice || "", exec: e.execution_style || "",
+      eng: num(m.likes) + num(m.comments), posted: m.posted_at || "",
+    };
+  });
+  // Keep only real competitors (drop one-off noise handles: tagged accounts, commenters)
+  const bc = {}; all.forEach((i) => (bc[i.brand] = (bc[i.brand] || 0) + 1));
+  const items = all.filter((i) => bc[i.brand] >= 5);
+  const brands = [...new Set(items.map((i) => i.brand))];
+  const pillarStats = {};
+  items.forEach((i) => { const p = (pillarStats[i.pillar] ||= { posts: 0, brands: new Set(), eng: 0 }); p.posts++; p.brands.add(i.brand); p.eng += i.eng; });
+  const pillarLandscape = Object.entries(pillarStats).map(([pillar, v]) => ({ pillar, posts: v.posts, brands: v.brands.size, avgEng: Math.round(v.eng / v.posts) })).sort((a, b) => b.posts - a.posts);
+
+  const perBrand = brands.map((b) => {
+    const bi = items.filter((i) => i.brand === b);
+    const pc = {}; bi.forEach((i) => (pc[i.pillar] = (pc[i.pillar] || 0) + 1));
+    const top = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p, n]) => `${p} ${Math.round(100 * n / bi.length)}%`);
+    const dayc = [0, 0, 0, 0, 0, 0, 0]; bi.forEach((i) => { if (i.posted) { const d = new Date(i.posted).getDay(); if (!isNaN(d)) dayc[d]++; } });
+    const topDay = DOW[dayc.indexOf(Math.max(...dayc))];
+    return { brand: b, posts: bi.length, heroPct: Math.round(100 * bi.filter((i) => i.hero).length / bi.length), avgEng: Math.round(bi.reduce((s, i) => s + i.eng, 0) / bi.length), topPillars: top, topDay };
+  });
+
+  const summary = `CLIENT (own brand, NOT in the data below — frame opportunities FOR them): ${client}
+CATEGORY: ${category} · ${items.length} competitor posts across ${brands.length} brands.
+
+PILLAR LANDSCAPE (how crowded each content territory is + avg engagement):
+${pillarLandscape.map((p) => `- ${p.pillar}: ${p.posts} posts, ${p.brands}/${brands.length} brands, avg eng ${p.avgEng}`).join("\n")}
+
+PER COMPETITOR:
+${perBrand.map((b) => `- ${b.brand}: ${b.posts} posts | top pillars: ${b.topPillars.join(", ")} | Hero ${b.heroPct}% | avg eng ${b.avgEng} | busiest day ${b.topDay}`).join("\n")}`;
+
+  const prompt = `You are a senior brand strategist producing a Social Media Benchmark for ${client} in ${category}.
+Write 6 punchy, CONCLUSIVE insights from the competitive data below. Each must be a conclusion (not a data dump), comparative, and actionable — frame opportunities FOR ${client}. Reference real brands/numbers. Cover these angles (one each): white space (a content territory nobody/few own = opportunity), differential opportunity (how ${client} could stand apart), what drives engagement, timing/cadence, a differential creative approach, and one cross-cutting strategic read.
+
+Return ONLY a raw JSON array (no markdown) of 6 objects:
+{"type":"white_space|differential|engagement|timing|creative|strategic","headline":"punchy 6-10 words","body":"2-3 sentences, the 'so what', with a number or brand named","evidence":"short data point, e.g. '0/5 brands own X'"}
+
+Write everything in ${lang}.
+
+DATA:
+${summary}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2000, messages: [{ role: "user", content: prompt.replace(/[\uD800-\uDFFF]/g, "") }] }),
+    });
+    const data = await res.json();
+    if (data.error) return Response.json({ error: data.error.message }, { status: 500 });
+    const text = data.content?.map((c) => c.text || "").join("") || "[]";
+    let insights = [];
+    try { insights = JSON.parse(text.match(/\[[\s\S]*\]/)?.[0] || "[]"); } catch {}
+    return Response.json({ insights, meta: { brands: brands.length, posts: items.length, pillars: pillarLandscape.length } });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
