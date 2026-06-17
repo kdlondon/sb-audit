@@ -9,14 +9,11 @@ import { useProject } from "@/lib/project-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
-const TYPE_META = {
-  white_space: { icon: "🎯", label: "Espacio libre", bg: "#dbeafe", fg: "#1d4ed8" },
-  differential: { icon: "⚡", label: "Diferencial", bg: "#ede9fe", fg: "#6d28d9" },
-  engagement: { icon: "📈", label: "Engagement", bg: "#dcfce7", fg: "#15803d" },
-  timing: { icon: "⏰", label: "Timing", bg: "#fef3c7", fg: "#b45309" },
-  creative: { icon: "🎨", label: "Creativo", bg: "#fce7f3", fg: "#be185d" },
-  strategic: { icon: "🧭", label: "Estratégico", bg: "#e2e8f0", fg: "#334155" },
-};
+const TYPE_LABEL = { white_space: "Espacio libre", differential: "Diferencial", engagement: "Engagement", timing: "Timing", creative: "Creativo", strategic: "Estratégico" };
+const DIM_CHIPS = [["", "Todos"], ["white_space", "Espacio libre"], ["differential", "Diferencial"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creativo"], ["strategic", "Estratégico"]];
+const Bookmark = ({ on }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" /></svg>
+);
 const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };
 const num = (v) => (typeof v === "number" ? v : Number(v) || 0);
 
@@ -50,18 +47,38 @@ function IntelligenceContent() {
   const [insights, setInsights] = useState(null);
   const [insLoading, setInsLoading] = useState(false);
   const [insErr, setInsErr] = useState("");
+  const [dimension, setDimension] = useState("");
+  const [picks, setPicks] = useState([]);
+  const [picksOpen, setPicksOpen] = useState(false);
   const [openPillar, setOpenPillar] = useState(null);
   const [pillarBrand, setPillarBrand] = useState("");
+
+  // Restore last generation + analyst picks for this project (persist so they don't vanish)
+  useEffect(() => {
+    if (!projectId) return;
+    try { const s = localStorage.getItem(`gw-insights-${projectId}`); if (s) setInsights(JSON.parse(s)); } catch {}
+    try { const p = localStorage.getItem(`gw-picks-${projectId}`); setPicks(p ? JSON.parse(p) : []); } catch {}
+  }, [projectId]);
 
   const genInsights = async () => {
     if (insLoading) return;
     setInsLoading(true); setInsErr("");
     try {
-      const res = await fetch("/api/intelligence/insights", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId }) });
+      const res = await fetch("/api/intelligence/insights", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, dimension }) });
       const dt = await res.json();
-      if (dt.error) setInsErr(dt.error); else setInsights(dt.insights || []);
+      if (dt.error) setInsErr(dt.error);
+      else { setInsights(dt.insights || []); try { localStorage.setItem(`gw-insights-${projectId}`, JSON.stringify(dt.insights || [])); } catch {} }
     } catch (e) { setInsErr(e.message); }
     setInsLoading(false);
+  };
+
+  const isPicked = (ins) => picks.some((p) => p.headline === ins.headline);
+  const togglePick = (ins) => {
+    setPicks((prev) => {
+      const next = prev.some((p) => p.headline === ins.headline) ? prev.filter((p) => p.headline !== ins.headline) : [...prev, ins];
+      try { localStorage.setItem(`gw-picks-${projectId}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -206,37 +223,45 @@ function IntelligenceContent() {
           </div>
         ) : tab === "insights" ? (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h3 className="text-base font-bold text-main">Insights</h3>
-                <p className="text-xs text-muted">Conclusiones estratégicas auto-generadas a partir de {d.total} contenidos analizados.</p>
+                <p className="text-xs text-muted">Conclusiones a partir de {d.total} contenidos · {d.analyzedPct}% analizado</p>
               </div>
-              <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>
-                {insLoading ? "Generando…" : insights ? "↻ Regenerar" : "✦ Generar insights"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPicksOpen(true)} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2 flex items-center gap-1.5"><Bookmark on /> Analyst Picks ({picks.length})</button>
+                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{insLoading ? "Generando…" : insights ? "Regenerar" : "Generar insights"}</button>
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap mb-6">
+              {DIM_CHIPS.map(([k, l]) => (<button key={k} onClick={() => setDimension(k)} className={`px-3 py-1 rounded-full text-[11px] font-medium border transition ${dimension === k ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:text-main"}`}>{l}</button>))}
             </div>
             {insErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{insErr}</div>}
             {insLoading && <p className="text-sm text-accent animate-pulse">La IA está leyendo el panorama competitivo… (~15s)</p>}
             {!insights && !insLoading && (
-              <div className="bg-surface border border-main rounded-xl p-8 text-center">
-                <span className="text-3xl">✦</span>
-                <p className="text-sm text-muted mt-2 max-w-[420px] mx-auto">Dale a <b>Generar insights</b> para que la IA identifique espacios libres, tu diferencial, qué engancha, mejores horas y abordajes creativos.</p>
+              <div className="border border-dashed border-main rounded-xl p-12 text-center">
+                <p className="text-sm text-muted max-w-[430px] mx-auto">Elige una dimensión (o <b>Todos</b>) y genera 8 conclusiones estratégicas. Marca las mejores con el bookmark — se guardan en <b>Analyst Picks</b> y serán la base del reporte.</p>
               </div>
             )}
-            {insights && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {insights && !insLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {insights.map((ins, i) => {
-                  const meta = TYPE_META[ins.type] || TYPE_META.strategic;
+                  const thumb = d.pillarGroups.find((g) => g.pillar === ins.pillar)?.posts?.[0]?.image_url;
+                  const feature = i === 0, picked = isPicked(ins);
                   return (
-                    <div key={i} className="bg-surface border border-main rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-base">{meta.icon}</span>
-                        <span className="text-[9px] uppercase font-bold tracking-wide px-2 py-0.5 rounded-full" style={{ background: meta.bg, color: meta.fg }}>{meta.label}</span>
+                    <article key={i} className={`bg-surface border rounded-xl overflow-hidden flex flex-col ${feature ? "md:col-span-2" : ""} ${picked ? "border-[#7c3aed]" : "border-main"}`}>
+                      {thumb && <div className={`w-full overflow-hidden bg-surface2 ${feature ? "h-44" : "h-28"}`}><img src={thumb} alt="" loading="lazy" className="w-full h-full object-cover" /></div>}
+                      <div className="p-4 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between mb-3">
+                          <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-hint">{TYPE_LABEL[ins.type] || ins.type}</span>
+                          <button onClick={() => togglePick(ins)} title="Guardar en Analyst Picks" className={`${picked ? "text-[#7c3aed]" : "text-hint hover:text-main"} transition`}><Bookmark on={picked} /></button>
+                        </div>
+                        {ins.stat && <div className="mb-2 flex items-baseline gap-2"><span className={`font-bold leading-none ${feature ? "text-4xl" : "text-3xl"}`} style={{ color: "#2563eb" }}>{ins.stat}</span><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{ins.stat_label}</span></div>}
+                        <h4 className={`font-bold text-main leading-snug mb-2 ${feature ? "text-lg" : "text-[15px]"}`}>{ins.headline}</h4>
+                        <p className="text-xs text-muted leading-relaxed flex-1">{ins.body}</p>
+                        {ins.evidence && <p className="text-[10px] font-mono text-hint mt-3 pt-3 border-t border-main">{ins.evidence}</p>}
                       </div>
-                      <h4 className="text-sm font-bold text-main leading-snug mb-1">{ins.headline}</h4>
-                      <p className="text-xs text-muted leading-relaxed">{ins.body}</p>
-                      {ins.evidence && <p className="text-[10px] text-hint mt-2 pt-2 border-t border-main">📊 {ins.evidence}</p>}
-                    </div>
+                    </article>
                   );
                 })}
               </div>
@@ -304,6 +329,31 @@ function IntelligenceContent() {
           </div>
         )}
       </div>
+
+      {picksOpen && (
+        <div className="fixed inset-0 z-50" onClick={() => setPicksOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute right-0 top-0 h-full w-[360px] bg-surface border-l border-main shadow-xl overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-main flex items-center justify-between sticky top-0 bg-surface z-10">
+              <div><h3 className="text-sm font-bold text-main">Analyst Picks</h3><p className="text-[10px] text-hint">{picks.length} seleccionados · base del reporte</p></div>
+              <button onClick={() => setPicksOpen(false)} className="text-hint hover:text-main text-xl leading-none">×</button>
+            </div>
+            <div className="p-3 space-y-2">
+              {picks.length === 0 ? <p className="text-xs text-hint text-center py-10">Marca insights con el bookmark para guardarlos aquí.</p> : picks.map((p, i) => (
+                <div key={i} className="border border-main rounded-lg p-3">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="text-[9px] font-mono uppercase tracking-wide text-hint">{TYPE_LABEL[p.type] || p.type}</span>
+                    <button onClick={() => togglePick(p)} title="Quitar" className="text-[#7c3aed]"><Bookmark on /></button>
+                  </div>
+                  {p.stat && <div className="text-lg font-bold leading-none mb-1" style={{ color: "#2563eb" }}>{p.stat} <span className="text-[9px] font-mono text-hint">{p.stat_label}</span></div>}
+                  <h4 className="text-xs font-bold text-main leading-snug">{p.headline}</h4>
+                  <p className="text-[11px] text-muted mt-1 leading-relaxed">{p.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
