@@ -1571,8 +1571,19 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
             _ai_analyzed_at:new Date().toISOString(),
           };
-          // Social posts always run through social channels — set Channel (distribution).
-          if(isSocial) u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
+          if(isSocial){
+            // Channel (distribution) — social posts always run through social channels.
+            u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
+            // Brand — map the handle/AI value to a known competitor by normalized name.
+            const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+            const c=norm(u.competitor||u.brand||u.brand_name||"");
+            const list=formScope==="global"?globalBrands:localCompetitors;
+            const match=(list||[]).find(b=>{const a=norm(b.name);return a&&(a===c||(a.length>=4&&c.includes(a))||(c.length>=4&&a.includes(c)));});
+            if(match){u.brand_name=match.name;if(formScope==="global")u.brand=match.name;else u.competitor=match.name;}
+            // Year — use the real post date from metadata, never the AI's guess.
+            const y=String(u.custom_dimensions?._meta?.posted_at||"").slice(0,4);
+            if(/^\d{4}$/.test(y))u.year=y;
+          }
           return u;
         });
         // Grow the controlled pillar vocabulary if the AI proposed a genuinely new one.
