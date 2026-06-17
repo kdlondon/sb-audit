@@ -6,20 +6,10 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid, Treemap } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
-const PillarCell = ({ x, y, width, height, name, value, index }) => {
-  const fill = PASTEL[(index || 0) % PASTEL.length];
-  return (
-    <g style={{ cursor: "pointer" }}>
-      <rect x={x} y={y} width={width} height={height} fill={fill} stroke="var(--surface)" strokeWidth={3} rx={6} />
-      {width > 78 && height > 34 && <text x={x + 9} y={y + 19} fontSize={11} fontWeight={700} fill="#27324a">{name}</text>}
-      {width > 78 && height > 52 && <text x={x + 9} y={y + 35} fontSize={10} fill="#5a6478">{value} contenidos</text>}
-    </g>
-  );
-};
 const TYPE_LABEL = { white_space: "Espacio libre", differential: "Diferencial", engagement: "Engagement", timing: "Timing", creative: "Creativo", strategic: "Estratégico" };
 const DIM_CHIPS = [["", "Todos"], ["white_space", "Espacio libre"], ["differential", "Diferencial"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creativo"], ["strategic", "Estratégico"]];
 const Bookmark = ({ on }) => (
@@ -317,10 +307,17 @@ function IntelligenceContent() {
 
                 {!exPillar ? (
                   <>
-                    <p className="text-xs text-muted mb-2">Mapa de <b>territorios de conversación</b> (tamaño = volumen). Haz click en un territorio para ver sus <b>subpilares</b>.</p>
-                    <ResponsiveContainer width="100%" height={380}>
-                      <Treemap data={tree} dataKey="size" stroke="var(--surface)" content={<PillarCell />} isAnimationActive={false} onClick={(n) => n?.name && drillPillar(n.name, exBrand)} />
-                    </ResponsiveContainer>
+                    <p className="text-xs text-muted mb-3">Mapa de <b>territorios de conversación</b> (ancho = volumen). Haz click en un territorio para ver sus <b>subpilares</b>.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {tree.map((g, i) => (
+                        <button key={g.name} onClick={() => drillPillar(g.name, exBrand)}
+                          className="rounded-xl p-3 text-left transition hover:brightness-95 flex flex-col justify-between"
+                          style={{ flex: `${g.size} 1 ${Math.max(150, g.size * 9)}px`, minHeight: 118, background: PASTEL[i % PASTEL.length] }}>
+                          <div className="text-[13px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.name}</div>
+                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} contenidos · ❤ {g.avgEng.toLocaleString()}</div>
+                        </button>
+                      ))}
+                    </div>
                   </>
                 ) : (
                   <div>
