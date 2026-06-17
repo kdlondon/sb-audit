@@ -50,6 +50,8 @@ function IntelligenceContent() {
   const [insights, setInsights] = useState(null);
   const [insLoading, setInsLoading] = useState(false);
   const [insErr, setInsErr] = useState("");
+  const [openPillar, setOpenPillar] = useState(null);
+  const [pillarBrand, setPillarBrand] = useState("");
 
   const genInsights = async () => {
     if (insLoading) return;
@@ -83,6 +85,8 @@ function IntelligenceContent() {
         format: s.format || "—",
         pillar: s.content_pillar || "",
         likes: num(m.likes), comments: num(m.comments), views: num(m.views),
+        eng: num(m.likes) + num(m.comments),
+        image_url: e.image_url || "", url: e.url || "", caption: m.caption || e.synopsis || "",
         posted_at: m.posted_at || "",
         analyzed: !!cd._ai_analyzed_at,
       };
@@ -113,7 +117,15 @@ function IntelligenceContent() {
 
     const analyzedPct = rows.length ? Math.round((100 * rows.filter((r) => r.analyzed).length) / rows.length) : 0;
 
-    return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, analyzedPct, total: rows.length };
+    // Pillar groups for Explore (drop tiny noise pillars), each with its example posts sorted by engagement
+    const pillarGroups = pillars.map((p) => {
+      const posts = rows.filter((r) => r.pillar === p).sort((a, b) => b.eng - a.eng);
+      const eng = posts.reduce((s, r) => s + r.eng, 0);
+      return { pillar: p, count: posts.length, avgEng: posts.length ? Math.round(eng / posts.length) : 0, brands: [...new Set(posts.map((r) => r.brand))], posts };
+    }).filter((g) => g.count >= 3).sort((a, b) => b.count - a.count);
+    const maxPillarCount = Math.max(1, ...pillarGroups.map((g) => g.count));
+
+    return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries]);
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["generate", "Generate"]];
@@ -231,11 +243,59 @@ function IntelligenceContent() {
             )}
           </div>
         ) : tab === "explore" ? (
-          <div className="bg-surface border border-main rounded-xl p-8 text-center">
-            <span className="text-3xl">🗺️</span>
-            <h3 className="text-base font-bold text-main mt-2">Explore — mapa de pilares</h3>
-            <p className="text-sm text-muted mt-1 max-w-[420px] mx-auto">Board tipo Miro: pilares → subpilares → ejemplos. Se construye en la siguiente fase.</p>
-          </div>
+          d.pillarGroups.length === 0 ? <NeedsAnalysis pct={d.analyzedPct} /> : (() => {
+            const grp = d.pillarGroups.find((g) => g.pillar === openPillar);
+            const posts = grp ? (pillarBrand ? grp.posts.filter((p) => p.brand === pillarBrand) : grp.posts) : [];
+            return (
+              <div>
+                <p className="text-xs text-muted mb-3">Cada burbuja es un <b>pilar de contenido</b> (tamaño = volumen, color = engagement). Haz click para ver los ejemplos.</p>
+                {/* Pillar clusters */}
+                <div className="flex flex-wrap gap-3">
+                  {d.pillarGroups.map((g) => {
+                    const size = 88 + Math.round(70 * (g.count / d.maxPillarCount));
+                    const heat = Math.min(1, g.avgEng / 8000);
+                    const bg = `rgba(124,58,237,${0.12 + heat * 0.5})`;
+                    return (
+                      <button key={g.pillar} onClick={() => { setOpenPillar(g.pillar); setPillarBrand(""); }}
+                        className="rounded-full flex flex-col items-center justify-center text-center p-2 border transition hover:scale-105"
+                        style={{ width: size, height: size, background: bg, borderColor: openPillar === g.pillar ? "#7c3aed" : "var(--border)" }}>
+                        <span className="text-[10px] font-bold text-main leading-tight line-clamp-3">{g.pillar}</span>
+                        <span className="text-[9px] text-muted mt-0.5">{g.count} · ❤{g.avgEng.toLocaleString()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Drill-down panel */}
+                {grp && (
+                  <div className="mt-5 border-t border-main pt-4">
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                      <div>
+                        <h3 className="text-base font-bold text-main">{grp.pillar}</h3>
+                        <p className="text-[11px] text-muted">{grp.count} contenidos · {grp.brands.length} marcas · engagement promedio {grp.avgEng.toLocaleString()}</p>
+                      </div>
+                      <div className="flex gap-1 flex-wrap">
+                        <button onClick={() => setPillarBrand("")} className={`px-2 py-1 rounded text-[11px] ${!pillarBrand ? "bg-accent text-white" : "bg-surface2 text-muted"}`}>Todas</button>
+                        {grp.brands.map((b) => <button key={b} onClick={() => setPillarBrand(b)} className={`px-2 py-1 rounded text-[11px] ${pillarBrand === b ? "bg-accent text-white" : "bg-surface2 text-muted"}`}>{b}</button>)}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {posts.map((p, i) => (
+                        <a key={i} href={p.url || "#"} target="_blank" rel="noopener" className="block bg-surface border border-main rounded-lg overflow-hidden hover:border-[var(--accent)] transition">
+                          <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">sin imagen</div>}</div>
+                          <div className="p-1.5">
+                            <div className="text-[10px] font-semibold text-main truncate">{p.brand}</div>
+                            <div className="text-[9px] text-hint">❤ {p.likes.toLocaleString()} · 💬 {p.comments.toLocaleString()}</div>
+                            <div className="text-[9px] text-muted line-clamp-2 mt-0.5">{(p.caption || "").split("\n")[0]}</div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <div className="bg-surface border border-main rounded-xl p-8 text-center">
             <h3 className="text-base font-bold text-main">Generate — reporte</h3>
