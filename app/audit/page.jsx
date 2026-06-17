@@ -287,6 +287,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [selected,setSelected]=useState(new Set());
   const [uploading,setUploading]=useState(false);
   const [analyzing,setAnalyzing]=useState(false);
+  const [bulkAnalyzing,setBulkAnalyzing]=useState(false);
+  const [bulkProgress,setBulkProgress]=useState({done:0,total:0});
   const [downloading,setDownloading]=useState(false);
   const [ytLoading,setYtLoading]=useState(false);
   const [showAddMenu,setShowAddMenu]=useState(false);
@@ -1603,6 +1605,63 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     setAnalyzing(false);
   };
 
+  // Analyze a single entry headlessly (for bulk). Returns the DB update object or null.
+  const analyzeEntryToUpdate=async(entry)=>{
+    const isSocial=entry.type==="Social post";
+    const meta=entry.custom_dimensions?._meta||{};
+    const context=[];
+    if(entry.competitor)context.push(`Brand: ${entry.competitor}`);
+    if(entry.brand)context.push(`Brand: ${entry.brand}`);
+    const captionTxt=meta.caption||entry.synopsis||"";
+    if(captionTxt)context.push(`Caption/copy: ${String(captionTxt).slice(0,1500)}`);
+    if(entry.transcript)context.push(`Transcript/copy: ${String(entry.transcript).slice(0,1500)}`);
+    if(entry.analyst_comment)context.push(`Analyst observations: ${entry.analyst_comment}`);
+    let imageBase64=null;
+    if(entry.image_url){try{imageBase64=await resizeImageToBase64(entry.image_url,800,0.75);}catch{}}
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imageBase64?null:entry.image_url,imageBase64,context:context.join("\n"),project_id:projectId,brand_id:safeBrandId,social:isSocial,pillars:isSocial?(OPTIONS.content_pillar||[]):[]})});
+    if(!res.ok)return null;
+    const result=await res.json();
+    if(!result.success||!result.analysis)return null;
+    const a=result.analysis;
+    const SOCIAL_KEYS=["content_pillar","post_objective","visual_codes"];
+    const u={};const socialUpd={};
+    Object.entries(a).forEach(([k,v])=>{if(!(v&&v!=="undefined"&&v!=="null"))return;if(SOCIAL_KEYS.includes(k))socialUpd[k]=v;else u[k]=v;});
+    const cd={...(entry.custom_dimensions||{}),...(Object.keys(socialUpd).length?{_social:{...((entry.custom_dimensions||{})._social||{}),...socialUpd}}:{}),_ai_analyzed_at:new Date().toISOString()};
+    if(isSocial){
+      u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
+      const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"");
+      const c=norm(u.competitor||u.brand||entry.competitor||entry.brand||entry.brand_name||"");
+      const list=entry.scope==="global"?globalBrands:localCompetitors;
+      const match=(list||[]).find(b=>{const aa=norm(b.name);return aa&&(aa===c||(aa.length>=4&&c.includes(aa))||(c.length>=4&&aa.includes(c)));});
+      if(match){u.brand_name=match.name;if(entry.scope==="global")u.brand=match.name;else u.competitor=match.name;}
+      const y=String(meta.posted_at||"").slice(0,4);if(/^\d{4}$/.test(y))u.year=y;
+    }
+    const allowed=new Set(ALL_COLUMNS);
+    const update={};Object.keys(u).forEach(k=>{if(allowed.has(k))update[k]=u[k];});
+    update.custom_dimensions=cd;
+    update.brand_id=safeUuid(update.brand_id);
+    update.updated_at=new Date().toISOString();
+    return update;
+  };
+
+  const bulkAnalyze=async()=>{
+    const entries=data.filter(e=>selected.has(e.id));
+    if(!entries.length||bulkAnalyzing)return;
+    if(!confirm(`Analizar ${entries.length} contenido(s) con IA? Puede tardar varios minutos.`))return;
+    setBulkAnalyzing(true);setBulkProgress({done:0,total:entries.length});
+    let idx=0,ok=0;const CONC=3;
+    const worker=async()=>{
+      while(idx<entries.length){
+        const e=entries[idx++];
+        try{const update=await analyzeEntryToUpdate(e);if(update){const{error}=await supabase.from(getTableName(scope)).update(update).eq("id",e.id);if(!error)ok++;}}catch{}
+        setBulkProgress(p=>({...p,done:p.done+1}));
+      }
+    };
+    await Promise.all(Array.from({length:Math.min(CONC,entries.length)},worker));
+    setBulkAnalyzing(false);setSelected(new Set());await load();
+    setToast({message:`✓ ${ok}/${entries.length} analizados con IA`});
+  };
+
   const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/(instagram\.com|tiktok\.com)/i.test(e.url))setMaterialType("social");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>!v||(e[k]||"").includes(v)));
@@ -2238,6 +2297,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
           {selected.size>0&&<div className="flex gap-1.5 items-center">
+            <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analizar con IA" className="h-[30px] px-3 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold disabled:opacity-60" style={{background:"linear-gradient(90deg,#7c3aed,#2563eb)"}}>
+              <span>✦</span><span>{bulkAnalyzing?`Analizando ${bulkProgress.done}/${bulkProgress.total}…`:`Analizar ${selected.size} con IA`}</span>
+            </button>
             <div className="relative">
               <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}}
                 className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
