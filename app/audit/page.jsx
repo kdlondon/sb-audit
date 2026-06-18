@@ -1681,7 +1681,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
   let fd=data.filter(e=>Object.entries(fl).every(([k,v])=>{
     if(!v)return true;
-    const ev=k==="platform"?(e.custom_dimensions?._social?.platform||""):(e[k]||"");
+    const ev=k==="platform"?(e.custom_dimensions?._social?.platform||""):k==="content_pillar"?(e.custom_dimensions?._social?.content_pillar||""):(e[k]||"");
     return ev.includes(v);
   }));
   if(sortPreset==="newest")fd=[...fd].sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
@@ -2297,7 +2297,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const EXEC_OPTS=["Live action","Animation","Mixed media","Typography","Stock footage","UGC","Illustration","Cinematic","Documentary","Manifesto","Motion graphics","Photography","Data visualisation","Interactive","AR/VR","Other"];
   const PLATFORM_OPTS=["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"];
   const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"execution_style",label:"Execution"},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
-  const filterKeys=scope==="local"?[["competitor","Competitor"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]];
+  const hasSocial=data.some(e=>e.type==="Social post"||e.custom_dimensions?._social?.content_pillar);
+  const pillarOpts=[...new Set(data.map(e=>e.custom_dimensions?._social?.content_pillar).filter(Boolean))].sort();
+  const socialFilters=hasSocial&&pillarOpts.length?[["content_pillar","Content pillar",pillarOpts]]:[];
+  const filterKeys=scope==="local"?[["competitor","Competitor"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
@@ -2860,12 +2863,14 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </table>
           </div>
         ):(
-          <div className="px-5 py-4">
-            <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5" style={{columnGap:"12px"}}>
+          <div className="px-6 py-5">
+            <div className="columns-1 sm:columns-2 lg:columns-3" style={{columnGap:"22px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
               const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
-              return(<div key={e.id} onClick={()=>setSb(e)} className="mb-3 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative">
+              const plat=e.custom_dimensions?._social?.platform||e.custom_dimensions?._meta?.platform||(ytId(e.url)?"YouTube":/instagram/i.test(e.url||"")?"Instagram":/tiktok/i.test(e.url||"")?"TikTok":"");
+              const platColor={Instagram:"#E1306C",instagram:"#E1306C",TikTok:"#111",tiktok:"#111",YouTube:"#FF0000",Facebook:"#1877F2",LinkedIn:"#0A66C2"}[plat]||"#888";
+              return(<div key={e.id} onClick={()=>setSb(e)} className="mb-5 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer hover:border-[var(--accent)] hover:shadow-md transition group relative">
                 <div className={`absolute top-2 left-2 z-10 ${selected.size>0||selected.has(e.id)?"opacity-100":"opacity-0 group-hover:opacity-100"} transition`} onClick={ev=>ev.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
                 </div>
@@ -2874,11 +2879,14 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {isVid&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center"><svg width="13" height="13" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
-                <div className="p-2.5">
-                  <div className="flex gap-1 mb-1 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
+                <div className="p-3">
+                  <div className="flex gap-1 mb-1.5 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
                   {e.description&&<p className="text-xs font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-[10px] text-muted">{e.year||""}</span>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center gap-2">
+                      {plat&&<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted uppercase tracking-wide"><span className="w-2 h-2 rounded-full" style={{background:platColor}}/>{plat}</span>}
+                      <span className="text-[10px] text-muted">{e.year||""}</span>
+                    </div>
                     {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
                   </div>
                 </div>
