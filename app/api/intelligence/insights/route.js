@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 
+export const maxDuration = 60;
+
 // Generate Social Media Benchmark insights for a project: aggregate the analyzed social
 // entries into a compact competitive summary, then ask Claude for conclusive, comparative,
 // actionable insights (white space, differential opportunity, timing, engagement, creative).

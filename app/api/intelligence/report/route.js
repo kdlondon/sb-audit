@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 
+export const maxDuration = 60; // the AI composition can take ~15-25s; avoid the default timeout
+
 // Compose a Social Media Benchmark report: weave the analyst's curated insights (picks)
 // and the aggregated competitive data into a title, executive summary and recommendations.
 const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };

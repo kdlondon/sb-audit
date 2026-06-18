@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 
+export const maxDuration = 60;
+
 // Cluster the posts of ONE content pillar into 3-6 sub-pillars (more specific recurring
 // themes), and tag each post. Powers the Explore drill-down: pillar → subpillars → content.
 const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };
