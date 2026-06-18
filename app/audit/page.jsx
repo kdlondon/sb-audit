@@ -1576,6 +1576,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         console.log("[Analyze] Sample values — synopsis:", (result.analysis.synopsis||"").slice(0,50), "portrait:", result.analysis.portrait);
         // Force overwrite all fields from AI; route social-only fields into _social.
         const SOCIAL_KEYS=["content_pillar","post_objective","visual_codes"];
+        // Normalize pillars so plural/singular/case/accents don't create duplicates.
+        const np=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").replace(/s$/,"");
+        const canonP=p=>{if(!p)return p;const m=(OPTIONS.content_pillar||[]).find(o=>np(o)===np(p));return m||p;};
         setCur(prev=>{
           const u={...prev};
           const socialUpd={};
@@ -1583,6 +1586,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             if(!(v && v !== "undefined" && v !== "null"))return;
             if(SOCIAL_KEYS.includes(k)) socialUpd[k]=v; else u[k]=v;
           });
+          if(socialUpd.content_pillar) socialUpd.content_pillar=canonP(socialUpd.content_pillar);
           u.custom_dimensions={
             ...(u.custom_dimensions||{}),
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
@@ -1603,10 +1607,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           }
           return u;
         });
-        // Grow the controlled pillar vocabulary if the AI proposed a genuinely new one.
-        const newPillar=result.analysis.content_pillar;
-        if(isSocial&&newPillar&&!(OPTIONS.content_pillar||[]).some(p=>p.toLowerCase()===String(newPillar).toLowerCase())){
-          try{await supabase.from("dropdown_options").insert({project_id:projectId,category:"content_pillar",value:newPillar,sort_order:999});}catch{}
+        // Grow the controlled vocabulary ONLY if genuinely new (no normalized match).
+        const aiPillar=result.analysis.content_pillar;
+        if(isSocial&&aiPillar&&!(OPTIONS.content_pillar||[]).some(p=>np(p)===np(aiPillar))){
+          try{await supabase.from("dropdown_options").insert({project_id:projectId,category:"content_pillar",value:aiPillar,sort_order:999});}catch{}
         }
         highlightFields(Object.keys(result.analysis).filter(k=>result.analysis[k]));
         setToast({message:"✓ AI analysis complete — "+Object.keys(result.analysis).length+" fields"});
@@ -1641,6 +1645,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     const SOCIAL_KEYS=["content_pillar","post_objective","visual_codes"];
     const u={};const socialUpd={};
     Object.entries(a).forEach(([k,v])=>{if(!(v&&v!=="undefined"&&v!=="null"))return;if(SOCIAL_KEYS.includes(k))socialUpd[k]=v;else u[k]=v;});
+    if(socialUpd.content_pillar){const np=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").replace(/s$/,"");const m=(OPTIONS.content_pillar||[]).find(o=>np(o)===np(socialUpd.content_pillar));if(m)socialUpd.content_pillar=m;}
     const cd={...(entry.custom_dimensions||{}),...(Object.keys(socialUpd).length?{_social:{...((entry.custom_dimensions||{})._social||{}),...socialUpd}}:{}),_ai_analyzed_at:new Date().toISOString()};
     if(isSocial){
       u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
@@ -2863,8 +2868,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </table>
           </div>
         ):(
-          <div className="px-6 py-5">
-            <div className="columns-1 sm:columns-2 lg:columns-3" style={{columnGap:"22px"}}>
+          <div className="max-w-[1180px] mx-auto px-6 py-5">
+            <div className="columns-2 md:columns-3 xl:columns-4" style={{columnGap:"18px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
               const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
