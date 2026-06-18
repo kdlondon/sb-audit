@@ -300,7 +300,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [materialType,setMaterialType]=useState("none");
   const [socialMode,setSocialMode]=useState("single"); // single | feed
   const [highlighted,setHighlighted]=useState(new Set());
-  const [listMode,setListMode]=useState("list");
+  const [listMode,setListMode]=useState("grid");
   const [inlineEdit,setInlineEdit]=useState(null); // {id, field}
   // Close inline multi-select on outside click
   useEffect(()=>{
@@ -2297,7 +2297,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const EXEC_OPTS=["Live action","Animation","Mixed media","Typography","Stock footage","UGC","Illustration","Cinematic","Documentary","Manifesto","Motion graphics","Photography","Data visualisation","Interactive","AR/VR","Other"];
   const PLATFORM_OPTS=["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"];
   const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"execution_style",label:"Execution"},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
-  const filterKeys=scope==="local"?[["competitor","Competitor"],["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]]:[["category","Category"],["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]];
+  const filterKeys=scope==="local"?[["competitor","Competitor"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS]];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
@@ -2860,21 +2860,23 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </table>
           </div>
         ):(
-          <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="px-5 py-4">
+            <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5" style={{columnGap:"12px"}}>
             {fd.map(e=>{
-              const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg`:e.image_url;
-              return(<div key={e.id} onClick={()=>setSb(e)} className="bg-surface border border-main rounded-lg overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative">
+              const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
+              const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
+              return(<div key={e.id} onClick={()=>setSb(e)} className="mb-3 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer hover:border-[var(--accent)] transition group relative">
                 <div className={`absolute top-2 left-2 z-10 ${selected.size>0||selected.has(e.id)?"opacity-100":"opacity-0 group-hover:opacity-100"} transition`} onClick={ev=>ev.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
                 </div>
-                <div className="h-[120px] bg-surface2 flex items-center justify-center overflow-hidden relative">
-                  {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:isVideoFile(e.url)?<video src={e.url} className="w-full h-full object-cover" muted preload="metadata" onLoadedData={ev=>{ev.target.currentTime=1;}} />:<div className="text-hint text-xs">No preview</div>}
-                  {(ytId(e.url)||isVideoFile(e.url))&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
+                <div className="relative bg-surface2 overflow-hidden">
+                  {thumb?<img src={thumb} loading="lazy" className="w-full h-auto object-cover block" alt=""/>:isVideoFile(e.url)?<video src={e.url} className="w-full h-auto object-cover block" muted preload="metadata" onLoadedData={ev=>{ev.target.currentTime=1;}} />:<div className="h-28 flex items-center justify-center text-hint text-xs">No preview</div>}
+                  {isVid&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center"><svg width="13" height="13" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
                 <div className="p-2.5">
-                  <div className="flex gap-1 mb-1">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
-                  <p className="text-xs font-medium text-main truncate">{e.description||"—"}</p>
+                  <div className="flex gap-1 mb-1 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
+                  {e.description&&<p className="text-xs font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-[10px] text-muted">{e.year||""}</span>
                     {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
@@ -2882,6 +2884,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               </div>);
             })}
+            </div>
           </div>
         )}
         </>}
