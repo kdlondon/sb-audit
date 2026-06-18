@@ -2912,6 +2912,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       {sb&&!sb._mapCountry&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
         <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube-nocookie.com/embed/${ytId(sb.url)}?rel=0&modestbranding=1&iv_load_policy=3`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
+        {!ytId(sb.url)&&/vimeo\.com/i.test(sb.url||"")&&(()=>{const m=(sb.url||"").match(/vimeo\.com\/(?:video\/)?(\d+)/);return m?<div className="px-3 pt-2"><iframe width="100%" height="200" src={`https://player.vimeo.com/video/${m[1]}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>:null;})()}
+        {/instagram\.com\/(p|reel|tv)\//i.test(sb.url||"")&&<div className="px-3 pt-2"><iframe width="100%" height="460" src={`${(sb.url||"").split("?")[0].replace(/\/$/,"")}/embed`} frameBorder="0" scrolling="no" allowtransparency="true" className="rounded-md border border-main" /></div>}
+        {/tiktok\.com\/.*\/video\/(\d+)/i.test(sb.url||"")&&(()=>{const m=(sb.url||"").match(/video\/(\d+)/);return m?<div className="px-3 pt-2"><iframe width="100%" height="560" src={`https://www.tiktok.com/embed/v2/${m[1]}`} frameBorder="0" scrolling="no" allowFullScreen className="rounded-md border border-main" /></div>:null;})()}
         {isVideoFile(sb.url)&&!ytId(sb.url)&&<div className="px-3 pt-2">
           <video controls width="100%" className="rounded-md" src={sb.url} style={{maxHeight:240}} />
           <div className="flex items-center justify-center gap-2 mt-2">
@@ -2941,7 +2944,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </button>
           </div>
         </div>}
-        {sb.image_url&&!ytId(sb.url)&&<div className="px-3 pt-2 relative group/sb">
+        {sb.image_url&&!ytId(sb.url)&&!/vimeo\.com|instagram\.com\/(p|reel|tv)\/|tiktok\.com\/.*\/video\//i.test(sb.url||"")&&<div className="px-3 pt-2 relative group/sb">
           <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
           <button onClick={()=>{setCropSrc(sb.image_url);setCropTarget("sidebar");}} className="absolute top-3 right-4 bg-black/60 text-white/80 hover:text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/sb:opacity-100 transition backdrop-blur-sm" title="Crop image">Crop</button>
           {sb.image_urls&&JSON.parse(sb.image_urls||"[]").length>0&&(
