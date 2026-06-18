@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { useFramework } from "@/lib/framework-context";
+
+const COUNTRIES = ["Spain", "Argentina", "Chile", "Peru", "Colombia", "Mexico", "Ecuador", "Venezuela", "Brazil", "United States", "United Kingdom", "France", "Italy", "Germany", "Portugal"];
 
 const proxied = (u) => (u ? `/api/social/thumb?u=${encodeURIComponent(u)}` : "");
 
@@ -38,6 +41,11 @@ export default function SocialFeedPicker({
   defaultSubCategory = "",
   onImported,
 }) {
+  const { framework } = useFramework() || {};
+  const [pScope, setPScope] = useState(scope);
+  const [pBrand, setPBrand] = useState("");
+  const [pCountry, setPCountry] = useState(defaultCountry || framework?.primaryMarket || "");
+  const brandOptions = (pScope === "global" ? framework?.globalBenchmarks : framework?.localCompetitors) || [];
   const [platform, setPlatform] = useState(platforms[0]);
   const [handle, setHandle] = useState("");
   const [limit, setLimit] = useState(12);
@@ -102,12 +110,12 @@ export default function SocialFeedPicker({
             body: JSON.stringify({ platform, url: p.url, thumbnail: p.thumbnail, kind: p.kind }),
           });
           const meta = await res.json().catch(() => ({}));
-          const owner = p.owner || handle.replace(/^@/, "").trim();
+          const owner = pBrand || p.owner || handle.replace(/^@/, "").trim();
           const caption = p.caption || "";
           const entry = {
             id: `${Date.now()}_${my}_${Math.random().toString(36).slice(2, 5)}`,
             project_id: projectId,
-            scope,
+            scope: pScope,
             type: "Social post",
             url: p.url,
             brand_name: owner,
@@ -116,7 +124,7 @@ export default function SocialFeedPicker({
             image_url: meta?.thumbnail || "",
             transcript: meta?.transcript || "",
             year: p.year || "",
-            country: defaultCountry || "",
+            country: pCountry || "",
             category: defaultCategory || "",
             sub_category: defaultSubCategory || "",
             created_by: email,
@@ -140,7 +148,7 @@ export default function SocialFeedPicker({
               },
             },
           };
-          if (scope === "global") entry.brand = owner; else entry.competitor = owner;
+          if (pScope === "global") entry.brand = owner; else entry.competitor = owner;
           const { error } = await supabase.from("creative_source").insert(entry);
           if (!error) imported++;
         } catch {}
@@ -155,6 +163,29 @@ export default function SocialFeedPicker({
 
   return (
     <div className="space-y-3">
+      {/* Scope + brand + country — entries import with the REAL brand/scope/country */}
+      <div className="flex flex-wrap items-end gap-2 pb-3 border-b border-main">
+        <div>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Ámbito</label>
+          <div className="flex bg-surface2 rounded-lg p-0.5">
+            {[["local", "Local"], ["global", "Global"]].map(([s, l]) => (
+              <button key={s} onClick={() => { setPScope(s); setPBrand(""); }} className={`px-3 py-1 rounded-md text-xs font-medium transition ${pScope === s ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Marca</label>
+          <select value={pBrand} onChange={(e) => setPBrand(e.target.value)} className="px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main min-w-[150px]">
+            <option value="">— Elegir marca —</option>
+            {brandOptions.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">País</label>
+          <input list="sfp-countries" value={pCountry} onChange={(e) => setPCountry(e.target.value)} placeholder="País" className="px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main w-[130px]" />
+          <datalist id="sfp-countries">{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
+        </div>
+      </div>
       {/* Platform tabs */}
       {platforms.length > 1 && (
         <div className="flex bg-surface2 rounded-lg p-0.5 w-fit">

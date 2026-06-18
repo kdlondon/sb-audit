@@ -592,6 +592,21 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     brand_archetype:OPTIONS.brandArchetype||[],
   };
   const bulkDelete=async()=>{if(selected.size===0||!confirm(`Delete ${selected.size} entries?`))return;for(const id of selected){await supabase.from(getTableName(scope)).delete().eq("id",id);}if(sb&&selected.has(sb.id))setSb(null);load();};
+  const bulkMoveScope=async()=>{
+    if(selected.size===0)return;
+    const target=scope==="global"?"local":"global";
+    if(!confirm(`Mover ${selected.size} a ${target==="global"?"Global benchmarks":"Local audit"}?`))return;
+    for(const id of selected){
+      const e=data.find(x=>x.id===id); if(!e)continue;
+      const name=e.competitor||e.brand||e.brand_name||"";
+      const patch={scope:target,updated_at:new Date().toISOString()};
+      if(target==="global"){patch.brand=name;patch.competitor=null;}else{patch.competitor=name;patch.brand=null;}
+      await supabase.from(getTableName(scope)).update(patch).eq("id",id);
+    }
+    if(sb&&selected.has(sb.id))setSb(null);
+    setSelected(new Set());await load();
+    setToast({message:`Movidos a ${target==="global"?"Global benchmarks":"Local audit"}`});
+  };
 
   // ── COLLECTIONS ──────────────────────────────────────────────────────────────
   const loadCollections=useCallback(async()=>{
@@ -2303,8 +2318,17 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
           </div>
           {selected.size>0&&<div className="flex gap-1.5 items-center">
-            <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analizar con IA" className="h-[30px] px-3 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold disabled:opacity-60" style={{background:"linear-gradient(90deg,#7c3aed,#2563eb)"}}>
-              <span>✦</span><span>{bulkAnalyzing?`Analizando ${bulkProgress.done}/${bulkProgress.total}…`:`Analizar ${selected.size} con IA`}</span>
+            {/* Analyze with AI — animated pill (icon, expands on hover, AI colour) */}
+            <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analizar con IA"
+              className={`group h-[30px] rounded-full flex items-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] disabled:opacity-80 ${bulkAnalyzing?"px-3 gap-1.5 bg-[#7c3aed]":"px-2 gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-[#7c3aed]"}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="flex-shrink-0"><path d="M12 2l1.9 5.8L20 9.7l-5 3.8L18.8 20 12 16.1 5.2 20 7 13.5l-5-3.8 6.1-.1z"/></svg>
+              <span className={`text-[10px] font-bold overflow-hidden whitespace-nowrap text-white transition-all duration-300 ${bulkAnalyzing?"max-w-[160px] opacity-100":"max-w-0 opacity-0 group-hover:max-w-[160px] group-hover:opacity-100"}`}>{bulkAnalyzing?`Analizando ${bulkProgress.done}/${bulkProgress.total}`:`Analizar ${selected.size} con IA`}</span>
+            </button>
+            {/* Move between Local / Global — animated pill */}
+            <button onClick={bulkMoveScope} title={`Mover a ${scope==="global"?"Local audit":"Global benchmarks"}`}
+              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{scope==="global"?"A Local":"A Global"}</span>
             </button>
             <div className="relative">
               <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}}
