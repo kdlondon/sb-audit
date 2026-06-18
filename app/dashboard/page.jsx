@@ -9,6 +9,8 @@ import Nav from "@/components/Nav";
 
 export default function ClientDashboard() {
   const [brands, setBrands] = useState([]);
+  const [tab, setTab] = useState("active");
+  const [menuFor, setMenuFor] = useState(null);
   const [caseCounts, setCaseCounts] = useState({});
   const [recentEntries, setRecentEntries] = useState([]);
   const [clientNames, setClientNames] = useState({});
@@ -52,6 +54,16 @@ export default function ClientDashboard() {
         projectList = data || [];
       }
     }
+    // Lifecycle status (resilient — works even before the migration adds the column)
+    try {
+      const ids = projectList.map(p => p.id);
+      if (ids.length) {
+        const { data: st } = await supabase.from("projects").select("id, status, status_changed_at").in("id", ids);
+        if (st) { const m = {}; st.forEach(r => (m[r.id] = r)); projectList = projectList.map(p => ({ ...p, status: m[p.id]?.status || "active", status_changed_at: m[p.id]?.status_changed_at })); }
+      }
+      const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+      supabase.from("projects").delete().eq("status", "trashed").lt("status_changed_at", cutoff).then(() => {});
+    } catch {}
     setBrands(projectList);
 
     // Client names for grouping
@@ -81,6 +93,13 @@ export default function ClientDashboard() {
     if (role && userId) load();
     else if (!role) { setBrands([]); setLoading(false); }
   }, [role, userId, roleLoading, activeOrg, orgRole]);
+
+  const setProjectStatus = async (id, status) => {
+    setMenuFor(null);
+    try { await supabase.from("projects").update({ status, status_changed_at: new Date().toISOString() }).eq("id", id); } catch {}
+    load();
+  };
+  const daysLeft = (changedAt) => { if (!changedAt) return 30; return Math.max(0, 30 - Math.floor((Date.now() - new Date(changedAt).getTime()) / 86400000)); };
 
   const enterBrand = async (p) => {
     // p is a project row. Set it as the active project (brand context falls back to it).
@@ -125,23 +144,45 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Projects grouped by client */}
-          {brands.length > 0 ? (
+          {/* Lifecycle tabs */}
+          <div className="flex gap-1 mb-6 border-b border-main">
+            {[["active","Activos"],["archived","Archivados"],["trashed","Papelera"]].map(([k,l])=>{
+              const n=brands.filter(p=>(p.status||"active")===k).length;
+              return <button key={k} onClick={()=>{setTab(k);setMenuFor(null);}} className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${tab===k?"border-accent text-main":"border-transparent text-muted hover:text-main"}`}>{l}{n>0&&<span className="ml-1.5 text-[10px] text-hint">{n}</span>}</button>;
+            })}
+          </div>
+
+          {/* Projects grouped by client (filtered by lifecycle tab) */}
+          {(()=>{ const visible=brands.filter(p=>(p.status||"active")===tab); return visible.length>0 ? (
             <div className="space-y-8 mb-10">
-              {Object.entries(brands.reduce((acc, p) => { const k = p.client_id || "__none__"; (acc[k] = acc[k] || []).push(p); return acc; }, {})).map(([cid, projs]) => (
+              {Object.entries(visible.reduce((acc, p) => { const k = p.client_id || "__none__"; (acc[k] = acc[k] || []).push(p); return acc; }, {})).map(([cid, projs]) => (
                 <div key={cid}>
                   <h2 className="text-xs font-bold text-muted uppercase tracking-wide mb-3">
                     {cid === "__none__" ? "Unassigned" : (clientNames[cid] || "Client")}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {projs.map(b => (
-                      <div key={b.id} onClick={() => enterBrand(b)}
-                        className="bg-surface border border-main rounded-xl p-5 cursor-pointer hover:border-accent transition group">
-                        <h3 className="text-base font-bold text-main group-hover:text-accent transition">{b.name}</h3>
-                        <div className="flex items-center gap-3 text-xs text-hint mt-2">
-                          <span>{caseCounts[b.id] || 0} cases</span>
-                          {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
+                      <div key={b.id} className="bg-surface border border-main rounded-xl p-5 transition group relative">
+                        <div onClick={() => tab==="active"&&enterBrand(b)} className={tab==="active"?"cursor-pointer":""}>
+                          <h3 className={`text-base font-bold text-main transition ${tab==="active"?"group-hover:text-accent":""}`}>{b.name}</h3>
+                          <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap">
+                            <span>{caseCounts[b.id] || 0} cases</span>
+                            {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
+                            {tab==="trashed" && <span className="text-red-500">· se elimina en {daysLeft(b.status_changed_at)} d</span>}
+                          </div>
                         </div>
+                        {isAdmin && (
+                          <div className="absolute top-3 right-3" onClick={e=>e.stopPropagation()}>
+                            <button onClick={()=>setMenuFor(menuFor===b.id?null:b.id)} className="text-hint hover:text-main text-lg leading-none px-1">⋯</button>
+                            {menuFor===b.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-20 w-[160px] overflow-hidden">
+                                {tab!=="active" && <button onClick={()=>setProjectStatus(b.id,"active")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Restaurar</button>}
+                                {tab==="active" && <button onClick={()=>setProjectStatus(b.id,"archived")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Archivar</button>}
+                                {tab!=="trashed" && <button onClick={()=>setProjectStatus(b.id,"trashed")} className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-500/10">Mover a papelera</button>}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -150,10 +191,10 @@ export default function ClientDashboard() {
             </div>
           ) : (
             <div className="text-center py-20 text-hint">
-              <p className="text-lg mb-2">No projects yet</p>
-              <p className="text-sm">{isAdmin ? "Add your first project to get started" : "No projects have been assigned to you yet"}</p>
+              <p className="text-lg mb-2">{tab==="active"?"No projects yet":tab==="archived"?"Sin proyectos archivados":"Papelera vacía"}</p>
+              {tab==="active" && <p className="text-sm">{isAdmin ? "Add your first project to get started" : "No projects have been assigned to you yet"}</p>}
             </div>
-          )}
+          ); })()}
 
           {/* Recent Activity — hidden for now */}
           {false && recentEntries.length > 0 && (
