@@ -144,7 +144,7 @@ Contrast them: the gap between expressed and validated is the key strategic insi
 Return ONLY raw JSON:
 {
  "purpose": "the brand's purpose / reason for being (1-2 sentences)",
- "claim": "the brand's main claim/tagline (exact if found, else inferred)",
+ "claim": "the brand's main BRAND claim/tagline — the conceptual, emotional, campaign-level brand promise or manifesto line (e.g. 'Los veranos vuelan', 'Experiencia LATAM en todo momento'). STRONGLY PRIORITIZE the most brand-led, aspirational line. NEVER use transactional/commercial/SEO copy as the claim (e.g. 'best prices', 'cheap flights', 'compare and book', 'reserva ya', 'mejores precios') — that is promotional noise, not the brand claim. If you can only find commercial copy, infer the conceptual claim from the brand's tone and territory instead of quoting the offer.",
  "positioning": "expressed positioning / description (2-3 sentences)",
  "segments": ["customer segment served, e.g. Business traveler", "International tourist", ...],
  "personality": "3-5 personality traits",
