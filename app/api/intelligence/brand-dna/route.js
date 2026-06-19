@@ -19,20 +19,53 @@ const KEY_PATTERNS = [
   /\/(careers|talent|people|empleo|trabaja|cultura)/i,
 ];
 
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Upgrade-Insecure-Requests": "1",
+};
+
+// Direct fetch with browser-like headers + one retry. Returns raw HTML or null.
+async function fetchDirect(pageUrl, ms = 9000) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), ms);
+      const res = await fetch(pageUrl, { headers: BROWSER_HEADERS, signal: controller.signal, redirect: "follow" });
+      clearTimeout(timeout);
+      if (res.ok) return await res.text();
+    } catch {}
+  }
+  return null;
+}
+
+// Fallback reader (r.jina.ai) — fetches and returns clean text, bypassing many
+// datacenter-IP blocks (Cloudflare/Akamai) that reject Vercel's serverless IPs.
+// Returns plain text (no markup/links) or null.
+async function fetchViaReader(pageUrl, ms = 9000) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ms);
+    const res = await fetch("https://r.jina.ai/" + pageUrl, { headers: { "User-Agent": BROWSER_HEADERS["User-Agent"], "X-Return-Format": "text" }, signal: controller.signal, redirect: "follow" });
+    clearTimeout(timeout);
+    if (res.ok) return await res.text();
+  } catch {}
+  return null;
+}
+
+const stripHtml = (html) => html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<(nav|footer|header)[^>]*>[\s\S]*?<\/\1>/gi, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#\d+;/g, "").replace(/\s+/g, " ").trim();
+
 async function crawl(url) {
   const pages = [], visited = new Set();
   const baseUrl = new URL(url).origin;
   async function fetchPage(pageUrl, label) {
     if (visited.has(pageUrl) || pages.length >= 10) return;
     visited.add(pageUrl);
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 9000);
-      const res = await fetch(pageUrl, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }, signal: controller.signal, redirect: "follow" });
-      clearTimeout(timeout);
-      if (!res.ok) return;
-      const html = await res.text();
-      const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<(nav|footer|header)[^>]*>[\s\S]*?<\/\1>/gi, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#\d+;/g, "").replace(/\s+/g, " ").trim().slice(0, 7000);
+    const html = await fetchDirect(pageUrl);
+    if (html) {
+      const text = stripHtml(html).slice(0, 7000);
       const links = [];
       let m; const re = /href="([^"]+)"/gi;
       while ((m = re.exec(html)) !== null) {
@@ -42,13 +75,26 @@ async function crawl(url) {
       }
       const title = html.match(/<title[^>]*>(.*?)<\/title>/i)?.[1]?.trim() || "";
       const meta = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"/i)?.[1]?.trim() || "";
-      pages.push({ url: pageUrl, label: label || pageUrl.replace(baseUrl, "") || "/", title, meta, text, links: links.slice(0, 30) });
-    } catch {}
+      if (text) pages.push({ url: pageUrl, label: label || pageUrl.replace(baseUrl, "") || "/", title, meta, text, links: links.slice(0, 30) });
+      return;
+    }
+    // Direct blocked — fall back to the reader (text only, no link discovery)
+    const reader = await fetchViaReader(pageUrl);
+    if (reader) {
+      const text = reader.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, 7000);
+      if (text) pages.push({ url: pageUrl, label: label || pageUrl.replace(baseUrl, "") || "/", title: "", meta: "", text, links: [] });
+    }
   }
   await fetchPage(url, "Home");
   const mainLinks = pages[0]?.links || [];
   for (const pat of KEY_PATTERNS) { const found = mainLinks.find((l) => pat.test(l)); if (found) await fetchPage(found); }
   if (pages.length < 4) for (const l of mainLinks.slice(0, 6)) { if (pages.length >= 5) break; if (!visited.has(l) && !l.includes("#")) await fetchPage(l); }
+  // If link discovery found little (e.g. the home came via the reader, which has no links),
+  // probe a few common multilingual "about/mission" paths directly.
+  if (pages.length < 3) {
+    const GUESS = ["/nosotros", "/quienes-somos", "/about-us", "/company", "/sostenibilidad"];
+    for (const path of GUESS) { if (pages.length >= 3) break; await fetchPage(baseUrl + path); }
+  }
   return pages;
 }
 
