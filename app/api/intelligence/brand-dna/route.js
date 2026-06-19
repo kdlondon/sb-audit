@@ -28,42 +28,50 @@ const BROWSER_HEADERS = {
 };
 
 // Direct fetch with browser-like headers + one retry. Returns raw HTML or null.
-async function fetchDirect(pageUrl, ms = 9000) {
+// diag (optional) collects the last status/error for diagnostics.
+async function fetchDirect(pageUrl, diag, ms = 9000) {
+  let last = "?";
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), ms);
       const res = await fetch(pageUrl, { headers: BROWSER_HEADERS, signal: controller.signal, redirect: "follow" });
       clearTimeout(timeout);
-      if (res.ok) return await res.text();
-    } catch {}
+      last = String(res.status);
+      if (res.ok) { if (diag) diag.direct = last; return await res.text(); }
+    } catch (e) { last = e.name === "AbortError" ? "timeout" : (e.message || "err").slice(0, 24); }
   }
+  if (diag) diag.direct = last;
   return null;
 }
 
 // Fallback reader (r.jina.ai) — fetches and returns clean text, bypassing many
 // datacenter-IP blocks (Cloudflare/Akamai) that reject Vercel's serverless IPs.
 // Returns plain text (no markup/links) or null.
-async function fetchViaReader(pageUrl, ms = 9000) {
+async function fetchViaReader(pageUrl, diag, ms = 9000) {
+  const key = process.env.JINA_API_KEY;
+  const headers = { "User-Agent": BROWSER_HEADERS["User-Agent"], "X-Return-Format": "text" };
+  if (key) headers["Authorization"] = "Bearer " + key;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), ms);
-    const res = await fetch("https://r.jina.ai/" + pageUrl, { headers: { "User-Agent": BROWSER_HEADERS["User-Agent"], "X-Return-Format": "text" }, signal: controller.signal, redirect: "follow" });
+    const res = await fetch("https://r.jina.ai/" + pageUrl, { headers, signal: controller.signal, redirect: "follow" });
     clearTimeout(timeout);
+    if (diag) diag.reader = String(res.status);
     if (res.ok) return await res.text();
-  } catch {}
+  } catch (e) { if (diag) diag.reader = e.name === "AbortError" ? "timeout" : (e.message || "err").slice(0, 24); }
   return null;
 }
 
 const stripHtml = (html) => html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<(nav|footer|header)[^>]*>[\s\S]*?<\/\1>/gi, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#\d+;/g, "").replace(/\s+/g, " ").trim();
 
-async function crawl(url) {
+async function crawl(url, diag) {
   const pages = [], visited = new Set();
   const baseUrl = new URL(url).origin;
-  async function fetchPage(pageUrl, label) {
+  async function fetchPage(pageUrl, label, d) {
     if (visited.has(pageUrl) || pages.length >= 10) return;
     visited.add(pageUrl);
-    const html = await fetchDirect(pageUrl);
+    const html = await fetchDirect(pageUrl, d);
     if (html) {
       const text = stripHtml(html).slice(0, 7000);
       const links = [];
@@ -79,13 +87,13 @@ async function crawl(url) {
       return;
     }
     // Direct blocked — fall back to the reader (text only, no link discovery)
-    const reader = await fetchViaReader(pageUrl);
+    const reader = await fetchViaReader(pageUrl, d);
     if (reader) {
       const text = reader.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, 7000);
       if (text) pages.push({ url: pageUrl, label: label || pageUrl.replace(baseUrl, "") || "/", title: "", meta: "", text, links: [] });
     }
   }
-  await fetchPage(url, "Home");
+  await fetchPage(url, "Home", diag);
   const mainLinks = pages[0]?.links || [];
   for (const pat of KEY_PATTERNS) { const found = mainLinks.find((l) => pat.test(l)); if (found) await fetchPage(found); }
   if (pages.length < 4) for (const l of mainLinks.slice(0, 6)) { if (pages.length >= 5) break; if (!visited.has(l) && !l.includes("#")) await fetchPage(l); }
@@ -111,8 +119,10 @@ export async function POST(request) {
 
   // EXPRESSED — crawl the brand's site
   let pages = [];
-  try { pages = await crawl(url.startsWith("http") ? url : `https://${url}`); } catch (e) { return Response.json({ error: "Crawl failed: " + e.message }, { status: 400 }); }
-  if (pages.length === 0) return Response.json({ error: "Could not fetch the website" }, { status: 400 });
+  const diag = {};
+  const target = url.startsWith("http") ? url : `https://${url}`;
+  try { pages = await crawl(target, diag); } catch (e) { return Response.json({ error: "Crawl failed: " + e.message }, { status: 400 }); }
+  if (pages.length === 0) return Response.json({ error: `Could not fetch the website [v3 · home direct=${diag.direct || "n/a"} reader=${diag.reader || "n/a"}]` }, { status: 400 });
   const siteContent = pages.map((p) => `--- ${p.label} (${p.url}) ---\nTitle: ${p.title}\nMeta: ${p.meta}\n${p.text}`).join("\n\n").slice(0, 26000);
 
   // VALIDATED — the brand's already-captured content
