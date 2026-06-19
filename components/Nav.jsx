@@ -81,7 +81,7 @@ export default function Nav() {
     <div className="fixed top-0 left-0 right-0 flex justify-center pointer-events-none"
       style={{ zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
     <div className="pointer-events-auto mt-2 w-[calc(100%-24px)] max-w-[1180px] px-5 flex items-center justify-between rounded-full shadow-xl"
-      style={{ background: "#D07072", height: "calc(var(--nav-h) - 10px)" }}>
+      style={{ background: "#111015", height: "calc(var(--nav-h) - 10px)" }}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
           <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>

@@ -2318,9 +2318,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
-        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"var(--bg)",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
-          {/* left — count */}
-          <span className="text-[11px] text-hint tabular-nums min-w-[90px]">{viewMode==="entries"?`${fd.length} of ${data.length}`:" "}</span>
+        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"rgba(255,255,255,0.6)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
+          {/* left — spacer (balances absolute-centered pill) */}
+          <span className="min-w-[90px]" aria-hidden="true"> </span>
           {/* center — Cosmos-style segmented pill (subsections) */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
             {[
