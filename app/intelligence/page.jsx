@@ -7,6 +7,7 @@ import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
+import { deliverableLabels } from "@/lib/deliverable-labels";
 
 const DEFAULT_BRAND_URL = { iberia: "https://www.iberia.com/", "air europa": "https://www.aireuropa.com/", "aerolineas argentinas": "https://www.aerolineas.com.ar", latam: "https://www.latamairlines.com/es/es", laser: "https://www.laserairlines.com" };
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
@@ -53,6 +54,7 @@ const Field = ({ label, v }) => v ? (
 function IntelligenceContent() {
   const { projectId, projectName } = useProject();
   const { framework } = useFramework() || {};
+  const dl = deliverableLabels(framework?.language || "English"); // deliverable labels in the project language
   const [dna, setDna] = useState({});          // brand -> [versions desc]
   const [dnaUrl, setDnaUrl] = useState({});     // brand -> url input
   const [dnaVer, setDnaVer] = useState({});     // brand -> selected version index
@@ -499,12 +501,12 @@ function IntelligenceContent() {
               <div id="intel-report" className="bg-surface border border-main rounded-xl px-8 py-10 max-w-[820px] mx-auto">
                 <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Media Benchmark · {projectName}</div>
                 <h1 className="text-3xl font-bold text-main mt-2 leading-tight">{report.title}</h1>
-                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} brands · {d.total} analyzed content</div>
+                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} {dl.brands} · {d.total} {dl.analyzedContent}</div>
 
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">Executive summary</h2>
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">{dl.execSummary}</h2>
                 <p className="text-[15px] text-main leading-relaxed">{report.executive_summary}</p>
 
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Territory map</h2>
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.territoryMap}</h2>
                 <div className="flex flex-wrap gap-1.5">
                   {d.pillarGroups.map((g, i) => (
                     <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
@@ -515,11 +517,11 @@ function IntelligenceContent() {
                 </div>
 
                 {picks.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Key insights</h2>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.keyInsights}</h2>
                   <div className="space-y-4">
                     {picks.map((p, i) => (
                       <div key={i} className="border-l-2 border-[#7c3aed] pl-4">
-                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "#2563eb" }}>{p.stat}</span>}</div>
+                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{dl.types[p.type] || TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "#2563eb" }}>{p.stat}</span>}</div>
                         <h4 className="text-[15px] font-bold text-main leading-snug">{p.headline}</h4>
                         <p className="text-xs text-muted leading-relaxed mt-0.5">{p.body}</p>
                       </div>
@@ -528,7 +530,7 @@ function IntelligenceContent() {
                 </>)}
 
                 {Array.isArray(report.recommendations) && report.recommendations.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Recommendations</h2>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.recommendations}</h2>
                   <ol className="space-y-2">
                     {report.recommendations.map((r, i) => (
                       <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[#7c3aed]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
