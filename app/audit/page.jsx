@@ -2318,7 +2318,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
-        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"transparent",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
+        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"transparent",boxShadow:"none"}}>
           {/* left — spacer (balances absolute-centered pill) */}
           <span className="min-w-[90px]" aria-hidden="true"> </span>
           {/* center — Cosmos-style segmented pill (subsections) */}
@@ -2821,7 +2821,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         })()}
 
         {viewMode==="entries"&&<>
-        <div style={{marginTop:"calc(var(--sec-h) + 24px)"}}>
+        <div style={{marginTop:"calc(var(--sec-h) + 8px)"}}>
+        <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
         {listMode==="list"?(
           <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)"}}>
             <table className="w-full border-collapse text-xs">
@@ -2894,7 +2895,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </table>
           </div>
         ):(
-          <div className="max-w-[1180px] mx-auto px-6 py-5">
+          <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-6">
             <div className="columns-2 md:columns-3 xl:columns-4" style={{columnGap:"18px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
