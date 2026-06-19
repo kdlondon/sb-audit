@@ -146,7 +146,7 @@ export default function ClientDashboard() {
 
           {/* Lifecycle tabs */}
           <div className="flex gap-1 mb-6 border-b border-main">
-            {[["active","Activos"],["archived","Archivados"],["trashed","Papelera"]].map(([k,l])=>{
+            {[["active","Active"],["archived","Archived"],["trashed","Trash"]].map(([k,l])=>{
               const n=brands.filter(p=>(p.status||"active")===k).length;
               return <button key={k} onClick={()=>{setTab(k);setMenuFor(null);}} className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${tab===k?"border-accent text-main":"border-transparent text-muted hover:text-main"}`}>{l}{n>0&&<span className="ml-1.5 text-[10px] text-hint">{n}</span>}</button>;
             })}
@@ -168,7 +168,7 @@ export default function ClientDashboard() {
                           <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap">
                             <span>{caseCounts[b.id] || 0} cases</span>
                             {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
-                            {tab==="trashed" && <span className="text-red-500">· se elimina en {daysLeft(b.status_changed_at)} d</span>}
+                            {tab==="trashed" && <span className="text-red-500">· deleted in {daysLeft(b.status_changed_at)} d</span>}
                           </div>
                         </div>
                         {isAdmin && (
@@ -176,9 +176,9 @@ export default function ClientDashboard() {
                             <button onClick={()=>setMenuFor(menuFor===b.id?null:b.id)} className="text-hint hover:text-main text-lg leading-none px-1">⋯</button>
                             {menuFor===b.id && (
                               <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-20 w-[160px] overflow-hidden">
-                                {tab!=="active" && <button onClick={()=>setProjectStatus(b.id,"active")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Restaurar</button>}
-                                {tab==="active" && <button onClick={()=>setProjectStatus(b.id,"archived")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Archivar</button>}
-                                {tab!=="trashed" && <button onClick={()=>setProjectStatus(b.id,"trashed")} className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-500/10">Mover a papelera</button>}
+                                {tab!=="active" && <button onClick={()=>setProjectStatus(b.id,"active")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Restore</button>}
+                                {tab==="active" && <button onClick={()=>setProjectStatus(b.id,"archived")} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Archive</button>}
+                                {tab!=="trashed" && <button onClick={()=>setProjectStatus(b.id,"trashed")} className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-500/10">Move to trash</button>}
                               </div>
                             )}
                           </div>
@@ -191,7 +191,7 @@ export default function ClientDashboard() {
             </div>
           ) : (
             <div className="text-center py-20 text-hint">
-              <p className="text-lg mb-2">{tab==="active"?"No projects yet":tab==="archived"?"Sin proyectos archivados":"Papelera vacía"}</p>
+              <p className="text-lg mb-2">{tab==="active"?"No projects yet":tab==="archived"?"No archived projects":"Trash empty"}</p>
               {tab==="active" && <p className="text-sm">{isAdmin ? "Add your first project to get started" : "No projects have been assigned to you yet"}</p>}
             </div>
           ); })()}

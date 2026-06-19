@@ -13,8 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
-const TYPE_LABEL = { white_space: "Espacio libre", differential: "Diferencial", engagement: "Engagement", timing: "Timing", creative: "Creativo", strategic: "Estratégico" };
-const DIM_CHIPS = [["", "Todos"], ["white_space", "Espacio libre"], ["differential", "Diferencial"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creativo"], ["strategic", "Estratégico"]];
+const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
+const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
 const Bookmark = ({ on }) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" /></svg>
 );
@@ -37,8 +37,8 @@ function NeedsAnalysis({ pct }) {
   return (
     <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1">
       <span className="text-2xl">✦</span>
-      <p className="text-xs text-muted max-w-[240px]">Corre <b>Analyze with AI</b> en los contenidos para ver esto.</p>
-      {pct != null && <p className="text-[10px] text-hint">{pct}% analizado hasta ahora</p>}
+      <p className="text-xs text-muted max-w-[240px]">Run <b>Analyze with AI</b> on the content to see this.</p>
+      {pct != null && <p className="text-[10px] text-hint">{pct}% analyzed so far</p>}
     </div>
   );
 }
@@ -186,7 +186,7 @@ function IntelligenceContent() {
     }).sort((a, b) => b.posts - a.posts);
 
     // day-of-week cadence
-    const dows = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const dows = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dowCount = dows.map((name) => ({ name, value: 0 }));
     rows.forEach((r) => { if (r.posted_at) { const day = new Date(r.posted_at).getDay(); if (!isNaN(day)) dowCount[day].value++; } });
 
@@ -244,7 +244,7 @@ function IntelligenceContent() {
               ))}
             </div>
 
-            <Card title="Contenidos por marca" hint="volumen">
+            <Card title="Content by brand" hint="volume">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={d.byBrand} layout="vertical" margin={{ left: 10 }}>
                   <XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
@@ -253,7 +253,7 @@ function IntelligenceContent() {
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Engagement promedio por marca" hint="❤ + 💬 / post">
+            <Card title="Average engagement by brand" hint="❤ + 💬 / post">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={d.byBrand} layout="vertical" margin={{ left: 10 }}>
                   <XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
@@ -262,25 +262,25 @@ function IntelligenceContent() {
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Formato" hint="tipo de pieza">
+            <Card title="Format" hint="content type">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart><Pie data={d.byFormat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={(e) => e.name}>{d.byFormat.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /></PieChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Plataforma">
+            <Card title="Platform">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart><Pie data={d.byPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={(e) => e.name}>{d.byPlatform.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /></PieChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Cadencia — día de publicación" hint="cuándo publican">
+            <Card title="Cadence — day of posting" hint="when they post">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" fill="#0019FF" radius={[4, 4, 0, 0]} /></BarChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Mix de pilares por marca" hint="necesita análisis IA">
+            <Card title="Pillar mix by brand" hint="needs AI analysis">
               {d.pillars.length ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillars.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={PALETTE[i % PALETTE.length]} />)}</BarChart>
@@ -293,21 +293,21 @@ function IntelligenceContent() {
             <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h3 className="text-base font-bold text-main">Insights</h3>
-                <p className="text-xs text-muted">Conclusiones a partir de {d.total} contenidos · {d.analyzedPct}% analizado</p>
+                <p className="text-xs text-muted">Conclusions from {d.total} pieces of content · {d.analyzedPct}% analyzed</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPicksOpen(true)} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2 flex items-center gap-1.5"><Bookmark on /> Analyst Picks ({picks.length})</button>
-                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{insLoading ? "Generando…" : insights ? "Regenerar" : "Generar insights"}</button>
+                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{insLoading ? "Generating…" : insights ? "Regenerate" : "Generate insights"}</button>
               </div>
             </div>
             <div className="flex gap-1.5 flex-wrap mb-6">
               {DIM_CHIPS.map(([k, l]) => (<button key={k} onClick={() => setDimension(k)} className={`px-3 py-1 rounded-full text-[11px] font-medium border transition ${dimension === k ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:text-main"}`}>{l}</button>))}
             </div>
             {insErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{insErr}</div>}
-            {insLoading && <p className="text-sm text-accent animate-pulse">La IA está leyendo el panorama competitivo… (~15s)</p>}
+            {insLoading && <p className="text-sm text-accent animate-pulse">The AI is reading the competitive landscape… (~15s)</p>}
             {!insights && !insLoading && (
               <div className="border border-dashed border-main rounded-xl p-12 text-center">
-                <p className="text-sm text-muted max-w-[430px] mx-auto">Elige una dimensión (o <b>Todos</b>) y genera 8 conclusiones estratégicas. Marca las mejores con el bookmark — se guardan en <b>Analyst Picks</b> y serán la base del reporte.</p>
+                <p className="text-sm text-muted max-w-[430px] mx-auto">Pick a dimension (or <b>All</b>) and generate 8 strategic conclusions. Mark the best ones with the bookmark — they're saved to <b>Analyst Picks</b> and become the basis of the report.</p>
               </div>
             )}
             {insights && !insLoading && (
@@ -321,7 +321,7 @@ function IntelligenceContent() {
                       <div className="p-4 flex-1 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-hint">{TYPE_LABEL[ins.type] || ins.type}</span>
-                          <button onClick={() => togglePick(ins)} title="Guardar en Analyst Picks" className={`${picked ? "text-[#7c3aed]" : "text-hint hover:text-main"} transition`}><Bookmark on={picked} /></button>
+                          <button onClick={() => togglePick(ins)} title="Save to Analyst Picks" className={`${picked ? "text-[#7c3aed]" : "text-hint hover:text-main"} transition`}><Bookmark on={picked} /></button>
                         </div>
                         {ins.stat && <div className="mb-2 flex items-baseline gap-2"><span className={`font-bold leading-none ${feature ? "text-4xl" : "text-3xl"}`} style={{ color: "#2563eb" }}>{ins.stat}</span><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{ins.stat_label}</span></div>}
                         <h4 className={`font-bold text-main leading-snug mb-2 ${feature ? "text-lg" : "text-[15px]"}`}>{ins.headline}</h4>
@@ -341,18 +341,18 @@ function IntelligenceContent() {
             const tree = Object.entries(pmap).map(([name, v]) => ({ name, size: v.count, avgEng: Math.round(v.eng / v.count) })).filter((g) => g.size >= 2).sort((a, b) => b.size - a.size);
             const subPosts = subData?.posts ? (exSub ? subData.posts.filter((p) => p.subpillar === exSub) : subData.posts) : [];
             const csvDownload = () => {
-              const head = ["pilar", "subpilar", "marca", "likes", "comments", "url"];
+              const head = ["pillar", "subpillar", "brand", "likes", "comments", "url"];
               const subBy = {}; (subData?.posts || []).forEach((p) => (subBy[p.url] = p.subpillar));
               const lines = exRows.filter((r) => r.pillar).map((r) => [r.pillar, subBy[r.url] || "", r.brand, r.likes, r.comments, r.url]);
               const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-              const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `mapa-contenido-${projectName || "proyecto"}.csv`; a.click();
+              const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `content-map-${projectName || "project"}.csv`; a.click();
             };
             return (
               <div>
                 <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                   <div className="flex gap-1.5 flex-wrap items-center">
-                    <span className="text-[10px] font-mono uppercase tracking-wide text-hint mr-1">Competidor</span>
-                    <button onClick={() => { setExBrand(""); if (exPillar) drillPillar(exPillar, ""); }} className={`px-3 py-1 rounded-full text-[11px] border ${!exBrand ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>Todos</button>
+                    <span className="text-[10px] font-mono uppercase tracking-wide text-hint mr-1">Competitor</span>
+                    <button onClick={() => { setExBrand(""); if (exPillar) drillPillar(exPillar, ""); }} className={`px-3 py-1 rounded-full text-[11px] border ${!exBrand ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>All</button>
                     {d.brands.map((b) => <button key={b} onClick={() => { setExBrand(b); if (exPillar) drillPillar(exPillar, b); }} className={`px-3 py-1 rounded-full text-[11px] border ${exBrand === b ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>{b}</button>)}
                   </div>
                   <button onClick={csvDownload} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ CSV</button>
@@ -360,34 +360,34 @@ function IntelligenceContent() {
 
                 {!exPillar ? (
                   <>
-                    <p className="text-xs text-muted mb-3">Mapa de <b>territorios de conversación</b> (ancho = volumen). Haz click en un territorio para ver sus <b>subpilares</b>.</p>
+                    <p className="text-xs text-muted mb-3">Map of <b>conversation territories</b> (width = volume). Click a territory to see its <b>subpillars</b>.</p>
                     <div className="flex flex-wrap gap-2">
                       {tree.map((g, i) => (
                         <button key={g.name} onClick={() => drillPillar(g.name, exBrand)}
                           className="rounded-xl p-3 text-left transition hover:brightness-95 flex flex-col justify-between"
                           style={{ flex: `${g.size} 1 ${Math.max(150, g.size * 9)}px`, minHeight: 118, background: PASTEL[i % PASTEL.length] }}>
                           <div className="text-[13px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.name}</div>
-                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} contenidos · ❤ {g.avgEng.toLocaleString()}</div>
+                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} pieces of content · ❤ {g.avgEng.toLocaleString()}</div>
                         </button>
                       ))}
                     </div>
                   </>
                 ) : (
                   <div>
-                    <button onClick={() => { setExPillar(null); setSubData(null); }} className="text-xs text-accent mb-3">← Volver al mapa</button>
+                    <button onClick={() => { setExPillar(null); setSubData(null); }} className="text-xs text-accent mb-3">← Back to map</button>
                     <h3 className="text-base font-bold text-main">{exPillar}{exBrand ? ` · ${exBrand}` : ""}</h3>
-                    {subLoading && <p className="text-sm text-accent animate-pulse mt-2">La IA está agrupando en subpilares… (~10s)</p>}
+                    {subLoading && <p className="text-sm text-accent animate-pulse mt-2">The AI is grouping into subpillars… (~10s)</p>}
                     {subData?.error && <p className="text-xs text-red-500 mt-2">{subData.error}</p>}
                     {subData?.subpillars && (
                       <>
                         <div className="flex gap-1.5 flex-wrap my-3">
-                          <button onClick={() => setExSub("")} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${!exSub ? "bg-main text-white" : "bg-surface2 text-muted"}`}>Todos · {subData.posts.length}</button>
+                          <button onClick={() => setExSub("")} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${!exSub ? "bg-main text-white" : "bg-surface2 text-muted"}`}>All · {subData.posts.length}</button>
                           {subData.subpillars.map((s, i) => <button key={s.name} onClick={() => setExSub(s.name)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: exSub === s.name ? PASTEL[i % PASTEL.length] : PASTEL[i % PASTEL.length] + "55", color: "#27324a" }}>{s.name} · {s.count}</button>)}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                           {subPosts.map((p, i) => (
                             <a key={i} href={p.url || "#"} target="_blank" rel="noopener" className="block bg-surface border border-main rounded-lg overflow-hidden hover:border-[var(--accent)] transition">
-                              <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">sin imagen</div>}</div>
+                              <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">no image</div>}</div>
                               <div className="p-1.5">
                                 <div className="text-[9px] font-mono uppercase tracking-wide text-hint truncate">{p.subpillar}</div>
                                 <div className="text-[10px] font-semibold text-main truncate">{p.brand}</div>
@@ -484,27 +484,27 @@ function IntelligenceContent() {
           <div>
             <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
               <div>
-                <h3 className="text-base font-bold text-main">Generate — reporte</h3>
-                <p className="text-xs text-muted">Junta tus {picks.length} Analyst Picks + el mapa + los datos en un documento para el cliente.</p>
+                <h3 className="text-base font-bold text-main">Generate — report</h3>
+                <p className="text-xs text-muted">Combine your {picks.length} Analyst Picks + the map + the data into a client-ready document.</p>
               </div>
               <div className="flex gap-2">
-                {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Descargar PDF</button>}
-                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{repLoading ? "Componiendo…" : report ? "Regenerar" : "Generar reporte"}</button>
+                {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Download PDF</button>}
+                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{repLoading ? "Composing…" : report ? "Regenerate" : "Generate report"}</button>
               </div>
             </div>
             {repErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{repErr}</div>}
-            {repLoading && <p className="text-sm text-accent animate-pulse">Componiendo el reporte… (~15s)</p>}
-            {!report && !repLoading && <div className="border border-dashed border-main rounded-xl p-12 text-center"><p className="text-sm text-muted max-w-[430px] mx-auto">Marca tus mejores insights en <b>Analyst Picks</b> y dale a <b>Generar reporte</b>. La IA compone el resumen ejecutivo y las recomendaciones alrededor de tus picks.</p></div>}
+            {repLoading && <p className="text-sm text-accent animate-pulse">Composing the report… (~15s)</p>}
+            {!report && !repLoading && <div className="border border-dashed border-main rounded-xl p-12 text-center"><p className="text-sm text-muted max-w-[430px] mx-auto">Mark your best insights in <b>Analyst Picks</b> and hit <b>Generate report</b>. The AI composes the executive summary and recommendations around your picks.</p></div>}
             {report && (
               <div id="intel-report" className="bg-surface border border-main rounded-xl px-8 py-10 max-w-[820px] mx-auto">
                 <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Media Benchmark · {projectName}</div>
                 <h1 className="text-3xl font-bold text-main mt-2 leading-tight">{report.title}</h1>
-                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} marcas · {d.total} contenidos analizados</div>
+                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} brands · {d.total} analyzed content</div>
 
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">Resumen ejecutivo</h2>
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">Executive summary</h2>
                 <p className="text-[15px] text-main leading-relaxed">{report.executive_summary}</p>
 
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Mapa de territorios</h2>
+                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Territory map</h2>
                 <div className="flex flex-wrap gap-1.5">
                   {d.pillarGroups.map((g, i) => (
                     <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
@@ -515,7 +515,7 @@ function IntelligenceContent() {
                 </div>
 
                 {picks.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Insights clave</h2>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Key insights</h2>
                   <div className="space-y-4">
                     {picks.map((p, i) => (
                       <div key={i} className="border-l-2 border-[#7c3aed] pl-4">
@@ -528,7 +528,7 @@ function IntelligenceContent() {
                 </>)}
 
                 {Array.isArray(report.recommendations) && report.recommendations.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Recomendaciones</h2>
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">Recommendations</h2>
                   <ol className="space-y-2">
                     {report.recommendations.map((r, i) => (
                       <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[#7c3aed]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
@@ -546,15 +546,15 @@ function IntelligenceContent() {
           <div className="absolute inset-0 bg-black/30" />
           <div className="absolute right-0 top-0 h-full w-[360px] bg-surface border-l border-main shadow-xl overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-main flex items-center justify-between sticky top-0 bg-surface z-10">
-              <div><h3 className="text-sm font-bold text-main">Analyst Picks</h3><p className="text-[10px] text-hint">{picks.length} seleccionados · base del reporte</p></div>
+              <div><h3 className="text-sm font-bold text-main">Analyst Picks</h3><p className="text-[10px] text-hint">{picks.length} selected · basis of the report</p></div>
               <button onClick={() => setPicksOpen(false)} className="text-hint hover:text-main text-xl leading-none">×</button>
             </div>
             <div className="p-3 space-y-2">
-              {picks.length === 0 ? <p className="text-xs text-hint text-center py-10">Marca insights con el bookmark para guardarlos aquí.</p> : picks.map((p, i) => (
+              {picks.length === 0 ? <p className="text-xs text-hint text-center py-10">Mark insights with the bookmark to save them here.</p> : picks.map((p, i) => (
                 <div key={i} className="border border-main rounded-lg p-3">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-[9px] font-mono uppercase tracking-wide text-hint">{TYPE_LABEL[p.type] || p.type}</span>
-                    <button onClick={() => togglePick(p)} title="Quitar" className="text-[#7c3aed]"><Bookmark on /></button>
+                    <button onClick={() => togglePick(p)} title="Remove" className="text-[#7c3aed]"><Bookmark on /></button>
                   </div>
                   {p.stat && <div className="text-lg font-bold leading-none mb-1" style={{ color: "#2563eb" }}>{p.stat} <span className="text-[9px] font-mono text-hint">{p.stat_label}</span></div>}
                   <h4 className="text-xs font-bold text-main leading-snug">{p.headline}</h4>

@@ -8,13 +8,13 @@ const COUNTRIES = ["Spain", "Argentina", "Chile", "Peru", "Colombia", "Mexico", 
 const proxied = (u) => (u ? `/api/social/thumb?u=${encodeURIComponent(u)}` : "");
 
 const KIND_BADGE = {
-  reel: "🎬 Reel", carousel: "🖼 Carrusel", post: "🖼 Post",
-  video: "🎬 Vídeo", slideshow: "🖼 Slideshow",
+  reel: "🎬 Reel", carousel: "🖼 Carousel", post: "🖼 Post",
+  video: "🎬 Video", slideshow: "🖼 Slideshow",
 };
 
 const PLATFORM_META = {
-  instagram: { label: "Instagram", placeholder: "@competidor.oficial  o  instagram.com/competidor" },
-  tiktok: { label: "TikTok", placeholder: "@competidor  o  tiktok.com/@competidor" },
+  instagram: { label: "Instagram", placeholder: "@competitor.official  or  instagram.com/competitor" },
+  tiktok: { label: "TikTok", placeholder: "@competitor  or  tiktok.com/@competitor" },
 };
 
 function timeAgo(ts) {
@@ -22,11 +22,11 @@ function timeAgo(ts) {
   const d = new Date(ts).getTime();
   if (!d) return "";
   const days = Math.floor((Date.now() - d) / 86400000);
-  if (days <= 0) return "hoy";
-  if (days === 1) return "ayer";
-  if (days < 30) return `hace ${days} d`;
-  if (days < 365) return `hace ${Math.floor(days / 30)} m`;
-  return `hace ${Math.floor(days / 365)} a`;
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
 }
 
 // Browse a competitor's social feed (Instagram / TikTok) and bulk-import selected
@@ -166,7 +166,7 @@ export default function SocialFeedPicker({
       {/* Scope + brand + country — entries import with the REAL brand/scope/country */}
       <div className="flex flex-wrap items-end gap-2 pb-3 border-b border-main">
         <div>
-          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Ámbito</label>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Scope</label>
           <div className="flex bg-surface2 rounded-lg p-0.5">
             {[["local", "Local"], ["global", "Global"]].map(([s, l]) => (
               <button key={s} onClick={() => { setPScope(s); setPBrand(""); }} className={`px-3 py-1 rounded-md text-xs font-medium transition ${pScope === s ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>{l}</button>
@@ -174,15 +174,15 @@ export default function SocialFeedPicker({
           </div>
         </div>
         <div>
-          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Marca</label>
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Brand</label>
           <select value={pBrand} onChange={(e) => setPBrand(e.target.value)} className="px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main min-w-[150px]">
-            <option value="">— Elegir marca —</option>
+            <option value="">— Select brand —</option>
             {brandOptions.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">País</label>
-          <input list="sfp-countries" value={pCountry} onChange={(e) => setPCountry(e.target.value)} placeholder="País" className="px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main w-[130px]" />
+          <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Country</label>
+          <input list="sfp-countries" value={pCountry} onChange={(e) => setPCountry(e.target.value)} placeholder="Country" className="px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main w-[130px]" />
           <datalist id="sfp-countries">{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
         </div>
       </div>
@@ -201,12 +201,12 @@ export default function SocialFeedPicker({
       {/* Handle input */}
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Perfil de {PLATFORM_META[platform]?.label || platform}</label>
+          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{PLATFORM_META[platform]?.label || platform} profile</label>
           <input
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && fetchFeed()}
-            placeholder={PLATFORM_META[platform]?.placeholder || "@perfil"}
+            placeholder={PLATFORM_META[platform]?.placeholder || "@profile"}
             className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main"
           />
         </div>
@@ -216,12 +216,12 @@ export default function SocialFeedPicker({
         </select>
         <button onClick={fetchFeed} disabled={loading || !handle.trim()}
           className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
-          {loading ? "Cargando…" : "Traer feed"}
+          {loading ? "Loading…" : "Fetch feed"}
         </button>
       </div>
 
       {error && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{error}</div>}
-      {loading && <div className="text-xs text-accent animate-pulse">Trayendo los últimos posts del perfil… (puede tardar ~15–30s)</div>}
+      {loading && <div className="text-xs text-accent animate-pulse">Fetching the profile's latest posts… (may take ~15–30s)</div>}
 
       {posts.length > 0 && (
         <>
@@ -229,7 +229,7 @@ export default function SocialFeedPicker({
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex gap-1 flex-wrap">
               <button onClick={() => setFilterKind("all")}
-                className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === "all" ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>Todos</button>
+                className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === "all" ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>All</button>
               {kinds.map((k) => (
                 <button key={k} onClick={() => setFilterKind(k)}
                   className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === k ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>
@@ -238,7 +238,7 @@ export default function SocialFeedPicker({
               ))}
             </div>
             <button onClick={toggleAll} className="text-[11px] text-accent hover:underline">
-              {allSelected ? "Deseleccionar todo" : "Seleccionar todo"}
+              {allSelected ? "Deselect all" : "Select all"}
             </button>
           </div>
 
@@ -252,7 +252,7 @@ export default function SocialFeedPicker({
                   <div className="aspect-square bg-surface2 overflow-hidden">
                     {p.thumbnail
                       ? <img src={proxied(p.thumbnail)} alt="" loading="lazy" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-hint text-xs">sin imagen</div>}
+                      : <div className="w-full h-full flex items-center justify-center text-hint text-xs">no image</div>}
                   </div>
                   <div className="absolute top-1 left-1 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded">{KIND_BADGE[p.kind] || p.kind}</div>
                   <div className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${sel ? "bg-accent text-white" : "bg-black/50 text-white/80"}`}>{sel ? "✓" : ""}</div>
@@ -270,12 +270,12 @@ export default function SocialFeedPicker({
 
           {/* Import bar */}
           <div className="flex items-center justify-between gap-3 pt-1 border-t border-main">
-            <span className="text-xs text-muted">{selected.size} seleccionado{selected.size === 1 ? "" : "s"}</span>
+            <span className="text-xs text-muted">{selected.size} selected</span>
             <button onClick={importSelected} disabled={importing || selected.size === 0}
               className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
               {importing
-                ? `Importando ${progress.done}/${progress.total}…`
-                : `Importar ${selected.size || ""} como entries →`}
+                ? `Importing ${progress.done}/${progress.total}…`
+                : `Import ${selected.size || ""} as entries →`}
             </button>
           </div>
         </>

@@ -595,7 +595,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const bulkMoveScope=async()=>{
     if(selected.size===0)return;
     const target=scope==="global"?"local":"global";
-    if(!confirm(`Mover ${selected.size} a ${target==="global"?"Global benchmarks":"Local audit"}?`))return;
+    if(!confirm(`Move ${selected.size} to ${target==="global"?"Global benchmarks":"Local audit"}?`))return;
     for(const id of selected){
       const e=data.find(x=>x.id===id); if(!e)continue;
       const name=e.competitor||e.brand||e.brand_name||"";
@@ -605,7 +605,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     }
     if(sb&&selected.has(sb.id))setSb(null);
     setSelected(new Set());await load();
-    setToast({message:`Movidos a ${target==="global"?"Global benchmarks":"Local audit"}`});
+    setToast({message:`Moved to ${target==="global"?"Global benchmarks":"Local audit"}`});
   };
 
   // ── COLLECTIONS ──────────────────────────────────────────────────────────────
@@ -1667,7 +1667,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const bulkAnalyze=async()=>{
     const entries=data.filter(e=>selected.has(e.id));
     if(!entries.length||bulkAnalyzing)return;
-    if(!confirm(`Analizar ${entries.length} contenido(s) con IA? Puede tardar varios minutos.`))return;
+    if(!confirm(`Analyze ${entries.length} item(s) with AI? This may take a few minutes.`))return;
     setBulkAnalyzing(true);setBulkProgress({done:0,total:entries.length});
     let idx=0,ok=0;const CONC=3;
     const worker=async()=>{
@@ -1679,7 +1679,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     };
     await Promise.all(Array.from({length:Math.min(CONC,entries.length)},worker));
     setBulkAnalyzing(false);setSelected(new Set());await load();
-    setToast({message:`✓ ${ok}/${entries.length} analizados con IA`});
+    setToast({message:`✓ ${ok}/${entries.length} analyzed with AI`});
   };
 
   const openForm=(entry)=>{const e=entry||{};setCur({...e});setViewingImg(null);if(ytId(e.url))setMaterialType("video");else if(e.url&&/(instagram\.com|tiktok\.com)/i.test(e.url))setMaterialType("social");else if(e.url&&/\.(mp4|mov|webm)(\?|$)/i.test(e.url))setMaterialType("videoFile");else if(e.url&&/\.(pdf|doc|docx|txt|rtf)(\?|$)/i.test(e.url))setMaterialType("document");else if(e.image_url)setMaterialType("image");else if(e.url)setMaterialType("web");else setMaterialType("none");setSec(0);router.push(entry?`/audit?edit=${entry.id}`:"/audit?edit=new",{scroll:false});setSbRaw(null);setHighlighted(new Set());setActiveCollection(null);setEditingCollection(null);};
@@ -1800,7 +1800,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 {materialType==="web"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
                 {materialType==="social"&&<div className="space-y-2">
                   <div className="flex bg-surface2 rounded-lg p-0.5 w-fit">
-                    {[["single","Post único"],["feed","Feed del perfil"]].map(([k,l])=>(
+                    {[["single","Single post"],["feed","Profile feed"]].map(([k,l])=>(
                       <button key={k} onClick={()=>setSocialMode(k)} className={`px-3 py-1 rounded-md text-xs font-medium transition ${socialMode===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>
                     ))}
                   </div>
@@ -1932,7 +1932,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     </div>
                   )}
                 </div>
-                :materialType==="social"&&(cur.url||cur.image_url)?<div className="w-full">{cur.image_url?<img src={cur.image_url} alt="" className="w-full rounded-lg border border-main" style={{maxHeight:350,objectFit:"contain"}} />:<div className="w-full rounded-lg border border-main bg-surface2 flex items-center justify-center text-hint text-xs" style={{height:200}}>Sin miniatura</div>}<div className="mt-2 text-center">{cur.url&&<a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">{/tiktok\.com/i.test(cur.url||"")?"Abrir en TikTok ↗":"Abrir en Instagram ↗"}</a>}</div></div>
+                :materialType==="social"&&(cur.url||cur.image_url)?<div className="w-full">{cur.image_url?<img src={cur.image_url} alt="" className="w-full rounded-lg border border-main" style={{maxHeight:350,objectFit:"contain"}} />:<div className="w-full rounded-lg border border-main bg-surface2 flex items-center justify-center text-hint text-xs" style={{height:200}}>No thumbnail</div>}<div className="mt-2 text-center">{cur.url&&<a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">{/tiktok\.com/i.test(cur.url||"")?"Open in TikTok ↗":"Open in Instagram ↗"}</a>}</div></div>
                 :materialType==="web"&&cur.url?<div className="w-full flex flex-col" style={{height:350}}><iframe src={cur.url} width="100%" className="rounded-lg border border-main flex-1" sandbox="allow-scripts allow-same-origin" /><div className="mt-2 text-center"><a href={cur.url} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">Open in new tab ↗</a></div></div>
                 :materialType==="document"&&cur.url?<div className="flex flex-col items-center justify-center gap-3">
                   <div className="w-16 h-20 rounded-lg bg-surface border-2 border-main flex items-center justify-center">
@@ -1946,7 +1946,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="bg-surface border-t border-main px-4 py-3 space-y-3">
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label><span className="text-[9px] text-hint">{ytLoading&&!cur.transcript?<span className="text-accent animate-pulse">Bringing the transcript…</span>:"Paste from YouTube or type what you see"}</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder={ytLoading&&!cur.transcript?"Bringing the transcript…":"Paste the video transcript, ad copy, or any text content here..."} className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
-                {cur.type==="Social post"&&<div><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Caption</label><span className="text-[9px] text-hint">Texto del post — se envía a la IA</span></div><textarea value={cur.custom_dimensions?._meta?.caption||""} onChange={e=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_meta:{...((prev.custom_dimensions||{})._meta||{}),caption:e.target.value}}}))} rows={4} placeholder="Caption / copy del post social..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>}
+                {cur.type==="Social post"&&<div><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Caption</label><span className="text-[9px] text-hint">Post text — sent to the AI</span></div><textarea value={cur.custom_dimensions?._meta?.caption||""} onChange={e=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_meta:{...((prev.custom_dimensions||{})._meta||{}),caption:e.target.value}}}))} rows={4} placeholder="Social post caption / copy..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>}
                 {(cur.image_url||cur.transcript||cur.analyst_comment||cur.custom_dimensions?._meta?.caption)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
               </div>
             </div>
@@ -2274,13 +2274,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                       <div><label className={lbl}>Format</label>
                         <select value={social.format||""} onChange={e=>setSocial("format",e.target.value)} className={inp}><option value="">—</option>{["reel","carousel","static","story","video","slideshow"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
                     </div>
-                    <div><label className={lbl}>Objetivo</label>
+                    <div><label className={lbl}>Objective</label>
                       <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className={inp}><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
                     <div><label className={lbl}>Content pillar</label>
-                      <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Producto / Propósito / Comunidad…" className={inp} />
+                      <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Product / Purpose / Community…" className={inp} />
                       <datalist id="content-pillars">{(OPTIONS.content_pillar||[]).map(p=><option key={p} value={p}/>)}</datalist></div>
-                    <div><label className={lbl}>Códigos visuales</label>
-                      <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Estilo visual recurrente, paleta, recursos…" className={inp} /></div>
+                    <div><label className={lbl}>Visual codes</label>
+                      <input value={social.visual_codes||""} onChange={e=>setSocial("visual_codes",e.target.value)} placeholder="Recurring visual style, palette, assets…" className={inp} /></div>
                   </div>)}
                 </div>);
               })()}
@@ -2327,16 +2327,16 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           </div>
           {selected.size>0&&<div className="flex gap-1.5 items-center">
             {/* Analyze with AI — animated pill (icon, expands on hover, AI colour) */}
-            <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analizar con IA"
+            <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analyze with AI"
               className={`group h-[30px] rounded-full flex items-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] disabled:opacity-80 ${bulkAnalyzing?"px-3 gap-1.5 bg-[#7c3aed]":"px-2 gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-[#7c3aed]"}`}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="flex-shrink-0"><path d="M12 2l1.9 5.8L20 9.7l-5 3.8L18.8 20 12 16.1 5.2 20 7 13.5l-5-3.8 6.1-.1z"/></svg>
-              <span className={`text-[10px] font-bold overflow-hidden whitespace-nowrap text-white transition-all duration-300 ${bulkAnalyzing?"max-w-[160px] opacity-100":"max-w-0 opacity-0 group-hover:max-w-[160px] group-hover:opacity-100"}`}>{bulkAnalyzing?`Analizando ${bulkProgress.done}/${bulkProgress.total}`:`Analizar ${selected.size} con IA`}</span>
+              <span className={`text-[10px] font-bold overflow-hidden whitespace-nowrap text-white transition-all duration-300 ${bulkAnalyzing?"max-w-[160px] opacity-100":"max-w-0 opacity-0 group-hover:max-w-[160px] group-hover:opacity-100"}`}>{bulkAnalyzing?`Analyzing ${bulkProgress.done}/${bulkProgress.total}`:`Analyze ${selected.size} with AI`}</span>
             </button>
             {/* Move between Local / Global — animated pill */}
-            <button onClick={bulkMoveScope} title={`Mover a ${scope==="global"?"Local audit":"Global benchmarks"}`}
+            <button onClick={bulkMoveScope} title={`Move to ${scope==="global"?"Local audit":"Global benchmarks"}`}
               className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{scope==="global"?"A Local":"A Global"}</span>
+              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{scope==="global"?"To Local":"To Global"}</span>
             </button>
             <div className="relative">
               <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}}
