@@ -25,115 +25,6 @@ const TONE_OPTIONS = [
 const LANGUAGE_OPTIONS = ["English", "French", "Spanish", "Portuguese", "Italian"];
 
 /* ═══════════════════════════════════════════════════════════════
-   BRAND PROFILE CARD — reusable display for crawled profiles
-   ═══════════════════════════════════════════════════════════════ */
-function BrandProfileCard({ profile, pagesCrawled }) {
-  if (!profile) return null;
-
-  if (profile.error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
-        <p className="text-sm text-red-600">{profile.error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3 mt-3">
-      {pagesCrawled?.length > 0 && (
-        <div className="bg-surface rounded-xl border border-main p-4">
-          <p className="text-[10px] text-muted uppercase font-semibold mb-2">
-            Pages crawled ({pagesCrawled.length})
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            {pagesCrawled.map((p, i) => (
-              <a
-                key={i}
-                href={p.url}
-                target="_blank"
-                rel="noopener"
-                className="text-[10px] px-2 py-1 bg-surface2 rounded text-accent hover:underline"
-              >
-                {p.label || p.title}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-surface rounded-xl border border-main overflow-hidden">
-        <div className="px-5 py-4 border-b border-main" style={{ background: "#0a0f3c" }}>
-          <h3 className="text-xl font-bold text-white">{profile.brand_name}</h3>
-          {profile.tagline && (
-            <p className="text-sm text-white/60 mt-1 italic">{profile.tagline}</p>
-          )}
-          <div className="flex gap-2 mt-2">
-            {profile.category && (
-              <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/80 rounded-full">{profile.category}</span>
-            )}
-            {profile.brand_archetype && (
-              <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/80 rounded-full">{profile.brand_archetype}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="p-5 grid grid-cols-2 gap-5">
-          {[
-            ["Description", profile.description],
-            ["Target Audience", profile.target_audience],
-            ["Value Proposition", profile.value_proposition],
-            ["Positioning", profile.positioning],
-            ["Emotional Benefit", profile.emotional_benefit],
-            ["Rational Benefit", profile.rational_benefit],
-            ["Tone of Voice", profile.tone_of_voice],
-            ["Brand Personality", profile.brand_personality],
-            ["Brand Territory", profile.brand_territory],
-            ["Visual Identity", profile.visual_identity],
-          ]
-            .filter(([, v]) => v)
-            .map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] text-muted uppercase font-semibold mb-1">{label}</p>
-                <p className="text-xs text-main leading-relaxed">{value}</p>
-              </div>
-            ))}
-
-          {[
-            ["Key Products", profile.key_products],
-            ["Key Messages", profile.key_messages],
-            ["Differentiators", profile.differentiators],
-            ["Content Themes", profile.content_themes],
-            ["Strengths", profile.strengths],
-            ["Weaknesses / Gaps", profile.weaknesses],
-          ]
-            .filter(([, v]) => v?.length)
-            .map(([label, items]) => (
-              <div key={label}>
-                <p className="text-[10px] text-muted uppercase font-semibold mb-1">{label}</p>
-                <ul className="space-y-0.5">
-                  {items.map((item, i) => (
-                    <li key={i} className="text-xs text-main flex gap-1.5">
-                      <span className="text-accent">•</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-        </div>
-
-        {profile.summary && (
-          <div className="px-5 py-4 border-t border-main bg-surface2">
-            <p className="text-[10px] text-muted uppercase font-semibold mb-1">Strategic Summary</p>
-            <p className="text-sm text-main leading-relaxed">{profile.summary}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
    TAXONOMY DROPDOWN — category/sub_category with "- Other"
    ═══════════════════════════════════════════════════════════════ */
 function TaxonomyDropdown({ label, value, options, onChange, onAddOther, placeholder }) {
@@ -628,13 +519,6 @@ function LandscapeTab({ brandId, orgId }) {
   // Taxonomy
   const [taxonomyTerms, setTaxonomyTerms] = useState({});
 
-  // Crawl state
-  const [crawling, setCrawling] = useState(null);
-  const [crawlResult, setCrawlResult] = useState(null);
-  const [crawlPages, setCrawlPages] = useState([]);
-  const [crawlHistory, setCrawlHistory] = useState({}); // { brandId: [{id, created_at, urls_used},...] }
-  const [expandedHistory, setExpandedHistory] = useState(null); // profile id to show details
-
   // Confirm removal
   const [confirmRemove, setConfirmRemove] = useState(null);
 
@@ -788,110 +672,6 @@ function LandscapeTab({ brandId, orgId }) {
     setGlobalRefs(prev => updateList(prev));
   };
 
-  const loadCrawlHistory = async (compBrandId) => {
-    const { data } = await supabase
-      .from("brand_profiles")
-      .select("id, created_at, urls_used, profile_data, pages_crawled")
-      .eq("brand_id", compBrandId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setCrawlHistory(prev => ({ ...prev, [compBrandId]: data || [] }));
-  };
-
-  const runCrawl = async (comp) => {
-    // Parse URLs — support both JSON array and plain string
-    let urls = [];
-    try { const p = JSON.parse(comp.brand.website || "[]"); urls = Array.isArray(p) ? p : [comp.brand.website]; } catch { urls = [comp.brand.website].filter(Boolean); }
-    if (urls.length === 0) { showToast("No website URL set"); return; }
-
-    setCrawling(comp.competitor_brand_id);
-    setCrawlResult(null);
-    setCrawlPages([]);
-
-    try {
-      const res = await fetch("/api/brand-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: urls[0],
-          extraUrls: urls.slice(1),
-          brandName: comp.brand.name,
-          brand_id: comp.competitor_brand_id,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      setCrawlResult(data.profile);
-      setCrawlPages(data.pagesCrawled || []);
-
-      // ===== CRAWL SAVE - DEBUG VERSION =====
-      console.log("[Crawl] About to save. brand_id:", comp.competitor_brand_id);
-      console.log("[Crawl] brand_name:", comp.brand?.name);
-      console.log("[Crawl] profile keys:", Object.keys(data.profile || {}));
-      console.log("[Crawl] pages crawled:", (data.pagesCrawled || []).length);
-      console.log("[Crawl] urls:", urls);
-
-      if (!comp.competitor_brand_id) {
-        console.error("[Crawl] ABORT: competitor_brand_id is null/undefined");
-        showToast("Error: cannot save — brand ID missing");
-      } else {
-        try {
-          const { data: savedProfile, error: profileError } = await supabase
-            .from("brand_profiles")
-            .insert({
-              brand_id: comp.competitor_brand_id,
-              brand_name: comp.brand?.name || "Unknown",
-              profile_data: data.profile || {},
-              pages_crawled: data.pagesCrawled || [],
-              urls_used: urls || [],
-            })
-            .select()
-            .single();
-
-          if (profileError) {
-            console.error("[Crawl] INSERT FAILED:", profileError);
-            showToast("Crawl save failed: " + profileError.message);
-          } else {
-            console.log("[Crawl] INSERT SUCCESS. id:", savedProfile.id, "created_at:", savedProfile.created_at);
-            showToast("Profile saved to history");
-            // Refresh history
-            await loadCrawlHistory(comp.competitor_brand_id);
-          }
-        } catch (err) {
-          console.error("[Crawl] UNEXPECTED ERROR:", err);
-        }
-      }
-
-      // Also update brands.brand_profile
-      try {
-        await supabase.from("brands").update({
-          brand_profile: data.profile || {},
-        }).eq("id", comp.competitor_brand_id);
-        console.log("[Crawl] brands.brand_profile updated");
-      } catch (err) {
-        console.error("[Crawl] brands update error:", err);
-      }
-      // ===== END CRAWL SAVE =====
-
-      // Also update descriptive fields
-      if (data.profile) {
-        const updates = {};
-        if (data.profile.description) updates.description = data.profile.description;
-        if (data.profile.target_audience) updates.target_audience = data.profile.target_audience;
-        if (data.profile.value_proposition) updates.value_proposition = data.profile.value_proposition;
-        if (data.profile.brand_archetype) updates.brand_archetype = data.profile.brand_archetype;
-        if (data.profile.category) updates.category = data.profile.category;
-        if (Object.keys(updates).length > 0) {
-          await updateCompetitorBrand(comp.competitor_brand_id, updates);
-        }
-      }
-      showToast("Website crawled successfully");
-    } catch (err) {
-      setCrawlResult({ error: err.message });
-    }
-    setCrawling(null);
-  };
 
   const [suggestions, setSuggestions] = useState([]);
 
@@ -985,7 +765,6 @@ function LandscapeTab({ brandId, orgId }) {
           onClick={() => {
             const newId = isExpanded ? null : comp.competitor_brand_id;
             setExpandedId(newId);
-            if (newId) loadCrawlHistory(newId);
           }}
           className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-surface2 transition"
         >
@@ -1056,79 +835,14 @@ function LandscapeTab({ brandId, orgId }) {
                 className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main resize-none focus:outline-none focus:border-accent" />
             </div>
 
-            {/* AI Profile section */}
+            {/* Brand DNA profiles now live in Intelligence → Marcas (new brand_dna engine). */}
             <div className="pt-2 border-t border-main">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => runCrawl(comp)}
-                  disabled={crawling === comp.competitor_brand_id || !b.website}
-                  className="px-4 py-1.5 bg-accent text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
-                >
-                  {crawling === comp.competitor_brand_id ? "Crawling..." : "Crawl website"}
-                </button>
-                <button
-                  onClick={() => { setConfirmRemove(comp); }}
-                  className="px-3 py-1.5 border border-red-200 text-red-500 rounded-lg text-xs font-medium hover:bg-red-50"
-                >
-                  Remove
-                </button>
-              </div>
-
-              {crawling === comp.competitor_brand_id && (
-                <div className="flex items-center gap-3 py-2 mt-2">
-                  <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs text-hint">Crawling and analyzing website...</p>
-                </div>
-              )}
-
-              {crawlResult && expandedId === comp.competitor_brand_id && (
-                <BrandProfileCard profile={crawlResult} pagesCrawled={crawlPages} />
-              )}
-
-              {/* Crawl History */}
-              {(crawlHistory[comp.competitor_brand_id] || []).length > 0 && (
-                <div className="mt-3 pt-2 border-t border-main/50">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Crawl history</p>
-                  <div className="space-y-1.5">
-                    {(crawlHistory[comp.competitor_brand_id] || []).map(h => {
-                      const date = new Date(h.created_at);
-                      const label = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + ", " + date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-                      const isOpen = expandedHistory === h.id;
-                      return (
-                        <div key={h.id} className="border border-main rounded-lg overflow-hidden">
-                          <button onClick={() => setExpandedHistory(isOpen ? null : h.id)}
-                            className="w-full text-left px-3 py-2 flex justify-between items-center hover:bg-surface2 transition">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-main font-medium">{label}</span>
-                              <span className="text-[10px] text-hint">{(h.urls_used || []).length} URLs · {Object.keys(h.profile_data || {}).length} fields</span>
-                            </div>
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition ${isOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3"/></svg>
-                          </button>
-                          {isOpen && (
-                            <div className="px-3 pb-3 border-t border-main">
-                              {h.urls_used?.length > 0 && (
-                                <div className="mt-2 mb-2">
-                                  <p className="text-[9px] text-hint uppercase font-semibold mb-1">URLs crawled</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {h.urls_used.map((u, ui) => (
-                                      <a key={ui} href={u} target="_blank" rel="noopener" className="text-[10px] text-accent hover:underline bg-accent-soft px-2 py-0.5 rounded">{u.replace(/https?:\/\//, "").split("/").slice(0, 2).join("/")}</a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              {h.profile_data && (
-                                <div className="mt-2">
-                                  <BrandProfileCard profile={h.profile_data} pagesCrawled={h.pages_crawled || []} />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => { setConfirmRemove(comp); }}
+                className="px-3 py-1.5 border border-red-200 text-red-500 rounded-lg text-xs font-medium hover:bg-red-50"
+              >
+                Remove
+              </button>
             </div>
           </div>
         )}
