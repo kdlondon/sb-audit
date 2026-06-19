@@ -122,7 +122,27 @@ export default function ClientDashboard() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  if (loading) return <AuthGuard><div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading...</p></div></AuthGuard>;
+  if (loading) return (
+    <AuthGuard>
+      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+        <Nav />
+        <div className="max-w-4xl mx-auto p-8">
+          <div className="mb-8">
+            <div className="h-7 w-44 rounded-lg bg-surface2 animate-pulse" />
+            <div className="h-4 w-72 rounded bg-surface2 animate-pulse mt-2.5" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-surface border border-main rounded-xl p-5">
+                <div className="h-4 w-3/4 rounded bg-surface2 animate-pulse" />
+                <div className="h-3 w-1/2 rounded bg-surface2 animate-pulse mt-3" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </AuthGuard>
+  );
 
   return (
     <AuthGuard>
@@ -165,7 +185,7 @@ export default function ClientDashboard() {
                       <div key={b.id} className="bg-surface border border-main rounded-xl p-5 transition group relative">
                         <div onClick={() => tab==="active"&&enterBrand(b)} className={tab==="active"?"cursor-pointer":""}>
                           <h3 className={`text-base font-bold text-main transition ${tab==="active"?"group-hover:text-accent":""}`}>{b.name}</h3>
-                          <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap">
+                          <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap tabular-nums">
                             <span>{caseCounts[b.id] || 0} cases</span>
                             {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
                             {tab==="trashed" && <span className="text-red-500">· deleted in {daysLeft(b.status_changed_at)} d</span>}
