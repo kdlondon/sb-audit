@@ -48,7 +48,7 @@ async function fetchDirect(pageUrl, diag, ms = 9000) {
 // Fallback reader (r.jina.ai) — fetches and returns clean text, bypassing many
 // datacenter-IP blocks (Cloudflare/Akamai) that reject Vercel's serverless IPs.
 // Returns plain text (no markup/links) or null.
-async function fetchViaReader(pageUrl, diag, ms = 9000) {
+async function fetchViaReader(pageUrl, diag, ms = 15000) {
   const key = process.env.JINA_API_KEY;
   const headers = { "User-Agent": BROWSER_HEADERS["User-Agent"], "X-Return-Format": "text" };
   if (key) headers["Authorization"] = "Bearer " + key;
@@ -68,8 +68,9 @@ const stripHtml = (html) => html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ""
 async function crawl(url, diag) {
   const pages = [], visited = new Set();
   const baseUrl = new URL(url).origin;
+  const deadline = Date.now() + 45000; // stay well within the 60s function limit
   async function fetchPage(pageUrl, label, d) {
-    if (visited.has(pageUrl) || pages.length >= 10) return;
+    if (visited.has(pageUrl) || pages.length >= 10 || Date.now() > deadline) return;
     visited.add(pageUrl);
     const html = await fetchDirect(pageUrl, d);
     if (html) {
