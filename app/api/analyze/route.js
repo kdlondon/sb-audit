@@ -69,7 +69,7 @@ function socialFieldsBlock(pillars) {
     : `Suggest a concise content pillar (1-3 words, Title Case).`;
   return `,
   "content_pillar": "The content territory/pillar this post belongs to. ${pillarRule}",
-  "post_objective": "MUST be one of: Awareness | Engagement | Conversión | Comunidad",
+  "post_objective": "MUST be EXACTLY one of these lowercase canonical keys (do NOT translate): awareness | engagement | conversion | community",
   "visual_codes": "Recurring visual style/codes — palette, framing, recurring graphic elements or format treatment (1 short phrase)"`;
 }
 

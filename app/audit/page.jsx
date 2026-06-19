@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, getSections, getTableName } from "@/lib/options";
 import { useFramework } from "@/lib/framework-context";
+import { objectiveOptions, canonObjective } from "@/lib/taxonomy";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -1587,6 +1588,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             if(SOCIAL_KEYS.includes(k)) socialUpd[k]=v; else u[k]=v;
           });
           if(socialUpd.content_pillar) socialUpd.content_pillar=canonP(socialUpd.content_pillar);
+          if(socialUpd.post_objective) socialUpd.post_objective=canonObjective(socialUpd.post_objective);
           u.custom_dimensions={
             ...(u.custom_dimensions||{}),
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
@@ -1646,6 +1648,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     const u={};const socialUpd={};
     Object.entries(a).forEach(([k,v])=>{if(!(v&&v!=="undefined"&&v!=="null"))return;if(SOCIAL_KEYS.includes(k))socialUpd[k]=v;else u[k]=v;});
     if(socialUpd.content_pillar){const np=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").replace(/s$/,"");const m=(OPTIONS.content_pillar||[]).find(o=>np(o)===np(socialUpd.content_pillar));if(m)socialUpd.content_pillar=m;}
+    if(socialUpd.post_objective)socialUpd.post_objective=canonObjective(socialUpd.post_objective);
     const cd={...(entry.custom_dimensions||{}),...(Object.keys(socialUpd).length?{_social:{...((entry.custom_dimensions||{})._social||{}),...socialUpd}}:{}),_ai_analyzed_at:new Date().toISOString()};
     if(isSocial){
       u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
@@ -2275,7 +2278,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         <select value={social.format||""} onChange={e=>setSocial("format",e.target.value)} className={inp}><option value="">—</option>{["reel","carousel","static","story","video","slideshow"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
                     </div>
                     <div><label className={lbl}>Objective</label>
-                      <select value={social.post_objective||""} onChange={e=>setSocial("post_objective",e.target.value)} className={inp}><option value="">—</option>{["Awareness","Engagement","Conversión","Comunidad"].map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                      <select value={canonObjective(social.post_objective||"")} onChange={e=>setSocial("post_objective",e.target.value)} className={inp}><option value="">—</option>{objectiveOptions(framework?.language||"English").map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
                     <div><label className={lbl}>Content pillar</label>
                       <input list="content-pillars" value={social.content_pillar||""} onChange={e=>setSocial("content_pillar",e.target.value)} placeholder="Product / Purpose / Community…" className={inp} />
                       <datalist id="content-pillars">{(OPTIONS.content_pillar||[]).map(p=><option key={p} value={p}/>)}</datalist></div>
