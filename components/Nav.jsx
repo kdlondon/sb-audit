@@ -78,8 +78,10 @@ export default function Nav() {
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
   return (<>
-    <div className="px-5 flex items-center justify-between fixed top-0 left-0 right-0"
-      style={{ background: "#D07072", borderBottom: "none", zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
+    <div className="fixed top-0 left-0 right-0 flex justify-center pointer-events-none"
+      style={{ zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
+    <div className="pointer-events-auto mt-2 w-[calc(100%-24px)] max-w-[1180px] px-4 flex items-center justify-between rounded-full shadow-xl"
+      style={{ background: "#D07072", height: "calc(var(--nav-h) - 16px)" }}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
           <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>
@@ -107,7 +109,7 @@ export default function Nav() {
         </div>}
       </div>
 
-      <div className="flex items-center gap-2" ref={menuRef}>
+      <div className="flex items-center gap-2 relative" ref={menuRef}>
         {!simpleBar && (<>
         {/* Sparkles background */}
         <div className="relative flex items-center gap-2">
@@ -168,7 +170,7 @@ export default function Nav() {
 
         {/* Simple absolute dropdown — no portal needed */}
         {menuOpen && (
-          <div className="absolute right-4 top-12 w-56 bg-surface border border-main rounded-xl shadow-2xl py-1"
+          <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-main rounded-xl shadow-2xl py-1"
             style={{ zIndex: 99999 }}>
             <div className="px-4 py-3 border-b border-main">
               <p className="text-sm font-medium text-main truncate">{userEmail}</p>
@@ -289,6 +291,7 @@ export default function Nav() {
         </div>,
         document.body
       )}
+    </div>
     </div>
     {/* Spacer to offset fixed nav */}
     <div style={{ height: "var(--nav-h)" }} />
