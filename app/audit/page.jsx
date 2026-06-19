@@ -338,6 +338,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [showReportModal,setShowReportModal]=useState(false);
   const [closingNotes,setClosingNotes]=useState([]);
   const [exportMenuOpen,setExportMenuOpen]=useState(false);
+  const [toolMenu,setToolMenu]=useState(""); // "filter" | "sort" | "" — Cosmos-style circular tool popovers
   const [mapData,setMapData]=useState([]);
   const [reportInstructions,setReportInstructions]=useState("");
   const [reportGenerating,setReportGenerating]=useState(false);
@@ -2776,25 +2777,51 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         })()}
 
         {viewMode==="entries"&&<>
-        {/* Bar 3 — Filter + sort + view + export */}
-        <div className="bg-surface border-b border-main px-5 py-2 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)",paddingTop:"0.5rem",marginTop:"var(--nav-h)"}}>
-          <div className="flex gap-2 flex-wrap items-center">
-            <span className="text-[10px] text-hint uppercase font-semibold">Filter:</span>
-            {filterKeys.map(([k,l,opts])=>(<select key={k} value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="px-1.5 py-1 border border-main rounded text-xs bg-surface text-main"><option value="">{l}</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>))}
-            {Object.values(fl).some(Boolean)&&<span onClick={()=>setFl({})} className="text-accent text-xs cursor-pointer">Clear</span>}
-          </div>
-          <div className="flex gap-2 items-center">
-            <select value={sortPreset} onChange={e=>{setSortPreset(e.target.value);setSortCol("created_at");}} className="px-2 py-1 border border-main rounded text-xs bg-surface text-main">
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="updated">Last updated</option>
-              <option value="rating">Rating</option>
-            </select>
-            <div className="flex bg-surface2 rounded p-0.5">
-              <button onClick={()=>setListMode("list")} className={`p-1 rounded ${listMode==="list"?"bg-surface shadow-sm text-accent":"text-muted"}`}><ListIcon/></button>
-              <button onClick={()=>setListMode("grid")} className={`p-1 rounded ${listMode==="grid"?"bg-surface shadow-sm text-accent":"text-muted"}`}><GridIcon/></button>
+        {/* Bar 3 — Cosmos-style circular tool buttons (filter · sort · view · export) */}
+        <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)",paddingTop:"0.5rem",marginTop:"var(--nav-h)"}}>
+          <span className="text-[11px] text-hint tabular-nums">{fd.length} of {data.length}</span>
+          {toolMenu&&<div className="fixed inset-0 z-40" onClick={()=>setToolMenu("")} />}
+          <div className="flex items-center gap-2 relative z-[41]">
+            {(() => { const active=Object.values(fl).some(Boolean); return (
+            <div className="relative">
+              <button onClick={()=>setToolMenu(toolMenu==="filter"?"":"filter")} title="Filters"
+                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${active||toolMenu==="filter"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.4" fill="var(--surface)"/><circle cx="15" cy="12" r="2.4" fill="var(--surface)"/><circle cx="9" cy="17" r="2.4" fill="var(--surface)"/></svg>
+              </button>
+              {toolMenu==="filter"&&(
+                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[280px] p-3 space-y-2.5">
+                  {filterKeys.map(([k,l,opts])=>(
+                    <div key={k}>
+                      <label className="text-[10px] text-hint uppercase font-semibold tracking-wide">{l}</label>
+                      <select value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="w-full mt-1 px-2.5 py-2 border border-main rounded-xl text-xs bg-surface text-main"><option value="">All</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
+                    </div>
+                  ))}
+                  {active&&<button onClick={()=>setFl({})} className="text-accent text-xs font-medium pt-1">Clear all filters</button>}
+                </div>
+              )}
             </div>
-            <button onClick={doExport} className="px-2 py-1 text-xs border border-main rounded text-muted hover:bg-surface2">Export</button>
+            ); })()}
+            <div className="relative">
+              <button onClick={()=>setToolMenu(toolMenu==="sort"?"":"sort")} title="Sort"
+                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${toolMenu==="sort"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v16"/><path d="M4 7l3-3 3 3"/><path d="M17 20V4"/><path d="M14 17l3 3 3-3"/></svg>
+              </button>
+              {toolMenu==="sort"&&(
+                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[190px] py-1.5">
+                  {[["newest","Newest"],["oldest","Oldest"],["updated","Last updated"],["rating","Rating"]].map(([v,l])=>(
+                    <button key={v} onClick={()=>{setSortPreset(v);setSortCol("created_at");setToolMenu("");}} className={`w-full text-left px-4 py-2 text-sm flex justify-between items-center transition ${sortPreset===v?"text-accent font-semibold":"text-main hover:bg-surface2"}`}>{l}{sortPreset===v&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={()=>setListMode(listMode==="grid"?"list":"grid")} title={listMode==="grid"?"Switch to list":"Switch to grid"}
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+              {listMode==="grid"?<ListIcon/>:<GridIcon/>}
+            </button>
+            <button onClick={doExport} title="Export"
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
           </div>
         </div>
 
