@@ -115,7 +115,11 @@ ${validated}`;
     if (data.error) return Response.json({ error: data.error.message }, { status: 500 });
     const text = data.content?.map((c) => c.text || "").join("") || "{}";
     let profile = {}; try { profile = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || "{}"); } catch {}
-    return Response.json({ profile, meta: { pagesCrawled: pages.map((p) => p.label), postsAnalyzed: content.length } });
+    const meta = { pagesCrawled: pages.map((p) => p.label), postsAnalyzed: content.length };
+    // Save a new version (resilient — works once MIGRATION_brand_profiles.sql is applied)
+    let saved = null;
+    try { const { data: ins } = await admin.from("brand_profiles").insert({ project_id, brand, url, profile, meta, created_by: "" }).select("id, created_at").single(); saved = ins; } catch {}
+    return Response.json({ profile, id: saved?.id, created_at: saved?.created_at, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }

@@ -6,6 +6,9 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import { useFramework } from "@/lib/framework-context";
+
+const DEFAULT_BRAND_URL = { iberia: "https://www.iberia.com/", "air europa": "https://www.aireuropa.com/", "aerolineas argentinas": "https://www.aerolineas.com.ar", latam: "https://www.latamairlines.com/es/es", laser: "https://www.laserairlines.com" };
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
 
 const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
@@ -40,8 +43,42 @@ function NeedsAnalysis({ pct }) {
   );
 }
 
+const Field = ({ label, v }) => v ? (
+  <div className="mb-2.5">
+    <div className="text-[9px] font-mono uppercase tracking-wide text-hint">{label}</div>
+    <div className="text-xs text-main leading-relaxed">{v}</div>
+  </div>
+) : null;
+
 function IntelligenceContent() {
   const { projectId, projectName } = useProject();
+  const { framework } = useFramework() || {};
+  const [dna, setDna] = useState({});          // brand -> [versions desc]
+  const [dnaUrl, setDnaUrl] = useState({});     // brand -> url input
+  const [dnaVer, setDnaVer] = useState({});     // brand -> selected version index
+  const [dnaGen, setDnaGen] = useState("");     // brand currently generating
+  const loadDna = async () => {
+    if (!projectId) return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from("brand_profiles").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      const g = {}; (data || []).forEach(r => { (g[r.brand] ||= []).push(r); });
+      setDna(g);
+    } catch {}
+  };
+  useEffect(() => { loadDna(); }, [projectId]);
+  const genDna = async (brand) => {
+    const url = dnaUrl[brand] || dna[brand]?.[0]?.url || DEFAULT_BRAND_URL[brand.toLowerCase()] || "";
+    if (!url || dnaGen) return;
+    setDnaGen(brand);
+    try {
+      const res = await fetch("/api/intelligence/brand-dna", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, brand, url }) });
+      const dt = await res.json();
+      if (dt.error) alert("Error: " + dt.error);
+      else { await loadDna(); setDnaVer(v => ({ ...v, [brand]: 0 })); }
+    } catch (e) { alert(e.message); }
+    setDnaGen("");
+  };
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
@@ -174,7 +211,7 @@ function IntelligenceContent() {
     return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries]);
 
-  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["generate", "Generate"]];
+  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Marcas"], ["generate", "Generate"]];
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -363,6 +400,72 @@ function IntelligenceContent() {
                     )}
                   </div>
                 )}
+              </div>
+            );
+          })()
+        ) : tab === "brands" ? (
+          (() => {
+            const brandList = (framework?.localCompetitors || []).map(b => b.name).filter(Boolean);
+            const brands = brandList.length ? brandList : d.brands;
+            return (
+              <div>
+                <p className="text-xs text-muted mb-4">Perfil de cada marca: <b>Expresado</b> (lo que dice su web) vs <b>Validado</b> (lo que hace en su contenido). Pon una URL y genera; cada actualización guarda una versión.</p>
+                <div className="space-y-5">
+                  {brands.map(brand => {
+                    const versions = dna[brand] || [];
+                    const vi = dnaVer[brand] ?? 0;
+                    const rec = versions[vi];
+                    const p = rec?.profile || {};
+                    const urlVal = dnaUrl[brand] ?? (versions[0]?.url || DEFAULT_BRAND_URL[brand.toLowerCase()] || "");
+                    return (
+                      <div key={brand} className="bg-surface border border-main rounded-xl p-5">
+                        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+                          <div>
+                            <h3 className="text-base font-bold text-main">{brand}</h3>
+                            {rec && <span className="text-[10px] text-hint font-mono">Última versión · {new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length} versiones` : ""}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Última" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
+                            <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://marca.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[200px]" />
+                            <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analizando…" : rec ? "Actualizar" : "Generar perfil"}</button>
+                          </div>
+                        </div>
+                        {dnaGen === brand && <p className="text-xs text-accent animate-pulse">Navegando el sitio y cruzando con su contenido… (~25s)</p>}
+                        {rec && (
+                          <div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                              <div className="border border-main rounded-lg p-4">
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Expresado · lo que dice</div>
+                                <Field label="Propósito" v={p.purpose} />
+                                <Field label="Claim" v={p.claim} />
+                                <Field label="Posicionamiento" v={p.positioning} />
+                                <Field label="Segmentos" v={Array.isArray(p.segments) ? p.segments.join(" · ") : p.segments} />
+                                <Field label="Discurso" v={p.discourse} />
+                                <Field label="Rol expresado" v={p.role?.expressed} />
+                              </div>
+                              <div className="border border-main rounded-lg p-4" style={{ background: "rgba(124,58,237,0.04)" }}>
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Validado · lo que hace</div>
+                                <Field label="Tono" v={p.tone} />
+                                <Field label="Personalidad" v={p.personality} />
+                                <Field label="Arquetipo" v={p.archetype} />
+                                <Field label="Rol validado" v={p.role?.validated} />
+                                {p.role?.gap && <div className="mt-1 text-xs text-[#7c3aed] rounded p-2" style={{ background: "rgba(124,58,237,0.08)" }}><b>Brecha:</b> {p.role.gap}</div>}
+                              </div>
+                            </div>
+                            {Array.isArray(p.semantic_cloud) && p.semantic_cloud.length > 0 && (
+                              <div className="mt-4">
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-2">Nube semántica</div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 items-baseline">
+                                  {p.semantic_cloud.map((t, i) => <span key={i} className="text-main leading-tight" style={{ fontSize: 11 + Math.min(13, (t.weight || 3) * 1.5), fontWeight: (t.weight || 3) >= 6 ? 700 : 500, opacity: 0.55 + Math.min(0.45, (t.weight || 3) / 12) }}>{t.term}</span>)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })()
