@@ -1774,7 +1774,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const allDimensions = _getAllDims(framework);
   const fieldStyle=(key)=>highlighted.has(key)?{background:"var(--accent-soft)",borderColor:"var(--accent)",transition:"background 0.3s"}:{};
 
-  if(loading)return <div className="p-10 text-center text-hint">Loading...</div>;
+  if(loading)return <div className="min-h-screen flex items-center justify-center text-hint text-sm">Loading…</div>;
 
   // ── FORM ──
   if(vw==="form"){
@@ -2821,7 +2821,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         })()}
 
         {viewMode==="entries"&&<>
-        <div style={{marginTop:"calc(var(--sec-h) + 8px)"}}>
+        <div>
         <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
         {listMode==="list"?(
           <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)"}}>

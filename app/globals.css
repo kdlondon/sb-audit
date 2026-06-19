@@ -127,7 +127,7 @@ a, button, input, select, textarea {
 /* Content after section-bar needs offset to clear the fixed level-2 bar,
    plus a 24px breathing gap. (The nav band is cleared by the Nav spacer.) */
 .section-bar + * {
-  padding-top: calc(var(--sec-h) + 24px);
+  padding-top: calc(var(--sec-h) + 10px);
 }
 
 /* Force GPU layer for all sticky elements */
