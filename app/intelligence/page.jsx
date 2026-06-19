@@ -61,7 +61,7 @@ function IntelligenceContent() {
     if (!projectId) return;
     try {
       const supabase = createClient();
-      const { data } = await supabase.from("brand_profiles").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      const { data } = await supabase.from("brand_dna").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       const g = {}; (data || []).forEach(r => { (g[r.brand] ||= []).push(r); });
       setDna(g);
     } catch {}
