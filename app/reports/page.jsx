@@ -1167,9 +1167,12 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
         if(covered.has(p.brand))return; covered.add(p.brand);
         const pr=p.profile||{}; const role=pr.role||{};
         const cloud=(pr.semantic_cloud||[]).map(t=>typeof t==="string"?t:t.term).filter(Boolean).join(", ");
+        const heroClaim=typeof pr.claim==="string"?pr.claim:(pr.claim?.hero||"");
+        const seasonalClaims=(pr.claim&&typeof pr.claim==="object"&&Array.isArray(pr.claim.seasonal))?pr.claim.seasonal.join("; "):"";
         blocks.push(`--- ${p.brand} (from website) ---
 Purpose: ${pr.purpose||""}
-Claim/Tagline: ${pr.claim||""}
+Hero Claim (consistent over time): ${heroClaim||"(no consistent hero claim)"}
+Seasonal/Campaign Claims: ${seasonalClaims||"n/a"}
 Positioning: ${pr.positioning||""}
 Customer Segments: ${(pr.segments||[]).join(", ")}
 Personality: ${pr.personality||""}

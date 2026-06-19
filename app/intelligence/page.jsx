@@ -211,7 +211,7 @@ function IntelligenceContent() {
     return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries]);
 
-  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Marcas"], ["generate", "Generate"]];
+  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -230,13 +230,13 @@ function IntelligenceContent() {
 
       <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--nav-h) + 14px)" }}>
         {loading ? (
-          <p className="text-sm text-hint">Cargando inteligencia…</p>
+          <p className="text-sm text-hint">Loading intelligence…</p>
         ) : d.total === 0 ? (
-          <p className="text-sm text-hint">No hay contenidos sociales en este proyecto todavía. Importa desde Scout o Creative Source.</p>
+          <p className="text-sm text-hint">No social content in this project yet. Import from Scout or Creative Source.</p>
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="col-span-full flex gap-3 flex-wrap">
-              {[["Contenidos", d.total], ["Marcas", d.brands.length], ["Analizados con IA", `${d.analyzedPct}%`]].map(([l, v]) => (
+              {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v]) => (
                 <div key={l} className="bg-surface border border-main rounded-xl px-4 py-3 flex-1 min-w-[140px]">
                   <div className="text-2xl font-bold text-main">{v}</div>
                   <div className="text-[10px] text-hint uppercase font-semibold">{l}</div>
@@ -409,52 +409,63 @@ function IntelligenceContent() {
             const brands = brandList.length ? brandList : d.brands;
             return (
               <div>
-                <p className="text-xs text-muted mb-4">Perfil de cada marca: <b>Expresado</b> (lo que dice su web) vs <b>Validado</b> (lo que hace en su contenido). Pon una URL y genera; cada actualización guarda una versión.</p>
+                <p className="text-xs text-muted mb-4">Each brand's profile: <b>Expressed</b> (what its website says) vs <b>Validated</b> (what it actually does in its content). Enter a URL and generate; every update is saved as a version.</p>
                 <div className="space-y-5">
                   {brands.map(brand => {
                     const versions = dna[brand] || [];
                     const vi = dnaVer[brand] ?? 0;
                     const rec = versions[vi];
                     const p = rec?.profile || {};
+                    const claimHero = typeof p.claim === "string" ? p.claim : (p.claim?.hero || "");
+                    const claimSeasonal = (p.claim && typeof p.claim === "object" && Array.isArray(p.claim.seasonal)) ? p.claim.seasonal.filter(Boolean) : [];
                     const urlVal = dnaUrl[brand] ?? (versions[0]?.url || DEFAULT_BRAND_URL[brand.toLowerCase()] || "");
                     return (
                       <div key={brand} className="bg-surface border border-main rounded-xl p-5">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
                           <div>
                             <h3 className="text-base font-bold text-main">{brand}</h3>
-                            {rec && <span className="text-[10px] text-hint font-mono">Última versión · {new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length} versiones` : ""}</span>}
+                            {rec && <span className="text-[10px] text-hint font-mono">Latest version · {new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length} versions` : ""}</span>}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Última" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
-                            <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://marca.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[200px]" />
-                            <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analizando…" : rec ? "Actualizar" : "Generar perfil"}</button>
+                            {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Latest" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
+                            <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://brand.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[200px]" />
+                            <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analyzing…" : rec ? "Update" : "Generate profile"}</button>
                           </div>
                         </div>
-                        {dnaGen === brand && <p className="text-xs text-accent animate-pulse">Navegando el sitio y cruzando con su contenido… (~25s)</p>}
+                        {dnaGen === brand && <p className="text-xs text-accent animate-pulse">Crawling the site and cross-referencing its content… (~25s)</p>}
                         {rec && (
                           <div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                               <div className="border border-main rounded-lg p-4">
-                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Expresado · lo que dice</div>
-                                <Field label="Propósito" v={p.purpose} />
-                                <Field label="Claim" v={p.claim} />
-                                <Field label="Posicionamiento" v={p.positioning} />
-                                <Field label="Segmentos" v={Array.isArray(p.segments) ? p.segments.join(" · ") : p.segments} />
-                                <Field label="Discurso" v={p.discourse} />
-                                <Field label="Rol expresado" v={p.role?.expressed} />
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Expressed · what it says</div>
+                                <Field label="Purpose" v={p.purpose} />
+                                <div className="mb-2.5">
+                                  <div className="text-[9px] font-mono uppercase tracking-wide text-hint">Hero claim</div>
+                                  <div className={`text-xs leading-relaxed ${claimHero ? "text-main font-semibold" : "text-hint italic"}`}>{claimHero || "— no consistent hero claim"}</div>
+                                  {claimSeasonal.length > 0 && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                                      <span className="text-[8px] font-mono uppercase tracking-wide text-hint">Seasonal</span>
+                                      {claimSeasonal.map((c, i) => <span key={i} className="text-[10px] text-muted bg-surface2 border border-main rounded px-1.5 py-0.5">{c}</span>)}
+                                    </div>
+                                  )}
+                                </div>
+                                <Field label="Positioning" v={p.positioning} />
+                                <Field label="Segments" v={Array.isArray(p.segments) ? p.segments.join(" · ") : p.segments} />
+                                <Field label="Discourse" v={p.discourse} />
+                                <Field label="Expressed role" v={p.role?.expressed} />
                               </div>
                               <div className="border border-main rounded-lg p-4" style={{ background: "rgba(124,58,237,0.04)" }}>
-                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Validado · lo que hace</div>
-                                <Field label="Tono" v={p.tone} />
-                                <Field label="Personalidad" v={p.personality} />
-                                <Field label="Arquetipo" v={p.archetype} />
-                                <Field label="Rol validado" v={p.role?.validated} />
-                                {p.role?.gap && <div className="mt-1 text-xs text-[#7c3aed] rounded p-2" style={{ background: "rgba(124,58,237,0.08)" }}><b>Brecha:</b> {p.role.gap}</div>}
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Validated · what it does</div>
+                                <Field label="Tone" v={p.tone} />
+                                <Field label="Personality" v={p.personality} />
+                                <Field label="Archetype" v={p.archetype} />
+                                <Field label="Validated role" v={p.role?.validated} />
+                                {p.role?.gap && <div className="mt-1 text-xs text-[#7c3aed] rounded p-2" style={{ background: "rgba(124,58,237,0.08)" }}><b>Gap:</b> {p.role.gap}</div>}
                               </div>
                             </div>
                             {Array.isArray(p.semantic_cloud) && p.semantic_cloud.length > 0 && (
                               <div className="mt-4">
-                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-2">Nube semántica</div>
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-2">Semantic cloud</div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-1 items-baseline">
                                   {p.semantic_cloud.map((t, i) => <span key={i} className="text-main leading-tight" style={{ fontSize: 11 + Math.min(13, (t.weight || 3) * 1.5), fontWeight: (t.weight || 3) >= 6 ? 700 : 500, opacity: 0.55 + Math.min(0.45, (t.weight || 3) / 12) }}>{t.term}</span>)}
                                 </div>

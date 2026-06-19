@@ -144,7 +144,11 @@ Contrast them: the gap between expressed and validated is the key strategic insi
 Return ONLY raw JSON:
 {
  "purpose": "the brand's purpose / reason for being (1-2 sentences)",
- "claim": "the brand's main BRAND claim/tagline — the conceptual, emotional, campaign-level brand promise or manifesto line (e.g. 'Los veranos vuelan', 'Experiencia LATAM en todo momento'). STRONGLY PRIORITIZE the most brand-led, aspirational line. NEVER use transactional/commercial/SEO copy as the claim (e.g. 'best prices', 'cheap flights', 'compare and book', 'reserva ya', 'mejores precios') — that is promotional noise, not the brand claim. If you can only find commercial copy, infer the conceptual claim from the brand's tone and territory instead of quoting the offer.",
+ "claim": {
+   "hero": "the brand's HERO claim — the CONSISTENT, time-stable brand line/tagline that recurs across the brand over time (e.g. 'Experiencia LATAM en todo momento'). VALIDATE it against the CAPTURED CONTENT (B): a true hero claim is echoed repeatedly, not tied to one moment. NEVER use transactional/commercial/SEO copy (e.g. 'best prices', 'cheap flights', 'reserva ya', 'mejores precios'). Use \"\" (empty string) if NO consistent hero claim can be confidently identified — do not force one.",
+   "seasonal": ["campaign or SEASONAL claims tied to a specific moment/promo (e.g. a summer line like 'Los veranos vuelan'), which are temporal and must NOT be treated as the hero. Empty array if none."],
+   "evidence": "1 short sentence: why this is the hero and where it recurs, OR why hero is left empty"
+ },
  "positioning": "expressed positioning / description (2-3 sentences)",
  "segments": ["customer segment served, e.g. Business traveler", "International tourist", ...],
  "personality": "3-5 personality traits",
