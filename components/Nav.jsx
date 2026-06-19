@@ -78,9 +78,10 @@ export default function Nav() {
   const tabs = mainTabs.filter(t => role && canAccess(role, t.module));
 
   return (<>
-    {/* Continuous frosted-glass backdrop spanning the whole header (level 1 + level 2) */}
+    {/* Frosted-glass backdrop. Spans level 1 + level 2 only where a section bar exists;
+        on simple pages (home, profile, admin) it covers just the nav band. */}
     <div className="fixed top-0 left-0 right-0 pointer-events-none" aria-hidden="true"
-      style={{ zIndex: 20, height: "calc(var(--nav-h) + var(--sec-h))", background: "rgba(255,255,255,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.05)" }} />
+      style={{ zIndex: 20, height: simpleBar ? "var(--nav-h)" : "calc(var(--nav-h) + var(--sec-h))", background: "rgba(255,255,255,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid rgba(0,0,0,0.05)" }} />
     <div className="fixed top-0 left-0 right-0 flex justify-center pointer-events-none"
       style={{ zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
     <div className="pointer-events-auto mt-[24px] w-[calc(100%-24px)] max-w-[1180px] px-5 flex items-center justify-between rounded-full shadow-xl"
