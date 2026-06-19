@@ -2318,7 +2318,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
-        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"rgba(255,255,255,0.6)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
+        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"transparent",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
           {/* left — spacer (balances absolute-centered pill) */}
           <span className="min-w-[90px]" aria-hidden="true"> </span>
           {/* center — Cosmos-style segmented pill (subsections) */}
@@ -2332,8 +2332,51 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <button key={t.id} onClick={t.on} className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${t.active?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>{t.label}</button>
             ))}
           </div>
-          {/* right — bulk actions (light, circular) */}
-          <div className="min-w-[90px] flex justify-end items-center gap-1.5">
+          {/* right — bulk actions when selecting, else the filter/sort/view/export tools */}
+          <div className="min-w-[90px] flex justify-end items-center gap-1.5 relative z-[41]">
+          {toolMenu&&<div className="fixed inset-0 z-40" onClick={()=>setToolMenu("")} />}
+          {selected.size===0&&viewMode==="entries"&&<>
+            {(() => { const active=Object.values(fl).some(Boolean); return (
+            <div className="relative">
+              <button onClick={()=>setToolMenu(toolMenu==="filter"?"":"filter")} title="Filters"
+                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${active||toolMenu==="filter"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.4" fill="var(--surface)"/><circle cx="15" cy="12" r="2.4" fill="var(--surface)"/><circle cx="9" cy="17" r="2.4" fill="var(--surface)"/></svg>
+              </button>
+              {toolMenu==="filter"&&(
+                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[280px] p-3 space-y-2.5">
+                  {filterKeys.map(([k,l,opts])=>(
+                    <div key={k}>
+                      <label className="text-[10px] text-hint uppercase font-semibold tracking-wide">{l}</label>
+                      <select value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="w-full mt-1 px-2.5 py-2 border border-main rounded-xl text-xs bg-surface text-main"><option value="">All</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
+                    </div>
+                  ))}
+                  {active&&<button onClick={()=>setFl({})} className="text-accent text-xs font-medium pt-1">Clear all filters</button>}
+                </div>
+              )}
+            </div>
+            ); })()}
+            <div className="relative">
+              <button onClick={()=>setToolMenu(toolMenu==="sort"?"":"sort")} title="Sort"
+                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${toolMenu==="sort"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v16"/><path d="M4 7l3-3 3 3"/><path d="M17 20V4"/><path d="M14 17l3 3 3-3"/></svg>
+              </button>
+              {toolMenu==="sort"&&(
+                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[190px] py-1.5">
+                  {[["newest","Newest"],["oldest","Oldest"],["updated","Last updated"],["rating","Rating"]].map(([v,l])=>(
+                    <button key={v} onClick={()=>{setSortPreset(v);setSortCol("created_at");setToolMenu("");}} className={`w-full text-left px-4 py-2 text-sm flex justify-between items-center transition ${sortPreset===v?"text-accent font-semibold":"text-main hover:bg-surface2"}`}>{l}{sortPreset===v&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={()=>setListMode(listMode==="grid"?"list":"grid")} title={listMode==="grid"?"Switch to list":"Switch to grid"}
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+              {listMode==="grid"?<ListIcon/>:<GridIcon/>}
+            </button>
+            <button onClick={doExport} title="Export"
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+          </>}
           {selected.size>0&&<>
             <span className="text-[11px] text-muted tabular-nums mr-0.5">{bulkAnalyzing?`${bulkProgress.done}/${bulkProgress.total}`:`${selected.size} sel.`}</span>
             <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analyze with AI"
@@ -2716,7 +2759,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             return{...g,lat:coords[0],lng:coords[1],size:Math.min(0.8,0.15+g.entries.length*0.05),color:g.entries.length>5?"#0019FF":g.entries.length>2?"#4060ff":"#7090ff"};
           }).filter(Boolean);
           return(
-            <div className="relative" style={{height:"calc(100vh - var(--nav-h) - var(--nav-h) - 50px)"}}>
+            <div className="relative" style={{height:"calc(100vh - var(--nav-h) - var(--sec-h) - 24px)"}}>
               {/* Selected country panel */}
               {sb&&typeof sb==="object"&&sb._mapCountry&&(
                 <div className="absolute top-4 right-4 z-20 w-[340px] max-h-[80%] bg-white border border-[#e0e0e0] rounded-xl shadow-2xl overflow-hidden">
@@ -2778,57 +2821,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         })()}
 
         {viewMode==="entries"&&<>
-        {/* Bar 3 — Cosmos-style circular tool buttons (filter · sort · view · export) */}
-        <div className="bg-surface border-b border-main px-5 py-2.5 flex justify-between items-center sticky z-[29]" style={{top:"calc(var(--nav-h) * 2)",paddingTop:"0.5rem",marginTop:"var(--nav-h)"}}>
-          <span className="text-[11px] text-hint tabular-nums">{fd.length} of {data.length}</span>
-          {toolMenu&&<div className="fixed inset-0 z-40" onClick={()=>setToolMenu("")} />}
-          <div className="flex items-center gap-2 relative z-[41]">
-            {(() => { const active=Object.values(fl).some(Boolean); return (
-            <div className="relative">
-              <button onClick={()=>setToolMenu(toolMenu==="filter"?"":"filter")} title="Filters"
-                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${active||toolMenu==="filter"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.4" fill="var(--surface)"/><circle cx="15" cy="12" r="2.4" fill="var(--surface)"/><circle cx="9" cy="17" r="2.4" fill="var(--surface)"/></svg>
-              </button>
-              {toolMenu==="filter"&&(
-                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[280px] p-3 space-y-2.5">
-                  {filterKeys.map(([k,l,opts])=>(
-                    <div key={k}>
-                      <label className="text-[10px] text-hint uppercase font-semibold tracking-wide">{l}</label>
-                      <select value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="w-full mt-1 px-2.5 py-2 border border-main rounded-xl text-xs bg-surface text-main"><option value="">All</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
-                    </div>
-                  ))}
-                  {active&&<button onClick={()=>setFl({})} className="text-accent text-xs font-medium pt-1">Clear all filters</button>}
-                </div>
-              )}
-            </div>
-            ); })()}
-            <div className="relative">
-              <button onClick={()=>setToolMenu(toolMenu==="sort"?"":"sort")} title="Sort"
-                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${toolMenu==="sort"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v16"/><path d="M4 7l3-3 3 3"/><path d="M17 20V4"/><path d="M14 17l3 3 3-3"/></svg>
-              </button>
-              {toolMenu==="sort"&&(
-                <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[190px] py-1.5">
-                  {[["newest","Newest"],["oldest","Oldest"],["updated","Last updated"],["rating","Rating"]].map(([v,l])=>(
-                    <button key={v} onClick={()=>{setSortPreset(v);setSortCol("created_at");setToolMenu("");}} className={`w-full text-left px-4 py-2 text-sm flex justify-between items-center transition ${sortPreset===v?"text-accent font-semibold":"text-main hover:bg-surface2"}`}>{l}{sortPreset===v&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button onClick={()=>setListMode(listMode==="grid"?"list":"grid")} title={listMode==="grid"?"Switch to list":"Switch to grid"}
-              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
-              {listMode==="grid"?<ListIcon/>:<GridIcon/>}
-            </button>
-            <button onClick={doExport} title="Export"
-              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </button>
-          </div>
-        </div>
-
-
+        <div style={{marginTop:"calc(var(--sec-h) + 24px)"}}>
         {listMode==="list"?(
-          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) * 2 - 46px)"}}>
+          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)"}}>
             <table className="w-full border-collapse text-xs">
               <thead><tr className="border-b-2 border-main">
                 {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
@@ -2931,6 +2926,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </div>
           </div>
         )}
+        </div>
         </>}
       </div>
 

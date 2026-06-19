@@ -230,7 +230,7 @@ function IntelligenceContent() {
         <span className="text-xs text-white/40">Social Media Benchmark · {projectName || ""}</span>
       </div>
 
-      <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--nav-h) + 14px)" }}>
+      <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--sec-h) + 16px)" }}>
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
         ) : d.total === 0 ? (

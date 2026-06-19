@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --nav-h: 64px;
+  --nav-h: 88px;   /* level-1 band: ~24 top margin + 55 island + air */
+  --sec-h: 52px;   /* level-2 bar height */
   --bg: #FFFFFF;
   --surface: #ffffff;
   --surface2: #efeee9;
@@ -110,7 +111,7 @@ a, button, input, select, textarea {
   margin-right: auto;
   width: calc(100% - 24px);
   max-width: 1180px;
-  height: calc(var(--nav-h) - 12px);
+  height: var(--sec-h);
   z-index: 30;
   background: #403436;
   border-radius: 9999px;
@@ -123,10 +124,10 @@ a, button, input, select, textarea {
   -webkit-transform: translateZ(0);
 }
 
-/* Content after section-bar needs offset to clear the fixed nav + section-bar,
-   plus a small breathing gap. */
+/* Content after section-bar needs offset to clear the fixed level-2 bar,
+   plus a 24px breathing gap. (The nav band is cleared by the Nav spacer.) */
 .section-bar + * {
-  padding-top: calc(var(--nav-h) + 12px);
+  padding-top: calc(var(--sec-h) + 24px);
 }
 
 /* Force GPU layer for all sticky elements */
