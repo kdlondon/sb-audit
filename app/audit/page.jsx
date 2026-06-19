@@ -2318,35 +2318,36 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
         {/* Bar 2 — Section bar: title + scope toggle */}
-        <div className="section-bar px-5 py-2.5 flex justify-between items-center">
-          <div className="flex items-center gap-5">
-            <h2 className="text-[15px] font-bold text-white">Creative Source</h2>
-            <div className="flex gap-1">
-              <button onClick={()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=local",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="local"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Local audit</button>
-              <button onClick={()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=global",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${scope==="global"&&viewMode==="entries"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Global benchmarks</button>
-              <button onClick={()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="collections"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Collections</button>
-              <button onClick={()=>{setViewMode("map");setActiveCollection(null);router.push("/audit?view=map",{scroll:false});}} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${viewMode==="map"?"bg-white/15 text-white":"text-white/60 hover:text-white/90"}`}>Map</button>
-            </div>
-            {viewMode==="entries"&&<span className="text-xs text-white/40">{fd.length} of {data.length}</span>}
+        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"var(--bg)",boxShadow:"none",borderRadius:0,maxWidth:"none"}}>
+          {/* left — count */}
+          <span className="text-[11px] text-hint tabular-nums min-w-[90px]">{viewMode==="entries"?`${fd.length} of ${data.length}`:" "}</span>
+          {/* center — Cosmos-style segmented pill (subsections) */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
+            {[
+              {id:"local",label:"Local audit",active:scope==="local"&&viewMode==="entries",on:()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=local",{scroll:false});}},
+              {id:"global",label:"Global benchmarks",active:scope==="global"&&viewMode==="entries",on:()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=global",{scroll:false});}},
+              {id:"collections",label:"Collections",active:viewMode==="collections",on:()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}},
+              {id:"map",label:"Map",active:viewMode==="map",on:()=>{setViewMode("map");setActiveCollection(null);router.push("/audit?view=map",{scroll:false});}},
+            ].map(t=>(
+              <button key={t.id} onClick={t.on} className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${t.active?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>{t.label}</button>
+            ))}
           </div>
-          {selected.size>0&&<div className="flex gap-1.5 items-center">
-            {/* Analyze with AI — animated pill (icon, expands on hover, AI colour) */}
+          {/* right — bulk actions (light, circular) */}
+          <div className="min-w-[90px] flex justify-end items-center gap-1.5">
+          {selected.size>0&&<>
+            <span className="text-[11px] text-muted tabular-nums mr-0.5">{bulkAnalyzing?`${bulkProgress.done}/${bulkProgress.total}`:`${selected.size} sel.`}</span>
             <button onClick={bulkAnalyze} disabled={bulkAnalyzing} title="Analyze with AI"
-              className={`group h-[30px] rounded-full flex items-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] disabled:opacity-80 ${bulkAnalyzing?"px-3 gap-1.5 bg-[#7c3aed]":"px-2 gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-[#7c3aed]"}`}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="flex-shrink-0"><path d="M12 2l1.9 5.8L20 9.7l-5 3.8L18.8 20 12 16.1 5.2 20 7 13.5l-5-3.8 6.1-.1z"/></svg>
-              <span className={`text-[10px] font-bold overflow-hidden whitespace-nowrap text-white transition-all duration-300 ${bulkAnalyzing?"max-w-[160px] opacity-100":"max-w-0 opacity-0 group-hover:max-w-[160px] group-hover:opacity-100"}`}>{bulkAnalyzing?`Analyzing ${bulkProgress.done}/${bulkProgress.total}`:`Analyze ${selected.size} with AI`}</span>
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-[#7c3aed] hover:border-[#7c3aed] flex items-center justify-center transition disabled:opacity-60">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="flex-shrink-0"><path d="M12 2l1.9 5.8L20 9.7l-5 3.8L18.8 20 12 16.1 5.2 20 7 13.5l-5-3.8 6.1-.1z"/></svg>
             </button>
-            {/* Move between Local / Global — animated pill */}
             <button onClick={bulkMoveScope} title={`Move to ${scope==="global"?"Local audit":"Global benchmarks"}`}
-              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{scope==="global"?"To Local":"To Global"}</span>
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
             </button>
             <div className="relative">
-              <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}}
-                className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Collection</span>
+              <button onClick={()=>{setShowAddToCollection(!showAddToCollection);if(!showAddToCollection)loadCollections();}} title="Add to collection"
+                className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </button>
               {showAddToCollection&&(
                 <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[240px] max-h-[300px] overflow-auto">
@@ -2367,12 +2368,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               )}
             </div>
-            <button onClick={bulkDelete}
-              className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 bg-white/15 hover:bg-[#c0392b] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[60px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">{selected.size}</span>
+            <button onClick={bulkDelete} title="Delete"
+              className="w-9 h-9 rounded-full border border-main text-muted hover:text-red-500 hover:border-red-300 flex items-center justify-center transition">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
-          </div>}
+          </>}
+          </div>
         </div>
         {/* Collections View */}
         {viewMode==="collections"&&!activeCollection&&(
