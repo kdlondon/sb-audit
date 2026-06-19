@@ -1154,16 +1154,42 @@ ${fd.map(e=>`[ID:${e.id}] [${e.year||""}] [${e.type||""}] [Intent:${e.communicat
       dataStr=filteredData.map(e=>`[ID:${e.id}] [${e.competitor||e.brand}${e.year?" "+e.year:""}] ${e.description||""} | Portrait:${e.portrait||""} | Door:${e.entry_door||""} | Phase:${e.journey_phase||""} | Lifecycle:${e.client_lifecycle||""} | Tone:${e.tone_of_voice||""} | Role:${e.bank_role||""} | Lang:${e.language_register||""} | Pain:${e.pain_point_type||""} | Archetype:${e.brand_archetype||""} | Territory:${e.primary_territory||""} | SecTerritory:${e.secondary_territory||""} | Execution:${e.execution_style||""} | Size:${e.business_size||""} | Moment_Acq:${e.moment_acquisition||""} | Moment_Deep:${e.moment_deepening||""} | Moment_Unexp:${e.moment_unexpected||""} | Richness:${e.richness_definition||""} | Diff:${e.diff_claim||""} | Insight:${(e.insight||"").slice(0,120)} | Synopsis:${(e.synopsis||"").slice(0,120)}`).join("\n");
     }
 
-    // Fetch brand profiles for context
+    // Fetch website-vs-communication context. PRIMARY source = the new Brand DNA engine
+    // (brand_dna, generated in Intelligence → Marcas). LEGACY brand_profiles crawler is kept
+    // ONLY as a transitional fallback for brands that have no Brand DNA yet (e.g. Scotiabank's
+    // existing crawls), so existing reports don't silently lose their website context.
     let brandProfileContext="";
     if(competitors.length>0){
-      const{data:bProfiles}=await supabase.from("brand_profiles").select("brand_name,profile_data").eq(filterField,filterValue).in("brand_name",competitors).order("created_at",{ascending:false});
-      if(bProfiles&&bProfiles.length>0){
-        const seen=new Set();
-        const unique=bProfiles.filter(p=>{if(seen.has(p.brand_name))return false;seen.add(p.brand_name);return true;});
-        brandProfileContext="\n\nBRAND WEBSITE PROFILES (official website data — compare with communication data above):\n"+unique.map(p=>{
-          const pr=p.profile_data||{};
-          return`--- ${p.brand_name} (from website) ---
+      const blocks=[]; const covered=new Set();
+      // Primary: Brand DNA (structured, expressed-vs-validated)
+      const{data:dnaRows}=await supabase.from("brand_dna").select("brand,profile,created_at").eq(filterField,filterValue).in("brand",competitors).order("created_at",{ascending:false});
+      (dnaRows||[]).forEach(p=>{
+        if(covered.has(p.brand))return; covered.add(p.brand);
+        const pr=p.profile||{}; const role=pr.role||{};
+        const cloud=(pr.semantic_cloud||[]).map(t=>typeof t==="string"?t:t.term).filter(Boolean).join(", ");
+        blocks.push(`--- ${p.brand} (from website) ---
+Purpose: ${pr.purpose||""}
+Claim/Tagline: ${pr.claim||""}
+Positioning: ${pr.positioning||""}
+Customer Segments: ${(pr.segments||[]).join(", ")}
+Personality: ${pr.personality||""}
+Tone of Voice: ${pr.tone||""}
+Brand Archetype: ${pr.archetype||""}
+Brand Role (expressed on website): ${role.expressed||""}
+Brand Role (validated in content): ${role.validated||""}
+Expressed-vs-Validated Gap: ${role.gap||""}
+Discourse / Narrative: ${pr.discourse||""}
+Semantic Cloud: ${cloud}`);
+      });
+      // Fallback: legacy crawler for any competitor without Brand DNA yet
+      const missing=competitors.filter(c=>!covered.has(c));
+      if(missing.length>0){
+        try{
+          const{data:legacy}=await supabase.from("brand_profiles").select("brand_name,profile_data,created_at").eq(filterField,filterValue).in("brand_name",missing).order("created_at",{ascending:false});
+          (legacy||[]).forEach(p=>{
+            if(covered.has(p.brand_name))return; covered.add(p.brand_name);
+            const pr=p.profile_data||{};
+            blocks.push(`--- ${p.brand_name} (from website) ---
 Tagline: ${pr.tagline||""}
 Description: ${pr.description||""}
 Target Audience: ${pr.target_audience||""}
@@ -1175,9 +1201,11 @@ Key Products: ${(pr.key_products||[]).join(", ")}
 Key Messages: ${(pr.key_messages||[]).join(", ")}
 Differentiators: ${(pr.differentiators||[]).join(", ")}
 Strengths: ${(pr.strengths||[]).join(", ")}
-Weaknesses: ${(pr.weaknesses||[]).join(", ")}`;
-        }).join("\n\n");
+Weaknesses: ${(pr.weaknesses||[]).join(", ")}`);
+          });
+        }catch{}
       }
+      if(blocks.length>0) brandProfileContext="\n\nBRAND DNA — OFFICIAL WEBSITE PROFILES (what each brand SAYS about itself on its own website; compare with the communication data above, which is what it actually DOES):\n"+blocks.join("\n\n");
     }
 
     const SYSTEM_PROMPTS=getSystemPrompts(framework);
