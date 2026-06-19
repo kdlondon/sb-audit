@@ -182,7 +182,7 @@ export default function ClientDashboard() {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {projs.map(b => (
-                      <div key={b.id} className="bg-surface border border-main rounded-xl p-5 transition group relative">
+                      <div key={b.id} className="bg-surface border border-main rounded-2xl p-5 transition-all duration-200 group relative hover:-translate-y-0.5 hover:shadow-lg hover:border-accent/40">
                         <div onClick={() => tab==="active"&&enterBrand(b)} className={tab==="active"?"cursor-pointer":""}>
                           <h3 className={`text-base font-bold text-main transition ${tab==="active"?"group-hover:text-accent":""}`}>{b.name}</h3>
                           <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap tabular-nums">
