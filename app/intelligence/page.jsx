@@ -218,16 +218,13 @@ function IntelligenceContent() {
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
-      <div className="section-bar px-5 py-2.5 flex justify-between items-center">
-        <div className="flex items-center gap-5">
-          <h2 className="text-[15px] font-bold text-white">Intelligence</h2>
-          <div className="flex gap-1">
-            {TABS.map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} className={`px-3.5 py-1 rounded-full text-[13px] font-medium transition ${tab === k ? "bg-white/15 text-white" : "text-white/60 hover:text-white/90"}`}>{l}</button>
-            ))}
-          </div>
+      <div className="section-bar px-5 py-2.5 flex justify-between items-center" style={{background:"transparent",boxShadow:"none"}}>
+        <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
+          {TABS.map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${tab === k ? "bg-surface2 text-main shadow-sm" : "text-muted hover:text-main"}`}>{l}</button>
+          ))}
         </div>
-        <span className="text-xs text-white/40">Social Media Benchmark · {projectName || ""}</span>
+        <span className="text-xs text-hint">Social Media Benchmark · {projectName || ""}</span>
       </div>
 
       <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--sec-h) + 16px)" }}>

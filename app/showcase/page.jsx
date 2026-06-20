@@ -1882,13 +1882,13 @@ Return: {"title":"...","slides":[...slides...]}`;
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         {ToastEl}
         {/* Section bar */}
-        <div className="section-bar px-5 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold text-white">Showcase</h2>
-            <p className="text-xs text-white/60">Cinematic presentations powered by Knots & Dots</p>
+        <div className="section-bar px-5 py-3 flex justify-between items-center" style={{background:"transparent",boxShadow:"none"}}>
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-bold text-main">Showcase</h2>
+            <p className="text-xs text-muted">Cinematic presentations powered by Knots & Dots</p>
           </div>
           {canEdit && (
-            <button onClick={() => nav({ new: 1 })} className="px-3 py-1.5 text-sm text-white rounded-lg font-semibold hover:opacity-90"
+            <button onClick={() => nav({ new: 1 })} className="px-3 py-1.5 text-sm text-white rounded-full font-semibold hover:opacity-90"
               style={{ backgroundColor: KD.electric }}>+ New Showcase</button>
           )}
         </div>

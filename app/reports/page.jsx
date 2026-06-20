@@ -1489,17 +1489,14 @@ RULES:
     <div className="min-h-screen" style={{background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div className="section-bar px-5 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-white">Report</h2>
-          <div className="flex bg-white/15 rounded-lg p-0.5">
-            <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="dashboard"?"bg-white/15 text-white shadow-sm":"text-white/60"}`}>Dashboard</button>
-            <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="generate"?"bg-white/15 text-white shadow-sm":"text-white/60"}`}>Generate</button>
-            <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="journey"?"bg-white/15 text-white shadow-sm":"text-white/60"}`}>Journey Map</button>
-            <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3 py-1 rounded-md text-xs font-medium transition ${view==="archive"?"bg-white/15 text-white shadow-sm":"text-white/60"}`}>Archive ({savedReports.length})</button>
-          </div>
+      <div className="section-bar px-5 py-3 flex justify-between items-center" style={{background:"transparent",boxShadow:"none"}}>
+        <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
+          <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="dashboard"?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>Dashboard</button>
+          <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="generate"?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>Generate</button>
+          <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="journey"?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>Journey Map</button>
+          <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="archive"?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>Archive ({savedReports.length})</button>
         </div>
-        {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-lg font-medium border transition ${viewerOpen?"bg-white/15 border-white/30 text-white":"border-white/20 text-white/60 hover:bg-white/15"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
+        {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-full font-medium border transition ${viewerOpen?"bg-surface2 border-main text-main":"border-main text-muted hover:text-main hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}
       </div>
 
       {/* DASHBOARD VIEW — embedded */}
