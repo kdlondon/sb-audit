@@ -218,13 +218,14 @@ function IntelligenceContent() {
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
-      <div className="section-bar px-5 py-2.5 flex justify-between items-center" style={{background:"transparent",boxShadow:"none"}}>
-        <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
+      <div className="section-bar px-5 py-2.5 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
+        <span className="w-[200px]" aria-hidden="true"></span>
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
           {TABS.map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${tab === k ? "bg-surface2 text-main shadow-sm" : "text-muted hover:text-main"}`}>{l}</button>
           ))}
         </div>
-        <span className="text-xs text-hint">Social Media Benchmark · {projectName || ""}</span>
+        <span className="text-xs text-hint w-[200px] text-right truncate">Social Media Benchmark · {projectName || ""}</span>
       </div>
 
       <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--sec-h) + 16px)" }}>

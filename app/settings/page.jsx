@@ -1139,7 +1139,7 @@ function SettingsContent() {
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* Header bar */}
-      <div className="section-bar px-5 py-3 flex justify-between items-center" style={{background:"transparent",boxShadow:"none"}}>
+      <div className="section-bar px-5 py-3 flex justify-center items-center" style={{background:"transparent",boxShadow:"none"}}>
         <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
             {tabs.map((t) => (
               <button
