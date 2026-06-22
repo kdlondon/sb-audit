@@ -147,6 +147,18 @@ a, button, input, select, textarea {
   color: #fff;
 }
 
+/* KD project card — flat, 1px rule, electric-blue hover (no heavy shadow) */
+.kd-proj-card {
+  transition: border-color 0.25s var(--kd-easing), transform 0.25s var(--kd-easing);
+}
+.kd-proj-card:hover {
+  border-color: var(--kd-blue);
+  transform: translateY(-2px);
+}
+.kd-proj-card:hover .kd-proj-title {
+  color: var(--kd-blue);
+}
+
 /* Content after section-bar needs offset to clear the fixed level-2 bar,
    plus a 24px breathing gap. (The nav band is cleared by the Nav spacer.) */
 .section-bar + * {

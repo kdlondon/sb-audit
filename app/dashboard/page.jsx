@@ -149,17 +149,21 @@ export default function ClientDashboard() {
       <div className="min-h-screen" style={{ background: "var(--bg)" }}>
         <Nav />
 
-        <div className="max-w-4xl mx-auto p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-main">Your Projects</h1>
-            <p className="text-sm text-muted mt-1">Select a project to start working, or add a new one.</p>
+        <div className="max-w-4xl mx-auto p-8" style={{ fontFamily: "var(--kd-sans)" }}>
+          <div className="mb-10">
+            <span className="text-muted" style={{ fontFamily: "var(--kd-mono)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Projects /</span>
+            <h1 className="text-main mt-3" style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.0 }}>Your projects</h1>
+            <p className="text-muted mt-2.5" style={{ fontFamily: "var(--kd-serif)", fontStyle: "italic", fontSize: 17 }}>Select a project to start working, or add a new one.</p>
           </div>
 
           {isAdmin && (
-            <div className="mb-6">
+            <div className="mb-8">
               <button onClick={() => router.push("/onboarding")}
-                className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">
-                + New Project
+                className="px-4 py-2 text-white rounded-lg text-sm font-semibold transition"
+                style={{ background: "var(--kd-blue)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#000000"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--kd-blue)"}>
+                + New project
               </button>
             </div>
           )}
@@ -168,7 +172,7 @@ export default function ClientDashboard() {
           <div className="flex gap-1 mb-6 border-b border-main">
             {[["active","Active"],["archived","Archived"],["trashed","Trash"]].map(([k,l])=>{
               const n=brands.filter(p=>(p.status||"active")===k).length;
-              return <button key={k} onClick={()=>{setTab(k);setMenuFor(null);}} className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${tab===k?"border-accent text-main":"border-transparent text-muted hover:text-main"}`}>{l}{n>0&&<span className="ml-1.5 text-[10px] text-hint">{n}</span>}</button>;
+              return <button key={k} onClick={()=>{setTab(k);setMenuFor(null);}} className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${tab===k?"text-main":"border-transparent text-muted hover:text-main"}`} style={tab===k?{borderColor:"var(--kd-blue)"}:undefined}>{l}{n>0&&<span className="ml-1.5 text-[10px] text-hint" style={{fontFamily:"var(--kd-mono)"}}>{n}</span>}</button>;
             })}
           </div>
 
@@ -177,18 +181,18 @@ export default function ClientDashboard() {
             <div className="space-y-8 mb-10">
               {Object.entries(visible.reduce((acc, p) => { const k = p.client_id || "__none__"; (acc[k] = acc[k] || []).push(p); return acc; }, {})).map(([cid, projs]) => (
                 <div key={cid}>
-                  <h2 className="text-xs font-bold text-muted uppercase tracking-wide mb-3">
-                    {cid === "__none__" ? "Unassigned" : (clientNames[cid] || "Client")}
+                  <h2 className="text-muted mb-3" style={{ fontFamily: "var(--kd-mono)", fontSize: 11, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    {(cid === "__none__" ? "Unassigned" : (clientNames[cid] || "Client"))} /
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {projs.map(b => (
-                      <div key={b.id} className="bg-surface border border-main rounded-2xl p-5 transition-all duration-200 group relative hover:-translate-y-0.5 hover:shadow-lg hover:border-accent/40">
+                      <div key={b.id} className="kd-proj-card bg-surface border border-main rounded-xl p-5 group relative">
                         <div onClick={() => tab==="active"&&enterBrand(b)} className={tab==="active"?"cursor-pointer":""}>
-                          <h3 className={`text-base font-bold text-main transition ${tab==="active"?"group-hover:text-accent":""}`}>{b.name}</h3>
-                          <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap tabular-nums">
+                          <h3 className={`text-base font-semibold text-main ${tab==="active"?"kd-proj-title":""}`}>{b.name}</h3>
+                          <div className="flex items-center gap-3 text-xs text-hint mt-2 flex-wrap tabular-nums" style={{ fontFamily: "var(--kd-mono)" }}>
                             <span>{caseCounts[b.id] || 0} cases</span>
                             {b.created_at && <span>· {timeAgo(b.created_at)}</span>}
-                            {tab==="trashed" && <span className="text-red-500">· deleted in {daysLeft(b.status_changed_at)} d</span>}
+                            {tab==="trashed" && <span style={{ color: "var(--kd-ember)" }}>· deleted in {daysLeft(b.status_changed_at)} d</span>}
                           </div>
                         </div>
                         {isAdmin && (
