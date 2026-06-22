@@ -222,7 +222,7 @@ function IntelligenceContent() {
         <span className="w-[200px]" aria-hidden="true"></span>
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
           {TABS.map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${tab === k ? "bg-surface2 text-main shadow-sm" : "text-muted hover:text-main"}`}>{l}</button>
+            <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${tab === k ? "kd-seg-active" : "text-muted hover:text-main"}`}>{l}</button>
           ))}
         </div>
         <span className="text-xs text-hint w-[200px] text-right truncate">Social Media Benchmark · {projectName || ""}</span>

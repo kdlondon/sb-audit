@@ -85,11 +85,11 @@ export default function Nav() {
     <div className="fixed top-0 left-0 right-0 flex justify-center pointer-events-none"
       style={{ zIndex: 100, height: "var(--nav-h)", transform: "translateZ(0)" }}>
     <div className="pointer-events-auto mt-[24px] w-[calc(100%-24px)] max-w-[1180px] px-5 flex items-center justify-between rounded-full shadow-xl"
-      style={{ background: "#111015", height: "55px" }}>
+      style={{ background: "#000000", height: "55px", fontFamily: "var(--kd-sans)" }}>
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { clearBrand(); router.push("/dashboard"); }}>
-          <span className="text-[15px] font-extrabold text-white uppercase tracking-[0.08em]">Groundwork</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full leading-none">Beta</span>
+          <span className="text-[15px] font-bold text-white uppercase tracking-[0.08em]">Groundwork</span>
+          <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full leading-none" style={{ fontFamily: "var(--kd-mono)" }}>Beta</span>
           {process.env.NEXT_PUBLIC_ENV === "staging" && (
             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#facc15", color: "#0a0f3c" }}>Staging</span>
           )}
@@ -106,7 +106,7 @@ export default function Nav() {
               className={`px-2.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition ${
                 pathname.startsWith(t.href) ? "text-white" : "text-white/70 hover:text-white/90"
               }`}
-              style={pathname.startsWith(t.href) ? { background: "rgba(0,0,0,0.15)" } : {}}>
+              style={pathname.startsWith(t.href) ? { background: "var(--kd-blue)" } : {}}>
               {t.name}
             </button>
           ))}
@@ -132,7 +132,7 @@ export default function Nav() {
             }}
               className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
               style={{ background: "rgba(255,255,255,0.15)" }}
-              onMouseEnter={e=>e.currentTarget.style.background="#F0C472"}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--kd-blue)"}
               onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
               <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[70px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">New entry</span>
@@ -213,7 +213,7 @@ export default function Nav() {
             <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
               What's new
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{background:"#D4E520",color:"#0a0f3c"}}>v2.5</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{background:"var(--kd-blue)",color:"#fff"}}>v2.5</span>
             </button>
             <div className="border-t border-main my-1" />
             <button onClick={() => { setMenuOpen(false); handleLogout(); }}
@@ -226,7 +226,7 @@ export default function Nav() {
       {whatsNewOpen && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center animate-fadeIn" style={{zIndex:99999}} onClick={()=>setWhatsNewOpen(false)}>
           <div className="bg-surface w-[520px] max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
-            <div className="px-6 py-4 flex justify-between items-center" style={{background:"#0a0f3c"}}>
+            <div className="px-6 py-4 flex justify-between items-center" style={{background:"#000000"}}>
               <div>
                 <h2 className="text-lg font-bold text-white">What's new</h2>
                 <p className="text-[10px] text-white/40 mt-0.5">Release notes</p>
@@ -237,7 +237,7 @@ export default function Nav() {
               {/* v2.5 */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{background:"#D4E520",color:"#0a0f3c"}}>v2.5</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{background:"var(--kd-blue)",color:"#fff"}}>v2.5</span>
                   <span className="text-[10px] text-hint">March 2026</span>
                 </div>
                 <div className="space-y-3">
@@ -255,7 +255,7 @@ export default function Nav() {
                     { title: "Custom Domain & Staging", desc: "Production at groundwork.kad.london with staging environment for safe testing." },
                   ].map((item, i) => (
                     <div key={i} className="flex gap-3 items-start">
-                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0" style={{background:"#0019FF"}} />
+                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0" style={{background:"var(--kd-blue)"}} />
                       <div>
                         <span className="text-sm font-semibold text-main">{item.title}</span>
                         <span className="text-xs text-muted ml-1.5">{item.desc}</span>

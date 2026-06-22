@@ -1,7 +1,144 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+
+/* KD Design System tokens (mirrors colors_and_type.css) */
+const KD = {
+  white: "#FFFFFF",
+  cream: "#FFF7F0",
+  black: "#000000",
+  blue: "#011EFF",
+  ember: "#FF4A1A",
+  sans: "var(--kd-sans, 'IBM Plex Sans', system-ui, sans-serif)",
+  serif: "var(--kd-serif, 'IBM Plex Serif', Georgia, serif)",
+  mono: "var(--kd-mono, 'IBM Plex Mono', monospace)",
+  smallcaps: "var(--kd-smallcaps, 'Bodoni 72', Georgia, serif)",
+  easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+};
+
+/* "Dots + connecting lines" — the brand's literal motif, drawn slow & subtle */
+function ConnectedDots() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ctx = canvas.getContext("2d");
+    let raf, w, h, dots;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    const seed = () => {
+      const rect = canvas.getBoundingClientRect();
+      w = rect.width; h = rect.height;
+      canvas.width = w * DPR; canvas.height = h * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      dots = Array.from({ length: 26 }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: 1.4 + Math.random() * 2.2,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < dots.length; i++) {
+        const d = dots[i];
+        if (!reduce) { d.x += d.vx; d.y += d.vy; }
+        if (d.x < 0 || d.x > w) d.vx *= -1;
+        if (d.y < 0 || d.y > h) d.vy *= -1;
+        for (let j = i + 1; j < dots.length; j++) {
+          const o = dots[j];
+          const dist = Math.hypot(d.x - o.x, d.y - o.y);
+          if (dist < 170) {
+            ctx.strokeStyle = `rgba(255,247,240,${0.18 * (1 - dist / 170)})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(d.x, d.y);
+            ctx.lineTo(o.x, o.y);
+            ctx.stroke();
+          }
+        }
+      }
+      for (const d of dots) {
+        ctx.fillStyle = "rgba(255,247,240,0.55)";
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (!reduce) raf = requestAnimationFrame(draw);
+    };
+
+    seed();
+    draw();
+    window.addEventListener("resize", seed);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", seed); };
+  }, []);
+  return <canvas ref={ref} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} aria-hidden="true" />;
+}
+
+/* Vertical stacked wordmark — KNOTS / & / DOTS, the "&" in serif italic */
+function VerticalWordmark({ color = KD.cream }) {
+  const row = (ch, i) => (
+    <span key={i} style={{ fontFamily: KD.sans, fontWeight: 600, fontSize: 13, letterSpacing: "0.22em", lineHeight: 1.5, color }}>{ch}</span>
+  );
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }} aria-label="Knots & Dots">
+      {["K", "N", "O", "T", "S"].map(row)}
+      <span style={{ fontFamily: KD.smallcaps, fontStyle: "italic", fontSize: 18, lineHeight: 1.4, margin: "2px 0", color }}>&amp;</span>
+      {["D", "O", "T", "S"].map(row)}
+    </div>
+  );
+}
+
+/* Left brand panel — electric-blue field, cream text, dots motif */
+function BrandPanel() {
+  return (
+    <div
+      style={{
+        position: "relative", overflow: "hidden", background: KD.blue, color: KD.cream,
+        padding: "44px", display: "flex", flexDirection: "column", justifyContent: "space-between",
+      }}
+    >
+      <ConnectedDots />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <VerticalWordmark />
+        <span style={{ fontFamily: KD.mono, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,247,240,0.7)" }}>
+          Competitive Intelligence /
+        </span>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 460 }}>
+        <p style={{ fontFamily: KD.serif, fontStyle: "italic", fontWeight: 300, fontSize: 40, lineHeight: 1.22, color: KD.cream }}>
+          Strategy is not about doing more. It&rsquo;s about clarity&nbsp;&mdash; finding the signal in the noise.
+        </p>
+        <div style={{ marginTop: 28, height: 3, width: 56, background: KD.ember }} />
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <span style={{ fontFamily: KD.mono, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,247,240,0.6)" }}>
+          We untie. We connect.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: "100%", padding: "12px 14px", background: KD.white, border: "1px solid rgba(0,0,0,0.14)",
+  borderRadius: 4, fontSize: 15, color: KD.black, outline: "none", boxSizing: "border-box", fontFamily: KD.sans,
+};
+const labelStyle = {
+  display: "block", fontFamily: KD.mono, fontSize: 11, fontWeight: 500, color: "rgba(0,0,0,0.55)",
+  textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8,
+};
+const primaryBtn = (loading) => ({
+  width: "100%", background: KD.blue, color: KD.white, padding: "13px", borderRadius: 4, fontSize: 14,
+  fontWeight: 600, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+  letterSpacing: "0.01em", fontFamily: KD.sans, transition: `background 0.2s ${KD.easing}`,
+});
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -110,17 +247,17 @@ export default function LoginPage() {
   // MFA Verification Screen
   if (mfaStep) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0a0f3c" }}>
-        <div className="w-full max-w-sm relative z-10">
-          <div className="rounded-2xl p-8 shadow-2xl" style={{ background: "#ffffff" }}>
-            <div className="text-center mb-6">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: "#f0f0ff" }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0019FF" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: KD.black, fontFamily: KD.sans }}>
+        <div style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+          <div style={{ background: KD.white, borderRadius: 6, padding: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.35)" }}>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ width: 52, height: 52, margin: "0 auto 18px", borderRadius: 4, background: KD.blue, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={KD.white} strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               </div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0a0f3c" }}>
-                {mfaMethod === "totp" ? "Authenticator Code" : "Email Verification"}
+              <h1 style={{ fontFamily: KD.sans, fontSize: 24, fontWeight: 600, color: KD.black, letterSpacing: "-0.01em" }}>
+                {mfaMethod === "totp" ? "Authenticator code" : "Email verification"}
               </h1>
-              <p style={{ fontSize: 13, color: "#8e90a6", marginTop: 8 }}>
+              <p style={{ fontFamily: KD.serif, fontStyle: "italic", fontSize: 15, color: "rgba(0,0,0,0.6)", marginTop: 8 }}>
                 {mfaMethod === "totp"
                   ? "Enter the 6-digit code from your authenticator app"
                   : `We sent a code to ${email}`}
@@ -128,7 +265,7 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={mfaMethod === "totp" ? verifyTotp : verifyEmailOtp}>
-              <div className="mb-5">
+              <div style={{ marginBottom: 20 }}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -139,28 +276,28 @@ export default function LoginPage() {
                     const v = e.target.value.replace(/\D/g, "").slice(0, 6);
                     mfaMethod === "totp" ? setMfaCode(v) : setEmailOtpCode(v);
                   }}
-                  style={{ width: "100%", padding: "14px", background: "#f5f4f0", border: "1px solid #ddd9d0", borderRadius: 12, fontSize: 28, color: "#0a0f3c", outline: "none", textAlign: "center", letterSpacing: "0.5em", fontWeight: 700, boxSizing: "border-box" }}
+                  style={{ ...inputStyle, fontFamily: KD.mono, padding: "14px", fontSize: 28, textAlign: "center", letterSpacing: "0.5em", fontWeight: 500 }}
                   placeholder="000000"
                   autoFocus
                   required
                 />
               </div>
-              {error && <p style={{ color: "#e53e3e", fontSize: 13, marginBottom: 12, textAlign: "center" }}>{error}</p>}
+              {error && <p style={{ color: KD.ember, fontFamily: KD.mono, fontSize: 12, marginBottom: 14, textAlign: "center", letterSpacing: "0.04em" }}>{error}</p>}
               <button type="submit" disabled={loading || (mfaMethod === "totp" ? mfaCode.length !== 6 : emailOtpCode.length !== 6)}
-                style={{ width: "100%", background: "#0019FF", color: "#fff", padding: "11px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
-                {loading ? "Verifying..." : "Verify"}
+                style={primaryBtn(loading)}>
+                {loading ? "Verifying…" : "Verify"}
               </button>
             </form>
 
             {mfaMethod === "email" && (
               <button onClick={() => sendEmailOtp(email)} disabled={loading}
-                style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: "#0019FF", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
+                style={{ width: "100%", marginTop: 14, background: "transparent", border: "none", color: KD.blue, fontFamily: KD.mono, fontSize: 12, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 Resend code
               </button>
             )}
 
             <button onClick={() => { setMfaStep(false); setError(""); supabase.auth.signOut(); }}
-              style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: "#8e90a6", fontSize: 12, cursor: "pointer" }}>
+              style={{ width: "100%", marginTop: 10, background: "transparent", border: "none", color: "rgba(0,0,0,0.45)", fontFamily: KD.mono, fontSize: 11, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Back to login
             </button>
           </div>
@@ -169,61 +306,69 @@ export default function LoginPage() {
     );
   }
 
-  // Normal Login Screen
+  // Normal Login Screen — KD split: blue brand panel + cream form
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0a0f3c" }}>
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute top-[15%] left-[8%] w-[500px] h-[500px] rounded-full opacity-[0.03]" style={{ background: "#0019FF", filter: "blur(120px)" }} />
-        <div className="absolute bottom-[10%] right-[5%] w-[400px] h-[400px] rounded-full opacity-[0.04]" style={{ background: "#D4E520", filter: "blur(100px)" }} />
-      </div>
+    <div className="kd-login-root" style={{ minHeight: "100vh", background: KD.white, fontFamily: KD.sans }}>
+      <style>{`
+        @keyframes kdRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .kd-rise { animation: kdRise 1.2s ${KD.easing} both; }
+        .kd-rise-2 { animation: kdRise 1.2s ${KD.easing} 0.12s both; }
+        .kd-rise-3 { animation: kdRise 1.2s ${KD.easing} 0.24s both; }
+        .kd-login-root { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); }
+        .kd-login-brand { display: block; }
+        .kd-login-form { display: flex; align-items: center; justify-content: center; padding: 48px 32px; }
+        @media (max-width: 880px) {
+          .kd-login-root { grid-template-columns: 1fr; }
+          .kd-login-brand { display: none; }
+        }
+      `}</style>
 
-      <div className="fixed left-8 top-8 flex flex-col items-start gap-0 select-none pointer-events-none text-white/[0.08]">
-        {["K","N","O","T","S"].map((l, i) => (
-          <span key={i} className="text-sm font-bold leading-[1.3]" style={{ marginLeft: i === 2 ? 6 : i === 3 ? 3 : 0 }}>{l}</span>
-        ))}
-        <span className="text-base italic mt-1 mb-1" style={{ fontFamily: "Georgia, serif" }}>&amp;</span>
-        {["D","O","T","S","."].map((l, i) => (
-          <span key={i} className="text-sm font-bold leading-[1.3]" style={{ marginLeft: i === 1 ? 3 : 0 }}>{l}</span>
-        ))}
-      </div>
+      <div className="kd-login-brand"><BrandPanel /></div>
 
-      <div className="w-full max-w-sm relative z-10">
-        <div className="rounded-2xl p-8 shadow-2xl" style={{ background: "#ffffff" }}>
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-5">
-              <img src="/knots-dots-logo.png" alt="Knots & Dots" style={{ height: 36, width: "auto" }} />
-            </div>
-            <h1 className="mb-1" style={{ fontSize: 28, fontWeight: 800, color: "#0a0f3c", letterSpacing: "-0.5px", lineHeight: 1.1 }}>
+      <div className="kd-login-form">
+        <div style={{ width: "100%", maxWidth: 384 }}>
+          <div className="kd-rise" style={{ marginBottom: 36 }}>
+            <img src="/brand/kd-logo-horizontal.svg" alt="Knots & Dots" style={{ height: 30, width: "auto", color: KD.black }} />
+          </div>
+
+          <div className="kd-rise-2" style={{ marginBottom: 32 }}>
+            <span style={{ fontFamily: KD.mono, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.5)" }}>
+              Welcome back /
+            </span>
+            <h1 style={{ fontFamily: KD.sans, fontSize: 44, fontWeight: 600, color: KD.black, letterSpacing: "-0.025em", lineHeight: 1.0, marginTop: 12 }}>
               Groundwork
             </h1>
-            <p style={{ fontSize: 11, color: "#8e90a6", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 6 }}>
-              Competitive Intelligence Platform
+            <p style={{ fontFamily: KD.serif, fontStyle: "italic", fontWeight: 400, fontSize: 18, color: "rgba(0,0,0,0.6)", marginTop: 10 }}>
+              Competitive intelligence, untangled.
             </p>
           </div>
 
-          <form onSubmit={handleLogin}>
-            <div className="mb-4">
-              <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5a5e7a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Email</label>
+          <form onSubmit={handleLogin} className="kd-rise-3">
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                style={{ width: "100%", padding: "10px 14px", background: "#f5f4f0", border: "1px solid #ddd9d0", borderRadius: 8, fontSize: 14, color: "#0a0f3c", outline: "none", boxSizing: "border-box" }}
-                placeholder="you@company.com" required />
+                style={inputStyle} placeholder="you@company.com" required />
             </div>
-            <div className="mb-6">
-              <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5a5e7a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Password</label>
+            <div style={{ marginBottom: 26 }}>
+              <label style={labelStyle}>Password</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                style={{ width: "100%", padding: "10px 14px", background: "#f5f4f0", border: "1px solid #ddd9d0", borderRadius: 8, fontSize: 14, color: "#0a0f3c", outline: "none", boxSizing: "border-box" }}
-                placeholder="••••••••" required />
+                style={inputStyle} placeholder="••••••••" required />
             </div>
-            {error && <p style={{ color: "#e53e3e", fontSize: 13, marginBottom: 16 }}>{error}</p>}
-            <button type="submit" disabled={loading}
-              style={{ width: "100%", background: "#0019FF", color: "#fff", padding: "11px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, letterSpacing: "0.02em" }}>
-              {loading ? "Signing in..." : "Sign in"}
+            {error && <p style={{ color: KD.ember, fontFamily: KD.mono, fontSize: 12, marginBottom: 16, letterSpacing: "0.04em" }}>{error}</p>}
+            <button type="submit" disabled={loading} style={primaryBtn(loading)}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = KD.black; }}
+              onMouseLeave={e => { e.currentTarget.style.background = KD.blue; }}>
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
-          <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid #efeee9", textAlign: "center" }}>
-            <p style={{ fontSize: 11, color: "#8e90a6", lineHeight: 1.6 }}>A Knots & Dots product</p>
-            <p style={{ fontSize: 10, color: "#b0b2c0", marginTop: 2 }}>Version 2.5 · © 2026 Knots & Dots</p>
+          <div style={{ marginTop: 32, paddingTop: 22, borderTop: "1px solid rgba(0,0,0,0.08)" }}>
+            <p style={{ fontFamily: KD.mono, fontSize: 11, color: "rgba(0,0,0,0.45)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              A Knots &amp; Dots product
+            </p>
+            <p style={{ fontFamily: KD.mono, fontSize: 10, color: "rgba(0,0,0,0.3)", marginTop: 4, letterSpacing: "0.06em" }}>
+              Version 2.5 · © 2026 Knots &amp; Dots
+            </p>
           </div>
         </div>
       </div>

@@ -1147,7 +1147,7 @@ function SettingsContent() {
                 onClick={() => setActiveTab(t.key)}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${
                   activeTab === t.key
-                    ? "bg-surface2 text-main shadow-sm"
+                    ? "kd-seg-active"
                     : "text-muted hover:text-main"
                 }`}
               >

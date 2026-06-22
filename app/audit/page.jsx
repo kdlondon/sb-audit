@@ -2329,7 +2329,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               {id:"collections",label:"Collections",active:viewMode==="collections",on:()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}},
               {id:"map",label:"Map",active:viewMode==="map",on:()=>{setViewMode("map");setActiveCollection(null);router.push("/audit?view=map",{scroll:false});}},
             ].map(t=>(
-              <button key={t.id} onClick={t.on} className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${t.active?"bg-surface2 text-main shadow-sm":"text-muted hover:text-main"}`}>{t.label}</button>
+              <button key={t.id} onClick={t.on} className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${t.active?"kd-seg-active":"text-muted hover:text-main"}`}>{t.label}</button>
             ))}
           </div>
           {/* right — bulk actions when selecting, else the filter/sort/view/export tools */}
