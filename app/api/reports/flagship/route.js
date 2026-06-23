@@ -3,7 +3,7 @@ import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 6 weighted sections in 2 passes ~50s; give Vercel headroom
 
 // Strategic Positioning Report (flagship). Six sections generated section-by-section, each fed
 // the entries re-weighted for that section by lib/weights (brand-signal mode), plus Brand DNA as
@@ -67,7 +67,7 @@ export async function POST(request) {
   }));
   const allPieces = pieces.concat(dnaPieces);
 
-  const topFor = (section, pool, n = 32) => pool
+  const topFor = (section, pool, n = 24) => pool
     .map((p) => ({ p, w: pieceWeight(p, { section, mode: "brand_signal", refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, n);
   const ctx = (sel) => sel.map(({ p, w }) => `- [${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
@@ -86,7 +86,7 @@ export async function POST(request) {
   try {
     const analytical = await Promise.all(sectionDefs.map(async (sd) => {
       const sel = topFor(sd.key, sd.pool);
-      const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 9000)}`;
+      const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 7000)}`;
       return { key: sd.key, title: sd.title, markdown: await claude(apiKey, prompt) };
     }));
 
