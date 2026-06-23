@@ -1,0 +1,100 @@
+"use client";
+import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import { createClient } from "@/lib/supabase";
+import AuthGuard from "@/components/AuthGuard";
+import Nav from "@/components/Nav";
+import ProjectGuard from "@/components/ProjectGuard";
+import { useProject } from "@/lib/project-context";
+
+const Toggle = ({ value, set, options }) => (
+  <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
+    {options.map(([v, l]) => (
+      <button key={v} onClick={() => set(v)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${value === v ? "bg-surface2 text-main shadow-sm" : "text-muted hover:text-main"}`}>{l}</button>
+    ))}
+  </div>
+);
+
+function FlagshipInner() {
+  const { projectId, projectName } = useProject();
+  const [brands, setBrands] = useState([]);
+  const [scope, setScope] = useState("category");
+  const [brand, setBrand] = useState("");
+  const [icp, setIcp] = useState("brand");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [report, setReport] = useState(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name").eq("project_id", projectId);
+        const set = new Set();
+        (data || []).forEach((r) => { const b = r.competitor || r.brand || r.brand_name; if (b) set.add(b); });
+        const list = [...set]; setBrands(list); if (list[0]) setBrand(list[0]);
+      } catch {}
+    })();
+  }, [projectId]);
+
+  const generate = async () => {
+    if (loading) return;
+    setLoading(true); setErr(""); setReport(null);
+    try {
+      const res = await fetch("/api/reports/flagship", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, scope, brand: scope === "brand" ? brand : "", icp }) });
+      const dt = await res.json();
+      if (dt.error) setErr(dt.error); else setReport(dt);
+    } catch (e) { setErr(e.message); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <Nav />
+      <div className="max-w-[860px] mx-auto px-6 pb-24" style={{ paddingTop: "calc(var(--sec-h) + 20px)" }}>
+        <h1 className="text-2xl font-bold text-main">Strategic Positioning Report</h1>
+        <p className="text-sm text-muted mt-1">Flagship — generated section by section, each weighted by signal strength.</p>
+
+        <div className="flex flex-wrap items-center gap-3 mt-5 mb-7">
+          <Toggle value={scope} set={setScope} options={[["category", "Whole category"], ["brand", "One brand"]]} />
+          {scope === "brand" && (
+            <select value={brand} onChange={(e) => setBrand(e.target.value)} className="px-3 py-1.5 bg-surface border border-main rounded-full text-xs text-main">
+              {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          )}
+          <Toggle value={icp} set={setIcp} options={[["brand", "Brand lens"], ["agency", "Agency lens"], ["vc", "VC lens"]]} />
+          <button onClick={generate} disabled={loading} className="px-4 py-2 text-white rounded-full text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>
+            {loading ? "Generating… (~50s)" : report ? "Regenerate" : "Generate report"}
+          </button>
+          {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-full text-xs text-main hover:bg-surface2">↓ PDF</button>}
+        </div>
+
+        {err && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-4">{err}</div>}
+        {loading && <p className="text-sm text-accent animate-pulse">Composing 6 sections and weighting the evidence… this takes about 50 seconds.</p>}
+
+        {report && (
+          <div id="flagship-report" className="bg-surface border border-main rounded-2xl px-8 py-10">
+            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Strategic Positioning · {projectName} · {report.meta?.scope === "brand" ? report.meta?.subject : "Category"} · {report.meta?.icp} lens</div>
+            {(report.sections || []).map((s) => (
+              <div key={s.key} className="prose prose-sm max-w-none mt-7 text-main prose-headings:text-main prose-strong:text-main prose-li:text-main">
+                <ReactMarkdown>{s.markdown}</ReactMarkdown>
+              </div>
+            ))}
+            <div className="text-[10px] text-hint mt-8 font-mono">{report.meta?.brands} brands · {report.meta?.pieces} pieces analyzed · {report.meta?.brandDna} brand DNA profiles</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function FlagshipPage() {
+  return (
+    <AuthGuard>
+      <ProjectGuard>
+        <FlagshipInner />
+      </ProjectGuard>
+    </AuthGuard>
+  );
+}
