@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import { listFindings, saveFinding, deleteFinding } from "@/lib/findings";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -209,12 +210,16 @@ function IntelligenceContent() {
     setSubLoading(false);
   };
 
-  // Restore last generation + analyst picks for this project (persist so they don't vanish)
+  // Restore last generation for this project; load analyst findings from the DB-backed shelf.
   useEffect(() => {
     if (!projectId) return;
     try { const s = localStorage.getItem(`gw-insights-${projectId}`); if (s) setInsights(JSON.parse(s)); } catch {}
-    try { const p = localStorage.getItem(`gw-picks-${projectId}`); setPicks(p ? JSON.parse(p) : []); } catch {}
     try { const r = localStorage.getItem(`gw-report-${projectId}`); if (r) setReport(JSON.parse(r)); } catch {}
+    (async () => {
+      const fs = await listFindings(projectId);
+      // Map DB findings back to the pick-shaped objects the UI already renders.
+      setPicks(fs.map((f) => ({ ...(f.payload || {}), headline: f.title, stat: f.stat, stat_label: f.stat_label, body: f.summary, type: f.type, _findingId: f.id })));
+    })();
   }, [projectId]);
 
   const genInsights = async () => {
@@ -230,12 +235,20 @@ function IntelligenceContent() {
   };
 
   const isPicked = (ins) => picks.some((p) => p.headline === ins.headline);
-  const togglePick = (ins) => {
-    setPicks((prev) => {
-      const next = prev.some((p) => p.headline === ins.headline) ? prev.filter((p) => p.headline !== ins.headline) : [...prev, ins];
-      try { localStorage.setItem(`gw-picks-${projectId}`, JSON.stringify(next)); } catch {}
-      return next;
-    });
+  // Save/remove the insight as a DB-backed finding (the persistent Intelligence→Report bridge).
+  const togglePick = async (ins) => {
+    const existing = picks.find((p) => p.headline === ins.headline);
+    if (existing) {
+      if (existing._findingId) await deleteFinding(existing._findingId);
+      setPicks((prev) => prev.filter((p) => p.headline !== ins.headline));
+      return;
+    }
+    try {
+      const row = await saveFinding(projectId, ins);
+      setPicks((prev) => [...prev, { ...ins, _findingId: row.id }]);
+    } catch {
+      setPicks((prev) => [...prev, ins]); // optimistic even if the DB write fails
+    }
   };
 
   useEffect(() => {

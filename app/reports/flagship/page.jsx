@@ -8,6 +8,7 @@ import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
+import FindingsConfig from "@/components/FindingsConfig";
 
 const Toggle = ({ value, set, options }) => (
   <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
@@ -54,6 +55,7 @@ function FlagshipInner() {
   const [filters, setFilters] = useState({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal" });
   const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "" })));
   const [customInstructions, setCustomInstructions] = useState("");
+  const [selFindings, setSelFindings] = useState([]);
 
   const moveSec = (i, dir) => setCfg((c) => { const n = [...c]; const j = i + dir; if (j < 0 || j >= n.length) return c; [n[i], n[j]] = [n[j], n[i]]; return n; });
   const toggleSec = (i) => setCfg((c) => c.map((s, k) => k === i ? { ...s, on: !s.on } : s));
@@ -93,6 +95,7 @@ function FlagshipInner() {
     project_id: projectId, scope, brand: scope === "brand" ? brand : "", icp,
     sections: cfg.map(({ key, on, prompt }) => ({ key, on, prompt })),
     filters, customInstructions,
+    findings: selFindings.map((f) => ({ title: f.title, summary: f.summary, stat: f.stat })),
     ...extra,
   });
 
@@ -274,6 +277,9 @@ function FlagshipInner() {
                   ))}
                 </div>
               </div>
+
+              {/* ANALYST FINDINGS */}
+              <FindingsConfig projectId={projectId} onSelect={setSelFindings} />
 
               {/* CUSTOM INSTRUCTIONS */}
               <div className="bg-surface rounded-lg border border-main p-4">

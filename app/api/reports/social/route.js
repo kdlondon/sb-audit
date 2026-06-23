@@ -30,7 +30,10 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "" } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "", findings } = await request.json();
+  const findingsBlock = (Array.isArray(findings) && findings.length)
+    ? `\n\nANALYST FINDINGS — the analyst's saved conclusions. Treat as PRIORITY signals: weave them into the relevant sections and honor them in the takeaways.\n${findings.map((f) => `- ${f.title || f.summary || "Finding"}${f.stat ? ` (${f.stat})` : ""}${f.summary && f.title ? `: ${f.summary}` : ""}`).join("\n")}`
+    : "";
   if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -161,12 +164,12 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
-    const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Benchmark.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}\n\n${sd.build()}`.slice(0, 12000);
+    const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Benchmark.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
     return { key, title: sd.title, markdown: await claude(apiKey, prompt, 1800) };
   };
   const genTakeaways = async (body) => {
     const dir = dirOf("takeaways");
-    return { key: "takeaways", title: "Takeaways", markdown: await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+    return { key: "takeaways", title: "Takeaways", markdown: await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
   };
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, posts: pool.length, pillars: pillarLandscape.length, dateRange };
 

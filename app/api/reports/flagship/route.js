@@ -29,7 +29,10 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "" } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "", findings } = await request.json();
+  const findingsBlock = (Array.isArray(findings) && findings.length)
+    ? `\n\nANALYST FINDINGS — the analyst's saved conclusions. Treat as PRIORITY signals: weave them into the relevant sections where they fit, and honor them in recommendations.\n${findings.map((f) => `- ${f.title || f.summary || "Finding"}${f.stat ? ` (${f.stat})` : ""}${f.summary && f.title ? `: ${f.summary}` : ""}`).join("\n")}`
+    : "";
   if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -111,7 +114,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
     const dir = [custom, ci].filter(Boolean).join(" · ");
-    const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
+    const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
     return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
   };
   const genExec = async (body) => {
@@ -120,7 +123,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
   };
   const inRange = pieces.filter(passFilter).length;
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, inRange, brandDna: dnaPieces.length };

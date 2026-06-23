@@ -28,7 +28,10 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "" } = await request.json();
+  const { project_id, brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "", findings } = await request.json();
+  const findingsBlock = (Array.isArray(findings) && findings.length)
+    ? `\n\nANALYST FINDINGS — the analyst's saved conclusions. Treat as PRIORITY signals: weave them in where relevant and honor them in the transferable plays.\n${findings.map((f) => `- ${f.title || f.summary || "Finding"}${f.stat ? ` (${f.stat})` : ""}${f.summary && f.title ? `: ${f.summary}` : ""}`).join("\n")}`
+    : "";
   if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -118,12 +121,12 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
-    const prompt = `You are a senior creative strategist writing the "${sd.title}" section of a Global Creative Inspiration report.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}\n\n${sd.build()}`.slice(0, 12000);
+    const prompt = `You are a senior creative strategist writing the "${sd.title}" section of a Global Creative Inspiration report.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
     return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
   };
   const genPlays = async (body) => {
     const dir = dirOf("plays");
-    return { key: "plays", title: "Transferable plays", markdown: await claude(apiKey, `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1200) };
+    return { key: "plays", title: "Transferable plays", markdown: await claude(apiKey, `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1200) };
   };
   const meta = { icp, brands: brands.length, cases: pool.length, rated: rated.length, yearRange, subject: subject || null };
 

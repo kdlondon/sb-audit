@@ -8,6 +8,7 @@ import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
+import FindingsConfig from "@/components/FindingsConfig";
 
 const Toggle = ({ value, set, options }) => (
   <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
@@ -50,6 +51,7 @@ function GlobalInner() {
   const [filters, setFilters] = useState({ brands: [], territories: [], archetypes: [], yearFrom: "", yearTo: "", minRating: 4 });
   const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "" })));
   const [customInstructions, setCustomInstructions] = useState("");
+  const [selFindings, setSelFindings] = useState([]);
 
   const moveSec = (i, dir) => setCfg((c) => { const n = [...c]; const j = i + dir; if (j < 0 || j >= n.length) return c; [n[i], n[j]] = [n[j], n[i]]; return n; });
   const toggleSec = (i) => setCfg((c) => c.map((s, k) => k === i ? { ...s, on: !s.on } : s));
@@ -90,7 +92,9 @@ function GlobalInner() {
   const bodyFor = (extra) => ({
     project_id: projectId, brand, icp,
     sections: cfg.map(({ key, on, prompt }) => ({ key, on, prompt })),
-    filters, customInstructions, ...extra,
+    filters, customInstructions,
+    findings: selFindings.map((f) => ({ title: f.title, summary: f.summary, stat: f.stat })),
+    ...extra,
   });
 
   const generate = async () => {
@@ -262,6 +266,8 @@ function GlobalInner() {
                   ))}
                 </div>
               </div>
+
+              <FindingsConfig projectId={projectId} onSelect={setSelFindings} />
 
               <div className="bg-surface rounded-lg border border-main p-4">
                 <h3 className="text-sm font-semibold text-main mb-2">Custom instructions</h3>
