@@ -104,9 +104,9 @@ export default function Nav() {
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
               className={`px-2.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${
-                pathname.startsWith(t.href) ? "text-white" : "text-white/70 hover:text-white/90"
+                pathname.startsWith(t.href) ? "" : "text-white/70 hover:text-white/90"
               }`}
-              style={pathname.startsWith(t.href) ? { background: "var(--kd-blue)" } : {}}>
+              style={pathname.startsWith(t.href) ? { background: "var(--accent-tint)", color: "var(--kd-black)" } : {}}>
               {t.name}
             </button>
           ))}
@@ -132,7 +132,7 @@ export default function Nav() {
             }}
               className="group h-[30px] px-2 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
               style={{ background: "rgba(255,255,255,0.15)" }}
-              onMouseEnter={e=>e.currentTarget.style.background="var(--kd-blue)"}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--accent-deep)"}
               onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.5" className="flex-shrink-0"><line x1="10" y1="5" x2="10" y2="15"/><line x1="5" y1="10" x2="15" y2="10"/></svg>
               <span className="text-[10px] font-bold overflow-hidden max-w-0 group-hover:max-w-[70px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">New entry</span>
@@ -213,7 +213,7 @@ export default function Nav() {
             <button onClick={() => { setMenuOpen(false); setWhatsNewOpen(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-muted hover:text-main hover:bg-surface2 transition flex items-center justify-between">
               What's new
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{background:"var(--kd-blue)",color:"#fff"}}>v2.5</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{background:"var(--accent-deep)",color:"var(--kd-cream)"}}>v2.5</span>
             </button>
             <div className="border-t border-main my-1" />
             <button onClick={() => { setMenuOpen(false); handleLogout(); }}
@@ -237,7 +237,7 @@ export default function Nav() {
               {/* v2.5 */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{background:"var(--kd-blue)",color:"#fff"}}>v2.5</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{background:"var(--accent-deep)",color:"var(--kd-cream)"}}>v2.5</span>
                   <span className="text-[10px] text-hint">March 2026</span>
                 </div>
                 <div className="space-y-3">
@@ -255,7 +255,7 @@ export default function Nav() {
                     { title: "Custom Domain & Staging", desc: "Production at groundwork.kad.london with staging environment for safe testing." },
                   ].map((item, i) => (
                     <div key={i} className="flex gap-3 items-start">
-                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0" style={{background:"var(--kd-blue)"}} />
+                      <div className="w-1 h-1 rounded-full mt-2 flex-shrink-0" style={{background:"var(--accent-deep)"}} />
                       <div>
                         <span className="text-sm font-semibold text-main">{item.title}</span>
                         <span className="text-xs text-muted ml-1.5">{item.desc}</span>

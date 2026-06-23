@@ -302,7 +302,7 @@ function IntelligenceContent() {
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
 
   return (
-    <div className="min-h-screen" data-product="groundwork" style={{ background: "var(--kd-paper)" }}>
+    <div className="min-h-screen">
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
       <div className="section-bar px-5 py-2.5 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
         <span className="w-[200px]" aria-hidden="true"></span>
@@ -322,11 +322,11 @@ function IntelligenceContent() {
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="col-span-full flex items-center gap-1.5 flex-wrap mb-1">
-              <span className="text-[10px] uppercase font-semibold mr-1" style={{ color: "var(--kd-blue)", fontFamily: "var(--kd-mono)" }}>Competitors</span>
+              <span className="text-[10px] uppercase font-semibold mr-1" style={{ color: "var(--accent-deep)", fontFamily: "var(--kd-mono)" }}>Competitors</span>
               {allBrands.map((b) => { const on = dashBrands.includes(b); return (
-                <button key={b} onClick={() => setDashBrands((prev) => on ? prev.filter((x) => x !== b) : [...prev, b])} className="px-3 py-1 rounded-full text-[11px] border transition" style={on ? { background: "var(--kd-blue)", borderColor: "var(--kd-blue)", color: "#fff" } : { borderColor: "var(--border)", color: "var(--text2)" }}>{b}</button>
+                <button key={b} onClick={() => setDashBrands((prev) => on ? prev.filter((x) => x !== b) : [...prev, b])} className="px-3 py-1 rounded-full text-[11px] border transition" style={on ? { background: "var(--kd-black)", borderColor: "var(--kd-black)", color: "var(--kd-cream)" } : { borderColor: "var(--border)", color: "var(--text2)" }}>{b}</button>
               ); })}
-              {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--kd-blue)" }}>Clear</button>}
+              {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--accent-deep)" }}>Clear</button>}
             </div>
             <div className="col-span-full flex gap-3 flex-wrap">
               {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v], i) => (

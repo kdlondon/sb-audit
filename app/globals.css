@@ -48,7 +48,7 @@
 
   --nav-h: 88px;   /* level-1 band: ~24 top margin + 55 island + air */
   --sec-h: 52px;   /* level-2 bar height */
-  --bg: #FFFFFF;
+  --bg: #FBF8F4;
   --surface: #ffffff;
   --surface2: #efeee9;
   --border: #ddd9d0;
@@ -92,10 +92,19 @@
 
 body {
   font-family: var(--font-inter, 'Inter', system-ui, -apple-system, sans-serif);
-  background: var(--bg);
+  /* Warm paper + a soft ambient glow behind the whole screen (KD product UI) */
+  background:
+    radial-gradient(1100px 720px at 50% -8%, rgba(120, 132, 220, 0.13), transparent 60%),
+    radial-gradient(900px 620px at 88% 4%, rgba(255, 74, 26, 0.06), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background: var(--bg);
 }
 
 select, input, textarea, button { font-family: inherit; }
@@ -181,10 +190,10 @@ a, button, input, select, textarea {
   font-family: var(--kd-sans);
 }
 
-/* KD level-2 segmented-pill active segment — electric ultramarine, flat */
+/* KD level-2 segmented-pill active segment — ink (attenuated product UI, no electric blue) */
 .kd-seg-active {
-  background: var(--kd-blue);
-  color: #fff;
+  background: var(--kd-black);
+  color: var(--kd-cream);
 }
 
 /* KD project card — flat, 1px rule, electric-blue hover (no heavy shadow) */
