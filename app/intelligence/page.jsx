@@ -85,6 +85,7 @@ function IntelligenceContent() {
   const [entries, setEntries] = useState([]);
   const [journeyBrand, setJourneyBrand] = useState("");   // Journey/campaign map widget
   const [journeyView, setJourneyView] = useState("funnel");
+  const [dashBrands, setDashBrands] = useState([]);       // dashboard competitor filter (empty = all)
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
   const [insights, setInsights] = useState(null);
@@ -163,8 +164,10 @@ function IntelligenceContent() {
     })();
   }, [projectId]);
 
+  const allBrands = useMemo(() => [...new Set(entries.map((e) => e.competitor || e.brand || e.brand_name || "—"))].filter((b) => b && b !== "—"), [entries]);
   const d = useMemo(() => {
-    const rows = entries.map((e) => {
+    const src = dashBrands.length ? entries.filter((e) => dashBrands.includes(e.competitor || e.brand || e.brand_name || "—")) : entries;
+    const rows = src.map((e) => {
       const cd = cdOf(e);
       const s = cd._social || {}, m = cd._meta || {};
       return {
@@ -214,7 +217,7 @@ function IntelligenceContent() {
     const maxPillarCount = Math.max(1, ...pillarGroups.map((g) => g.count));
 
     return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
-  }, [entries]);
+  }, [entries, dashBrands]);
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
 
@@ -238,11 +241,18 @@ function IntelligenceContent() {
           <p className="text-sm text-hint">No social content in this project yet. Import from Scout or Creative Source.</p>
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="col-span-full flex items-center gap-1.5 flex-wrap mb-1">
+              <span className="text-[10px] uppercase font-semibold mr-1" style={{ color: "var(--kd-blue)", fontFamily: "var(--kd-mono)" }}>Competitors</span>
+              {allBrands.map((b) => { const on = dashBrands.includes(b); return (
+                <button key={b} onClick={() => setDashBrands((prev) => on ? prev.filter((x) => x !== b) : [...prev, b])} className="px-3 py-1 rounded-full text-[11px] border transition" style={on ? { background: "var(--kd-blue)", borderColor: "var(--kd-blue)", color: "#fff" } : { borderColor: "var(--border)", color: "var(--text2)" }}>{b}</button>
+              ); })}
+              {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--kd-blue)" }}>Clear</button>}
+            </div>
             <div className="col-span-full flex gap-3 flex-wrap">
               {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v]) => (
-                <div key={l} className="bg-surface border border-main rounded-xl px-4 py-3 flex-1 min-w-[140px]">
-                  <div className="text-2xl font-bold text-main">{v}</div>
-                  <div className="text-[10px] text-hint uppercase font-semibold">{l}</div>
+                <div key={l} className="border rounded-xl px-4 py-3 flex-1 min-w-[140px]" style={{ background: "var(--kd-cream)", borderColor: "var(--border)" }}>
+                  <div className="text-2xl font-bold" style={{ color: "var(--kd-blue)", fontFamily: "var(--kd-mono)" }}>{v}</div>
+                  <div className="text-[10px] uppercase font-semibold" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>{l}</div>
                 </div>
               ))}
             </div>
