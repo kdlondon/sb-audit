@@ -2,57 +2,33 @@
 import { useState } from "react";
 
 // Journey / campaign map: groups entries into stage columns by a framework dimension
-// (funnel, journey phase, or client lifecycle). Extracted to be reusable as an
-// Intelligence dashboard widget. Self-contained (own ytId helper + JOURNEY_VIEWS).
+// (funnel, journey phase, or client lifecycle). KD Product UI palette — attenuated:
+// stages take the KD tint sequence (no rainbow), one ink, accent on the rating.
 
 const ytId = (url = "") => {
   const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
   return m ? m[1] : null;
 };
 
-export const JOURNEY_VIEWS = [
-  {
-    id: "funnel",
-    label: "Conversion Funnel",
-    stages: ["Awareness", "Consideration", "Conversion", "Retention", "Advocacy"],
-    field: "funnel",
-    colors: {
-      "Awareness": { bg: "#EEF2FF", border: "#818CF8", text: "#3730A3", dot: "#6366F1" },
-      "Consideration": { bg: "#F0FDF4", border: "#4ADE80", text: "#166534", dot: "#22C55E" },
-      "Conversion": { bg: "#FFF7ED", border: "#FB923C", text: "#9A3412", dot: "#F97316" },
-      "Retention": { bg: "#FDF4FF", border: "#E879F9", text: "#86198F", dot: "#D946EF" },
-      "Advocacy": { bg: "#FFFBEB", border: "#FBBF24", text: "#92400E", dot: "#F59E0B" },
-    },
-  },
-  {
-    id: "journey",
-    label: "Business Journey",
-    stages: ["Existential", "Validation", "Complexity", "Consolidation", "Cross-phase", "Not specific"],
-    field: "journey_phase",
-    colors: {
-      "Existential": { bg: "#FFF1F2", border: "#FB7185", text: "#9F1239", dot: "#F43F5E" },
-      "Validation": { bg: "#FFF7ED", border: "#FB923C", text: "#9A3412", dot: "#F97316" },
-      "Complexity": { bg: "#FFFBEB", border: "#FBBF24", text: "#92400E", dot: "#F59E0B" },
-      "Consolidation": { bg: "#F0FDF4", border: "#4ADE80", text: "#166534", dot: "#22C55E" },
-      "Cross-phase": { bg: "#EEF2FF", border: "#818CF8", text: "#3730A3", dot: "#6366F1" },
-      "Not specific": { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151", dot: "#9CA3AF" },
-    },
-  },
-  {
-    id: "lifecycle",
-    label: "Client Lifecycle",
-    stages: ["Starter", "Growth", "Steady", "Succession", "Cross-lifecycle", "Not specific"],
-    field: "client_lifecycle",
-    colors: {
-      "Starter": { bg: "#EEF2FF", border: "#818CF8", text: "#3730A3", dot: "#6366F1" },
-      "Growth": { bg: "#F0FDF4", border: "#4ADE80", text: "#166534", dot: "#22C55E" },
-      "Steady": { bg: "#FFFBEB", border: "#FBBF24", text: "#92400E", dot: "#F59E0B" },
-      "Succession": { bg: "#FDF4FF", border: "#E879F9", text: "#86198F", dot: "#D946EF" },
-      "Cross-lifecycle": { bg: "#FFF7ED", border: "#FB923C", text: "#9A3412", dot: "#F97316" },
-      "Not specific": { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151", dot: "#9CA3AF" },
-    },
-  },
+// KD attenuated tints, assigned by stage position (rank with hue, never a saturated colour per stage)
+const STAGE_TINTS = [
+  { bg: "var(--accent-tint)", dot: "var(--accent-deep)" },
+  { bg: "var(--accent-step)", dot: "var(--accent-deep)" },
+  { bg: "var(--p-stone)", dot: "var(--d-stone)" },
+  { bg: "var(--p-sand)", dot: "var(--d-stone)" },
+  { bg: "var(--p-ember)", dot: "var(--d-ember)" },
+  { bg: "var(--p-stone)", dot: "var(--d-stone)" },
 ];
+const UNASSIGNED_TINT = { bg: "var(--p-stone)", dot: "var(--d-stone)" };
+
+export const JOURNEY_VIEWS = [
+  { id: "funnel", label: "Conversion Funnel", field: "funnel", stages: ["Awareness", "Consideration", "Conversion", "Retention", "Advocacy"] },
+  { id: "journey", label: "Business Journey", field: "journey_phase", stages: ["Existential", "Validation", "Complexity", "Consolidation", "Cross-phase", "Not specific"] },
+  { id: "lifecycle", label: "Client Lifecycle", field: "client_lifecycle", stages: ["Starter", "Growth", "Steady", "Succession", "Cross-lifecycle", "Not specific"] },
+];
+
+const MONO = "var(--kd-mono)";
+const INK = "var(--kd-black)";
 
 export default function CampaignMap({ entries = [], onEntryClick = () => {}, activeView: extActiveView, setActiveView: extSetActiveView }) {
   const [internalView, setInternalView] = useState("funnel");
@@ -75,51 +51,53 @@ export default function CampaignMap({ entries = [], onEntryClick = () => {}, act
   const stages = [...view.stages, "Unassigned"].filter((s) => grouped[s]?.length > 0);
 
   return (
-    <div>
+    <div style={{ fontFamily: "var(--kd-sans)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", gap: 4, background: "var(--surface2)", borderRadius: 8, padding: 3 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface2)", borderRadius: 9999, padding: 4 }}>
           {JOURNEY_VIEWS.map((v) => (
             <button key={v.id} onClick={() => { setActiveView(v.id); setExpandedStage(null); }}
-              style={{ padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, transition: "all 0.15s", background: activeView === v.id ? "var(--surface)" : "transparent", color: activeView === v.id ? "var(--accent)" : "var(--text2)", boxShadow: activeView === v.id ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}
+              style={{ padding: "6px 14px", borderRadius: 9999, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, transition: "all 0.15s", background: activeView === v.id ? INK : "transparent", color: activeView === v.id ? "var(--kd-cream)" : "var(--text2)" }}
             >{v.label}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(stages.length, 5)},1fr)`, gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(stages.length, 5)},1fr)`, gap: 12 }}>
         {stages.map((stage) => {
           const items = grouped[stage];
-          const colors = view.colors[stage] || { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151", dot: "#9CA3AF" };
+          const idx = view.stages.indexOf(stage);
+          const tint = stage === "Unassigned" || idx < 0 ? UNASSIGNED_TINT : STAGE_TINTS[idx % STAGE_TINTS.length];
           const isExpanded = expandedStage === stage;
           const shown = isExpanded ? items : items.slice(0, 4);
           return (
-            <div key={stage} style={{ background: colors.bg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: colors.dot, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: colors.text, textTransform: "uppercase", letterSpacing: "0.05em", flex: 1 }}>{stage}</span>
-                <span style={{ fontSize: 10, color: colors.text, opacity: 0.6, fontWeight: 700, background: "rgba(0,0,0,0.06)", borderRadius: 10, padding: "1px 6px" }}>{items.length}</span>
+            <div key={stage} style={{ background: "#fff", border: "1px solid rgba(22,20,19,0.08)", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ background: tint.bg, padding: "10px 12px", display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: tint.dot, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: INK, textTransform: "uppercase", letterSpacing: "0.06em", flex: 1 }}>{stage}</span>
+                <span style={{ fontFamily: MONO, fontSize: 11, color: INK, opacity: 0.6 }}>{items.length}</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12 }}>
                 {shown.map((e) => {
                   const thumb = ytId(e.url) ? `https://img.youtube.com/vi/${ytId(e.url)}/mqdefault.jpg` : e.image_url;
                   return (
                     <div key={e.id} onClick={() => onEntryClick(e)}
-                      style={{ background: "rgba(255,255,255,0.8)", borderRadius: 8, padding: "8px 8px 6px", cursor: "pointer", border: "1px solid rgba(255,255,255,0.9)", transition: "all 0.15s" }}
-                      onMouseEnter={(el) => { el.currentTarget.style.background = "rgba(255,255,255,0.98)"; el.currentTarget.style.transform = "translateY(-1px)"; }}
-                      onMouseLeave={(el) => { el.currentTarget.style.background = "rgba(255,255,255,0.8)"; el.currentTarget.style.transform = "none"; }}
+                      style={{ background: "#fff", borderRadius: 9, padding: "8px 8px 7px", cursor: "pointer", border: "1px solid rgba(22,20,19,0.08)", transition: "border-color 0.2s var(--kd-easing)" }}
+                      onMouseEnter={(el) => { el.currentTarget.style.borderColor = "var(--accent-deep)"; }}
+                      onMouseLeave={(el) => { el.currentTarget.style.borderColor = "rgba(22,20,19,0.08)"; }}
                     >
                       {thumb && (
-                        <div style={{ width: "100%", height: 56, borderRadius: 6, overflow: "hidden", marginBottom: 6, background: "#e5e7eb" }}>
+                        <div style={{ width: "100%", height: 56, borderRadius: 6, overflow: "hidden", marginBottom: 7, background: "var(--p-stone)" }}>
                           <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
                       )}
-                      <p style={{ fontSize: 11, fontWeight: 600, color: "#111", lineHeight: 1.3, margin: "0 0 4px" }}>
+                      <p style={{ fontSize: 11.5, fontWeight: 500, color: INK, lineHeight: 1.3, margin: "0 0 6px" }}>
                         {(e.description || "Untitled").slice(0, 48)}{(e.description || "").length > 48 ? "…" : ""}
                       </p>
-                      <div style={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
-                        {e.year && <span style={{ fontSize: 9, color: "#555", background: "rgba(0,0,0,0.05)", borderRadius: 3, padding: "1px 4px" }}>{e.year}</span>}
-                        {e.type && <span style={{ fontSize: 9, color: "#555", background: "rgba(0,0,0,0.05)", borderRadius: 3, padding: "1px 4px" }}>{e.type}</span>}
-                        {e.rating && <span style={{ fontSize: 9, marginLeft: "auto" }}>{"★".repeat(Number(e.rating))}</span>}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                        <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.05em", textTransform: "uppercase", color: "rgba(22,20,19,0.5)" }}>
+                          {[e.year, e.type].filter(Boolean).join(" · ")}
+                        </span>
+                        {e.rating && <span style={{ fontSize: 9, marginLeft: "auto", color: "var(--accent-deep)" }}>{"★".repeat(Number(e.rating))}</span>}
                       </div>
                     </div>
                   );
@@ -127,7 +105,7 @@ export default function CampaignMap({ entries = [], onEntryClick = () => {}, act
               </div>
               {items.length > 4 && (
                 <button onClick={() => setExpandedStage(isExpanded ? null : stage)}
-                  style={{ marginTop: 6, width: "100%", fontSize: 10, color: colors.text, background: "transparent", border: "none", cursor: "pointer", padding: "4px 0", fontWeight: 600, opacity: 0.75 }}
+                  style={{ width: "100%", fontFamily: MONO, fontSize: 9, letterSpacing: "0.05em", textTransform: "uppercase", color: "rgba(22,20,19,0.5)", background: "transparent", border: "none", cursor: "pointer", padding: "0 0 12px", fontWeight: 500 }}
                 >{isExpanded ? "Show less ↑" : `+${items.length - 4} more ↓`}</button>
               )}
             </div>
@@ -136,7 +114,7 @@ export default function CampaignMap({ entries = [], onEntryClick = () => {}, act
       </div>
 
       {grouped["Unassigned"]?.length > 0 && (
-        <p style={{ fontSize: 11, color: "var(--text2)", marginTop: 8, opacity: 0.5 }}>
+        <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.04em", color: "var(--text2)", marginTop: 10, opacity: 0.6 }}>
           * {grouped["Unassigned"].length} piece{grouped["Unassigned"].length > 1 ? "s" : ""} without {view.label.toLowerCase()} assigned
         </p>
       )}
