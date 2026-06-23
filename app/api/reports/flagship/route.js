@@ -29,7 +29,7 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand" } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn } = await request.json();
   if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -79,32 +79,45 @@ export async function POST(request) {
 - BACK CLAIMS WITH EXAMPLES: when you reference a specific captured piece, link it inline as [a short descriptive name](cite:ID) using the #ID shown for that piece in the evidence. Cite real examples liberally. Do NOT cite the web profile entries (those have no #ID).
 No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
-  const sectionDefs = [
-    { key: "landscape", title: "Category landscape", pool: allPieces, task: `Map how the category communicates: the territories occupied and who owns what. 2-3 tight paragraphs + a short bullet list of territory ownership.` },
-    { key: "positioning", title: "Positioning x-ray", pool: subjPool(allPieces), task: `Contrast EXPRESSED (what the brand says — Brand DNA / web, the brand_dna evidence) vs VALIDATED (what its content actually does) ${scope === "brand" ? `for ${subject}` : "for each main brand"}. Surface the gap between the two — that gap is the key insight.` },
-    { key: "hero", title: "Hero & message consistency", pool: subjPool(allPieces), task: `Assess whether the hero/brand message is stable over time and coherent across channels (only hero-level signals are included here). Flag drift or inconsistency vs the declared positioning.` },
-    { key: "whitespace", title: "White space & opportunity", pool: allPieces, task: `Identify territories and angles nobody clearly owns, then name 3-5 concrete opportunity territories for ${client}.` },
-  ];
+  const ALL_DEFS = {
+    landscape: { title: "Category landscape", pool: allPieces, task: `Map how the category communicates: the territories occupied and who owns what. 2-3 tight paragraphs + a short bullet list of territory ownership.` },
+    positioning: { title: "Positioning x-ray", pool: subjPool(allPieces), task: `Contrast EXPRESSED (what the brand says — Brand DNA / web, the brand_dna evidence) vs VALIDATED (what its content actually does) ${scope === "brand" ? `for ${subject}` : "for each main brand"}. Surface the gap between the two — that gap is the key insight.` },
+    hero: { title: "Hero & message consistency", pool: subjPool(allPieces), task: `Assess whether the hero/brand message is stable over time and coherent across channels (only hero-level signals are included here). Flag drift or inconsistency vs the declared positioning.` },
+    whitespace: { title: "White space & opportunity", pool: allPieces, task: `Identify territories and angles nobody clearly owns, then name 3-5 concrete opportunity territories for ${client}.` },
+  };
+  const titleFor = { exec: "Executive read", recommendations: "Strategic recommendations" };
+  const DEFAULT_ORDER = ["exec", "landscape", "positioning", "hero", "whitespace", "recommendations"];
+  // Section CONFIG from the client: ordered [{key, on, prompt}]. Falls back to all-on default.
+  const cfg = (Array.isArray(cfgIn) && cfgIn.length ? cfgIn : DEFAULT_ORDER.map((key) => ({ key, on: true, prompt: "" })))
+    .filter((s) => s && s.on !== false && (ALL_DEFS[s.key] || s.key === "exec" || s.key === "recommendations"));
+  const cfgMap = Object.fromEntries(cfg.map((s) => [s.key, s]));
 
   try {
-    const analytical = await Promise.all(sectionDefs.map(async (sd) => {
-      const sel = topFor(sd.key, sd.pool);
-      const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 7000)}`;
-      return { key: sd.key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
+    const analyticalKeys = cfg.map((s) => s.key).filter((k) => ALL_DEFS[k]);
+    const analytical = await Promise.all(analyticalKeys.map(async (key) => {
+      const sd = ALL_DEFS[key];
+      const custom = (cfgMap[key]?.prompt || "").trim();
+      const sel = topFor(key, sd.pool);
+      const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${custom ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${custom}` : ""}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 7000)}`;
+      return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
     }));
 
-    const body = analytical.map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
     const lens = ICP_LENS[icp] || ICP_LENS.brand;
-    const [exec, recs] = await Promise.all([
-      claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lens} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700),
-      claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lens} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100),
-    ]);
+    let exec = null, recs = null;
+    if (cfgMap.exec || cfgMap.recommendations) {
+      const body = analytical.map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
+      const execCustom = (cfgMap.exec?.prompt || "").trim();
+      const recsCustom = (cfgMap.recommendations?.prompt || "").trim();
+      [exec, recs] = await Promise.all([
+        cfgMap.exec ? claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lens}${execCustom ? ` Analyst direction: ${execCustom}.` : ""} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700) : Promise.resolve(null),
+        cfgMap.recommendations ? claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lens}${recsCustom ? ` Analyst direction: ${recsCustom}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) : Promise.resolve(null),
+      ]);
+    }
 
-    const sections = [
-      { key: "exec", title: "Executive read", markdown: exec },
-      ...analytical,
-      { key: "recommendations", title: "Strategic recommendations", markdown: recs },
-    ];
+    const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
+    if (exec != null) byKey.exec = { key: "exec", title: titleFor.exec, markdown: exec };
+    if (recs != null) byKey.recommendations = { key: "recommendations", title: titleFor.recommendations, markdown: recs };
+    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
     return Response.json({ sections, meta: { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, brandDna: dnaPieces.length } });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
