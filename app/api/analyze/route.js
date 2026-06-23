@@ -52,10 +52,12 @@ Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks)
   "emotional_benefit": "Primary emotional benefit (1 phrase)",
   "rational_benefit": "Primary rational benefit (1 phrase)",
   "main_vp": "Main value proposition (1 sentence)",
-  "rating": "MUST be: 1 | 2 | 3 | 4 | 5",
+  "rating": "MUST be: 1 | 2 | 3 | 4 | 5 — the rounded AVERAGE of the rating_breakdown dimension scores",
+  "rating_breakdown": {"type":"hero | social | positioning | product","dimensions":[{"key":"dimension_key","label":"Readable label","score":"1-5","why":"one-line reason"}],"overall":"1-5"},
   "transcript": "Extract any readable text/copy/dialogue from the piece",
   "analyst_comment": "Strategic observation — what makes this piece interesting (2-3 sentences)"
 }
+${ratingRubricBlock()}
 
 CRITICAL: Return ONLY the JSON object. Use the FRAMEWORK DEFINITIONS for portrait, entry door, journey phase, and richness — do not guess generically.`;
 }
@@ -71,6 +73,18 @@ function socialFieldsBlock(pillars) {
   "content_pillar": "The content territory/pillar this post belongs to. ${pillarRule}",
   "post_objective": "MUST be EXACTLY one of these lowercase canonical keys (do NOT translate): awareness | engagement | conversion | community",
   "visual_codes": "Recurring visual style/codes — palette, framing, recurring graphic elements or format treatment (1 short phrase)"`;
+}
+
+// Multi-dimensional rating rubric BY PIECE TYPE (mirrors lib/rating-rubric.js). The model
+// self-selects the piece type, scores its dimensions 1-5, and sets `rating` = the average.
+function ratingRubricBlock() {
+  return `
+RATING RUBRIC — rate the piece on the dimensions for ITS piece type (each 1-5 with a one-line reason). Pick the matching type:
+- Hero / commercial (TV, YouTube, brand film, manifesto): distinctiveness, craft, strategic clarity, resonance.
+- Social content (IG / TikTok / social post): hook (scroll-stop), platform-native craft, brand fit (territory/voice), traction (engagement potential).
+- Positioning / web / declared: clarity, distinctiveness, credibility (proof).
+- Product / promo / offer: offer clarity, persuasion, brand-building (equity vs pure sell).
+Set "rating" = the rounded AVERAGE of those dimension scores. Return the full breakdown in "rating_breakdown".`;
 }
 
 // Build a dynamic classification prompt from framework
@@ -96,8 +110,10 @@ ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
 Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks) with these fields. For dropdown fields, pick EXACTLY one of the provided options.
 
 {
-${fieldEntries}${social ? socialFieldsBlock(pillars) : ""}
+${fieldEntries}${social ? socialFieldsBlock(pillars) : ""},
+  "rating_breakdown": {"type":"hero | social | positioning | product","dimensions":[{"key":"dimension_key","label":"Readable label","score":"1-5","why":"one-line reason"}],"overall":"1-5 — also copy into rating"}
 }
+${ratingRubricBlock()}
 
 CRITICAL: Return ONLY the JSON object.${framework.frameworkText ? " Use the FRAMEWORK DEFINITIONS above for any framework-specific dimensions — do not guess generically." : ""}`;
 }

@@ -1584,15 +1584,21 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         setCur(prev=>{
           const u={...prev};
           const socialUpd={};
+          let ratingBd=null;
           Object.entries(result.analysis).forEach(([k,v])=>{
             if(!(v && v !== "undefined" && v !== "null"))return;
+            if(k==="rating_breakdown"){ratingBd=v;return;}
             if(SOCIAL_KEYS.includes(k)) socialUpd[k]=v; else u[k]=v;
           });
           if(socialUpd.content_pillar) socialUpd.content_pillar=canonP(socialUpd.content_pillar);
           if(socialUpd.post_objective) socialUpd.post_objective=canonObjective(socialUpd.post_objective);
+          // Multi-dimensional rating: keep the breakdown, set the overall as the rating.
+          const bdOverall = ratingBd && (ratingBd.overall ?? ratingBd.OVERALL);
+          if(bdOverall && /^[1-5]$/.test(String(Math.round(Number(bdOverall))))) u.rating=String(Math.round(Number(bdOverall)));
           u.custom_dimensions={
             ...(u.custom_dimensions||{}),
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
+            ...(ratingBd?{_rating:ratingBd}:{}),
             _ai_analyzed_at:new Date().toISOString(),
           };
           if(isSocial){
@@ -1952,6 +1958,22 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Analyst notes</label><span className="text-[9px] text-hint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>
                 {cur.type==="Social post"&&<div><div className="flex justify-between items-center mb-1"><label className="text-[10px] text-muted uppercase font-semibold">Caption</label><span className="text-[9px] text-hint">Post text — sent to the AI</span></div><textarea value={cur.custom_dimensions?._meta?.caption||""} onChange={e=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_meta:{...((prev.custom_dimensions||{})._meta||{}),caption:e.target.value}}}))} rows={4} placeholder="Social post caption / copy..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main resize-y" /></div>}
                 {(cur.image_url||cur.transcript||cur.analyst_comment||cur.custom_dimensions?._meta?.caption)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="text-sm bg-accent-soft text-accent border border-[var(--accent)] px-4 py-2 rounded-lg font-medium hover:opacity-80 disabled:opacity-50 w-full">{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
+                {(()=>{ const bd=cur.custom_dimensions?._rating; const dims=Array.isArray(bd?.dimensions)?bd.dimensions:[]; if(!dims.length)return null; return (
+                  <div className="mt-1 rounded-lg border border-main bg-surface2 p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] uppercase font-semibold text-muted">Rating rubric{bd.type?` · ${bd.type}`:""}</span>
+                      <span className="text-[11px] text-amber-500 font-semibold">{"★".repeat(Number(cur.rating)||0)}{"☆".repeat(5-(Number(cur.rating)||0))}</span>
+                    </div>
+                    <div className="space-y-1">{dims.map((d,i)=>(
+                      <div key={i} className="flex items-baseline gap-2">
+                        <span className="text-[11px] text-main font-medium w-28 shrink-0 truncate" title={d.label}>{d.label||d.key}</span>
+                        <span className="text-[11px] text-amber-500 shrink-0">{"★".repeat(Math.round(Number(d.score))||0)}</span>
+                        {d.why&&<span className="text-[10px] text-hint truncate" title={d.why}>{d.why}</span>}
+                      </div>
+                    ))}</div>
+                    <p className="text-[9px] text-hint mt-1.5">AI-scored average — override the overall rating in the fields panel →</p>
+                  </div>
+                ); })()}
               </div>
             </div>
           </div>
