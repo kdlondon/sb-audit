@@ -8,6 +8,7 @@ import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
 import { deliverableLabels } from "@/lib/deliverable-labels";
+import CampaignMap from "@/components/CampaignMap";
 
 const DEFAULT_BRAND_URL = { iberia: "https://www.iberia.com/", "air europa": "https://www.aireuropa.com/", "aerolineas argentinas": "https://www.aerolineas.com.ar", latam: "https://www.latamairlines.com/es/es", laser: "https://www.laserairlines.com" };
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
@@ -82,6 +83,8 @@ function IntelligenceContent() {
     setDnaGen("");
   };
   const [entries, setEntries] = useState([]);
+  const [journeyBrand, setJourneyBrand] = useState("");   // Journey/campaign map widget
+  const [journeyView, setJourneyView] = useState("funnel");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
   const [insights, setInsights] = useState(null);
@@ -286,6 +289,12 @@ function IntelligenceContent() {
                   <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillars.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={PALETTE[i % PALETTE.length]} />)}</BarChart>
                 </ResponsiveContainer>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
+            </Card>
+            <Card title="Journey & campaign map" hint="by funnel / journey / lifecycle" full>
+              <div className="flex gap-2 flex-wrap mb-3">
+                {d.brands.map((b) => <button key={b} onClick={() => setJourneyBrand(journeyBrand === b ? "" : b)} className={`px-3 py-1 rounded-full text-[11px] border transition ${journeyBrand === b ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:text-main"}`}>{b}</button>)}
+              </div>
+              <CampaignMap entries={entries.filter((e) => !journeyBrand || (e.competitor || e.brand || e.brand_name) === journeyBrand)} activeView={journeyView} setActiveView={setJourneyView} />
             </Card>
           </div>
         ) : tab === "insights" ? (
