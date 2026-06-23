@@ -37,7 +37,7 @@ export async function POST(request) {
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
   const { data: rows } = await admin.from("creative_source")
-    .select("competitor,brand,brand_name,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,main_slogan,synopsis,description,custom_dimensions")
+    .select("id,competitor,brand,brand_name,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,main_slogan,synopsis,description,custom_dimensions")
     .eq("project_id", project_id);
   if (!rows || rows.length === 0) return Response.json({ error: "No entries found for this project" }, { status: 404 });
 
@@ -47,7 +47,7 @@ export async function POST(request) {
   const refYear = new Date().getFullYear();
 
   const pieces = rows.map((e) => { const cd = cdOf(e), s = cd._social || {}; return {
-    brand: e.competitor || e.brand || e.brand_name || "—",
+    id: e.id, brand: e.competitor || e.brand || e.brand_name || "—",
     channel: e.channel || "", format: s.format || "",
     communication_intent: e.communication_intent || "", rating: e.rating, year: e.year,
     territory: e.primary_territory || "", archetype: e.brand_archetype || "", tone: e.tone_of_voice || "",
@@ -70,11 +70,14 @@ export async function POST(request) {
   const topFor = (section, pool, n = 24) => pool
     .map((p) => ({ p, w: pieceWeight(p, { section, mode: "brand_signal", refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, n);
-  const ctx = (sel) => sel.map(({ p, w }) => `- [${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
+  const ctx = (sel) => sel.map(({ p, w }) => `- ${p.id ? `[#${p.id}] ` : ""}[${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
 
   const subjPool = (pool) => scope === "brand" ? pool.filter((p) => p.brand === subject) : pool;
   const head = `Category: ${category}. Brands in study: ${brands.join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.`;
-  const rules = `Use the weighted EVIDENCE (higher wN = stronger brand signal — weight it accordingly; never treat high-volume tactical posts as strategic). CRITICAL: this is a finished, client-facing deliverable — do NOT mention weights, "wN" values, evidence counts, "brand_dna", or your methodology/how-you-analyzed. Write the polished section only. Cite brands by name. No fabrication beyond the evidence. No emojis. Write in ${lang}. Markdown with a short ## header.`;
+  const rules = `Use the weighted EVIDENCE (higher wN = stronger brand signal — weight it accordingly; never treat high-volume tactical posts as strategic). CRITICAL: this is a finished, client-facing deliverable — do NOT mention weights, "wN" values, evidence counts, "brand_dna", or your methodology/how-you-analyzed. Write the polished section only. Cite brands by name. No fabrication beyond the evidence.
+- When you ENUMERATE elements (axes, territories, opportunities, brands, examples), use a Markdown bullet or numbered list — never a long comma-separated sentence.
+- BACK CLAIMS WITH EXAMPLES: when you reference a specific captured piece, link it inline as [a short descriptive name](cite:ID) using the #ID shown for that piece in the evidence. Cite real examples liberally. Do NOT cite the web profile entries (those have no #ID).
+No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const sectionDefs = [
     { key: "landscape", title: "Category landscape", pool: allPieces, task: `Map how the category communicates: the territories occupied and who owns what. 2-3 tight paragraphs + a short bullet list of territory ownership.` },
@@ -87,14 +90,14 @@ export async function POST(request) {
     const analytical = await Promise.all(sectionDefs.map(async (sd) => {
       const sel = topFor(sd.key, sd.pool);
       const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 7000)}`;
-      return { key: sd.key, title: sd.title, markdown: await claude(apiKey, prompt) };
+      return { key: sd.key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
     }));
 
     const body = analytical.map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
     const lens = ICP_LENS[icp] || ICP_LENS.brand;
     const [exec, recs] = await Promise.all([
       claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lens} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700),
-      claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lens} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 800),
+      claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lens} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100),
     ]);
 
     const sections = [
