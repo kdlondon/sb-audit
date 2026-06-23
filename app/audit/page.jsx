@@ -2824,7 +2824,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         <div>
         <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
         {listMode==="list"?(
-          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)",fontFamily:"var(--kd-sans)"}}>
+          <div className="max-w-[1180px] mx-auto px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)",fontFamily:"var(--kd-sans)"}}>
             <table className="w-full border-collapse text-xs">
               <thead><tr className="border-b-2 border-main">
                 {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-medium sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)",fontFamily:"var(--kd-mono)",letterSpacing:"0.06em"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
@@ -2895,8 +2895,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </table>
           </div>
         ):(
-          <div className="px-5 pt-1 pb-6" style={{fontFamily:"var(--kd-sans)"}}>
-            <div className="columns-2 md:columns-3 xl:columns-4" style={{columnGap:"24px"}}>
+          <div className="max-w-[1180px] mx-auto px-5 pt-1 pb-6" style={{fontFamily:"var(--kd-sans)"}}>
+            <div className="columns-2 md:columns-3" style={{columnGap:"24px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
               const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
