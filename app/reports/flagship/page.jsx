@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase";
 import AuthGuard from "@/components/AuthGuard";
@@ -15,49 +15,50 @@ const Toggle = ({ value, set, options }) => (
     ))}
   </div>
 );
+const Chip = ({ on, onClick, children }) => (
+  <button onClick={onClick} className={`px-3 py-1 rounded-full text-xs font-medium border transition ${on ? "bg-accent-soft border-[var(--accent)] text-accent" : "bg-surface border-main text-hint hover:border-[var(--accent)]"}`}>{children}</button>
+);
 
 const SECTION_LIST = [
-  { key: "exec", label: "Executive read" },
-  { key: "landscape", label: "Category landscape" },
-  { key: "positioning", label: "Positioning x-ray" },
-  { key: "hero", label: "Hero & message consistency" },
-  { key: "whitespace", label: "White space & opportunity" },
-  { key: "recommendations", label: "Strategic recommendations" },
+  { key: "exec", label: "Executive read", desc: "The strategic headline — saturation, opening, the single biggest move" },
+  { key: "landscape", label: "Category landscape", desc: "Territories occupied and who owns what" },
+  { key: "positioning", label: "Positioning x-ray", desc: "Expressed vs validated — the gap between what brands say and do" },
+  { key: "hero", label: "Hero & message consistency", desc: "Is the hero message stable over time and across channels" },
+  { key: "whitespace", label: "White space & opportunity", desc: "Angles nobody owns + named opportunity territories" },
+  { key: "recommendations", label: "Strategic recommendations", desc: "Prioritised, concrete actions" },
 ];
-// Sections fed from a re-weighted evidence pool — they accept a per-section data lens.
-// exec & recommendations synthesize from the other sections, so the lens doesn't apply.
-const ANALYTICAL = new Set(["landscape", "positioning", "hero", "whitespace"]);
 const MODES = [["brand_signal", "Brand signal"], ["performance", "Performance"], ["quality", "Quality"]];
-const newLens = () => ({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal" });
-const lensActive = (l) => !!(l && (l.brands?.length || l.intents?.length || l.yearFrom || l.yearTo || (l.mode && l.mode !== "brand_signal")));
 
 function FlagshipInner() {
   const { projectId, projectName } = useProject();
   const { framework } = useFramework() || {};
   const [brands, setBrands] = useState([]);
   const [intents, setIntents] = useState([]);
+  const [years, setYears] = useState([]);
+  const [rows, setRows] = useState([]);            // lightweight {brand, intents[], year} for live counts
   const [scope, setScope] = useState("category");
   const [brand, setBrand] = useState("");
   const [icp, setIcp] = useState("brand");
   const [loading, setLoading] = useState(false);
-  const [regenKey, setRegenKey] = useState(null);   // section currently regenerating
+  const [regenKey, setRegenKey] = useState(null);
   const [err, setErr] = useState("");
   const [report, setReport] = useState(null);
-  const [cite, setCite] = useState(null);     // the entry shown when a citation is clicked
+  const [cite, setCite] = useState(null);
   const [saved, setSaved] = useState("");
-  const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "", lens: newLens() })));
   const [showCfg, setShowCfg] = useState(false);
-  const [lensOpen, setLensOpen] = useState({});       // index -> bool (lens editor expanded)
-  const [editKey, setEditKey] = useState(null);       // section being inline-edited
-  const [comments, setComments] = useState({});       // key -> [{id, text}]
-  const [draft, setDraft] = useState({});             // key -> comment draft text
+  // GLOBAL config (one lens for the whole report) + section structure
+  const [filters, setFilters] = useState({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal" });
+  const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "" })));
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [editKey, setEditKey] = useState(null);
+  const [comments, setComments] = useState({});
+  const [draft, setDraft] = useState({});
 
   const moveSec = (i, dir) => setCfg((c) => { const n = [...c]; const j = i + dir; if (j < 0 || j >= n.length) return c; [n[i], n[j]] = [n[j], n[i]]; return n; });
   const toggleSec = (i) => setCfg((c) => c.map((s, k) => k === i ? { ...s, on: !s.on } : s));
   const setSecPrompt = (i, v) => setCfg((c) => c.map((s, k) => k === i ? { ...s, prompt: v } : s));
-  const toggleLensItem = (i, field, val) => setCfg((c) => c.map((s, k) => { if (k !== i) return s; const arr = s.lens[field] || []; const has = arr.includes(val); return { ...s, lens: { ...s.lens, [field]: has ? arr.filter((x) => x !== val) : [...arr, val] } }; }));
-  const setLensField = (i, field, v) => setCfg((c) => c.map((s, k) => k === i ? { ...s, lens: { ...s.lens, [field]: v } } : s));
-  const resetLens = (i) => setCfg((c) => c.map((s, k) => k === i ? { ...s, lens: newLens() } : s));
+  const toggleFilter = (field, val) => setFilters((f) => { const arr = f[field] || []; const has = arr.includes(val); return { ...f, [field]: has ? arr.filter((x) => x !== val) : [...arr, val] }; });
+  const setFilterField = (field, v) => setFilters((f) => ({ ...f, [field]: v }));
 
   useEffect(() => {
     if (!projectId) return;
@@ -65,26 +66,32 @@ function FlagshipInner() {
       try {
         const fwNames = [...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean);
         const supabase = createClient();
-        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,communication_intent").eq("project_id", projectId);
-        // brands: prefer the configured competitor list, else brands seen in content
+        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,communication_intent,year").eq("project_id", projectId);
+        const rws = (data || []).map((r) => ({ brand: r.competitor || r.brand || r.brand_name || "—", intents: (r.communication_intent || "").split(",").map((x) => x.trim()).filter(Boolean), year: r.year }));
+        setRows(rws);
         let list = fwNames;
-        if (!list.length) {
-          const set = new Set();
-          (data || []).forEach((r) => { const b = r.competitor || r.brand || r.brand_name; if (b) set.add(b); });
-          list = [...set];
-        }
+        if (!list.length) list = [...new Set(rws.map((r) => r.brand))].filter((b) => b && b !== "—");
         setBrands(list); setBrand((b) => b || list[0] || "");
-        // intents: distinct communication_intent values present in this project (comma-split)
-        const iset = new Set();
-        (data || []).forEach((r) => (r.communication_intent || "").split(",").forEach((x) => { const v = x.trim(); if (v) iset.add(v); }));
-        setIntents([...iset].sort());
+        setIntents([...new Set(rws.flatMap((r) => r.intents))].sort());
+        const ys = [...new Set(rws.map((r) => r.year).filter(Boolean))].sort();
+        setYears(ys);
       } catch {}
     })();
   }, [projectId, framework]);
 
+  // live "entries in range" count for the global filters
+  const inRange = useMemo(() => rows.filter((r) => {
+    if (filters.brands.length && !filters.brands.includes(r.brand)) return false;
+    if (filters.intents.length && !r.intents.some((it) => filters.intents.includes(it))) return false;
+    if (filters.yearFrom && r.year && Number(r.year) < Number(filters.yearFrom)) return false;
+    if (filters.yearTo && r.year && Number(r.year) > Number(filters.yearTo)) return false;
+    return true;
+  }).length, [rows, filters]);
+
   const bodyFor = (extra) => ({
     project_id: projectId, scope, brand: scope === "brand" ? brand : "", icp,
-    sections: cfg.map(({ key, on, prompt, lens }) => ({ key, on, prompt, lens })),
+    sections: cfg.map(({ key, on, prompt }) => ({ key, on, prompt })),
+    filters, customInstructions,
     ...extra,
   });
 
@@ -99,7 +106,6 @@ function FlagshipInner() {
     setLoading(false);
   };
 
-  // Regenerate ONE section (~10s) — keeps the rest of the report intact.
   const regenerate = async (key) => {
     if (regenKey || loading) return;
     setRegenKey(key); setErr(""); setSaved("");
@@ -150,9 +156,8 @@ function FlagshipInner() {
     return <a href={href} target="_blank" rel="noopener" className="text-accent underline">{children}</a>;
   };
 
-  const Chip = ({ on, onClick, children }) => (
-    <button onClick={onClick} className={`px-2 py-0.5 rounded-full text-[11px] border transition ${on ? "bg-accent text-white border-transparent" : "border-main text-muted hover:text-main"}`}>{children}</button>
-  );
+  const offCount = cfg.filter((s) => !s.on).length;
+  const filtersActive = filters.brands.length || filters.intents.length || filters.yearFrom || filters.yearTo || filters.mode !== "brand_signal";
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -161,7 +166,7 @@ function FlagshipInner() {
       <div className="max-w-[860px] mx-auto px-6 pb-24" style={{ paddingTop: "calc(var(--sec-h) + 20px)" }}>
         <div className="no-print">
           <h1 className="text-2xl font-bold text-main">Strategic Positioning Report</h1>
-          <p className="text-sm text-muted mt-1">Flagship — generated section by section, each weighted by signal strength. Tune the data lens per section, regenerate any one, then refine and annotate inline.</p>
+          <p className="text-sm text-muted mt-1">Flagship — generated section by section, each weighted by signal strength. Configure once, then refine, regenerate or annotate any section.</p>
 
           <div className="flex flex-wrap items-center gap-3 mt-5 mb-7">
             <Toggle value={scope} set={setScope} options={[["category", "Whole category"], ["brand", "One brand"]]} />
@@ -171,7 +176,9 @@ function FlagshipInner() {
               </select>
             )}
             <Toggle value={icp} set={setIcp} options={[["brand", "Brand lens"], ["agency", "Agency lens"], ["vc", "VC lens"]]} />
-            <button onClick={() => setShowCfg((v) => !v)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${showCfg ? "bg-surface2 border-main text-main" : "border-main text-muted hover:text-main"}`}>Configure{(() => { const off = cfg.filter((s) => !s.on).length; return off ? ` · ${cfg.length - off}/${cfg.length}` : ""; })()}</button>
+            <button onClick={() => setShowCfg((v) => !v)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${showCfg || filtersActive || offCount ? "bg-surface2 border-main text-main" : "border-main text-muted hover:text-main"}`}>
+              Configure{offCount ? ` · ${cfg.length - offCount}/${cfg.length} sections` : ""}{filtersActive ? " · filtered" : ""}
+            </button>
             <button onClick={generate} disabled={loading || !!regenKey} className="px-4 py-2 text-white rounded-full text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>
               {loading ? "Generating… (~60s)" : report ? "Regenerate all" : "Generate report"}
             </button>
@@ -180,65 +187,85 @@ function FlagshipInner() {
           </div>
 
           {showCfg && (
-            <div className="border border-main rounded-2xl p-4 mb-6 bg-surface">
-              <p className="text-xs text-muted mb-3">Reorder, include/exclude sections, add a direction the AI weaves in, and set a <strong>data lens</strong> per section (which brands, intents, years and weighting drive that section).</p>
-              <div className="space-y-2">
-                {cfg.map((s, i) => {
-                  const isAnalytical = ANALYTICAL.has(s.key);
-                  const open = !!lensOpen[i];
-                  return (
-                    <div key={s.key} className={`rounded-xl border p-2.5 ${s.on ? "border-main" : "border-dashed border-main opacity-55"}`}>
-                      <div className="flex items-start gap-2">
-                        <div className="flex flex-col gap-0.5 pt-0.5">
-                          <button onClick={() => moveSec(i, -1)} disabled={i === 0} className="text-hint hover:text-main disabled:opacity-30 text-xs leading-none">▲</button>
-                          <button onClick={() => moveSec(i, 1)} disabled={i === cfg.length - 1} className="text-hint hover:text-main disabled:opacity-30 text-xs leading-none">▼</button>
-                        </div>
-                        <input type="checkbox" checked={s.on} onChange={() => toggleSec(i)} className="mt-1 accent-[var(--accent)]" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-medium text-main">{i + 1}. {s.label}</div>
-                            {isAnalytical && s.on && (
-                              <button onClick={() => setLensOpen((o) => ({ ...o, [i]: !o[i] }))} className={`px-2 py-0.5 rounded-full text-[11px] border transition shrink-0 ${lensActive(s.lens) ? "border-accent text-accent" : "border-main text-hint hover:text-main"}`}>
-                                {lensActive(s.lens) ? "Data lens •" : "Data lens"} {open ? "▴" : "▾"}
-                              </button>
-                            )}
-                          </div>
-                          <input value={s.prompt} onChange={(e) => setSecPrompt(i, e.target.value)} disabled={!s.on} placeholder="Optional direction for this section (e.g. focus on the Spain–LatAm corridor)…" className="w-full mt-1.5 px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main disabled:opacity-50" />
-
-                          {isAnalytical && s.on && open && (
-                            <div className="mt-2.5 rounded-lg border border-main bg-surface2 p-2.5 space-y-2.5">
-                              <div>
-                                <div className="flex items-center justify-between mb-1"><span className="text-[10px] uppercase tracking-wide text-hint font-mono">Brands {s.lens.brands.length ? `· ${s.lens.brands.length}` : "· all"}</span></div>
-                                <div className="flex flex-wrap gap-1">{brands.map((b) => <Chip key={b} on={s.lens.brands.includes(b)} onClick={() => toggleLensItem(i, "brands", b)}>{b}</Chip>)}</div>
-                              </div>
-                              {intents.length > 0 && (
-                                <div>
-                                  <div className="text-[10px] uppercase tracking-wide text-hint font-mono mb-1">Intents {s.lens.intents.length ? `· ${s.lens.intents.length}` : "· all"}</div>
-                                  <div className="flex flex-wrap gap-1">{intents.map((it) => <Chip key={it} on={s.lens.intents.includes(it)} onClick={() => toggleLensItem(i, "intents", it)}>{it}</Chip>)}</div>
-                                </div>
-                              )}
-                              <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] uppercase tracking-wide text-hint font-mono">Years</span>
-                                  <input value={s.lens.yearFrom} onChange={(e) => setLensField(i, "yearFrom", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="from" className="w-14 px-2 py-1 bg-surface border border-main rounded text-[11px] text-main" />
-                                  <span className="text-hint text-xs">–</span>
-                                  <input value={s.lens.yearTo} onChange={(e) => setLensField(i, "yearTo", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="to" className="w-14 px-2 py-1 bg-surface border border-main rounded text-[11px] text-main" />
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] uppercase tracking-wide text-hint font-mono">Weight</span>
-                                  <select value={s.lens.mode} onChange={(e) => setLensField(i, "mode", e.target.value)} className="px-2 py-1 bg-surface border border-main rounded text-[11px] text-main">
-                                    {MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                                  </select>
-                                </div>
-                                {lensActive(s.lens) && <button onClick={() => resetLens(i)} className="text-[11px] text-hint hover:text-main underline">reset</button>}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+            <div className="mb-6 space-y-3">
+              {/* TIME FRAME + WEIGHTING */}
+              <div className="bg-surface rounded-lg border border-main p-4">
+                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-main mb-2">Time frame</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-hint uppercase font-semibold">From</label>
+                        <select value={filters.yearFrom} onChange={(e) => setFilterField("yearFrom", e.target.value)} className="px-3 py-1.5 bg-surface border border-main rounded-lg text-sm text-main">
+                          <option value="">earliest</option>
+                          {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                      <div className="text-hint mt-4">→</div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-hint uppercase font-semibold">To</label>
+                        <select value={filters.yearTo} onChange={(e) => setFilterField("yearTo", e.target.value)} className="px-3 py-1.5 bg-surface border border-main rounded-lg text-sm text-main">
+                          <option value="">latest</option>
+                          {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-main mb-2">Weighting</h3>
+                    <Toggle value={filters.mode} set={(v) => setFilterField("mode", v)} options={MODES} />
+                    <p className="text-[10px] text-hint mt-1.5">What drives emphasis: brand signal · engagement · rating</p>
+                  </div>
+                  <div className="ml-auto mb-1 text-xs text-hint">{inRange} of {rows.length} entries in range</div>
+                </div>
+              </div>
+
+              {/* BRANDS */}
+              <div className="bg-surface rounded-lg border border-main p-4">
+                <h3 className="text-sm font-semibold text-main mb-2">Brands</h3>
+                <div className="flex gap-2 flex-wrap">
+                  {brands.map((b) => <Chip key={b} on={filters.brands.includes(b)} onClick={() => toggleFilter("brands", b)}>{b}</Chip>)}
+                </div>
+                <p className="text-[10px] text-hint mt-2">{filters.brands.length === 0 ? "All brands included" : `${filters.brands.length} brand${filters.brands.length > 1 ? "s" : ""} selected`}</p>
+              </div>
+
+              {/* INTENTS */}
+              {intents.length > 0 && (
+                <div className="bg-surface rounded-lg border border-main p-4">
+                  <h3 className="text-sm font-semibold text-main mb-2">Communication intents</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {intents.map((it) => <Chip key={it} on={filters.intents.includes(it)} onClick={() => toggleFilter("intents", it)}>{it}</Chip>)}
+                  </div>
+                  <p className="text-[10px] text-hint mt-2">{filters.intents.length === 0 ? "All intents included" : `${filters.intents.length} intent${filters.intents.length > 1 ? "s" : ""} selected`}</p>
+                </div>
+              )}
+
+              {/* SECTIONS */}
+              <div className="bg-surface rounded-lg border border-main p-4">
+                <h3 className="text-sm font-semibold text-main mb-1">Sections</h3>
+                <p className="text-[10px] text-hint mb-2">Reorder, include/exclude, and add an optional direction the AI weaves into that section.</p>
+                <div className="space-y-1.5">
+                  {cfg.map((s, i) => (
+                    <div key={s.key} className={`flex items-start gap-2 bg-surface2 rounded-lg p-2.5 group ${s.on ? "" : "opacity-50"}`}>
+                      <input type="checkbox" checked={s.on} onChange={() => toggleSec(i)} className="mt-1 flex-shrink-0 accent-[var(--accent)]" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-main">{i + 1}. {s.label}</div>
+                        <div className="text-[11px] text-hint">{s.desc}</div>
+                        <input value={s.prompt} onChange={(e) => setSecPrompt(i, e.target.value)} disabled={!s.on} placeholder="Optional direction for this section (e.g. focus on the Spain–LatAm corridor)…" className="w-full mt-1.5 px-2.5 py-1.5 bg-surface border border-main rounded-lg text-xs text-main disabled:opacity-50" />
+                      </div>
+                      <div className="flex flex-col gap-0.5 pt-0.5 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+                        <button onClick={() => moveSec(i, -1)} disabled={i === 0} className="text-hint hover:text-main disabled:opacity-30 text-xs leading-none">▲</button>
+                        <button onClick={() => moveSec(i, 1)} disabled={i === cfg.length - 1} className="text-hint hover:text-main disabled:opacity-30 text-xs leading-none">▼</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CUSTOM INSTRUCTIONS */}
+              <div className="bg-surface rounded-lg border border-main p-4">
+                <h3 className="text-sm font-semibold text-main mb-2">Custom instructions</h3>
+                <textarea value={customInstructions} onChange={(e) => setCustomInstructions(e.target.value)} placeholder="A direction applied across the whole report — e.g. emphasise the Spain–LatAm corridor and challenger positioning…" className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main resize-y focus:outline-none focus:border-[var(--accent)]" rows={2} />
               </div>
             </div>
           )}
@@ -271,8 +298,7 @@ function FlagshipInner() {
                     </div>
                   )}
 
-                  {/* Comments */}
-                  {(cs.length > 0 || editing) && (
+                  {(cs.length > 0) && (
                     <div className="no-print mt-2 space-y-1.5">
                       {cs.map((c) => (
                         <div key={c.id} className="flex items-start gap-2 text-xs bg-surface2 border-l-2 border-accent rounded px-2.5 py-1.5">
@@ -290,7 +316,7 @@ function FlagshipInner() {
                 </div>
               );
             })}
-            <div className="text-[10px] text-hint mt-8 font-mono">{report.meta?.brands} brands · {report.meta?.pieces} pieces analyzed · {report.meta?.brandDna} brand DNA profiles</div>
+            <div className="text-[10px] text-hint mt-8 font-mono">{report.meta?.brands} brands · {report.meta?.inRange ?? report.meta?.pieces} pieces analyzed · {report.meta?.brandDna} brand DNA profiles</div>
           </div>
         )}
       </div>
