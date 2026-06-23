@@ -2305,7 +2305,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   // ── LIST ──
   const EXEC_OPTS=["Live action","Animation","Mixed media","Typography","Stock footage","UGC","Illustration","Cinematic","Documentary","Manifesto","Motion graphics","Photography","Data visualisation","Interactive","AR/VR","Other"];
   const PLATFORM_OPTS=["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"];
-  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"category",label:"Cat."},{key:"description",label:"Description"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"execution_style",label:"Execution"},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"},{key:"updated_at",label:"Updated"}];
+  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"description",label:"Title"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"}];
   const hasSocial=data.some(e=>e.type==="Social post"||e.custom_dimensions?._social?.content_pillar);
   const pillarOpts=[...new Set(data.map(e=>e.custom_dimensions?._social?.content_pillar).filter(Boolean))].sort();
   const socialFilters=hasSocial&&pillarOpts.length?[["content_pillar","Content pillar",pillarOpts]]:[];
@@ -2825,9 +2825,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
         {listMode==="list"?(
           <div className="max-w-[1180px] mx-auto px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)",fontFamily:"var(--kd-sans)"}}>
-            <table className="w-full border-collapse text-xs">
+            <table className="w-full border-collapse text-sm">
               <thead><tr className="border-b-2 border-main">
-                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-medium sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)",fontFamily:"var(--kd-mono)",letterSpacing:"0.06em"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
+                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2.5 py-2.5 text-[11px] text-muted uppercase font-medium sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)",fontFamily:"var(--kd-mono)",letterSpacing:"0.06em"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
               </tr></thead>
               <tbody>{fd.map(e=>{
                 const IC=({field,children,className=""})=>{
@@ -2871,25 +2871,22 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         className="w-full px-1 py-1 bg-surface border border-[var(--accent)] rounded text-xs text-main focus:outline-none" />
                     </td>);
                   }
-                  return(<td className={"px-2 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-white/5 rounded transition "+className}
+                  return(<td className={"px-2.5 py-3 cursor-pointer hover:bg-blue-50 dark:hover:bg-white/5 rounded transition "+className}
                     onClick={ev=>{ev.stopPropagation();setInlineEdit({id:e.id,field});}}>
                     {children}
                   </td>);
                 };
                 return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#011EFF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
-                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold text-white" style={{background:"var(--kd-blue)"}}>✦</span>}</span></td>
-                  <IC field="category" className=""><Tag v={e.category}/></IC>
-                  <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
+                  <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
+                  <td className="px-2.5 py-3"><span className="inline-flex items-center gap-1.5"><span className="font-medium text-main">{(scope==="local"?(e.competitor||e.brand_name):(e.brand||e.brand_name))||"—"}</span>{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="text-[13px] leading-none" style={{color:"var(--kd-blue)"}}>✦</span>}</span></td>
+                  <IC field="description" className="max-w-[280px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
                   <IC field="type" className="text-muted">{e.type||"—"}</IC>
                   <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
-                  <IC field="execution_style" className="text-main">{e.execution_style||"—"}</IC>
-                  <td className="px-2 py-2.5 text-muted">{e.custom_dimensions?._social?.platform||"—"}</td>
+                  <td className="px-2.5 py-3 text-muted">{e.custom_dimensions?._social?.platform||"—"}</td>
                   <IC field="rating" className="">{e.rating?<span style={{color:"var(--kd-ember)"}}>{"★".repeat(Number(e.rating))}</span>:"—"}</IC>
-                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.created_at)}</td>
-                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.updated_at)}</td>
-                  <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
+                  <td className="px-2.5 py-3 text-hint text-[11px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.created_at)}</td>
+                  <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
                 </tr>);
               })}</tbody>
             </table>
@@ -2913,9 +2910,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
                 <div className="p-3.5">
                   <div className="flex gap-1 mb-2 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
-                  {e.description&&<p className="text-[13px] font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
+                  {e.description&&<p className="text-[15px] font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
                   <div className="flex justify-between items-center mt-3">
-                    <span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-muted uppercase tracking-wide" style={{fontFamily:"var(--kd-mono)"}}>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted uppercase tracking-wide" style={{fontFamily:"var(--kd-mono)"}}>
                       {plat&&<><span className="w-1.5 h-1.5 rounded-full" style={{background:"#9ca3af"}}/>{plat}</>}
                       {plat&&e.year&&<span className="text-hint">·</span>}
                       {e.year&&<span>{e.year}</span>}
