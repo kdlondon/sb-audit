@@ -21,6 +21,10 @@ const ACCENT_DEEP = "oklch(0.520 0.135 266)";  // = --accent-deep, the focus mar
 const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // = q1/q2/q3 (exact)
 // Attenuated tints + greys for stacked categories — exact DS tokens, never rainbow
 const STACK_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.905 0.012 255)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)", "#2B2724"];
+// Pillar mix (top 4): accent-tint, accent-step, p-sand, p-ember; "Otros" always grey
+const PILLAR_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)"];
+const KD_EMBER = "#FF4A1A"; // the peak/alert spark for charts
+const fillForPillar = (p, i) => (p === "Otros" ? "rgba(22,20,19,0.14)" : PILLAR_HEX[i % PILLAR_HEX.length]);
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
@@ -281,9 +285,15 @@ function IntelligenceContent() {
 
     // pillar mix per brand (only if pillars exist)
     const pillars = [...new Set(rows.map((r) => r.pillar).filter(Boolean))];
+    // Dashboard stack: top 4 pillars by volume + "Otros" (grouped) so the bar never rainbows
+    const pillarRank = pillars.map((p) => ({ p, n: rows.filter((r) => r.pillar === p).length })).sort((a, b) => b.n - a.n);
+    const topPillars = pillarRank.slice(0, 4).map((x) => x.p);
+    const restPillars = pillarRank.slice(4).map((x) => x.p);
+    const pillarsShown = restPillars.length ? [...topPillars, "Otros"] : topPillars;
     const pillarByBrand = brands.map((b) => {
       const row = { name: b };
-      pillars.forEach((p) => { row[p] = rows.filter((r) => r.brand === b && r.pillar === p).length; });
+      topPillars.forEach((p) => { row[p] = rows.filter((r) => r.brand === b && r.pillar === p).length; });
+      if (restPillars.length) row["Otros"] = rows.filter((r) => r.brand === b && restPillars.includes(r.pillar)).length;
       return row;
     });
 
@@ -297,7 +307,7 @@ function IntelligenceContent() {
     }).filter((g) => g.count >= 3).sort((a, b) => b.count - a.count);
     const maxPillarCount = Math.max(1, ...pillarGroups.map((g) => g.count));
 
-    return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
+    return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries, dashBrands]);
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
@@ -336,6 +346,13 @@ function IntelligenceContent() {
                   <div className="font-bold" style={{ fontSize: 28, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)" }}>{v}</div>
                 </div>
               ))}
+              {(() => { const lead = [...d.byBrand].filter((b) => b.avgEng > 0).sort((a, b) => b.avgEng - a.avgEng)[0]; return lead ? (
+                <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--p-ember)", border: "1px solid rgba(0,0,0,0.035)" }}>
+                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>Engagement leader</div>
+                  <div className="font-bold" style={{ fontSize: 28, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)" }}>{kfmt(lead.avgEng)}</div>
+                  <div className="text-[9px] mt-1" style={{ color: "var(--d-ember)", fontFamily: "var(--kd-mono)" }}>↑ {lead.name}</div>
+                </div>
+              ) : null; })()}
             </div>
 
             <Card title="Content by brand" hint="volume">
@@ -356,14 +373,14 @@ function IntelligenceContent() {
 
             <Card title="Cadence — day of posting" hint="when they post">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" radius={[4, 4, 0, 0]}>{(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return d.dowCount.map((row, i) => <Cell key={i} fill={row.value === mx ? ACCENT_DEEP : Q_INK[1]} />); })()}</Bar></BarChart>
+                <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" radius={[4, 4, 0, 0]}>{(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return d.dowCount.map((row, i) => <Cell key={i} fill={row.value === mx ? KD_EMBER : Q_INK[1]} />); })()}</Bar></BarChart>
               </ResponsiveContainer>
             </Card>
 
             <Card title="Pillar mix by brand" hint="needs AI analysis">
               {d.pillars.length ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillars.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={STACK_HEX[i % STACK_HEX.length]} />)}</BarChart>
+                  <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillarsShown.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={fillForPillar(p, i)} />)}</BarChart>
                 </ResponsiveContainer>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
             </Card>
