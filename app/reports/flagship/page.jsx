@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase";
 import AuthGuard from "@/components/AuthGuard";
@@ -30,6 +31,7 @@ const SECTION_LIST = [
 const MODES = [["brand_signal", "Brand signal"], ["performance", "Performance"], ["quality", "Quality"]];
 
 function FlagshipInner() {
+  const router = useRouter();
   const { projectId, projectName } = useProject();
   const { framework } = useFramework() || {};
   const [brands, setBrands] = useState([]);
@@ -45,14 +47,13 @@ function FlagshipInner() {
   const [report, setReport] = useState(null);
   const [cite, setCite] = useState(null);
   const [saved, setSaved] = useState("");
+  const [savedId, setSavedId] = useState(null);    // saved_reports row id, for the rich editor
+  const [opening, setOpening] = useState(false);
   const [showCfg, setShowCfg] = useState(false);
   // GLOBAL config (one lens for the whole report) + section structure
   const [filters, setFilters] = useState({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal" });
   const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "" })));
   const [customInstructions, setCustomInstructions] = useState("");
-  const [editKey, setEditKey] = useState(null);
-  const [comments, setComments] = useState({});
-  const [draft, setDraft] = useState({});
 
   const moveSec = (i, dir) => setCfg((c) => { const n = [...c]; const j = i + dir; if (j < 0 || j >= n.length) return c; [n[i], n[j]] = [n[j], n[i]]; return n; });
   const toggleSec = (i) => setCfg((c) => c.map((s, k) => k === i ? { ...s, on: !s.on } : s));
@@ -97,7 +98,7 @@ function FlagshipInner() {
 
   const generate = async () => {
     if (loading) return;
-    setLoading(true); setErr(""); setReport(null); setSaved(""); setEditKey(null); setComments({});
+    setLoading(true); setErr(""); setReport(null); setSaved(""); setSavedId(null);
     try {
       const res = await fetch("/api/reports/flagship", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyFor()) });
       const dt = await res.json();
@@ -118,14 +119,6 @@ function FlagshipInner() {
     setRegenKey(null);
   };
 
-  const setSectionMd = (key, md) => setReport((r) => ({ ...r, sections: r.sections.map((s) => (s.key === key ? { ...s, markdown: md } : s)) }));
-  const addComment = (key) => {
-    const t = (draft[key] || "").trim(); if (!t) return;
-    setComments((c) => ({ ...c, [key]: [...(c[key] || []), { id: `${key}-${(c[key] || []).length + 1}`, text: t }] }));
-    setDraft((d) => ({ ...d, [key]: "" }));
-  };
-  const removeComment = (key, id) => setComments((c) => ({ ...c, [key]: (c[key] || []).filter((x) => x.id !== id) }));
-
   const openCite = async (rawId) => {
     const id = String(rawId).replace(/^#/, "").trim();
     if (!id) return;
@@ -136,16 +129,35 @@ function FlagshipInner() {
     } catch {}
   };
 
+  // Persist the current report into saved_reports (insert once, then update). Returns the row id.
+  const ensureSaved = async () => {
+    const supabase = createClient();
+    const subject = report.meta?.scope === "brand" ? report.meta?.subject : "Category";
+    const title = `Strategic Positioning — ${projectName} · ${subject}`;
+    const content = (report.sections || []).map((s) => s.markdown).join("\n\n");
+    if (savedId) {
+      const { error } = await supabase.from("saved_reports").update({ content, title }).eq("id", savedId);
+      if (error) throw new Error(error.message);
+      return savedId;
+    }
+    const id = String(Date.now());
+    const { error } = await supabase.from("saved_reports").insert({ id, title, content, template_type: "flagship_positioning", scope: "local", project_id: projectId });
+    if (error) throw new Error(error.message);
+    setSavedId(id);
+    return id;
+  };
+
   const save = async () => {
     if (!report) return;
-    try {
-      const supabase = createClient();
-      const subject = report.meta?.scope === "brand" ? report.meta?.subject : "Category";
-      const title = `Strategic Positioning — ${projectName} · ${subject}`;
-      const content = (report.sections || []).map((s) => s.markdown).join("\n\n");
-      const { error } = await supabase.from("saved_reports").insert({ id: String(Date.now()), title, content, template_type: "flagship_positioning", scope: "local", project_id: projectId });
-      setSaved(error ? "Error saving" : "Saved ✓");
-    } catch (e) { setSaved("Error saving"); }
+    try { await ensureSaved(); setSaved("Saved ✓"); } catch (e) { setSaved("Error saving"); }
+  };
+
+  // Open the SAME rich (Google-Docs-style) editor used for saved reports.
+  const openEditor = async () => {
+    if (!report || opening) return;
+    setOpening(true); setErr("");
+    try { const id = await ensureSaved(); router.push(`/reports/editor?id=${id}`); }
+    catch (e) { setErr("Couldn't open the editor: " + e.message); setOpening(false); }
   };
 
   const CiteLink = ({ href, children }) => {
@@ -182,6 +194,7 @@ function FlagshipInner() {
             <button onClick={generate} disabled={loading || !!regenKey} className="px-4 py-2 text-white rounded-full text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>
               {loading ? "Generating… (~60s)" : report ? "Regenerate all" : "Generate report"}
             </button>
+            {report && <button onClick={openEditor} disabled={opening} className="px-3 py-2 rounded-full text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent)" }}>{opening ? "Opening…" : "✎ Edit"}</button>}
             {report && <button onClick={save} className="px-3 py-2 border border-main rounded-full text-xs text-main hover:bg-surface2">{saved || "Save"}</button>}
             {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-full text-xs text-main hover:bg-surface2">↓ PDF</button>}
           </div>
@@ -277,45 +290,22 @@ function FlagshipInner() {
         {report && (
           <div id="flagship-report" className="bg-surface border border-main rounded-2xl px-8 py-10">
             <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Strategic Positioning · {projectName} · {report.meta?.scope === "brand" ? report.meta?.subject : "Category"} · {report.meta?.icp} lens</div>
-            {(report.sections || []).map((s) => {
-              const editing = editKey === s.key;
-              const cs = comments[s.key] || [];
-              return (
-                <div key={s.key} className="mt-7 group">
-                  <div className="no-print flex items-center justify-end gap-1.5 mb-1 opacity-0 group-hover:opacity-100 transition">
-                    <button onClick={() => regenerate(s.key)} disabled={!!regenKey || loading} className="px-2 py-0.5 rounded-full text-[11px] border border-main text-muted hover:text-main disabled:opacity-50">
-                      {regenKey === s.key ? "↻ Regenerating…" : "↻ Regenerate"}
-                    </button>
-                    <button onClick={() => setEditKey(editing ? null : s.key)} className={`px-2 py-0.5 rounded-full text-[11px] border ${editing ? "bg-accent text-white border-transparent" : "border-main text-muted hover:text-main"}`}>{editing ? "Done" : "Edit"}</button>
-                  </div>
-                  {regenKey === s.key ? (
-                    <p className="text-sm text-accent animate-pulse py-4">Regenerating this section…</p>
-                  ) : editing ? (
-                    <textarea value={s.markdown} onChange={(e) => setSectionMd(s.key, e.target.value)} rows={Math.min(28, Math.max(8, s.markdown.split("\n").length + 2))} className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main font-mono leading-relaxed" />
-                  ) : (
-                    <div className="prose prose-sm max-w-none text-main prose-headings:text-main prose-strong:text-main prose-li:text-main prose-a:text-accent">
-                      <ReactMarkdown urlTransform={(u) => u} components={{ a: CiteLink }}>{s.markdown}</ReactMarkdown>
-                    </div>
-                  )}
-
-                  {(cs.length > 0) && (
-                    <div className="no-print mt-2 space-y-1.5">
-                      {cs.map((c) => (
-                        <div key={c.id} className="flex items-start gap-2 text-xs bg-surface2 border-l-2 border-accent rounded px-2.5 py-1.5">
-                          <span className="text-amber-500">💬</span>
-                          <span className="flex-1 text-main">{c.text}</span>
-                          <button onClick={() => removeComment(s.key, c.id)} className="text-hint hover:text-main">×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="no-print mt-1.5 flex items-center gap-2">
-                    <input value={draft[s.key] || ""} onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addComment(s.key); }} placeholder="Add a comment…" className="flex-1 px-2.5 py-1 bg-transparent border border-dashed border-main rounded-lg text-xs text-main opacity-0 group-hover:opacity-100 focus:opacity-100 transition" />
-                    {(draft[s.key] || "").trim() && <button onClick={() => addComment(s.key)} className="px-2 py-1 rounded-lg text-[11px] bg-accent text-white">Add</button>}
-                  </div>
+            {(report.sections || []).map((s) => (
+              <div key={s.key} className="mt-7 group">
+                <div className="no-print flex items-center justify-end gap-1.5 mb-1 opacity-0 group-hover:opacity-100 transition">
+                  <button onClick={() => regenerate(s.key)} disabled={!!regenKey || loading} className="px-2 py-0.5 rounded-full text-[11px] border border-main text-muted hover:text-main disabled:opacity-50">
+                    {regenKey === s.key ? "↻ Regenerating…" : "↻ Regenerate"}
+                  </button>
                 </div>
-              );
-            })}
+                {regenKey === s.key ? (
+                  <p className="text-sm text-accent animate-pulse py-4">Regenerating this section…</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none text-main prose-headings:text-main prose-strong:text-main prose-li:text-main prose-a:text-accent">
+                    <ReactMarkdown urlTransform={(u) => u} components={{ a: CiteLink }}>{s.markdown}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            ))}
             <div className="text-[10px] text-hint mt-8 font-mono">{report.meta?.brands} brands · {report.meta?.inRange ?? report.meta?.pieces} pieces analyzed · {report.meta?.brandDna} brand DNA profiles</div>
           </div>
         )}
