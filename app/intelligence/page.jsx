@@ -86,6 +86,7 @@ function IntelligenceContent() {
   const [journeyBrand, setJourneyBrand] = useState("");   // Journey/campaign map widget
   const [journeyView, setJourneyView] = useState("funnel");
   const [dashBrands, setDashBrands] = useState([]);       // dashboard competitor filter (empty = all)
+  const [dashDrill, setDashDrill] = useState(null);       // heatmap drill-down panel { label, entries }
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
   const [insights, setInsights] = useState(null);
@@ -300,6 +301,52 @@ function IntelligenceContent() {
                 </ResponsiveContainer>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
             </Card>
+            <Card title="Brand × communication intent" hint="click a cell to drill in" full>
+              {(() => {
+                const de = dashBrands.length ? entries.filter((e) => dashBrands.includes(e.competitor || e.brand || e.brand_name || "—")) : entries;
+                const intents = [...new Set(de.flatMap((e) => (e.communication_intent || "").split(",").map((s) => s.trim()).filter(Boolean)))].slice(0, 6);
+                const hbrands = [...new Set(de.map((e) => e.competitor || e.brand || e.brand_name || "—"))].filter((b) => b && b !== "—");
+                if (!intents.length || !hbrands.length) return <NeedsAnalysis pct={d.analyzedPct} />;
+                const cell = (b, it) => de.filter((e) => (e.competitor || e.brand || e.brand_name || "—") === b && (e.communication_intent || "").split(",").map((s) => s.trim()).includes(it));
+                const max = Math.max(1, ...hbrands.flatMap((b) => intents.map((it) => cell(b, it).length)));
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse" style={{ minWidth: 460 }}>
+                      <thead><tr><th></th>{intents.map((it) => <th key={it} className="px-2 pb-2 text-[10px] font-semibold text-left align-bottom" style={{ color: "var(--kd-black)", opacity: 0.6, fontFamily: "var(--kd-mono)" }}>{it}</th>)}</tr></thead>
+                      <tbody>{hbrands.map((b) => (
+                        <tr key={b}>
+                          <td className="pr-3 py-0.5 text-[11px] font-medium whitespace-nowrap" style={{ color: "var(--kd-black)" }}>{b}</td>
+                          {intents.map((it) => { const items = cell(b, it); const n = items.length; const a = n / max; return (
+                            <td key={it} className="p-0.5">
+                              <button onClick={() => n && setDashDrill({ label: `${b} · ${it}`, entries: items })} className="w-full h-9 rounded flex items-center justify-center text-[11px] font-semibold transition" style={{ background: n ? `rgba(1,30,255,${0.1 + a * 0.72})` : "var(--kd-cream)", color: a > 0.5 ? "#fff" : "var(--kd-black)", cursor: n ? "pointer" : "default" }}>{n || ""}</button>
+                            </td>
+                          ); })}
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </Card>
+            {dashDrill && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setDashDrill(null)}>
+                <div className="absolute inset-0 bg-black/40" />
+                <div className="relative bg-surface border border-main rounded-2xl shadow-2xl w-full max-w-[560px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="p-4 border-b border-main flex items-center justify-between sticky top-0 bg-surface z-10">
+                    <span className="text-sm font-bold text-main">{dashDrill.label} · {dashDrill.entries.length}</span>
+                    <button onClick={() => setDashDrill(null)} className="text-hint hover:text-main text-xl leading-none">×</button>
+                  </div>
+                  <div className="p-3 grid grid-cols-2 gap-2">
+                    {dashDrill.entries.slice(0, 40).map((e) => (
+                      <div key={e.id} className="border border-main rounded-lg overflow-hidden">
+                        {e.image_url && <img src={e.image_url} alt="" className="w-full h-24 object-cover" />}
+                        <div className="p-2"><p className="text-[11px] text-main line-clamp-2">{e.description || e.synopsis || "—"}</p><span className="text-[9px] text-hint">{e.year || ""}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             <Card title="Journey & campaign map" hint="by funnel / journey / lifecycle" full>
               <div className="flex gap-2 flex-wrap mb-3">
                 {d.brands.map((b) => <button key={b} onClick={() => setJourneyBrand(journeyBrand === b ? "" : b)} className={`px-3 py-1 rounded-full text-[11px] border transition ${journeyBrand === b ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:text-main"}`}>{b}</button>)}
