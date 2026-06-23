@@ -16,10 +16,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 // Product UI Palette — data ramp by RANK (quiet). Resolved hex/rgba so Recharts
 // SVG fills render reliably (oklch CSS vars don't resolve inside <svg>).
 const PALETTE = ["#011EFF", "#5566F5", "#8A8FC9", "#B7B2A8", "#7A746C", "#2B2724"];
-const ACCENT_DEEP = "#3B3FB0";                 // the focus mark in charts
-const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // q1/q2/q3
-// Attenuated tints (resolved hex) for stacked categories in Recharts — tints + greys, never rainbow
-const STACK_HEX = ["#C8CDF2", "#D2D0EA", "#DCDAD6", "#E8E2D6", "#F0CDBD", "#B7B2A8", "#7A746C", "#2B2724"];
+// Exact DS values (oklch) so Recharts fills match the design system precisely (modern browsers resolve oklch in SVG)
+const ACCENT_DEEP = "oklch(0.520 0.135 266)";  // = --accent-deep, the focus mark
+const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // = q1/q2/q3 (exact)
+// Attenuated tints + greys for stacked categories — exact DS tokens, never rainbow
+const STACK_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.905 0.012 255)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)", "#2B2724"];
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];

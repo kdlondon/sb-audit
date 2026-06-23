@@ -165,7 +165,7 @@ export default function Nav() {
         <button onClick={() => setMenuOpen(!menuOpen)}
           className="flex items-center gap-1.5 text-white/50 hover:text-white/80 transition">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold uppercase"
-            style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+            style={{ background: "var(--p-ember)", color: "var(--kd-black)" }}>
             {userEmail ? userEmail[0] : "?"}
           </div>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
