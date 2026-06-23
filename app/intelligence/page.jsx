@@ -13,7 +13,11 @@ import CampaignMap from "@/components/CampaignMap";
 const DEFAULT_BRAND_URL = { iberia: "https://www.iberia.com/", "air europa": "https://www.aireuropa.com/", "aerolineas argentinas": "https://www.aerolineas.com.ar", latam: "https://www.latamairlines.com/es/es", laser: "https://www.laserairlines.com" };
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
 
-const PALETTE = ["#0019FF", "#7c3aed", "#e11d48", "#059669", "#d97706", "#0891b2", "#db2777", "#65a30d"];
+// Product UI Palette — data ramp by RANK (quiet). Resolved hex/rgba so Recharts
+// SVG fills render reliably (oklch CSS vars don't resolve inside <svg>).
+const PALETTE = ["#011EFF", "#5566F5", "#8A8FC9", "#B7B2A8", "#7A746C", "#2B2724"];
+const ACCENT_DEEP = "#3B3FB0";                 // the focus mark in charts
+const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // q1/q2/q3
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
@@ -65,8 +69,8 @@ function PillBars({ data, spark = null }) {
       {rows.map((r, i) => (
         <div key={r.name} className="grid items-center gap-3" style={{ gridTemplateColumns: "96px 1fr 48px" }}>
           <span className="text-[12px] font-medium text-right truncate" style={{ color: "var(--kd-black)" }}>{r.name}</span>
-          <div className="rounded-full overflow-hidden" style={{ height: 18, background: "var(--kd-data-track)" }}>
-            <div className="rounded-full" style={{ height: 18, width: `${Math.max(3, (r.value / max) * 100)}%`, background: i === sparkIdx ? "var(--kd-data-spark)" : KD_RAMP[Math.min(i, 5)], transition: "width 0.6s var(--kd-easing)" }} />
+          <div className="rounded-full overflow-hidden" style={{ height: 18, background: "var(--data-track)" }}>
+            <div className="rounded-full" style={{ height: 18, width: `${Math.max(3, (r.value / max) * 100)}%`, background: i === sparkIdx ? "var(--kd-data-spark)" : i === 0 ? "var(--accent-deep)" : i === 1 ? "var(--q1)" : "var(--q2)", transition: "width 0.6s var(--kd-easing)" }} />
           </div>
           <span className="text-[11px] text-right" style={{ fontFamily: "var(--kd-mono)", color: "rgba(22,20,19,.6)" }}>{kfmt(r.value)}</span>
         </div>
@@ -246,7 +250,7 @@ function IntelligenceContent() {
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen" data-product="groundwork" style={{ background: "var(--kd-paper)" }}>
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
       <div className="section-bar px-5 py-2.5 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
         <span className="w-[200px]" aria-hidden="true"></span>
@@ -273,10 +277,10 @@ function IntelligenceContent() {
               {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--kd-blue)" }}>Clear</button>}
             </div>
             <div className="col-span-full flex gap-3 flex-wrap">
-              {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v]) => (
-                <div key={l} className="border rounded-xl px-4 py-3 flex-1 min-w-[140px]" style={{ background: "var(--kd-cream)", borderColor: "var(--border)" }}>
-                  <div className="text-2xl font-bold" style={{ color: "var(--kd-blue)", fontFamily: "var(--kd-mono)" }}>{v}</div>
-                  <div className="text-[10px] uppercase font-semibold" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>{l}</div>
+              {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v], i) => (
+                <div key={l} className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: i === 0 ? "var(--accent-tint)" : i === 1 ? "var(--p-stone)" : "var(--p-sand)", border: "1px solid rgba(0,0,0,0.035)" }}>
+                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>{l}</div>
+                  <div className="font-bold" style={{ fontSize: 28, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)" }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -303,7 +307,7 @@ function IntelligenceContent() {
 
             <Card title="Cadence — day of posting" hint="when they post">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" fill="#0019FF" radius={[4, 4, 0, 0]} /></BarChart>
+                <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" radius={[4, 4, 0, 0]}>{(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return d.dowCount.map((row, i) => <Cell key={i} fill={row.value === mx ? ACCENT_DEEP : Q_INK[1]} />); })()}</Bar></BarChart>
               </ResponsiveContainer>
             </Card>
 

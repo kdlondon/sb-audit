@@ -22,6 +22,22 @@
   --kd-data-6: #2B2724;
   --kd-data-track: rgba(1, 30, 255, 0.10);
   --kd-data-spark: var(--kd-ember);
+  /* ===== Product UI Palette — attenuated KD ("en voz baja"), 2026-06-23 =====
+     Shared base (identical in every KD product) + per-product accent contract.
+     Rule: colour lives in number tiles; charts stay quiet (q* greys); the
+     accent marks the focus ONCE. --kd-blue stays brand-only (logo/CTAs). */
+  --kd-paper: #FBF8F4;                  /* warm app background */
+  --p-stone: oklch(0.905 0.012 255);    /* cool neutral tile */
+  --p-sand:  oklch(0.930 0.018 82);     /* warm neutral tile */
+  --d-stone: oklch(0.520 0.018 255);    /* deep neutral — quiet emphasis */
+  --q1: rgba(22, 20, 19, 0.74);         /* chart ink — strong */
+  --q2: rgba(22, 20, 19, 0.30);         /* chart ink — mid */
+  --q3: rgba(22, 20, 19, 0.14);         /* chart ink — faint */
+  --data-track: rgba(22, 20, 19, 0.05); /* bar/ring track on light */
+  /* Accent contract — DEFAULT = Groundwork (blue). Override via [data-product]. */
+  --accent-tint: oklch(0.900 0.052 266);  /* pastel — KPI tile / header fill */
+  --accent-step: oklch(0.912 0.038 262);  /* lighter step — part-to-whole */
+  --accent-deep: oklch(0.520 0.135 266);  /* deep — the focus mark */
   --kd-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --kd-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
   --kd-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
@@ -57,6 +73,19 @@
   --accent-hover: #4a4a4a;
   --navy: #0a0f3c;
   --chartreuse: #D4E520;
+}
+
+/* Product accent themes — set data-product on a wrapper to re-theme the accent
+   contract; the shared base stays identical, only the hue moves. */
+[data-product="groundwork"] {  /* competitive intelligence — analytic, sober (blue) */
+  --accent-tint: oklch(0.900 0.052 266);
+  --accent-step: oklch(0.912 0.038 262);
+  --accent-deep: oklch(0.520 0.135 266);
+}
+[data-product="sounding"] {    /* social listening — expressive, warm (coral) */
+  --accent-tint: oklch(0.892 0.062 42);
+  --accent-step: oklch(0.906 0.044 28);
+  --accent-deep: oklch(0.635 0.175 40);
 }
 
 body {
