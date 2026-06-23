@@ -52,6 +52,29 @@ const Field = ({ label, v }) => v ? (
   </div>
 ) : null;
 
+// KD Capsule data-viz: pill bars — rounded track + fill, ranked by value, hue encodes RANK
+// (ramp, not brand identity), one ember spark optional. No gridlines, no legend.
+const KD_RAMP = ["var(--kd-data-1)", "var(--kd-data-2)", "var(--kd-data-3)", "var(--kd-data-4)", "var(--kd-data-5)", "var(--kd-data-6)"];
+const kfmt = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : Math.round(n);
+function PillBars({ data, spark = null }) {
+  const rows = [...data].filter((r) => r && r.name).sort((a, b) => b.value - a.value);
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  const sparkIdx = spark === "max" ? 0 : spark === "min" ? rows.length - 1 : -1;
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      {rows.map((r, i) => (
+        <div key={r.name} className="grid items-center gap-3" style={{ gridTemplateColumns: "96px 1fr 48px" }}>
+          <span className="text-[12px] font-medium text-right truncate" style={{ color: "var(--kd-black)" }}>{r.name}</span>
+          <div className="rounded-full overflow-hidden" style={{ height: 18, background: "var(--kd-data-track)" }}>
+            <div className="rounded-full" style={{ height: 18, width: `${Math.max(3, (r.value / max) * 100)}%`, background: i === sparkIdx ? "var(--kd-data-spark)" : KD_RAMP[Math.min(i, 5)], transition: "width 0.6s var(--kd-easing)" }} />
+          </div>
+          <span className="text-[11px] text-right" style={{ fontFamily: "var(--kd-mono)", color: "rgba(22,20,19,.6)" }}>{kfmt(r.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function IntelligenceContent() {
   const { projectId, projectName } = useProject();
   const { framework } = useFramework() || {};
@@ -259,21 +282,11 @@ function IntelligenceContent() {
             </div>
 
             <Card title="Content by brand" hint="volume">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={d.byBrand} layout="vertical" margin={{ left: 10 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip /><Bar dataKey="posts" radius={[0, 4, 4, 0]}>{d.byBrand.map((b, i) => <Cell key={i} fill={b.color} />)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.posts }))} />
             </Card>
 
-            <Card title="Average engagement by brand" hint="❤ + 💬 / post">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={d.byBrand} layout="vertical" margin={{ left: 10 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip /><Bar dataKey="avgEng" radius={[0, 4, 4, 0]}>{d.byBrand.map((b, i) => <Cell key={i} fill={b.color} />)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <Card title="Average engagement by brand" hint="♥ + ✦ / post">
+              <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.avgEng }))} spark="min" />
             </Card>
 
             <Card title="Format" hint="content type">

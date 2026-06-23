@@ -13,6 +13,15 @@
   --kd-blue: #011EFF;
   --kd-ember: #FF4A1A;
   --kd-ember-deep: #E23A0C;
+  /* Data viz — categorical ramp ordered by RANK, not brand identity (KD Capsule/Signal/Field) */
+  --kd-data-1: #011EFF;
+  --kd-data-2: #5566F5;
+  --kd-data-3: #8A8FC9;
+  --kd-data-4: #B7B2A8;
+  --kd-data-5: #7A746C;
+  --kd-data-6: #2B2724;
+  --kd-data-track: rgba(1, 30, 255, 0.10);
+  --kd-data-spark: var(--kd-ember);
   --kd-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --kd-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
   --kd-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
