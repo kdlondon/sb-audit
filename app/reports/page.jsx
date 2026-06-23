@@ -1787,7 +1787,16 @@ RULES:
             <>
               {!selectedTemplate?(
                 <div>
-                  <p className="text-xs text-hint mb-3">Select a report type to get started</p>
+                  <p className="text-[10px] uppercase tracking-wide text-hint font-semibold mb-2">Suggested</p>
+                  <button onClick={()=>router.push("/reports/flagship")} className="w-full bg-surface border rounded-xl p-5 text-left transition group mb-6" style={{borderColor:"var(--accent)"}}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-accent-soft text-accent">Flagship</span>
+                      <span className="text-sm font-semibold text-main group-hover:text-accent transition">Strategic Positioning Report</span>
+                      <span className="ml-auto text-xs text-accent">Open →</span>
+                    </div>
+                    <p className="text-xs text-hint">The consolidated positioning story — category landscape, expressed vs validated, hero consistency and white space — weighted by signal strength. Scope by brand or category, with an ICP lens.</p>
+                  </button>
+                  <p className="text-[10px] uppercase tracking-wide text-hint font-semibold mb-2">All reports</p>
                   <div className="grid grid-cols-1 gap-2">
                     {TEMPLATES.map(t=>(
                       <button key={t.id} onClick={()=>setSelectedTemplate(t)} className="bg-surface border border-main rounded-lg p-4 text-left hover:border-[var(--accent)] transition group">
