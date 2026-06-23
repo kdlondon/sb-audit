@@ -103,7 +103,7 @@ export default function Nav() {
         {!simpleBar && <div className="flex gap-0.5 ml-1">
           {tabs.map(t => (
             <button key={t.href} onClick={() => router.push(t.href)}
-              className={`px-2.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition ${
+              className={`px-2.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${
                 pathname.startsWith(t.href) ? "text-white" : "text-white/70 hover:text-white/90"
               }`}
               style={pathname.startsWith(t.href) ? { background: "var(--kd-blue)" } : {}}>

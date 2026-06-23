@@ -1492,10 +1492,10 @@ RULES:
       <div className="section-bar px-5 py-3 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
         <span className="w-[120px]" aria-hidden="true"></span>
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
-          <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="dashboard"?"kd-seg-active":"text-muted hover:text-main"}`}>Dashboard</button>
-          <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="generate"?"kd-seg-active":"text-muted hover:text-main"}`}>Generate</button>
-          <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="journey"?"kd-seg-active":"text-muted hover:text-main"}`}>Journey Map</button>
-          <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition ${view==="archive"?"kd-seg-active":"text-muted hover:text-main"}`}>Archive ({savedReports.length})</button>
+          <button onClick={()=>router.push("/reports",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="dashboard"?"kd-seg-active":"text-muted hover:text-main"}`}>Dashboard</button>
+          <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="generate"?"kd-seg-active":"text-muted hover:text-main"}`}>Generate</button>
+          <button onClick={()=>router.push("/reports?tab=journey",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="journey"?"kd-seg-active":"text-muted hover:text-main"}`}>Journey Map</button>
+          <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="archive"?"kd-seg-active":"text-muted hover:text-main"}`}>Archive ({savedReports.length})</button>
         </div>
         <div className="w-[120px] flex justify-end">{activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-full font-medium border transition ${viewerOpen?"bg-surface2 border-main text-main":"border-main text-muted hover:text-main hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}</div>
       </div>

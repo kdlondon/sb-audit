@@ -1145,7 +1145,7 @@ function SettingsContent() {
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${
+                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
                   activeTab === t.key
                     ? "kd-seg-active"
                     : "text-muted hover:text-main"
