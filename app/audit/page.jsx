@@ -2824,10 +2824,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         <div>
         <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
         {listMode==="list"?(
-          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)"}}>
+          <div className="px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)",fontFamily:"var(--kd-sans)"}}>
             <table className="w-full border-collapse text-xs">
               <thead><tr className="border-b-2 border-main">
-                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-semibold sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
+                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2 py-2 text-[10px] text-muted uppercase font-medium sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)",fontFamily:"var(--kd-mono)",letterSpacing:"0.06em"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
               </tr></thead>
               <tbody>{fd.map(e=>{
                 const IC=({field,children,className=""})=>{
@@ -2876,9 +2876,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     {children}
                   </td>);
                 };
-                return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#0019FF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
+                return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#011EFF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold text-white" style={{background:"linear-gradient(90deg,#7c3aed,#2563eb)"}}>✦</span>}</span></td>
+                  <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1">{scope==="local"?<Tag v={e.competitor||e.brand_name||"—"}/>:<span className="font-medium text-main">{e.brand||e.brand_name||"—"}</span>}{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold text-white" style={{background:"var(--kd-blue)"}}>✦</span>}</span></td>
                   <IC field="category" className=""><Tag v={e.category}/></IC>
                   <IC field="description" className="max-w-[180px] truncate font-medium text-main">{e.description||"—"}</IC>
                   <IC field="year" className="text-muted">{e.year||"—"}</IC>
@@ -2886,23 +2886,23 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
                   <IC field="execution_style" className="text-main">{e.execution_style||"—"}</IC>
                   <td className="px-2 py-2.5 text-muted">{e.custom_dimensions?._social?.platform||"—"}</td>
-                  <IC field="rating" className="text-main">{e.rating?"★".repeat(Number(e.rating)):"—"}</IC>
-                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.created_at)}</td>
-                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap">{fmtDate(e.updated_at)}</td>
+                  <IC field="rating" className="">{e.rating?<span style={{color:"var(--kd-ember)"}}>{"★".repeat(Number(e.rating))}</span>:"—"}</IC>
+                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.created_at)}</td>
+                  <td className="px-2 py-2.5 text-hint text-[10px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.updated_at)}</td>
                   <td className="px-2 py-2.5" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
                 </tr>);
               })}</tbody>
             </table>
           </div>
         ):(
-          <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-6">
-            <div className="columns-2 md:columns-3 xl:columns-4" style={{columnGap:"18px"}}>
+          <div className="px-5 pt-1 pb-6" style={{fontFamily:"var(--kd-sans)"}}>
+            <div className="columns-2 md:columns-3 xl:columns-4" style={{columnGap:"24px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
               const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
               const plat=e.custom_dimensions?._social?.platform||e.custom_dimensions?._meta?.platform||(ytId(e.url)?"YouTube":/instagram/i.test(e.url||"")?"Instagram":/tiktok/i.test(e.url||"")?"TikTok":"");
               const platColor={Instagram:"#E1306C",instagram:"#E1306C",TikTok:"#111",tiktok:"#111",YouTube:"#FF0000",Facebook:"#1877F2",LinkedIn:"#0A66C2"}[plat]||"#888";
-              return(<div key={e.id} onClick={()=>setSb(e)} className="mb-5 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer hover:border-[var(--accent)] hover:shadow-md transition group relative">
+              return(<div key={e.id} onClick={()=>setSb(e)} className="kd-media-card mb-6 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer group relative">
                 <div className={`absolute top-2 left-2 z-10 ${selected.size>0||selected.has(e.id)?"opacity-100":"opacity-0 group-hover:opacity-100"} transition`} onClick={ev=>ev.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
                 </div>
@@ -2911,15 +2911,16 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {isVid&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center"><svg width="13" height="13" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
-                <div className="p-3">
-                  <div className="flex gap-1 mb-1.5 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
-                  {e.description&&<p className="text-xs font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
-                  <div className="flex justify-between items-center mt-2">
-                    <div className="flex items-center gap-2">
-                      {plat&&<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted uppercase tracking-wide"><span className="w-2 h-2 rounded-full" style={{background:platColor}}/>{plat}</span>}
-                      <span className="text-[10px] text-muted">{e.year||""}</span>
-                    </div>
-                    {e.rating&&<span className="text-[10px]">{"★".repeat(Number(e.rating))}</span>}
+                <div className="p-3.5">
+                  <div className="flex gap-1 mb-2 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
+                  {e.description&&<p className="text-[13px] font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-muted uppercase tracking-wide" style={{fontFamily:"var(--kd-mono)"}}>
+                      {plat&&<><span className="w-1.5 h-1.5 rounded-full" style={{background:"#9ca3af"}}/>{plat}</>}
+                      {plat&&e.year&&<span className="text-hint">·</span>}
+                      {e.year&&<span>{e.year}</span>}
+                    </span>
+                    {e.rating&&<span className="text-[11px]" style={{color:"var(--kd-ember)"}}>{"★".repeat(Number(e.rating))}</span>}
                   </div>
                 </div>
               </div>);

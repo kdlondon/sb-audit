@@ -159,6 +159,14 @@ a, button, input, select, textarea {
   color: var(--kd-blue);
 }
 
+/* KD media card (audit grid) — flat, electric-blue hover, no shadow */
+.kd-media-card {
+  transition: border-color 0.25s var(--kd-easing);
+}
+.kd-media-card:hover {
+  border-color: var(--kd-blue);
+}
+
 /* Content after section-bar needs offset to clear the fixed level-2 bar,
    plus a 24px breathing gap. (The nav band is cleared by the Nav spacer.) */
 .section-bar + * {
