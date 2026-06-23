@@ -6,6 +6,7 @@ import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
+import { useFramework } from "@/lib/framework-context";
 
 const Toggle = ({ value, set, options }) => (
   <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
@@ -17,6 +18,7 @@ const Toggle = ({ value, set, options }) => (
 
 function FlagshipInner() {
   const { projectId, projectName } = useProject();
+  const { framework } = useFramework() || {};
   const [brands, setBrands] = useState([]);
   const [scope, setScope] = useState("category");
   const [brand, setBrand] = useState("");
@@ -31,14 +33,20 @@ function FlagshipInner() {
     if (!projectId) return;
     (async () => {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name").eq("project_id", projectId);
-        const set = new Set();
-        (data || []).forEach((r) => { const b = r.competitor || r.brand || r.brand_name; if (b) set.add(b); });
-        const list = [...set]; setBrands(list); if (list[0]) setBrand(list[0]);
+        // Prefer the configured competitor list (project framework); fall back to brands seen in content.
+        const fwNames = [...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean);
+        let list = fwNames;
+        if (!list.length) {
+          const supabase = createClient();
+          const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name").eq("project_id", projectId);
+          const set = new Set();
+          (data || []).forEach((r) => { const b = r.competitor || r.brand || r.brand_name; if (b) set.add(b); });
+          list = [...set];
+        }
+        setBrands(list); setBrand((b) => b || list[0] || "");
       } catch {}
     })();
-  }, [projectId]);
+  }, [projectId, framework]);
 
   const generate = async () => {
     if (loading) return;

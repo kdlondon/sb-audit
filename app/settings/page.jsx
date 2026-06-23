@@ -617,59 +617,65 @@ function LandscapeTab({ brandId, orgId }) {
     await loadTaxonomy();
   };
 
+  // The competitor list IS the project framework — single source of truth that every brand
+  // form (Creative Source, Intelligence, Report, Scout) reads via useFramework(). So add/remove/
+  // update read-modify-write project_frameworks.local_competitors / global_benchmarks and
+  // refresh the framework context so the change is live everywhere immediately.
+  const persistFw = async (col, arr) => {
+    const { error } = await supabase.from("project_frameworks").update({ [col]: arr }).eq("project_id", projectId);
+    if (!error) { try { refreshFramework?.(); } catch {} }
+    return error;
+  };
+
   const addCompetitor = async (scope) => {
-    if (!newComp.name.trim()) return;
+    if (!newComp.name.trim() || !projectId) { if (!projectId) showToast("No active project"); return; }
     setSaving(true);
-
-    // 1. Insert into brands table
-    const { data: newBrand, error: brandErr } = await supabase.from("brands").insert({
-      name: newComp.name.trim(),
-      organization_id: orgId || null,
-      country: newComp.country.trim(),
-      category: newComp.category.trim(),
-      sub_category: newComp.sub_category.trim(),
-      website: JSON.stringify((newComp.websites || []).filter(u => u.trim())),
-      scope,
-      proximity: scope === "local" ? (newComp.proximity || "Direct") : (newComp.proximity || "Direct"),
-      is_active: true,
-    }).select("id").single();
-
-    if (brandErr || !newBrand) {
-      showToast("Error creating brand");
-      setSaving(false);
-      return;
+    const col = scope === "local" ? "local_competitors" : "global_benchmarks";
+    const { data: pf } = await supabase.from("project_frameworks").select(col).eq("project_id", projectId).single();
+    const arr = Array.isArray(pf?.[col]) ? [...pf[col]] : [];
+    const name = newComp.name.trim();
+    if (arr.some((x) => (x?.name || "").toLowerCase() === name.toLowerCase())) {
+      setSaving(false); showToast("Already in the list"); return;
     }
-
-    // 2. Insert into brand_competitors (only has own_brand_id + competitor_brand_id)
-    await supabase.from("brand_competitors").insert({
-      own_brand_id: brandId,
-      competitor_brand_id: newBrand.id,
-    });
-
-    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: scope === "local" ? "Direct" : "Direct", websites: [""] });
-    setShowAddLocal(false);
-    setShowAddGlobal(false);
-    setSaving(false);
-    showToast("Competitor added");
+    const websites = (newComp.websites || []).filter((u) => u.trim());
+    arr.push(scope === "local"
+      ? { name, type: newComp.proximity || "Direct", category: newComp.category.trim() || undefined, sub_category: newComp.sub_category.trim() || undefined, website: websites.length ? websites : undefined }
+      : { name, country: newComp.country.trim() || undefined, website: websites.length ? websites : undefined });
+    const error = await persistFw(col, arr);
+    setNewComp({ name: "", country: "", category: "", sub_category: "", proximity: "Direct", websites: [""] });
+    setShowAddLocal(false); setShowAddGlobal(false); setSaving(false);
+    showToast(error ? "Error: " + error.message : "Competitor added");
     await loadCompetitors();
   };
 
   const removeCompetitor = async (compBrandId) => {
-    // Delete from brand_competitors only (not brands)
-    await supabase.from("brand_competitors").delete().eq("own_brand_id", brandId).eq("competitor_brand_id", compBrandId);
+    const m = String(compBrandId).match(/^pf_(l|g)_(\d+)$/);
     setConfirmRemove(null);
+    if (!m || !projectId) return;
+    const col = m[1] === "l" ? "local_competitors" : "global_benchmarks";
+    const { data: pf } = await supabase.from("project_frameworks").select(col).eq("project_id", projectId).single();
+    const arr = Array.isArray(pf?.[col]) ? [...pf[col]] : [];
+    arr.splice(Number(m[2]), 1);
+    await persistFw(col, arr);
     showToast("Competitor removed");
     await loadCompetitors();
   };
 
   const updateCompetitorBrand = async (compBrandId, updates) => {
-    await supabase.from("brands").update(updates).eq("id", compBrandId);
-    // Update local state instead of full reload to preserve scroll
-    const updateList = (list) => list.map(c =>
-      c.competitor_brand_id === compBrandId ? { ...c, brand: { ...c.brand, ...updates } } : c
-    );
-    setLocalComps(prev => updateList(prev));
-    setGlobalRefs(prev => updateList(prev));
+    const m = String(compBrandId).match(/^pf_(l|g)_(\d+)$/);
+    if (!m || !projectId) return;
+    const col = m[1] === "l" ? "local_competitors" : "global_benchmarks";
+    const idx = Number(m[2]);
+    const { data: pf } = await supabase.from("project_frameworks").select(col).eq("project_id", projectId).single();
+    const arr = Array.isArray(pf?.[col]) ? [...pf[col]] : [];
+    if (!arr[idx]) return;
+    const mapped = { ...updates };
+    if (mapped.proximity != null) { mapped.type = mapped.proximity; delete mapped.proximity; }
+    arr[idx] = { ...arr[idx], ...mapped };
+    await persistFw(col, arr);
+    const updateList = (list) => list.map((c) => c.competitor_brand_id === compBrandId ? { ...c, brand: { ...c.brand, ...updates } } : c);
+    setLocalComps((prev) => updateList(prev));
+    setGlobalRefs((prev) => updateList(prev));
   };
 
 

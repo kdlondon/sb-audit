@@ -164,6 +164,10 @@ export default function ScoutPage() {
         s.from("dropdown_options").select("value").eq(filterField, filterValue).eq("category", "competitor"),
       ]);
       const brands = new Set();
+      // The configured competitor list (project framework) is the source of truth; union with
+      // whatever brands already exist in captured content + legacy dropdown options.
+      (framework?.localCompetitors || []).forEach(c => { if (c?.name) brands.add(c.name); });
+      (framework?.globalBenchmarks || []).forEach(g => { if (g?.name) brands.add(g.name); });
       (entries || []).forEach(e => { if (e.brand_name) brands.add(e.brand_name); });
       if (opts) opts.forEach(o => { if (o.value && o.value !== "Other") brands.add(o.value); });
       setProjectCompetitors([...brands]);
@@ -179,7 +183,7 @@ export default function ScoutPage() {
       arr.push(disc[Math.floor(Math.random() * disc.length)]);
       setSuggestions(arr.slice(0, 5));
     })();
-  }, [projectId]);
+  }, [projectId, framework]);
 
   // Search form
   const [brand, setBrand] = useState("");
