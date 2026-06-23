@@ -1794,13 +1794,21 @@ RULES:
                     </div>
                     <p className="text-xs text-hint">The consolidated positioning story — category landscape, expressed vs validated, hero consistency and white space — weighted by signal strength. Scope by brand or category, with an ICP lens.</p>
                   </button>
-                  <button onClick={()=>router.push("/reports/social")} className="w-full bg-surface border rounded-xl p-5 text-left transition group mb-6" style={{borderColor:"var(--accent)"}}>
+                  <button onClick={()=>router.push("/reports/social")} className="w-full bg-surface border rounded-xl p-5 text-left transition group mb-3" style={{borderColor:"var(--accent)"}}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-accent-soft text-accent">Core</span>
                       <span className="text-sm font-semibold text-main group-hover:text-accent transition">Social Content Benchmark</span>
                       <span className="ml-auto text-xs text-accent">Open →</span>
                     </div>
                     <p className="text-xs text-hint">How competitors use social and what works — territories &amp; angles, personality &amp; voice, declared vs deployed, engagement, cadence — weighted by engagement. Scope by brand or category, with an ICP lens.</p>
+                  </button>
+                  <button onClick={()=>router.push("/reports/global")} className="w-full bg-surface border rounded-xl p-5 text-left transition group mb-6" style={{borderColor:"var(--accent)"}}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-accent-soft text-accent">Core</span>
+                      <span className="text-sm font-semibold text-main group-hover:text-accent transition">Global Creative Inspiration</span>
+                      <span className="ml-auto text-xs text-accent">Open →</span>
+                    </div>
+                    <p className="text-xs text-hint">The best, most distinctive global cases as inspiration — curation rationale, the cases (what / why it works / transferable idea), patterns and transferable plays. Curated by rating, with an ICP lens.</p>
                   </button>
                   <p className="text-[10px] uppercase tracking-wide text-hint font-semibold mb-2">All reports</p>
                   <div className="grid grid-cols-1 gap-2">
