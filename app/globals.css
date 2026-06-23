@@ -38,6 +38,8 @@
   --accent-tint: oklch(0.900 0.052 266);  /* pastel — KPI tile / header fill */
   --accent-step: oklch(0.912 0.038 262);  /* lighter step — part-to-whole */
   --accent-deep: oklch(0.520 0.135 266);  /* deep — the focus mark */
+  --p-ember: oklch(0.902 0.055 44);        /* attenuated warm spark — one alert/peak tile */
+  --d-ember: oklch(0.620 0.150 44);        /* deep ember companion */
   --kd-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --kd-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
   --kd-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;

@@ -18,6 +18,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 const PALETTE = ["#011EFF", "#5566F5", "#8A8FC9", "#B7B2A8", "#7A746C", "#2B2724"];
 const ACCENT_DEEP = "#3B3FB0";                 // the focus mark in charts
 const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // q1/q2/q3
+// Attenuated tints (resolved hex) for stacked categories in Recharts — tints + greys, never rainbow
+const STACK_HEX = ["#C8CDF2", "#D2D0EA", "#DCDAD6", "#E8E2D6", "#F0CDBD", "#B7B2A8", "#7A746C", "#2B2724"];
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
@@ -75,6 +77,56 @@ function PillBars({ data, spark = null }) {
           <span className="text-[11px] text-right" style={{ fontFamily: "var(--kd-mono)", color: "rgba(22,20,19,.6)" }}>{kfmt(r.value)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Product UI part-to-whole (copied from KD Product Charts.html). NEVER a pie/donut:
+// 2 parts -> rounded-cap ring + mono numeral; 3-6 -> one stacked capsule + direct legend.
+const CAPSULE_TINTS = ["var(--accent-tint)", "var(--accent-step)", "var(--p-stone)", "var(--p-sand)", "var(--p-ember)", "var(--q3)"];
+const pctOf = (v, total) => Math.round((v / (total || 1)) * 100);
+function PartToWhole({ data }) {
+  const rows = [...data].filter((r) => r && r.name && r.value > 0).sort((a, b) => b.value - a.value);
+  const total = rows.reduce((s, r) => s + r.value, 0);
+  if (!rows.length) return <div className="h-[180px] flex items-center justify-center text-xs text-hint">No data</div>;
+  if (rows.length <= 2) {
+    const lead = rows[0];
+    const pct = pctOf(lead.value, total);
+    const C = 2 * Math.PI * 48;
+    return (
+      <div className="flex items-center gap-6 py-3 min-h-[160px]">
+        <svg width="118" height="118" viewBox="0 0 118 118" className="flex-none">
+          <circle cx="59" cy="59" r="48" fill="none" stroke="var(--data-track)" strokeWidth="15" />
+          <circle cx="59" cy="59" r="48" fill="none" stroke="var(--accent-deep)" strokeWidth="15" strokeLinecap="round"
+            strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} transform="rotate(-90 59 59)" style={{ transition: "stroke-dashoffset 0.8s var(--kd-easing)" }} />
+          <text x="59" y="56" textAnchor="middle" style={{ fontFamily: "var(--kd-mono)", fontSize: 24, fontWeight: 500, fill: "var(--kd-black)" }}>{pct}%</text>
+          <text x="59" y="73" textAnchor="middle" style={{ fontFamily: "var(--kd-mono)", fontSize: 8.5, letterSpacing: 1, fill: "rgba(22,20,19,.5)" }}>{(lead.name || "").toUpperCase()}</text>
+        </svg>
+        <div className="flex flex-col gap-2.5">
+          {rows.map((r, i) => (
+            <div key={r.name} className="rounded-xl px-4 py-2.5 min-w-[100px]" style={{ background: i === 0 ? "var(--accent-tint)" : "var(--p-stone)" }}>
+              <div style={{ fontFamily: "var(--kd-mono)", fontSize: 20, lineHeight: 1, color: "var(--kd-black)" }}>{pctOf(r.value, total)}%</div>
+              <div className="text-[11px] mt-1" style={{ color: "rgba(22,20,19,.6)" }}>{r.name}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="py-3">
+      <div className="flex rounded-full overflow-hidden" style={{ height: 28 }}>
+        {rows.map((r, i) => <div key={r.name} style={{ width: `${(r.value / total) * 100}%`, background: CAPSULE_TINTS[Math.min(i, CAPSULE_TINTS.length - 1)], transition: "width 0.6s var(--kd-easing)" }} />)}
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+        {rows.map((r, i) => (
+          <div key={r.name} className="flex items-center gap-2">
+            <span className="rounded-sm flex-none" style={{ width: 11, height: 11, background: CAPSULE_TINTS[Math.min(i, CAPSULE_TINTS.length - 1)] }} />
+            <span className="text-[12px]" style={{ color: "rgba(22,20,19,.76)" }}>{r.name}</span>
+            <span style={{ fontFamily: "var(--kd-mono)", fontSize: 11, color: "var(--kd-black)" }}>{pctOf(r.value, total)}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -294,15 +346,11 @@ function IntelligenceContent() {
             </Card>
 
             <Card title="Format" hint="content type">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart><Pie data={d.byFormat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={(e) => e.name}>{d.byFormat.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /></PieChart>
-              </ResponsiveContainer>
+              <PartToWhole data={d.byFormat} />
             </Card>
 
             <Card title="Platform">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart><Pie data={d.byPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={(e) => e.name}>{d.byPlatform.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /></PieChart>
-              </ResponsiveContainer>
+              <PartToWhole data={d.byPlatform} />
             </Card>
 
             <Card title="Cadence — day of posting" hint="when they post">
@@ -314,7 +362,7 @@ function IntelligenceContent() {
             <Card title="Pillar mix by brand" hint="needs AI analysis">
               {d.pillars.length ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillars.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={PALETTE[i % PALETTE.length]} />)}</BarChart>
+                  <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillars.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={STACK_HEX[i % STACK_HEX.length]} />)}</BarChart>
                 </ResponsiveContainer>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
             </Card>
@@ -335,7 +383,7 @@ function IntelligenceContent() {
                           <td className="pr-3 py-0.5 text-[11px] font-medium whitespace-nowrap" style={{ color: "var(--kd-black)" }}>{b}</td>
                           {intents.map((it) => { const items = cell(b, it); const n = items.length; const a = n / max; return (
                             <td key={it} className="p-0.5">
-                              <button onClick={() => n && setDashDrill({ label: `${b} · ${it}`, entries: items })} className="w-full h-9 rounded flex items-center justify-center text-[11px] font-semibold transition" style={{ background: n ? `rgba(1,30,255,${0.1 + a * 0.72})` : "var(--kd-cream)", color: a > 0.5 ? "#fff" : "var(--kd-black)", cursor: n ? "pointer" : "default" }}>{n || ""}</button>
+                              <button onClick={() => n && setDashDrill({ label: `${b} · ${it}`, entries: items })} className="w-full h-9 rounded flex items-center justify-center text-[11px] font-semibold transition" style={{ background: n ? `color-mix(in oklab, var(--accent-deep) ${Math.round((0.12 + a * 0.83) * 100)}%, var(--p-stone))` : "var(--p-stone)", color: a > 0.55 ? "var(--kd-cream)" : "var(--kd-black)", cursor: n ? "pointer" : "default" }}>{n || ""}</button>
                             </td>
                           ); })}
                         </tr>
