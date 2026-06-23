@@ -29,7 +29,7 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections } = await request.json();
   if (!project_id) return Response.json({ error: "project_id required" }, { status: 400 });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const sUrl = process.env.NEXT_PUBLIC_SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -87,38 +87,62 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   };
   const titleFor = { exec: "Executive read", recommendations: "Strategic recommendations" };
   const DEFAULT_ORDER = ["exec", "landscape", "positioning", "hero", "whitespace", "recommendations"];
-  // Section CONFIG from the client: ordered [{key, on, prompt}]. Falls back to all-on default.
+  // Section CONFIG from the client: ordered [{key, on, prompt, lens}]. Falls back to all-on default.
   const cfg = (Array.isArray(cfgIn) && cfgIn.length ? cfgIn : DEFAULT_ORDER.map((key) => ({ key, on: true, prompt: "" })))
     .filter((s) => s && s.on !== false && (ALL_DEFS[s.key] || s.key === "exec" || s.key === "recommendations"));
   const cfgMap = Object.fromEntries(cfg.map((s) => [s.key, s]));
+  const lensInstr = ICP_LENS[icp] || ICP_LENS.brand;
+
+  // Per-section DATA LENS: narrow the section's pool by brands / intents / year window, pick weight mode.
+  const selFor = (key) => {
+    const ln = cfgMap[key]?.lens || {};
+    let pool = ALL_DEFS[key].pool;
+    if (Array.isArray(ln.brands) && ln.brands.length) pool = pool.filter((p) => ln.brands.includes(p.brand));
+    if (Array.isArray(ln.intents) && ln.intents.length) pool = pool.filter((p) => p.source === "brand_dna" || (p.communication_intent || "").split(",").map((s) => s.trim()).some((it) => ln.intents.includes(it)));
+    if (ln.yearFrom) pool = pool.filter((p) => !p.year || Number(p.year) >= Number(ln.yearFrom));
+    if (ln.yearTo) pool = pool.filter((p) => !p.year || Number(p.year) <= Number(ln.yearTo));
+    const mode = ln.mode || "brand_signal";
+    return pool.map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) })).filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, 24);
+  };
+
+  const genAnalytical = async (key) => {
+    const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
+    const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${custom ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${custom}` : ""}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
+    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
+  };
+  const genExec = async (body) => {
+    const custom = (cfgMap.exec?.prompt || "").trim();
+    return { key: "exec", title: titleFor.exec, markdown: await claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lensInstr}${custom ? ` Analyst direction: ${custom}.` : ""} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700) };
+  };
+  const genRecs = async (body) => {
+    const custom = (cfgMap.recommendations?.prompt || "").trim();
+    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${custom ? ` Analyst direction: ${custom}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+  };
+  const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, brandDna: dnaPieces.length };
 
   try {
-    const analyticalKeys = cfg.map((s) => s.key).filter((k) => ALL_DEFS[k]);
-    const analytical = await Promise.all(analyticalKeys.map(async (key) => {
-      const sd = ALL_DEFS[key];
-      const custom = (cfgMap[key]?.prompt || "").trim();
-      const sel = topFor(key, sd.pool);
-      const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${custom ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${custom}` : ""}\n${rules}\n\nEVIDENCE (re-weighted for this section):\n${ctx(sel).slice(0, 7000)}`;
-      return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
-    }));
+    // SINGLE-SECTION regeneration — generate just one section (fast iteration).
+    if (regenKey) {
+      if (ALL_DEFS[regenKey]) return Response.json({ section: await genAnalytical(regenKey), meta });
+      const body = (Array.isArray(priorSections) ? priorSections : []).filter((s) => s && ALL_DEFS[s.key]).map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
+      if (regenKey === "exec") return Response.json({ section: await genExec(body), meta });
+      if (regenKey === "recommendations") return Response.json({ section: await genRecs(body), meta });
+      return Response.json({ error: "Unknown section: " + regenKey }, { status: 400 });
+    }
 
-    const lens = ICP_LENS[icp] || ICP_LENS.brand;
+    // FULL report
+    const analyticalKeys = cfg.map((s) => s.key).filter((k) => ALL_DEFS[k]);
+    const analytical = await Promise.all(analyticalKeys.map(genAnalytical));
     let exec = null, recs = null;
     if (cfgMap.exec || cfgMap.recommendations) {
       const body = analytical.map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
-      const execCustom = (cfgMap.exec?.prompt || "").trim();
-      const recsCustom = (cfgMap.recommendations?.prompt || "").trim();
-      [exec, recs] = await Promise.all([
-        cfgMap.exec ? claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lens}${execCustom ? ` Analyst direction: ${execCustom}.` : ""} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700) : Promise.resolve(null),
-        cfgMap.recommendations ? claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lens}${recsCustom ? ` Analyst direction: ${recsCustom}.` : ""} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) : Promise.resolve(null),
-      ]);
+      [exec, recs] = await Promise.all([cfgMap.exec ? genExec(body) : Promise.resolve(null), cfgMap.recommendations ? genRecs(body) : Promise.resolve(null)]);
     }
-
     const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
-    if (exec != null) byKey.exec = { key: "exec", title: titleFor.exec, markdown: exec };
-    if (recs != null) byKey.recommendations = { key: "recommendations", title: titleFor.recommendations, markdown: recs };
+    if (exec) byKey.exec = exec;
+    if (recs) byKey.recommendations = recs;
     const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
-    return Response.json({ sections, meta: { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, brandDna: dnaPieces.length } });
+    return Response.json({ sections, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
