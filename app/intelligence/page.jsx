@@ -26,6 +26,9 @@ const STACK_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.
 const PILLAR_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)"];
 const KD_EMBER = "#FF4A1A"; // the peak/alert spark for charts
 const fillForPillar = (p, i) => (p === "Otros" ? "rgba(22,20,19,0.14)" : PILLAR_HEX[i % PILLAR_HEX.length]);
+// CSS-var tints for pure-DOM stacked bars (not Recharts): accent-tint, accent-step, p-sand, p-ember; "Otros" grey
+const PILLAR_TINTS = ["var(--accent-tint)", "var(--accent-step)", "var(--p-sand)", "var(--p-ember)"];
+const fillForPillarVar = (p, i) => (p === "Otros" ? "var(--q3)" : PILLAR_TINTS[i % PILLAR_TINTS.length]);
 const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
@@ -389,16 +392,40 @@ function IntelligenceContent() {
             </Card>
 
             <Card title="Cadence — day of posting" hint="when they post">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={d.dowCount}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" radius={[4, 4, 0, 0]}>{(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return d.dowCount.map((row, i) => <Cell key={i} fill={row.value === mx ? KD_EMBER : Q_INK[1]} />); })()}</Bar></BarChart>
-              </ResponsiveContainer>
+              {(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 170, paddingTop: 6 }}>
+                  {d.dowCount.map((row) => { const peak = row.value === mx; return (
+                    <div key={row.name} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                      <div style={{ width: "100%", maxWidth: 42, height: `${(row.value / mx) * 100}%`, borderRadius: "8px 8px 0 0", background: peak ? "var(--d-ember)" : "var(--q2)", transition: "height 0.6s var(--kd-easing)" }} />
+                      <div style={{ fontFamily: "var(--kd-mono)", fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: peak ? "var(--d-ember)" : "rgba(22,20,19,.5)", marginTop: 10 }}>{row.name}</div>
+                    </div>
+                  ); })}
+                </div>
+              ); })()}
             </Card>
 
-            <Card title="Pillar mix by brand" hint="needs AI analysis">
-              {d.pillars.length ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={d.pillarByBrand}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--q3)" /><XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />{d.pillarsShown.map((p, i) => <Bar key={p} dataKey={p} stackId="a" fill={fillForPillar(p, i)} />)}</BarChart>
-                </ResponsiveContainer>
+            <Card title="Pillar mix by brand" hint="top 4 + others">
+              {d.pillarsShown.length ? (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 4 }}>
+                    {d.pillarByBrand.map((row) => { const total = d.pillarsShown.reduce((s, p) => s + (row[p] || 0), 0) || 1; return (
+                      <div key={row.name} style={{ display: "grid", gridTemplateColumns: "120px 1fr", alignItems: "center", gap: 14 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 500, textAlign: "right", color: "var(--kd-black)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name}</span>
+                        <div style={{ height: 18, borderRadius: 9, overflow: "hidden", display: "flex", background: "var(--data-track)" }}>
+                          {d.pillarsShown.map((p, i) => (row[p] ? <div key={p} style={{ height: 18, width: `${(row[p] / total) * 100}%`, background: fillForPillarVar(p, i) }} /> : null))}
+                        </div>
+                      </div>
+                    ); })}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 18px", marginTop: 18 }}>
+                    {d.pillarsShown.map((p, i) => (
+                      <div key={p} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <span style={{ width: 11, height: 11, borderRadius: 4, background: fillForPillarVar(p, i) }} />
+                        <span style={{ fontSize: 12, color: "rgba(22,20,19,.78)" }}>{p}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
             </Card>
             <Card title="Brand × communication intent" hint="click a cell to drill in" full>
@@ -418,7 +445,7 @@ function IntelligenceContent() {
                           <td className="pr-3 py-0.5 text-[11px] font-medium whitespace-nowrap" style={{ color: "var(--kd-black)" }}>{b}</td>
                           {intents.map((it) => { const items = cell(b, it); const n = items.length; const a = n / max; return (
                             <td key={it} className="p-0.5">
-                              <button onClick={() => n && setDashDrill({ label: `${b} · ${it}`, entries: items })} className="w-full h-9 rounded flex items-center justify-center text-[11px] font-semibold transition" style={{ background: n ? `color-mix(in oklab, var(--accent-deep) ${Math.round((0.12 + a * 0.83) * 100)}%, var(--p-stone))` : "var(--p-stone)", color: a > 0.55 ? "var(--kd-cream)" : "var(--kd-black)", cursor: n ? "pointer" : "default" }}>{n || ""}</button>
+                              <button onClick={() => n && setDashDrill({ label: `${b} · ${it}`, entries: items })} className="w-full flex items-center justify-center transition" style={{ height: 40, borderRadius: 9, fontFamily: "var(--kd-mono)", fontSize: 13, background: n ? `color-mix(in oklab, var(--accent-deep) ${Math.round((0.12 + a * 0.83) * 100)}%, var(--p-stone))` : "var(--p-stone)", color: a > 0.55 ? "var(--kd-cream)" : "var(--kd-black)", cursor: n ? "pointer" : "default" }}>{n || ""}</button>
                             </td>
                           ); })}
                         </tr>
