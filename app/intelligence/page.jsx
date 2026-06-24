@@ -68,6 +68,10 @@ const Field = ({ label, v }) => v ? (
 // (ramp, not brand identity), one ember spark optional. No gridlines, no legend.
 const KD_RAMP = ["var(--kd-data-1)", "var(--kd-data-2)", "var(--kd-data-3)", "var(--kd-data-4)", "var(--kd-data-5)", "var(--kd-data-6)"];
 const kfmt = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : Math.round(n);
+// Split a KPI value into number + unit suffix (%, k) so the suffix renders smaller, like the canonical tile
+const splitVal = (v) => { const m = String(v).match(/^([\d.,]+)(.*)$/); return m ? [m[1], m[2]] : [String(v), ""]; };
+const KPI_NUM = { fontSize: 32, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)", fontWeight: 500 };
+const KPI_SUFFIX = { fontSize: 17, color: "rgba(22,20,19,0.5)" };
 function PillBars({ data, spark = null }) {
   const rows = [...data].filter((r) => r && r.name).sort((a, b) => b.value - a.value);
   const max = Math.max(1, ...rows.map((r) => r.value));
@@ -356,13 +360,13 @@ function IntelligenceContent() {
               {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v], i) => (
                 <div key={l} className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: i === 0 ? "var(--accent-tint)" : i === 1 ? "var(--p-stone)" : "var(--p-sand)", border: "1px solid rgba(0,0,0,0.035)" }}>
                   <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>{l}</div>
-                  <div className="font-bold" style={{ fontSize: 28, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)" }}>{v}</div>
+                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(v); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
                 </div>
               ))}
               {(() => { const lead = [...d.byBrand].filter((b) => b.avgEng > 0).sort((a, b) => b.avgEng - a.avgEng)[0]; return lead ? (
                 <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--p-ember)", border: "1px solid rgba(0,0,0,0.035)" }}>
                   <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>Engagement leader</div>
-                  <div className="font-bold" style={{ fontSize: 28, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)" }}>{kfmt(lead.avgEng)}</div>
+                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(kfmt(lead.avgEng)); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
                   <div className="text-[9px] mt-1" style={{ color: "var(--d-ember)", fontFamily: "var(--kd-mono)" }}>↑ {lead.name}</div>
                 </div>
               ) : null; })()}
