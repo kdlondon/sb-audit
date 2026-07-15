@@ -99,19 +99,28 @@ on conflict (project_id, lower(name)) do nothing;
 
 -- ============================================================================
 -- BACKFILL from the legacy brand_id path (brand_competitors + brands), best
--- effort: only workspaces whose own-brand row carries a project_id.
+-- effort. Skipped automatically when the legacy schema lacks brands.project_id
+-- (true in the current live DB — the framework-loader fallback that reads it
+-- never actually runs).
 -- ============================================================================
-insert into project_brands (project_id, name, role, country, category, sub_category, website)
-select own.project_id,
-       trim(b.name),
-       case when b.scope = 'global' then 'global' else 'direct' end,
-       b.country, b.category, b.sub_category, b.website
-from brand_competitors bc
-join brands own on own.id = bc.own_brand_id
-join brands b   on b.id  = bc.competitor_brand_id
-where own.project_id is not null
-  and coalesce(trim(b.name), '') <> ''
-on conflict (project_id, lower(name)) do nothing;
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'brands'
+               and column_name = 'project_id') then
+    insert into project_brands (project_id, name, role, country, category, sub_category, website)
+    select own.project_id,
+           trim(b.name),
+           case when b.scope = 'global' then 'global' else 'direct' end,
+           b.country, b.category, b.sub_category, b.website
+    from brand_competitors bc
+    join brands own on own.id = bc.own_brand_id
+    join brands b   on b.id  = bc.competitor_brand_id
+    where own.project_id is not null
+      and coalesce(trim(b.name), '') <> ''
+    on conflict (project_id, lower(name)) do nothing;
+  end if;
+end $$;
 
 -- Sanity check: see what landed
 -- select project_id, role, count(*) from project_brands group by 1,2 order by 1,2;
