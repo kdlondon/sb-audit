@@ -9,6 +9,7 @@ import { useBrand } from "@/lib/brand-context";
 import { useRole } from "@/lib/role-context";
 import { useFramework } from "@/lib/framework-context";
 import { SYSTEM_DIMENSIONS } from "@/lib/system-dimensions";
+import { syncProjectBrands } from "@/lib/project-brands";
 import CountryInput from "@/components/CountryInput";
 
 const BRAND_ARCHETYPES = [
@@ -623,7 +624,15 @@ function LandscapeTab({ brandId, orgId }) {
   // refresh the framework context so the change is live everywhere immediately.
   const persistFw = async (col, arr) => {
     const { error } = await supabase.from("project_frameworks").update({ [col]: arr }).eq("project_id", projectId);
-    if (!error) { try { refreshFramework?.(); } catch {} }
+    if (!error) {
+      // Dual-write: mirror the arrays into the normalized project_brands registry
+      // (upsert + archive-on-delete) so the framework loaders stay in sync.
+      try {
+        const { data: pf } = await supabase.from("project_frameworks").select("brand_name, local_competitors, global_benchmarks").eq("project_id", projectId).single();
+        await syncProjectBrands(supabase, projectId, { brandName: pf?.brand_name, locals: pf?.local_competitors || [], globals: pf?.global_benchmarks || [] });
+      } catch {}
+      try { refreshFramework?.(); } catch {}
+    }
     return error;
   };
 

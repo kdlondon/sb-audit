@@ -50,13 +50,17 @@ demás módulos (captura, scout, perfiles, reportes, showcase).
 
 **B) Manual** — `/settings` Landscape: alta/edición/baja de direct, adjacent y global.
 
-## 5. Modelo de datos objetivo — tabla `brands` (decisión: normalizar)
+## 5. Modelo de datos objetivo — tabla `project_brands` (decisión: normalizar)
 
 Consolidar los arrays de `project_frameworks` (+ `brand_competitors` legacy) en una tabla
 normalizada. Resuelve de una vez los gaps 1, 4, 5 y 6.
 
+> **Naming:** se llama `project_brands` (no `brands`) porque ya existe una tabla `brands`
+> legacy (workspace-scoped, usada por el camino `brand_id` + `brand_competitors`) — misma
+> colisión que obligó al rename `brand_profiles`→`brand_dna`.
+
 ```sql
-create table brands (
+create table project_brands (
   id             uuid primary key default gen_random_uuid(),
   project_id     text not null,
   name           text not null,
@@ -73,13 +77,17 @@ create table brands (
   created_at     timestamptz default now(),
   updated_at     timestamptz default now()
 );
-create index brands_project_idx on brands(project_id);
-create unique index brands_project_name_uidx on brands(project_id, lower(name));
+create index project_brands_project_idx on project_brands(project_id);
+create unique index project_brands_project_name_uidx on project_brands(project_id, lower(name));
 ```
 
-- `creative_source` gana `brand_id uuid` (FK, nullable en transición); se mantiene el string de marca para retro-compat y para contenido de marcas archivadas.
-- **Migración/backfill:** poblar `brands` desde `project_frameworks.local_competitors` (role=`direct`/`adjacent` según `type`), `global_benchmarks` (role=`global`), y `brand_name` (role=`principal`); marcas legacy desde `brand_competitors`. Luego los consumidores leen de `brands`.
-- `framework-loader` puede seguir exponiendo `localCompetitors/globalBenchmarks` derivados de `brands` para no romper consumidores durante la transición.
+- `creative_source` gana `brand_id uuid` (FK a `project_brands`, nullable en transición); se mantiene el string de marca para retro-compat y para contenido de marcas archivadas.
+- **Migración/backfill:** `MIGRATION_project_brands.sql` puebla desde `project_frameworks.local_competitors` (role=`direct`/`adjacent` según `type`), `global_benchmarks` (role=`global`), `brand_name` (role=`principal`) y, best-effort, el camino legacy `brand_competitors`+`brands` (cuando el own-brand tiene `project_id`). Idempotente.
+
+**Estrategia de transición (paso 1 — IMPLEMENTADO 2026-07-15):**
+- `lib/project-brands.js`: `listProjectBrands` · `deriveFrameworkLists` (deriva las shapes legacy desde filas) · `syncProjectBrands` (upsert por nombre normalizado + **archive-on-delete**).
+- Los dos loaders (`lib/framework-loader.js` server y `lib/framework-context.js` client) **prefieren `project_brands`** cuando tiene filas de competidores y caen a los arrays si no; además exponen `projectBrands[]` y `principalBrand`.
+- **Dual-write:** `persistFw()` en settings sigue escribiendo los arrays y sincroniza el registro tras cada escritura — cero divergencia mientras la UI siga sobre los arrays. El paso 2 mueve el CRUD de settings a `project_brands` directamente.
 
 ## 6. Feeds to (con cómo leen hoy)
 
