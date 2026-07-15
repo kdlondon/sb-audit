@@ -181,6 +181,8 @@ function IntelligenceContent() {
   const [dashDrill, setDashDrill] = useState(null);       // heatmap drill-down panel { label, entries }
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
+  // Deep-link: /intelligence?tab=brands (e.g. from onboarding's done screen)
+  useEffect(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); if (t) setTab(t); } catch {} }, []);
   const [insights, setInsights] = useState(null);
   const [insLoading, setInsLoading] = useState(false);
   const [insErr, setInsErr] = useState("");

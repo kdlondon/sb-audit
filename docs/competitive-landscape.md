@@ -94,6 +94,17 @@ estante "Archived" restaurable y aviso de entries conservados, AI-suggest escrib
 registro, y **reverse-sync**: cada mutación reescribe los arrays legacy de
 `project_frameworks` + `refreshFramework()` para que todos los consumidores se enteren.
 
+**Paso 3 — IMPLEMENTADO 2026-07-15 (onboarding):** el asistente ya NO busca contenido
+inicial de YouTube. Tras aprobar marcas: (a) `/api/brand-links` identifica en un solo
+call el website + IG/TikTok/YouTube oficiales de todas las marcas (con regla "si no
+estás seguro, vacío" — el analista corrige en el review o en Settings); (b) fase
+"create" = editor de links por marca (website destaca: alimenta el crawl); (c)
+`finalize()` escribe `project_brands` (principal + direct/adjacent + global con
+website/social) además de los arrays (compat), y (d) dispara la generación de **Brand
+DNA en background** por cada marca con website (`brand_dna_status` → generated/failed;
+la navegación SPA mantiene vivos los fetches). Done screen → "View brand profiles"
+(`/intelligence?tab=brands`, deep-link nuevo).
+
 **Estrategia de transición (paso 1 — IMPLEMENTADO 2026-07-15):**
 - `lib/project-brands.js`: `listProjectBrands` · `deriveFrameworkLists` (deriva las shapes legacy desde filas) · `syncProjectBrands` (upsert por nombre normalizado + **archive-on-delete**).
 - Los dos loaders (`lib/framework-loader.js` server y `lib/framework-context.js` client) **prefieren `project_brands`** cuando tiene filas de competidores y caen a los arrays si no; además exponen `projectBrands[]` y `principalBrand`.

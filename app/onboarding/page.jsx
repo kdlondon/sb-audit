@@ -17,8 +17,6 @@ const SUGGEST_MODEL = "claude-sonnet-4-6";
 const DEFAULT_INTENTS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"];
 const DEFAULT_DIMS = ["archetype", "tone", "execution", "funnel", "rating"];
 
-const fmtDur = (iso) => { if (!iso) return ""; const m = String(iso).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); if (!m) return ""; const h = +(m[1] || 0), mi = +(m[2] || 0), s = +(m[3] || 0); return h > 0 ? `${h}:${String(mi).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${mi}:${String(s).padStart(2, "0")}`; };
-
 function AIBubble({ children }) {
   return (
     <div className="flex gap-3 items-start">
@@ -54,11 +52,11 @@ function OnboardingContent() {
   const [profile, setProfile] = useState({ positioning: "", differentiator: "", audience: "" });
   const [localComps, setLocalComps] = useState([]);
   const [globalRefs, setGlobalRefs] = useState([]);
-  const [scoutResults, setScoutResults] = useState([]); // [{brandName, scope, video}]
-  const [acceptedVids, setAcceptedVids] = useState([]);
-  const [lightbox, setLightbox] = useState(null);
+  // Digital presence per participating brand: [{name, role, website, instagram, tiktok, youtube}]
+  const [brandLinks, setBrandLinks] = useState([]);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [dnaCount, setDnaCount] = useState(0);
   const [warnings, setWarnings] = useState([]);
 
   const addAI = (text) => setMsgs(m => [...m, { role: "ai", text }]);
@@ -105,36 +103,30 @@ function OnboardingContent() {
     setBusy(false);
   };
 
-  /* ── Scout (search + AI rank, like the Scout module) ── */
-  const runScout = async () => {
-    const all = [...localComps.filter(c => c.selected).slice(0, 7).map(c => ({ name: c.name, scope: "local" })), ...globalRefs.filter(g => g.selected).slice(0, 3).map(g => ({ name: g.name, scope: "global" }))];
-    if (!all.length) { addAI("No brands selected — you can add content later in Audit. Ready to create?"); setPhase("create"); return; }
+  /* ── Digital presence: identify each brand's website + socials (replaces the old
+        YouTube seed-content scout). These links feed the Brand DNA auto-crawl. ── */
+  const runLinks = async () => {
+    const all = [
+      ...(bp.name ? [{ name: bp.name, role: "principal" }] : []),
+      ...localComps.filter(c => c.selected).map(c => ({ name: c.name, role: /adjacent/i.test(c.proximity || "") ? "adjacent" : "direct" })),
+      ...globalRefs.filter(g => g.selected).map(g => ({ name: g.name, role: "global", country: g.country || "" })),
+    ];
+    if (!all.length) { addAI("No brands selected — ready to create?"); setPhase("create"); return; }
     setBusy(true);
-    addAI(`Scouting one hero ad per brand (official, last year, 30–90s) for ${all.length} brands…`);
-    const cutoff = new Date(Date.now() - 365 * 86400000).toISOString();
-    const results = [];
-    await Promise.all(all.map(async (brand) => {
-      try {
-        const sr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "search", query: `${brand.name} ad commercial`, maxResults: 30, finalLimit: 8, publishedAfter: cutoff, contentType: "official", minSeconds: 30, maxSeconds: 90 }) });
-        const sd = await sr.json();
-        // Backstop the duration filter (30–90s) in case the API returns longer pieces
-        let vids = (sd.videos || []).filter(v => !v.durationSeconds || (v.durationSeconds >= 30 && v.durationSeconds <= 90));
-        if (vids.length) {
-          try {
-            const rr = await fetch("/api/youtube-scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rank", brand: brand.name, keywords: brand.name, market: bp.market, videos: vids, model: "claude-opus-4-8" }) });
-            const rd = await rr.json();
-            if (Array.isArray(rd.videos) && rd.videos.length) vids = rd.videos.filter(v => !v.durationSeconds || (v.durationSeconds >= 30 && v.durationSeconds <= 90));
-          } catch {}
-        }
-        const best = vids[0];
-        if (best) results.push({ brandName: brand.name, scope: brand.scope, video: best });
-      } catch {}
-    }));
-    setScoutResults(results);
+    addAI(`Looking up each brand's website and social channels (Instagram, TikTok, YouTube) for ${all.length} brands…`);
+    let links = [];
+    try {
+      const res = await fetch("/api/brand-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brands: all.map(b => ({ name: b.name })), market: bp.market, industry: bp.category }) });
+      const d = await res.json();
+      links = Array.isArray(d.links) ? d.links : [];
+    } catch {}
+    const byName = {}; links.forEach(l => { byName[l.name.toLowerCase()] = l; });
+    setBrandLinks(all.map(b => { const l = byName[b.name.toLowerCase()] || {}; return { ...b, website: l.website || "", instagram: l.instagram || "", tiktok: l.tiktok || "", youtube: l.youtube || "" }; }));
     setBusy(false);
-    addAI(results.length ? "Done. Accept or skip each piece, then create the study." : "No good content found — you can add entries later in Audit. Ready to create?");
+    addAI("Here's what I found — review or correct anything (the website drives the automatic brand profile). Then create the study; I'll generate a first Brand DNA profile per brand from its site.");
     setPhase("create");
   };
+  const setLink = (i, key, v) => setBrandLinks(p => p.map((b, j) => j === i ? { ...b, [key]: v } : b));
 
   /* ── Save ── */
   const finalize = async () => {
@@ -164,14 +156,37 @@ function OnboardingContent() {
       const { error: pErr } = await supabase.from("projects").insert({ id: projectId, name: projectName, client_id: finalClientId, organization_id: orgId, created_by: email, description: [bp.category, bp.market && `Market: ${bp.market}`, profile.positioning].filter(Boolean).join(" · ") });
       if (pErr) throw new Error(`Couldn't create the project: ${pErr.message}`);
 
+      const linkOf = (name) => brandLinks.find(b => b.name.toLowerCase() === name.toLowerCase()) || {};
       const { error: fErr } = await supabase.from("project_frameworks").insert({
         project_id: projectId, name: `${bp.name} Framework`, tier: "essential",
         brand_name: bp.name, brand_positioning: profile.positioning || "", brand_differentiator: profile.differentiator || "", brand_audience: profile.audience || "", brand_description: "",
         industry: bp.category || "", primary_market: bp.market || "", language: "English", objectives,
         communication_intents: DEFAULT_INTENTS, standard_dimensions: DEFAULT_DIMS, brand_categories: ["Leader", "Challenger", "Niche", "Emerging", "Other"],
-        local_competitors: selLocal.map(c => ({ name: c.name, type: c.proximity || "direct" })), global_benchmarks: selGlobal.map(g => ({ name: g.name, country: g.country || "" })),
+        local_competitors: selLocal.map(c => ({ name: c.name, type: c.proximity || "direct", website: linkOf(c.name).website ? [linkOf(c.name).website] : undefined })),
+        global_benchmarks: selGlobal.map(g => ({ name: g.name, country: g.country || "", website: linkOf(g.name).website ? [linkOf(g.name).website] : undefined })),
       });
       if (fErr) throw new Error(`Project created but its framework couldn't be saved: ${fErr.message}`);
+
+      // Normalized registry (project_brands) — the Competitive Landscape source of truth.
+      const socialOf = (l) => Object.fromEntries(Object.entries({ instagram: l.instagram, tiktok: l.tiktok, youtube: l.youtube }).filter(([, v]) => v && v.trim()));
+      const pbRows = [
+        ...(bp.name ? [{ name: bp.name, role: "principal" }] : []),
+        ...selLocal.map((c, i) => ({ name: c.name, role: /adjacent/i.test(c.proximity || "") ? "adjacent" : "direct", sort_order: i })),
+        ...selGlobal.map((g, i) => ({ name: g.name, role: "global", country: g.country || null, sort_order: i })),
+      ].map(r => { const l = linkOf(r.name); return { ...r, project_id: projectId, website: (l.website || "").trim() || null, social: socialOf(l) }; });
+      const { data: pbInserted, error: pbErr } = await supabase.from("project_brands").insert(pbRows).select("id,name,website");
+      if (pbErr) warn.push(`brand registry (${pbErr.message})`);
+
+      // Auto-generate Brand DNA from each brand's website — fire in the background
+      // (client-side navigation keeps these fetches alive; status lands on each row).
+      const dnaTargets = (pbInserted || []).filter(r => r.website);
+      setDnaCount(dnaTargets.length);
+      dnaTargets.forEach(r => {
+        fetch("/api/intelligence/brand-dna", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, brand: r.name, url: r.website }) })
+          .then(res => res.json())
+          .then(d => supabase.from("project_brands").update({ brand_dna_status: d?.error ? "failed" : "generated" }).eq("id", r.id))
+          .catch(() => supabase.from("project_brands").update({ brand_dna_status: "failed" }).eq("id", r.id));
+      });
 
       const { error: aErr } = await supabase.from("project_access").insert({ user_id: session.user.id, email, project_id: projectId });
       if (aErr) warn.push(`access (${aErr.message})`);
@@ -185,24 +200,6 @@ function OnboardingContent() {
       ];
       const { error: dErr } = await supabase.from("dropdown_options").insert(defaults.map(d => ({ ...d, project_id: projectId })));
       if (dErr) warn.push(`dropdowns (${dErr.message})`);
-
-      // Fetch transcripts (parallel) so seed videos save with them too
-      const transcripts = {};
-      await Promise.all(acceptedVids.map(async (v) => {
-        try {
-          const r = await fetch("/api/youtube", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${v.videoId}` }) });
-          const m = await r.json();
-          if (m.transcript) transcripts[v.videoId] = m.transcript;
-        } catch {}
-      }));
-      let imported = 0;
-      for (let i = 0; i < acceptedVids.length; i++) {
-        const v = acceptedVids[i];
-        const entry = { id: String(Date.now()) + "_" + i, project_id: projectId, created_by: email, updated_at: new Date().toISOString(), url: `https://www.youtube.com/watch?v=${v.videoId}`, image_url: v.thumbnail || "", description: v.title || "", year: v.year || (v.publishedAt ? String(v.publishedAt).slice(0, 4) : ""), type: "Video", synopsis: v.description || "", transcript: transcripts[v.videoId] || "", scope: v.scope || "local", brand_name: v.brandName || "" };
-        if (v.scope === "global") entry.brand = v.brandName; else entry.competitor = v.brandName;
-        const { error: eErr } = await supabase.from("creative_source").insert(entry);
-        if (eErr) warn.push(`video "${(v.title || "").slice(0, 30)}" (${eErr.message})`); else imported++;
-      }
 
       selectProject?.(projectId, projectName);
       try { localStorage.setItem("sb-project-id", projectId); localStorage.setItem("sb-project-name", projectName); localStorage.setItem("sb-client-name", finalClientName); } catch {}
@@ -221,9 +218,6 @@ function OnboardingContent() {
   const toggleObj = (o) => setObjectives(p => p.includes(o) ? p.filter(x => x !== o) : [...p, o]);
   const toggleLocal = (i) => setLocalComps(p => p.map((c, j) => j === i ? { ...c, selected: !c.selected } : c));
   const toggleGlobal = (i) => setGlobalRefs(p => p.map((g, j) => j === i ? { ...g, selected: !g.selected } : g));
-  const accept = (r) => setAcceptedVids(a => [...a.filter(x => x.videoId !== r.video.videoId), { ...r.video, brandName: r.brandName, scope: r.scope }]);
-  const skip = (r) => setAcceptedVids(a => a.filter(x => x.videoId !== r.video.videoId));
-  const statusOf = (r) => acceptedVids.some(x => x.videoId === r.video.videoId) ? "accepted" : "skipped";
 
   if (done) {
     return (
@@ -232,8 +226,11 @@ function OnboardingContent() {
           <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accent flex items-center justify-center text-white text-xl">✓</div>
           <h1 className="text-xl font-bold text-main mb-2">Project created</h1>
           {warnings.length > 0 && <p className="text-xs text-amber-600 mb-3">Some extras didn't save: {warnings.join("; ")}.</p>}
-          <p className="text-sm text-muted mb-6">{acceptedVids.length} pieces imported. Personalize dimensions and the profile in Settings.</p>
-          <button onClick={() => router.push("/audit")} className="px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">Go to the project</button>
+          <p className="text-sm text-muted mb-6">{dnaCount > 0 ? `Generating ${dnaCount} Brand DNA profile${dnaCount > 1 ? "s" : ""} from each brand's website — first versions will appear in Intelligence → Brands in a couple of minutes. Keep this tab open while they finish.` : "Add each brand's website in Settings → Landscape to generate its Brand DNA profile."}</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => router.push("/intelligence?tab=brands")} className="px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">View brand profiles</button>
+            <button onClick={() => router.push("/audit")} className="px-5 py-2.5 border border-main rounded-lg text-sm text-main hover:bg-surface2">Go to the project</button>
+          </div>
         </div>
       </div>
     );
@@ -266,27 +263,23 @@ function OnboardingContent() {
             {globalRefs.map((g, i) => <button key={i} onClick={() => toggleGlobal(i)} className={`px-3 py-1.5 rounded-full text-xs border ${g.selected ? "border-[var(--accent)] text-main bg-[var(--accent-soft)]" : "border-main text-muted"}`}>{g.selected && "✓ "}{g.name}{g.country ? ` (${g.country})` : ""}</button>)}
           </div>
         )}
-        {phase === "create" && scoutResults.length > 0 && (
+        {phase === "create" && brandLinks.length > 0 && (
           <div className="pl-10 space-y-2">
-            {scoutResults.map((r, i) => {
-              const st = statusOf(r), v = r.video;
-              return (
-                <div key={i} className={`flex items-center gap-3 p-2 border border-main rounded-lg ${st === "skipped" ? "opacity-50" : ""}`}>
-                  <div className="relative w-20 h-12 flex-shrink-0 cursor-pointer" onClick={() => setLightbox(v.videoId)}>
-                    {v.thumbnail && <img src={v.thumbnail} alt="" className="w-full h-full object-cover rounded" />}
-                    {v.duration && <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[8px] px-1 rounded font-mono">{fmtDur(v.duration)}</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-main truncate">{v.title}</p>
-                    <p className="text-[10px] text-hint">{r.brandName} · {r.scope}{v.year || v.publishedAt ? ` · ${v.year || String(v.publishedAt).slice(0, 4)}` : ""}{v.channel ? ` · ${v.channel}` : ""}</p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => accept(r)} className={`px-2 py-1 rounded text-[10px] font-semibold ${st === "accepted" ? "bg-accent text-white" : "border border-main text-muted"}`}>{st === "accepted" ? "✓ Added" : "Add"}</button>
-                    <button onClick={() => skip(r)} className="px-2 py-1 border border-main rounded text-[10px] text-muted">Skip</button>
-                  </div>
+            {brandLinks.map((b, i) => (
+              <div key={i} className="p-3 border border-main rounded-lg bg-surface">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-main">{b.name}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${b.role === "principal" ? "text-white bg-[var(--accent)]" : b.role === "global" ? "bg-teal-50 text-teal-600 border border-teal-200" : "bg-surface2 text-hint"}`}>{b.role}</span>
+                  {!b.website && <span className="text-[9px] text-amber-600">no website — Brand DNA will be skipped</span>}
                 </div>
-              );
-            })}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input value={b.website} onChange={e => setLink(i, "website", e.target.value)} placeholder="Website (drives the brand profile)" className="px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-[11px] text-main focus:outline-none focus:border-[var(--accent)]" />
+                  <input value={b.instagram} onChange={e => setLink(i, "instagram", e.target.value)} placeholder="Instagram" className="px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-[11px] text-main focus:outline-none focus:border-[var(--accent)]" />
+                  <input value={b.tiktok} onChange={e => setLink(i, "tiktok", e.target.value)} placeholder="TikTok" className="px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-[11px] text-main focus:outline-none focus:border-[var(--accent)]" />
+                  <input value={b.youtube} onChange={e => setLink(i, "youtube", e.target.value)} placeholder="YouTube" className="px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-[11px] text-main focus:outline-none focus:border-[var(--accent)]" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -336,21 +329,13 @@ function OnboardingContent() {
             <>
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} placeholder="Add a reference" className={inputCls} />
               <button onClick={() => { if (input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} className="px-3 py-2.5 border border-main rounded-xl text-xs text-muted">Add</button>
-              <button onClick={() => { addUser(`${globalRefs.filter(g => g.selected).length} global references`); runScout(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
+              <button onClick={() => { addUser(`${globalRefs.filter(g => g.selected).length} global references`); runLinks(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
             </>
           )}
           {phase === "create" && <button onClick={finalize} disabled={saving || busy} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold disabled:opacity-40">{saving ? "Creating…" : "Create study"}</button>}
         </div>
       </div>
 
-      {/* lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={() => setLightbox(null)}>
-          <div className="w-full max-w-3xl aspect-video" onClick={e => e.stopPropagation()}>
-            <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${lightbox}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen className="rounded-lg" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
