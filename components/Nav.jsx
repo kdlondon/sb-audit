@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useBrand } from "@/lib/brand-context";
 import { useRole, canAccess } from "@/lib/role-context";
 import { useEffect, useState, useRef } from "react";
+import BrandDnaRunner from "@/components/BrandDnaRunner";
 
 const mainTabs = [
   { name: "Creative Source", href: "/audit", module: "audit" },
@@ -299,6 +300,8 @@ export default function Nav() {
     </div>
     {/* Spacer to offset fixed nav */}
     <div style={{ height: "var(--nav-h)" }} />
+    {/* Background Brand DNA queue + global progress pill (works on every page, resumes after interruptions) */}
+    <BrandDnaRunner />
     </>
   );
 }

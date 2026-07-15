@@ -123,7 +123,7 @@ function OnboardingContent() {
     const byName = {}; links.forEach(l => { byName[l.name.toLowerCase()] = l; });
     setBrandLinks(all.map(b => { const l = byName[b.name.toLowerCase()] || {}; return { ...b, website: l.website || "", instagram: l.instagram || "", tiktok: l.tiktok || "", youtube: l.youtube || "" }; }));
     setBusy(false);
-    addAI("Here's what I found — review or correct anything (the website drives the automatic brand profile). Then create the study; I'll generate a first Brand DNA profile per brand from its site.");
+    addAI("Here's what I could VERIFY — each link was checked against the live site, so empty fields mean I couldn't confirm an official one (better empty than wrong). Fill in what you know, then create the study; brand profiles will generate in the background from each website.");
     setPhase("create");
   };
   const setLink = (i, key, v) => setBrandLinks(p => p.map((b, j) => j === i ? { ...b, [key]: v } : b));
@@ -177,16 +177,10 @@ function OnboardingContent() {
       const { data: pbInserted, error: pbErr } = await supabase.from("project_brands").insert(pbRows).select("id,name,website");
       if (pbErr) warn.push(`brand registry (${pbErr.message})`);
 
-      // Auto-generate Brand DNA from each brand's website — fire in the background
-      // (client-side navigation keeps these fetches alive; status lands on each row).
-      const dnaTargets = (pbInserted || []).filter(r => r.website);
-      setDnaCount(dnaTargets.length);
-      dnaTargets.forEach(r => {
-        fetch("/api/intelligence/brand-dna", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, brand: r.name, url: r.website }) })
-          .then(res => res.json())
-          .then(d => supabase.from("project_brands").update({ brand_dna_status: d?.error ? "failed" : "generated" }).eq("id", r.id))
-          .catch(() => supabase.from("project_brands").update({ brand_dna_status: "failed" }).eq("id", r.id));
-      });
+      // Brand DNA generation is handled by the global background queue (BrandDnaRunner in
+      // Nav): rows stay "pending" here and the runner picks them up on the next page —
+      // resumable after interruptions, with a site-wide progress pill.
+      setDnaCount((pbInserted || []).filter(r => r.website).length);
 
       const { error: aErr } = await supabase.from("project_access").insert({ user_id: session.user.id, email, project_id: projectId });
       if (aErr) warn.push(`access (${aErr.message})`);
@@ -226,7 +220,7 @@ function OnboardingContent() {
           <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accent flex items-center justify-center text-white text-xl">✓</div>
           <h1 className="text-xl font-bold text-main mb-2">Project created</h1>
           {warnings.length > 0 && <p className="text-xs text-amber-600 mb-3">Some extras didn't save: {warnings.join("; ")}.</p>}
-          <p className="text-sm text-muted mb-6">{dnaCount > 0 ? `Generating ${dnaCount} Brand DNA profile${dnaCount > 1 ? "s" : ""} from each brand's website — first versions will appear in Intelligence → Brands in a couple of minutes. Keep this tab open while they finish.` : "Add each brand's website in Settings → Landscape to generate its Brand DNA profile."}</p>
+          <p className="text-sm text-muted mb-6">{dnaCount > 0 ? `${dnaCount} Brand DNA profile${dnaCount > 1 ? "s" : ""} will generate in the background — you can keep working anywhere; follow the progress pill (bottom right) and they'll land in Intelligence → Brands. If interrupted, it resumes on its own.` : "Add each brand's website in Settings → Landscape to generate its Brand DNA profile."}</p>
           <div className="flex gap-2 justify-center">
             <button onClick={() => router.push("/intelligence?tab=brands")} className="px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">View brand profiles</button>
             <button onClick={() => router.push("/audit")} className="px-5 py-2.5 border border-main rounded-lg text-sm text-main hover:bg-surface2">Go to the project</button>

@@ -123,6 +123,8 @@ export default function LandscapeRegistry({ projectId, orgId }) {
 
   const updateBrand = async (id, patch) => {
     const upd = { ...patch, updated_at: new Date().toISOString() };
+    // A new/changed website re-queues the Brand DNA crawl (the background runner picks it up).
+    if ("website" in patch && patch.website) upd.brand_dna_status = "pending";
     const { error } = await supabase.from("project_brands").update(upd).eq("id", id);
     if (error) { showToast("Error: " + error.message); return; }
     await reload();

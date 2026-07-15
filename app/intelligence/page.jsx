@@ -163,7 +163,8 @@ function IntelligenceContent() {
   };
   useEffect(() => { loadDna(); }, [projectId]);
   const genDna = async (brand) => {
-    const url = dnaUrl[brand] || dna[brand]?.[0]?.url || DEFAULT_BRAND_URL[brand.toLowerCase()] || "";
+    const regRow = (framework?.projectBrands || []).find(b => b.name === brand);
+    const url = dnaUrl[brand] || dna[brand]?.[0]?.url || regRow?.website || DEFAULT_BRAND_URL[brand.toLowerCase()] || "";
     if (!url || dnaGen) return;
     setDnaGen(brand);
     try {
@@ -350,7 +351,7 @@ function IntelligenceContent() {
       <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--sec-h) + 16px)" }}>
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
-        ) : d.total === 0 ? (
+        ) : d.total === 0 && tab !== "brands" ? (
           <p className="text-sm text-hint">No social content in this project yet. Import from Scout or Creative Source.</p>
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -600,7 +601,15 @@ function IntelligenceContent() {
           })()
         ) : tab === "brands" ? (
           (() => {
-            const brandList = (framework?.localCompetitors || []).map(b => b.name).filter(Boolean);
+            // Brand list from the Competitive Landscape registry (principal + direct/adjacent
+            // + global), with the registry website prefilled for the crawl. Falls back to the
+            // framework arrays, then to brands seen in content.
+            const reg = framework?.projectBrands || [];
+            const regWebsite = {}; reg.forEach(b => { if (b.website) regWebsite[b.name] = b.website; });
+            (framework?.localCompetitors || []).concat(framework?.globalBenchmarks || []).forEach(b => { const w = Array.isArray(b.website) ? b.website[0] : b.website; if (b?.name && w && !regWebsite[b.name]) regWebsite[b.name] = w; });
+            const brandList = reg.length
+              ? reg.map(b => b.name)
+              : (framework?.localCompetitors || []).map(b => b.name).filter(Boolean);
             const brands = brandList.length ? brandList : d.brands;
             return (
               <div>
@@ -613,7 +622,7 @@ function IntelligenceContent() {
                     const p = rec?.profile || {};
                     const claimHero = typeof p.claim === "string" ? p.claim : (p.claim?.hero || "");
                     const claimSeasonal = (p.claim && typeof p.claim === "object" && Array.isArray(p.claim.seasonal)) ? p.claim.seasonal.filter(Boolean) : [];
-                    const urlVal = dnaUrl[brand] ?? (versions[0]?.url || DEFAULT_BRAND_URL[brand.toLowerCase()] || "");
+                    const urlVal = dnaUrl[brand] ?? (versions[0]?.url || regWebsite[brand] || DEFAULT_BRAND_URL[brand.toLowerCase()] || "");
                     return (
                       <div key={brand} className="bg-surface border border-main rounded-xl p-5">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
