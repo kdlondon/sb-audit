@@ -2337,7 +2337,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const hasSocial=data.some(e=>e.type==="Social post"||e.custom_dimensions?._social?.content_pillar);
   const pillarOpts=[...new Set(data.map(e=>e.custom_dimensions?._social?.content_pillar).filter(Boolean))].sort();
   const socialFilters=hasSocial&&pillarOpts.length?[["content_pillar","Content pillar",pillarOpts]]:[];
-  const filterKeys=scope==="local"?[["competitor","Competitor"],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters];
+  // Competitor filter options: framework brands (localCompetitors already leads with the
+  // PRINCIPAL brand) ∪ legacy dropdown_options ∪ brands seen in content — so the study
+  // subject is always filterable, not just the competitors.
+  const competitorOpts=[...new Set([...localCompetitors.map(b=>b.name),...(OPTIONS.competitor||[]),...data.map(e=>e.competitor||e.brand_name||e.brand)].filter(v=>v&&v!=="Other"))];
+  const filterKeys=scope==="local"?[["competitor","Competitor",competitorOpts],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
