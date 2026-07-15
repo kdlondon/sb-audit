@@ -6,6 +6,20 @@
 -- Idempotent — safe to run more than once. Run in the Supabase SQL editor.
 -- ============================================================================
 
+-- An ORPHANED project_brands table (from an early design referenced in
+-- MIGRATION_frameworks.sql, different schema, unused by app code) may exist.
+-- If it lacks our `name` column, park it as project_brands_legacy (data kept).
+do $$
+begin
+  if exists (select 1 from information_schema.tables
+             where table_schema = 'public' and table_name = 'project_brands')
+     and not exists (select 1 from information_schema.columns
+                     where table_schema = 'public' and table_name = 'project_brands'
+                       and column_name = 'name') then
+    alter table project_brands rename to project_brands_legacy;
+  end if;
+end $$;
+
 create table if not exists project_brands (
   id               uuid primary key default gen_random_uuid(),
   project_id       text not null,
@@ -34,8 +48,10 @@ drop policy if exists project_brands_all on project_brands;
 create policy project_brands_all on project_brands for all using (true) with check (true);
 
 -- Content linkage (nullable during transition; brand string columns remain for
--- retro-compat and for content whose brand was archived).
-alter table creative_source add column if not exists brand_id uuid references project_brands(id) on delete set null;
+-- retro-compat and for content whose brand was archived). Named project_brand_id:
+-- creative_source.brand_id ALREADY exists and points at the legacy workspace
+-- `brands` table — different meaning, do not reuse.
+alter table creative_source add column if not exists project_brand_id uuid references project_brands(id) on delete set null;
 
 -- ============================================================================
 -- BACKFILL from project_frameworks (the current source of truth)

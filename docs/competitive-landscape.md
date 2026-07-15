@@ -81,7 +81,8 @@ create index project_brands_project_idx on project_brands(project_id);
 create unique index project_brands_project_name_uidx on project_brands(project_id, lower(name));
 ```
 
-- `creative_source` gana `brand_id uuid` (FK a `project_brands`, nullable en transición); se mantiene el string de marca para retro-compat y para contenido de marcas archivadas.
+- `creative_source` gana `project_brand_id uuid` (FK a `project_brands`, nullable en transición); se mantiene el string de marca para retro-compat y para contenido de marcas archivadas. **Ojo:** `creative_source.brand_id` ya existe y apunta al workspace legacy (`brands`) — significado distinto, no reutilizar.
+- **Colisión adicional detectada (2026-07-15):** en la DB vive una `project_brands` huérfana de un diseño anterior (referida en `MIGRATION_frameworks.sql`, esquema distinto, sin uso en código). La migración la renombra a `project_brands_legacy` antes de crear la nuestra.
 - **Migración/backfill:** `MIGRATION_project_brands.sql` puebla desde `project_frameworks.local_competitors` (role=`direct`/`adjacent` según `type`), `global_benchmarks` (role=`global`), `brand_name` (role=`principal`) y, best-effort, el camino legacy `brand_competitors`+`brands` (cuando el own-brand tiene `project_id`). Idempotente.
 
 **Estrategia de transición (paso 1 — IMPLEMENTADO 2026-07-15):**
