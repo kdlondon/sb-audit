@@ -123,7 +123,10 @@ export async function POST(request) {
   const diag = {};
   const target = url.startsWith("http") ? url : `https://${url}`;
   try { pages = await crawl(target, diag); } catch (e) { return Response.json({ error: "Crawl failed: " + e.message }, { status: 400 }); }
-  if (pages.length === 0) return Response.json({ error: `Could not fetch the website [v3 · home direct=${diag.direct || "n/a"} reader=${diag.reader || "n/a"}]` }, { status: 400 });
+  if (pages.length === 0) {
+    const hint = !process.env.JINA_API_KEY ? " This site blocks datacenter IPs — add JINA_API_KEY in Vercel (free key at jina.ai) to crawl bot-protected sites." : "";
+    return Response.json({ error: `Could not fetch the website [v3 · home direct=${diag.direct || "n/a"} reader=${diag.reader || "n/a"}].${hint}` }, { status: 400 });
+  }
   const siteContent = pages.map((p) => `--- ${p.label} (${p.url}) ---\nTitle: ${p.title}\nMeta: ${p.meta}\n${p.text}`).join("\n\n").slice(0, 26000);
 
   // VALIDATED — the brand's already-captured content

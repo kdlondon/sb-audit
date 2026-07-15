@@ -166,6 +166,9 @@ export default function ScoutPage() {
       const brands = new Set();
       // The configured competitor list (project framework) is the source of truth; union with
       // whatever brands already exist in captured content + legacy dropdown options.
+      // The PRINCIPAL brand (study subject) belongs in the list too.
+      const principal = framework?.principalBrand?.name || framework?.brandName;
+      if (principal) brands.add(principal);
       (framework?.localCompetitors || []).forEach(c => { if (c?.name) brands.add(c.name); });
       (framework?.globalBenchmarks || []).forEach(g => { if (g?.name) brands.add(g.name); });
       (entries || []).forEach(e => { if (e.brand_name) brands.add(e.brand_name); });

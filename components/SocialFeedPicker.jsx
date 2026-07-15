@@ -45,7 +45,14 @@ export default function SocialFeedPicker({
   const [pScope, setPScope] = useState(scope);
   const [pBrand, setPBrand] = useState("");
   const [pCountry, setPCountry] = useState(defaultCountry || framework?.primaryMarket || "");
-  const brandOptions = (pScope === "global" ? framework?.globalBenchmarks : framework?.localCompetitors) || [];
+  // Local scope includes the PRINCIPAL brand (the study subject) ahead of competitors.
+  const principalName = framework?.principalBrand?.name || framework?.brandName || "";
+  const brandOptions = pScope === "global"
+    ? (framework?.globalBenchmarks || [])
+    : [
+        ...(principalName && !(framework?.localCompetitors || []).some(c => c?.name === principalName) ? [{ name: principalName }] : []),
+        ...(framework?.localCompetitors || []),
+      ];
   const [platform, setPlatform] = useState(platforms[0]);
   const [handle, setHandle] = useState("");
   const [limit, setLimit] = useState(12);

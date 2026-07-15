@@ -25,7 +25,9 @@ const TONE_OPTIONS = [
   "Institutional", "Playful", "Urgent", "Other",
 ];
 
-const LANGUAGE_OPTIONS = ["English", "French", "Spanish", "Portuguese", "Italian"];
+// Same canonical values as onboarding (project_frameworks.language) — the AI prompts
+// consume the raw string, so onboarding and settings must speak the same names.
+const LANGUAGE_OPTIONS = ["Español", "English", "Português", "Français", "Deutsch", "Italiano"];
 
 /* ═══════════════════════════════════════════════════════════════
    TAXONOMY DROPDOWN — category/sub_category with "- Other"
@@ -408,21 +410,17 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       </div>
 
       {/* ── Analysis settings ── */}
+      {/* Communication intents were removed from this tab — they are part of the FRAMEWORK
+          and are managed in the Framework tab (still saved untouched on profile save). */}
       <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Analysis settings</h4>
 
-        <TagInput
-          label="Communication intents"
-          tags={communicationIntents}
-          onChange={setCommunicationIntents}
-          placeholder="e.g., Brand Hero, Product..."
-        />
-
         <div>
           <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Language</label>
+          <p className="text-[10px] text-hint mb-1.5">Every AI analysis, brand profile and report is written in this language.</p>
           <select value={language} onChange={(e) => setLanguage(e.target.value)}
             className="w-full px-3 py-2 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]">
-            {LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+            {[...LANGUAGE_OPTIONS, ...(LANGUAGE_OPTIONS.includes(language) ? [] : [language])].map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
       </div>
