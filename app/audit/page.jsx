@@ -397,7 +397,13 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     const market=framework.primaryMarket||"";
     const cat=framework.industry||"";
     const sub=framework.subCategory||"";
-    const locals=(framework.localCompetitors||[]).map((c,i)=>({id:`fw_l_${i}`,name:c.name,country:market,category:cat,sub_category:sub,fromFramework:true}));
+    // The PRINCIPAL brand (study subject) leads the local list — its own content is
+    // captured too (declared-vs-deployed analysis needs it).
+    const principal=framework.principalBrand?.name||framework.brandName;
+    const locals=[
+      ...(principal&&!(framework.localCompetitors||[]).some(c=>c?.name===principal)?[{id:"fw_principal",name:principal,country:market,category:cat,sub_category:sub,fromFramework:true}]:[]),
+      ...(framework.localCompetitors||[]).map((c,i)=>({id:`fw_l_${i}`,name:c.name,country:market,category:cat,sub_category:sub,fromFramework:true})),
+    ];
     const globals=(framework.globalBenchmarks||[]).map((g,i)=>({id:`fw_g_${i}`,name:g.name,country:g.country||"",category:cat,sub_category:sub,fromFramework:true}));
     if(locals.length)setLocalCompetitors(locals);
     if(globals.length)setGlobalBrands(globals);

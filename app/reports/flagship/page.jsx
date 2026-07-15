@@ -67,7 +67,8 @@ function FlagshipInner() {
     if (!projectId) return;
     (async () => {
       try {
-        const fwNames = [...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean);
+        // Principal brand first — "One brand" scope must offer the study subject too.
+        const fwNames = [...new Set([framework?.principalBrand?.name || framework?.brandName, ...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean))];
         const supabase = createClient();
         const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,communication_intent,year").eq("project_id", projectId);
         const rws = (data || []).map((r) => ({ brand: r.competitor || r.brand || r.brand_name || "—", intents: (r.communication_intent || "").split(",").map((x) => x.trim()).filter(Boolean), year: r.year }));

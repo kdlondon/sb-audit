@@ -655,7 +655,7 @@ function IntelligenceContent() {
             const groups = reg.length
               ? [["Principal brand", reg.filter(b => b.role === "principal")], ["Direct competitors", reg.filter(b => b.role === "direct")], ["Adjacent competitors", reg.filter(b => b.role === "adjacent")], ["Global references", reg.filter(b => b.role === "global")]]
                 .filter(([, items]) => items.length).map(([label, items]) => [label, items.map(b => b.name)])
-              : (() => { const names = (framework?.localCompetitors || []).map(b => b.name).filter(Boolean); return [["Brands", names.length ? names : d.brands]]; })();
+              : (() => { const names = [...new Set([framework?.principalBrand?.name || framework?.brandName, ...(framework?.localCompetitors || []).map(b => b.name)].filter(Boolean))]; return [["Brands", names.length ? names : d.brands]]; })();
             return (
               <div>
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-4">

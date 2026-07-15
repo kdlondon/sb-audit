@@ -67,7 +67,8 @@ function SocialInner() {
     if (!projectId) return;
     (async () => {
       try {
-        const fwNames = [...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean);
+        // Principal brand first — "One brand" scope must offer the study subject too.
+        const fwNames = [...new Set([framework?.principalBrand?.name || framework?.brandName, ...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean))];
         const supabase = createClient();
         const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,channel,year,custom_dimensions").eq("project_id", projectId);
         const parse = (cd) => { try { return typeof cd === "string" ? JSON.parse(cd) : (cd || {}); } catch { return {}; } };
