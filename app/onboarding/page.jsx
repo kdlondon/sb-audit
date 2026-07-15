@@ -216,7 +216,9 @@ function OnboardingContent() {
     addAI(t("linksSearching", all.length));
     let links = [];
     try {
-      const res = await fetch("/api/brand-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brands: all.map(b => ({ name: b.name })), market: bp.market, industry: bp.category }) });
+      // The principal brand travels with its positioning as a disambiguation hint —
+      // short names (e.g. "Insur") are ambiguous without it.
+      const res = await fetch("/api/brand-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brands: all.map(b => ({ name: b.name, country: b.country || "", hint: b.role === "principal" ? (profile.positioning || "").slice(0, 140) : "" })), market: bp.market, industry: bp.category }) });
       const d = await res.json();
       links = Array.isArray(d.links) ? d.links : [];
     } catch {}
