@@ -85,6 +85,15 @@ create unique index project_brands_project_name_uidx on project_brands(project_i
 - **Colisión adicional detectada (2026-07-15):** en la DB vive una `project_brands` huérfana de un diseño anterior (referida en `MIGRATION_frameworks.sql`, esquema distinto, sin uso en código). La migración la renombra a `project_brands_legacy` antes de crear la nuestra.
 - **Migración/backfill:** `MIGRATION_project_brands.sql` puebla desde `project_frameworks.local_competitors` (role=`direct`/`adjacent` según `type`), `global_benchmarks` (role=`global`), `brand_name` (role=`principal`) y, best-effort, el camino legacy `brand_competitors`+`brands` (cuando el own-brand tiene `project_id`). Idempotente.
 
+**Paso 2 — IMPLEMENTADO 2026-07-15:** `components/LandscapeRegistry.jsx` — CRUD del tab
+Landscape directo sobre `project_brands` cuando el proyecto tiene filas de competidores
+(fallback al camino legacy si no — p.ej. Scotiabank). Marca principal destacada (nombre
+read-only, viene del setup), grupos Direct/Global, filas adjacent dentro de Direct con
+badge, campos website + IG/TikTok/YouTube (`social` jsonb), remove = archivar con
+estante "Archived" restaurable y aviso de entries conservados, AI-suggest escribiendo al
+registro, y **reverse-sync**: cada mutación reescribe los arrays legacy de
+`project_frameworks` + `refreshFramework()` para que todos los consumidores se enteren.
+
 **Estrategia de transición (paso 1 — IMPLEMENTADO 2026-07-15):**
 - `lib/project-brands.js`: `listProjectBrands` · `deriveFrameworkLists` (deriva las shapes legacy desde filas) · `syncProjectBrands` (upsert por nombre normalizado + **archive-on-delete**).
 - Los dos loaders (`lib/framework-loader.js` server y `lib/framework-context.js` client) **prefieren `project_brands`** cuando tiene filas de competidores y caen a los arrays si no; además exponen `projectBrands[]` y `principalBrand`.

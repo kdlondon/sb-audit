@@ -10,6 +10,7 @@ import { useRole } from "@/lib/role-context";
 import { useFramework } from "@/lib/framework-context";
 import { SYSTEM_DIMENSIONS } from "@/lib/system-dimensions";
 import { syncProjectBrands } from "@/lib/project-brands";
+import LandscapeRegistry from "@/components/LandscapeRegistry";
 import CountryInput from "@/components/CountryInput";
 
 const BRAND_ARCHETYPES = [
@@ -503,6 +504,19 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
 function LandscapeTab({ brandId, orgId }) {
   const supabase = createClient();
   const { projectId } = useProject() || {};
+  // Registry-first: when the project has competitor rows in project_brands, the tab
+  // runs on the normalized registry (LandscapeRegistry). Legacy paths (brand_competitors
+  // or the framework arrays) remain the fallback — e.g. Scotiabank.
+  const [useRegistry, setUseRegistry] = useState(null); // null = checking
+  useEffect(() => {
+    if (!projectId) { setUseRegistry(false); return; }
+    (async () => {
+      try {
+        const { data } = await supabase.from("project_brands").select("id,role").eq("project_id", projectId).neq("role", "principal").limit(1);
+        setUseRegistry(!!(data && data.length));
+      } catch { setUseRegistry(false); }
+    })();
+  }, [projectId]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
@@ -933,6 +947,14 @@ function LandscapeTab({ brandId, orgId }) {
       </div>
     );
   };
+
+  // Registry-first rendering (all hooks above run unconditionally)
+  if (useRegistry === null) {
+    return <div className="p-10 text-center text-hint">Loading landscape...</div>;
+  }
+  if (useRegistry) {
+    return <LandscapeRegistry projectId={projectId} />;
+  }
 
   if (loading) {
     return <div className="p-10 text-center text-hint">Loading landscape...</div>;
