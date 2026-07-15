@@ -1,10 +1,11 @@
-// Identify + VERIFY each brand's official website and social channels (IG, TikTok, YouTube).
-// The AI proposes candidates; we then validate against the network and DROP anything we
-// can't confirm (an empty field the analyst fills beats a confident-looking wrong link):
-//  - website: must resolve via fetch (DNS failure / 5xx / 404 => invented or wrong)
-//  - instagram/tiktok: handle must match the brand name (kills similar-name brands) AND
-//    the profile URL must not 404
-//  - youtube: verified against the YouTube Data API (channel search) when the key exists
+// Identify + VERIFY each brand's official website and YouTube channel.
+// (Instagram/TikTok were removed: their pages can't be validated server-side — bot walls
+// return the same status for real and fake handles — so the analyst fills them manually.)
+//
+// Website strategy: the AI proposes up to 3 candidate domains per brand; we take the
+// first that (a) resolves, and (b) when HTML is readable, whose title/og metadata
+// actually mentions the brand — catching wrong-but-existing domains, not just invented
+// ones. YouTube: verified against the YouTube Data API channel search (2 query variants).
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -16,62 +17,67 @@ const BROWSER_HEADERS = {
 
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
 
-// Does the handle plausibly belong to the brand? Kills "similar name, different brand".
-function handleMatchesBrand(handle, brandName) {
-  const h = norm(handle), b = norm(brandName);
-  if (!h || !b) return false;
-  if (h.includes(b) || b.includes(h)) return true;
-  // multi-word brands: every significant word present in the handle
-  const words = String(brandName).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
-  return words.length > 1 && words.every((w) => h.includes(norm(w)));
+function nameAffinity(text, brandName) {
+  const t = norm(text), b = norm(brandName);
+  if (!t || !b) return false;
+  if (t.includes(b) || b.includes(t)) return true;
+  const words = String(brandName).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  return words.length > 0 && words.some((w) => t.includes(norm(w)));
 }
 
-const handleOf = (url) => {
-  const m = String(url).match(/(?:instagram\.com|tiktok\.com)\/@?([A-Za-z0-9._-]+)/) || String(url).match(/youtube\.com\/(?:@|c\/|user\/)?([A-Za-z0-9._-]+)/);
-  return m ? m[1] : "";
-};
-
-// Fetch with timeout. Returns the HTTP status, or 0 on DNS/network failure.
-async function statusOf(url, ms = 6000) {
+// Fetch a page: returns { status, html } — status 0 on DNS/network failure.
+async function probe(url, ms = 6000) {
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), ms);
     const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow", signal: controller.signal });
     clearTimeout(t);
-    return res.status;
-  } catch { return 0; }
+    let html = "";
+    if ((res.headers.get("content-type") || "").includes("text/html")) {
+      try { html = (await res.text()).slice(0, 20000); } catch {}
+    }
+    return { status: res.status, html };
+  } catch { return { status: 0, html: "" }; }
 }
 
-// Website is valid if the domain resolves and answers with anything but a hard miss.
-// 403/429 = bot-blocked but the site exists; 404/5xx/network-error = reject.
-async function validWebsite(url) {
-  if (!/^https?:\/\/.+\..+/.test(url)) return false;
-  const st = await statusOf(url);
-  return st > 0 && st !== 404 && st < 500;
-}
-
-// Social profile: handle must match the brand AND the page must not 404.
-async function validSocial(url, brandName) {
-  if (!/^https?:\/\/.+/.test(url)) return false;
-  const h = handleOf(url);
-  if (!h || !handleMatchesBrand(h, brandName)) return false;
-  const st = await statusOf(url);
-  return st > 0 && st !== 404 && st < 500;
-}
-
-// YouTube: real verification via the Data API — search channels by brand name and keep
-// the top result only if its title matches the brand. Falls back to link validation.
-async function youtubeFor(brandName, aiUrl, ytKey) {
-  if (ytKey) {
-    try {
-      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=3&q=${encodeURIComponent(brandName)}&key=${ytKey}`);
-      const d = await r.json();
-      const hit = (d.items || []).find((it) => handleMatchesBrand(it.snippet?.channelTitle || "", brandName) || handleMatchesBrand(brandName, it.snippet?.channelTitle || ""));
-      if (hit?.snippet?.channelId || hit?.id?.channelId) return `https://www.youtube.com/channel/${hit.id?.channelId || hit.snippet.channelId}`;
-    } catch {}
-    return ""; // API available but no confident match — leave empty
+// Validate a website candidate for a brand. Levels:
+//  2 = resolves AND page metadata mentions the brand (confirmed)
+//  1 = resolves but content unreadable/bot-blocked (plausible)
+//  0 = 404 / 5xx / DNS failure (invented or wrong)
+async function scoreWebsite(url, brandName) {
+  if (!/^https?:\/\/.+\..+/.test(url)) return 0;
+  const { status, html } = await probe(url);
+  if (status === 0 || status === 404 || status >= 500) return 0;
+  if (html) {
+    const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "");
+    const og = (html.match(/property=["']og:site_name["'][^>]*content=["']([^"']+)/i)?.[1] || "") + " " + (html.match(/content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i)?.[1] || "");
+    const domain = url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+    if (nameAffinity(title + " " + og + " " + domain, brandName)) return 2;
+    return 0; // readable page that never mentions the brand → wrong site
   }
-  return (await validSocial(aiUrl, brandName)) ? aiUrl : "";
+  // Bot-blocked (403/429…): can't read content — accept if the domain itself carries the name
+  const domain = url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+  return nameAffinity(domain, brandName) ? 2 : 1;
+}
+
+// YouTube via Data API: try two query variants, take the first channel whose title
+// matches the brand (either direction).
+async function youtubeFor(brandName, industry, ytKey) {
+  if (!ytKey) return "";
+  const queries = [brandName, `${brandName} ${industry || ""}`.trim()];
+  for (const q of queries) {
+    try {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=5&q=${encodeURIComponent(q)}&key=${ytKey}`);
+      const d = await r.json();
+      const hit = (d.items || []).find((it) => {
+        const title = it.snippet?.channelTitle || "";
+        return nameAffinity(title, brandName) || nameAffinity(brandName, title);
+      });
+      const id = hit?.id?.channelId || hit?.snippet?.channelId;
+      if (id) return `https://www.youtube.com/channel/${id}`;
+    } catch {}
+  }
+  return "";
 }
 
 export async function POST(request) {
@@ -82,17 +88,16 @@ export async function POST(request) {
   const list = (Array.isArray(brands) ? brands : []).map((b) => (typeof b === "string" ? { name: b } : b)).filter((b) => b?.name);
   if (!list.length) return Response.json({ links: [] });
 
-  const prompt = `For each of these ${industry || ""} brands${market ? ` (primary market: ${market})` : ""}, give their OFFICIAL digital presence.
+  const prompt = `For each of these ${industry || ""} brands${market ? ` (primary market: ${market})` : ""}, list up to 3 CANDIDATE official website URLs, most likely first.
 
 BRANDS:
 ${list.map((b) => `- ${b.name}`).join("\n")}
 
 Rules:
-- website: the brand's main official website URL (https://…). Prefer the market-specific domain when the market is given.
-- instagram / tiktok: the brand's main official account URL. "" if you are not CERTAIN it exists — a wrong link is worse than an empty one.
-- NEVER guess or construct plausible-looking domains/handles. When in doubt: "".
-- Return ONLY a raw JSON array, same order as the list, no markdown:
-[{"name":"Brand","website":"https://…","instagram":"","tiktok":""}]`;
+- Candidates = the brand's official main site. Prefer the market-specific domain when the market is given, but include the global .com as another candidate.
+- Only real domains you have seen for this exact brand. Do NOT construct plausible-looking domains.
+- Return ONLY a raw JSON array, same order, no markdown:
+[{"name":"Brand","websites":["https://…","https://…"]}]`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -107,23 +112,15 @@ Rules:
     try { parsed = JSON.parse(text); } catch { const m = text.match(/\[[\s\S]*\]/); if (m) { try { parsed = JSON.parse(m[0]); } catch {} } }
     const byName = {}; (Array.isArray(parsed) ? parsed : []).forEach((p) => { if (p?.name) byName[String(p.name).toLowerCase()] = p; });
 
-    // VERIFY every candidate against the network (all brands in parallel).
     const links = await Promise.all(list.map(async (b) => {
       const p = byName[String(b.name).toLowerCase()] || {};
-      const [webOk, igOk, ttOk, youtube] = await Promise.all([
-        p.website ? validWebsite(String(p.website).trim()) : false,
-        p.instagram ? validSocial(String(p.instagram).trim(), b.name) : false,
-        p.tiktok ? validSocial(String(p.tiktok).trim(), b.name) : false,
-        youtubeFor(b.name, String(p.youtube || "").trim(), ytKey),
-      ]);
-      return {
-        name: b.name,
-        website: webOk ? String(p.website).trim() : "",
-        instagram: igOk ? String(p.instagram).trim() : "",
-        tiktok: ttOk ? String(p.tiktok).trim() : "",
-        youtube,
-        verified: { website: webOk, instagram: igOk, tiktok: ttOk, youtube: !!youtube && !!ytKey },
-      };
+      const candidates = (Array.isArray(p.websites) ? p.websites : [p.website].filter(Boolean)).map((u) => String(u).trim()).filter(Boolean).slice(0, 3);
+      // Score all candidates in parallel; pick the best (confirmed > plausible).
+      const scores = await Promise.all(candidates.map((u) => scoreWebsite(u, b.name)));
+      let website = ""; let best = 0;
+      candidates.forEach((u, i) => { if (scores[i] > best) { best = scores[i]; website = u; } });
+      const youtube = await youtubeFor(b.name, industry, ytKey);
+      return { name: b.name, website, youtube, instagram: "", tiktok: "", verified: { website: best === 2, youtube: !!youtube } };
     }));
     return Response.json({ links });
   } catch (err) {

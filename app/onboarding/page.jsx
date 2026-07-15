@@ -6,6 +6,7 @@ import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
 import AuthGuard from "@/components/AuthGuard";
 import CountryInput from "@/components/CountryInput";
+import BrandDnaRunner from "@/components/BrandDnaRunner";
 
 const OBJECTIVES = [
   "Competitive positioning & messaging", "Identify white spaces / opportunities",
@@ -16,6 +17,53 @@ const CATEGORIES = ["Banking & Financial Services", "Insurance", "Fintech", "Ret
 const SUGGEST_MODEL = "claude-sonnet-4-6";
 const DEFAULT_INTENTS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"];
 const DEFAULT_DIMS = ["archetype", "tone", "execution", "funnel", "rating"];
+// Project language — EVERY AI call (profiles, analysis, reports) writes in it; foreign-language
+// sources get translated into it. Asked at the very start of the assistant.
+const LANGUAGES = ["Español", "English", "Português", "Français", "Deutsch", "Italiano"];
+
+// Live Brand-DNA progress on the done screen: polls project_brands and shows a bar +
+// per-brand status chips. Generation itself runs in BrandDnaRunner (mounted below),
+// so navigating away is safe — the queue resumes anywhere.
+function DnaProgress({ projectId }) {
+  const supabase = createClient();
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    if (!projectId) return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const { data } = await supabase.from("project_brands").select("name,website,brand_dna_status").eq("project_id", projectId).eq("archived", false).not("website", "is", null).order("sort_order");
+        if (alive) setRows((data || []).filter(r => r.website));
+      } catch {}
+    };
+    poll();
+    const t = setInterval(poll, 3000);
+    return () => { alive = false; clearInterval(t); };
+  }, [projectId]);
+  if (!rows.length) return null;
+  const done = rows.filter(r => r.brand_dna_status === "generated" || r.brand_dna_status === "failed").length;
+  const pct = Math.round((done / rows.length) * 100);
+  const finished = done === rows.length;
+  return (
+    <div className="text-left bg-surface border border-main rounded-xl p-4 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-main">{finished ? "Brand profiles ready" : "Generating brand profiles…"}</span>
+        <span className="text-[10px] text-hint font-mono">{done}/{rows.length}</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden mb-3" style={{ background: "var(--surface2)" }}>
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "var(--accent)" }} />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {rows.map(r => (
+          <span key={r.name} className={`text-[10px] px-2 py-0.5 rounded-full border ${r.brand_dna_status === "generated" ? "border-green-200 bg-green-50 text-green-700" : r.brand_dna_status === "failed" ? "border-red-200 bg-red-50 text-red-500" : r.brand_dna_status === "generating" ? "border-[var(--accent)] text-accent animate-pulse" : "border-main text-hint"}`}>
+            {r.brand_dna_status === "generated" ? "✓ " : r.brand_dna_status === "failed" ? "✕ " : ""}{r.name}
+          </span>
+        ))}
+      </div>
+      {rows.some(r => r.brand_dna_status === "failed") && <p className="text-[10px] text-hint mt-2">✕ = the website couldn't be crawled — fix the URL in Settings → Landscape and it will retry automatically.</p>}
+    </div>
+  );
+}
 
 function AIBubble({ children }) {
   return (
@@ -48,6 +96,8 @@ function OnboardingContent() {
   const [clientId, setClientId] = useState("");
   const [clientName, setClientName] = useState("");
   const [bp, setBp] = useState({ name: "", market: "", category: "" });
+  const [language, setLanguage] = useState("");
+  const [createdProjectId, setCreatedProjectId] = useState(null);
   const [objectives, setObjectives] = useState([]);
   const [profile, setProfile] = useState({ positioning: "", differentiator: "", audience: "" });
   const [localComps, setLocalComps] = useState([]);
@@ -160,7 +210,7 @@ function OnboardingContent() {
       const { error: fErr } = await supabase.from("project_frameworks").insert({
         project_id: projectId, name: `${bp.name} Framework`, tier: "essential",
         brand_name: bp.name, brand_positioning: profile.positioning || "", brand_differentiator: profile.differentiator || "", brand_audience: profile.audience || "", brand_description: "",
-        industry: bp.category || "", primary_market: bp.market || "", language: "English", objectives,
+        industry: bp.category || "", primary_market: bp.market || "", language: language || "English", objectives,
         communication_intents: DEFAULT_INTENTS, standard_dimensions: DEFAULT_DIMS, brand_categories: ["Leader", "Challenger", "Niche", "Emerging", "Other"],
         local_competitors: selLocal.map(c => ({ name: c.name, type: c.proximity || "direct", website: linkOf(c.name).website ? [linkOf(c.name).website] : undefined })),
         global_benchmarks: selGlobal.map(g => ({ name: g.name, country: g.country || "", website: linkOf(g.name).website ? [linkOf(g.name).website] : undefined })),
@@ -177,10 +227,11 @@ function OnboardingContent() {
       const { data: pbInserted, error: pbErr } = await supabase.from("project_brands").insert(pbRows).select("id,name,website");
       if (pbErr) warn.push(`brand registry (${pbErr.message})`);
 
-      // Brand DNA generation is handled by the global background queue (BrandDnaRunner in
-      // Nav): rows stay "pending" here and the runner picks them up on the next page —
-      // resumable after interruptions, with a site-wide progress pill.
+      // Brand DNA generation is handled by the global background queue (BrandDnaRunner —
+      // mounted on the done screen AND in Nav): rows stay "pending" and the runner picks
+      // them up immediately; resumable after interruptions.
       setDnaCount((pbInserted || []).filter(r => r.website).length);
+      setCreatedProjectId(projectId);
 
       const { error: aErr } = await supabase.from("project_access").insert({ user_id: session.user.id, email, project_id: projectId });
       if (aErr) warn.push(`access (${aErr.message})`);
@@ -205,6 +256,10 @@ function OnboardingContent() {
   const submitClient = () => {
     if (clientMode === "existing") { const c = clients.find(x => x.id === clientId); if (!c) return; setClientName(c.name); addUser(c.name); }
     else { if (!clientName.trim()) return; addUser(`${clientName.trim()} (new client)`); }
+    setPhase("language"); askAI("Which language should this project work in? Every AI analysis, brand profile and report will be written in it — content in other languages gets translated.");
+  };
+  const submitLanguage = (lang) => {
+    setLanguage(lang); addUser(lang);
     setPhase("brand"); askAI("Got it. What's the focus brand we'll be auditing?");
   };
   const submitText = (val, next, q) => { if (!val.trim()) return; addUser(val.trim()); setInput(""); setPhase(next); if (q) askAI(q); };
@@ -220,11 +275,14 @@ function OnboardingContent() {
           <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accent flex items-center justify-center text-white text-xl">✓</div>
           <h1 className="text-xl font-bold text-main mb-2">Project created</h1>
           {warnings.length > 0 && <p className="text-xs text-amber-600 mb-3">Some extras didn't save: {warnings.join("; ")}.</p>}
-          <p className="text-sm text-muted mb-6">{dnaCount > 0 ? `${dnaCount} Brand DNA profile${dnaCount > 1 ? "s" : ""} will generate in the background — you can keep working anywhere; follow the progress pill (bottom right) and they'll land in Intelligence → Brands. If interrupted, it resumes on its own.` : "Add each brand's website in Settings → Landscape to generate its Brand DNA profile."}</p>
+          <p className="text-sm text-muted mb-4">{dnaCount > 0 ? "Brand profiles are generating in the background — you can keep working anywhere; the queue continues and resumes on its own." : "Add each brand's website in Settings → Landscape to generate its Brand DNA profile."}</p>
+          <DnaProgress projectId={createdProjectId} />
           <div className="flex gap-2 justify-center">
             <button onClick={() => router.push("/intelligence?tab=brands")} className="px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90">View brand profiles</button>
             <button onClick={() => router.push("/audit")} className="px-5 py-2.5 border border-main rounded-lg text-sm text-main hover:bg-surface2">Go to the project</button>
           </div>
+          {/* The queue runner itself — starts generating right here on the done screen */}
+          <BrandDnaRunner />
         </div>
       </div>
     );
@@ -294,6 +352,12 @@ function OnboardingContent() {
               </div>
               <button onClick={submitClient} disabled={clientMode === "existing" ? !clientId : !clientName.trim()} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold disabled:opacity-40">Send</button>
             </>
+          )}
+          {phase === "language" && (
+            <div className="flex-1 flex gap-2 items-center flex-wrap">
+              {LANGUAGES.map(l => <button key={l} onClick={() => submitLanguage(l)} className="px-4 py-2 rounded-full text-xs font-medium border border-main text-main hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] transition">{l}</button>)}
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { submitLanguage(input.trim()); setInput(""); } }} placeholder="Other language…" className="px-3.5 py-2 bg-surface border border-main rounded-full text-xs text-main focus:outline-none focus:border-[var(--accent)] w-[160px]" />
+            </div>
           )}
           {phase === "brand" && <TextSend value={input} setValue={setInput} placeholder="Focus brand (e.g. Scotiabank)" onSend={() => { setBp(b => ({ ...b, name: input.trim() })); submitText(input, "market", "Which is the primary market?"); }} />}
           {phase === "market" && (

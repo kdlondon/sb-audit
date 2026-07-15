@@ -152,6 +152,16 @@ function IntelligenceContent() {
   const [dnaUrl, setDnaUrl] = useState({});     // brand -> url input
   const [dnaVer, setDnaVer] = useState({});     // brand -> selected version index
   const [dnaGen, setDnaGen] = useState("");     // brand currently generating
+  const [regBrands, setRegBrands] = useState([]); // Competitive Landscape registry rows (fresh from DB)
+  const loadRegistry = async () => {
+    if (!projectId) return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from("project_brands").select("name,role,website,brand_dna_status,sort_order").eq("project_id", projectId).eq("archived", false).order("sort_order");
+      setRegBrands(data || []);
+    } catch {}
+  };
+  useEffect(() => { loadRegistry(); }, [projectId]);
   const loadDna = async () => {
     if (!projectId) return;
     try {
@@ -184,6 +194,14 @@ function IntelligenceContent() {
   const [tab, setTab] = useState("dashboard");
   // Deep-link: /intelligence?tab=brands (e.g. from onboarding's done screen)
   useEffect(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); if (t) setTab(t); } catch {} }, []);
+  // Brands tab: refetch on entry and poll while open, so profiles appear as the
+  // background queue generates them (no manual refresh).
+  useEffect(() => {
+    if (tab !== "brands") return;
+    loadDna(); loadRegistry();
+    const t = setInterval(() => { loadDna(); loadRegistry(); }, 10000);
+    return () => clearInterval(t);
+  }, [tab, projectId]);
   const [insights, setInsights] = useState(null);
   const [insLoading, setInsLoading] = useState(false);
   const [insErr, setInsErr] = useState("");
@@ -601,21 +619,28 @@ function IntelligenceContent() {
           })()
         ) : tab === "brands" ? (
           (() => {
-            // Brand list from the Competitive Landscape registry (principal + direct/adjacent
-            // + global), with the registry website prefilled for the crawl. Falls back to the
+            // Brand list from the Competitive Landscape registry (fetched fresh from DB),
+            // GROUPED by tier: Principal · Direct · Adjacent · Global. Falls back to the
             // framework arrays, then to brands seen in content.
-            const reg = framework?.projectBrands || [];
+            const reg = regBrands.length ? regBrands : (framework?.projectBrands || []);
             const regWebsite = {}; reg.forEach(b => { if (b.website) regWebsite[b.name] = b.website; });
             (framework?.localCompetitors || []).concat(framework?.globalBenchmarks || []).forEach(b => { const w = Array.isArray(b.website) ? b.website[0] : b.website; if (b?.name && w && !regWebsite[b.name]) regWebsite[b.name] = w; });
-            const brandList = reg.length
-              ? reg.map(b => b.name)
-              : (framework?.localCompetitors || []).map(b => b.name).filter(Boolean);
-            const brands = brandList.length ? brandList : d.brands;
+            const statusOf = {}; reg.forEach(b => { statusOf[b.name] = b.brand_dna_status; });
+            const groups = reg.length
+              ? [["Principal brand", reg.filter(b => b.role === "principal")], ["Direct competitors", reg.filter(b => b.role === "direct")], ["Adjacent competitors", reg.filter(b => b.role === "adjacent")], ["Global references", reg.filter(b => b.role === "global")]]
+                .filter(([, items]) => items.length).map(([label, items]) => [label, items.map(b => b.name)])
+              : (() => { const names = (framework?.localCompetitors || []).map(b => b.name).filter(Boolean); return [["Brands", names.length ? names : d.brands]]; })();
             return (
               <div>
                 <p className="text-xs text-muted mb-4">Each brand's profile: <b>Expressed</b> (what its website says) vs <b>Validated</b> (what it actually does in its content). Enter a URL and generate; every update is saved as a version.</p>
+                {groups.map(([groupLabel, groupBrands]) => (
+                <div key={groupLabel} className="mb-7">
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint">{groupLabel}</h2>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-surface2 text-hint rounded-full">{groupBrands.length}</span>
+                </div>
                 <div className="space-y-5">
-                  {brands.map(brand => {
+                  {groupBrands.map(brand => {
                     const versions = dna[brand] || [];
                     const vi = dnaVer[brand] ?? 0;
                     const rec = versions[vi];
@@ -627,7 +652,12 @@ function IntelligenceContent() {
                       <div key={brand} className="bg-surface border border-main rounded-xl p-5">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
                           <div>
-                            <h3 className="text-base font-bold text-main">{brand}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-main">{brand}</h3>
+                              {!rec && statusOf[brand] === "generating" && <span className="text-[10px] px-2 py-0.5 rounded-full text-accent border border-[var(--accent)] animate-pulse">Generating…</span>}
+                              {!rec && statusOf[brand] === "pending" && regWebsite[brand] && <span className="text-[10px] px-2 py-0.5 rounded-full text-hint border border-main">Queued</span>}
+                              {!rec && statusOf[brand] === "failed" && <span className="text-[10px] px-2 py-0.5 rounded-full text-red-500 border border-red-200">Crawl failed — check the URL</span>}
+                            </div>
                             {rec && <span className="text-[10px] text-hint font-mono">Latest version · {new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length} versions` : ""}</span>}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -681,6 +711,8 @@ function IntelligenceContent() {
                     );
                   })}
                 </div>
+                </div>
+                ))}
               </div>
             );
           })()
