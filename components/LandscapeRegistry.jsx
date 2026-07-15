@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useFramework } from "@/lib/framework-context";
 import CountryInput from "@/components/CountryInput";
+import TaxonomyDropdown from "@/components/TaxonomyDropdown";
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 const SOCIALS = [
@@ -19,9 +20,10 @@ const SOCIALS = [
 ];
 const EMPTY_FORM = { name: "", country: "", category: "", sub_category: "", website: "", social: { instagram: "", tiktok: "", youtube: "" } };
 
-export default function LandscapeRegistry({ projectId }) {
+export default function LandscapeRegistry({ projectId, orgId }) {
   const supabase = createClient();
   const { framework, refreshFramework } = useFramework() || {};
+  const [taxonomyTerms, setTaxonomyTerms] = useState({});
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,34 @@ export default function LandscapeRegistry({ projectId }) {
   }, [projectId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Taxonomy (category / sub-category, sub filtered by its parent) — same source as settings.
+  const loadTaxonomy = useCallback(async () => {
+    const { data: terms } = await supabase.from("taxonomy_terms").select("*").eq("is_active", true).order("sort_order");
+    if (terms) {
+      const grouped = {};
+      terms.forEach((t) => { (grouped[t.taxonomy_type] ||= []).push({ ...t }); });
+      setTaxonomyTerms(grouped);
+    }
+  }, []);
+  useEffect(() => { loadTaxonomy(); }, [loadTaxonomy]);
+  const categoryOptions = (taxonomyTerms.category || []).map((t) => t.name);
+  const getSubCategoryOptions = (cat) => (taxonomyTerms.sub_category || [])
+    .filter((t) => {
+      if (!cat) return true;
+      const parentTerm = (taxonomyTerms.category || []).find((c) => c.name === cat);
+      return parentTerm ? t.parent_id === parentTerm.id : true;
+    })
+    .map((t) => t.name);
+  const addTaxonomyTerm = async (type, termName, parentCategory) => {
+    const insertData = { organization_id: orgId || null, taxonomy_type: type, name: termName, sort_order: 999, is_active: true };
+    if (type === "sub_category" && parentCategory) {
+      const parentTerm = (taxonomyTerms.category || []).find((c) => c.name === parentCategory);
+      if (parentTerm) insertData.parent_id = parentTerm.id;
+    }
+    await supabase.from("taxonomy_terms").insert(insertData);
+    await loadTaxonomy();
+  };
 
   // Reverse-sync: derive the legacy arrays from active rows and write them back to
   // project_frameworks, then refresh the framework context so every consumer updates.
@@ -200,18 +230,24 @@ export default function LandscapeRegistry({ projectId }) {
                 <CountryInput value={b.country || ""} onChange={(v) => updateBrand(b.id, { country: v })} />
               </div>
             </div>
-            {b.role !== "principal" && b.role !== "global" && (
+            {b.role !== "principal" && (
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Category</label>
-                  <input defaultValue={b.category || ""} onBlur={(e) => updateBrand(b.id, { category: e.target.value.trim() || null })}
-                    className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Sub-category</label>
-                  <input defaultValue={b.sub_category || ""} onBlur={(e) => updateBrand(b.id, { sub_category: e.target.value.trim() || null })}
-                    className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-                </div>
+                <TaxonomyDropdown
+                  label="Category"
+                  value={b.category || ""}
+                  options={categoryOptions}
+                  onChange={(v) => updateBrand(b.id, { category: v || null, sub_category: null })}
+                  onAddOther={(v) => addTaxonomyTerm("category", v)}
+                  placeholder="-- Category --"
+                />
+                <TaxonomyDropdown
+                  label="Sub-category"
+                  value={b.sub_category || ""}
+                  options={getSubCategoryOptions(b.category)}
+                  onChange={(v) => updateBrand(b.id, { sub_category: v || null })}
+                  onAddOther={(v) => addTaxonomyTerm("sub_category", v, b.category)}
+                  placeholder="-- Sub-category --"
+                />
               </div>
             )}
             <div>
@@ -245,20 +281,24 @@ export default function LandscapeRegistry({ projectId }) {
           <CountryInput value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Type country…" />
         </div>
       </div>
-      {role === "direct" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Category</label>
-            <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-          </div>
-          <div>
-            <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Sub-category</label>
-            <input value={form.sub_category} onChange={(e) => setForm({ ...form, sub_category: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-accent" />
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-3">
+        <TaxonomyDropdown
+          label="Category"
+          value={form.category}
+          options={categoryOptions}
+          onChange={(v) => setForm({ ...form, category: v, sub_category: "" })}
+          onAddOther={(v) => addTaxonomyTerm("category", v)}
+          placeholder="-- Category --"
+        />
+        <TaxonomyDropdown
+          label="Sub-category"
+          value={form.sub_category}
+          options={getSubCategoryOptions(form.category)}
+          onChange={(v) => setForm({ ...form, sub_category: v })}
+          onAddOther={(v) => addTaxonomyTerm("sub_category", v, form.category)}
+          placeholder="-- Sub-category --"
+        />
+      </div>
       <div>
         <label className="block text-[10px] text-muted uppercase font-semibold mb-1">Website</label>
         <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://…"
