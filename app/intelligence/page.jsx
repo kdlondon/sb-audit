@@ -153,6 +153,32 @@ function IntelligenceContent() {
   const [dnaVer, setDnaVer] = useState({});     // brand -> selected version index
   const [dnaGen, setDnaGen] = useState("");     // brand currently generating
   const [regBrands, setRegBrands] = useState([]); // Competitive Landscape registry rows (fresh from DB)
+  const [openBrand, setOpenBrand] = useState(null); // brands-tab accordion (collapsed by default)
+  const [printAll, setPrintAll] = useState(false);  // print-friendly render of ALL profiles → PDF
+  useEffect(() => {
+    if (!printAll) return;
+    const done = () => setPrintAll(false);
+    window.addEventListener("afterprint", done);
+    const t = setTimeout(() => window.print(), 150);
+    return () => { clearTimeout(t); window.removeEventListener("afterprint", done); };
+  }, [printAll]);
+  // Excel-friendly CSV with every brand's latest profile.
+  const exportCsv = () => {
+    const roleOf = {}; regBrands.forEach(b => { roleOf[b.name] = b.role; });
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""').replace(/\n/g, " ")}"`;
+    const rows = [["Brand", "Group", "Website", "Purpose", "Hero claim", "Positioning", "Segments", "Discourse", "Expressed role", "Tone", "Personality", "Archetype", "Validated role", "Gap"]];
+    const names = regBrands.length ? regBrands.map(b => b.name) : Object.keys(dna);
+    names.forEach(brand => {
+      const rec = (dna[brand] || [])[0]; const p = rec?.profile || {};
+      const claimHero = typeof p.claim === "string" ? p.claim : (p.claim?.hero || "");
+      rows.push([brand, roleOf[brand] || "", rec?.url || "", p.purpose, claimHero, p.positioning, Array.isArray(p.segments) ? p.segments.join(" · ") : p.segments, p.discourse, p.role?.expressed, p.tone, p.personality, p.archetype, p.role?.validated, p.role?.gap].map(esc).join(","));
+    });
+    const csv = "﻿" + rows.map(r => Array.isArray(r) ? r.map(esc).join(",") : r).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `brand-profiles-${projectName || "project"}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
   const loadRegistry = async () => {
     if (!projectId) return;
     try {
@@ -632,14 +658,20 @@ function IntelligenceContent() {
               : (() => { const names = (framework?.localCompetitors || []).map(b => b.name).filter(Boolean); return [["Brands", names.length ? names : d.brands]]; })();
             return (
               <div>
-                <p className="text-xs text-muted mb-4">Each brand's profile: <b>Expressed</b> (what its website says) vs <b>Validated</b> (what it actually does in its content). Enter a URL and generate; every update is saved as a version.</p>
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+                  <p className="text-xs text-muted">Each brand's profile: <b>Expressed</b> (what its website says) vs <b>Validated</b> (what it actually does in its content). Click a brand to open its card.</p>
+                  <div className="flex gap-2">
+                    <button onClick={exportCsv} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Excel</button>
+                    <button onClick={() => setPrintAll(true)} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ PDF</button>
+                  </div>
+                </div>
                 {groups.map(([groupLabel, groupBrands]) => (
                 <div key={groupLabel} className="mb-7">
                 <div className="flex items-center gap-2 mb-3">
                   <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint">{groupLabel}</h2>
                   <span className="text-[10px] px-1.5 py-0.5 bg-surface2 text-hint rounded-full">{groupBrands.length}</span>
                 </div>
-                <div className="space-y-5">
+                <div className="space-y-2">
                   {groupBrands.map(brand => {
                     const versions = dna[brand] || [];
                     const vi = dnaVer[brand] ?? 0;
@@ -648,23 +680,27 @@ function IntelligenceContent() {
                     const claimHero = typeof p.claim === "string" ? p.claim : (p.claim?.hero || "");
                     const claimSeasonal = (p.claim && typeof p.claim === "object" && Array.isArray(p.claim.seasonal)) ? p.claim.seasonal.filter(Boolean) : [];
                     const urlVal = dnaUrl[brand] ?? (versions[0]?.url || regWebsite[brand] || DEFAULT_BRAND_URL[brand.toLowerCase()] || "");
+                    const open = openBrand === brand;
                     return (
-                      <div key={brand} className="bg-surface border border-main rounded-xl p-5">
-                        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-base font-bold text-main">{brand}</h3>
-                              {!rec && statusOf[brand] === "generating" && <span className="text-[10px] px-2 py-0.5 rounded-full text-accent border border-[var(--accent)] animate-pulse">Generating…</span>}
-                              {!rec && statusOf[brand] === "pending" && regWebsite[brand] && <span className="text-[10px] px-2 py-0.5 rounded-full text-hint border border-main">Queued</span>}
-                              {!rec && statusOf[brand] === "failed" && <span className="text-[10px] px-2 py-0.5 rounded-full text-red-500 border border-red-200">Crawl failed — check the URL</span>}
-                            </div>
-                            {rec && <span className="text-[10px] text-hint font-mono">Latest version · {new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length} versions` : ""}</span>}
+                      <div key={brand} className="bg-surface border border-main rounded-xl overflow-hidden">
+                        {/* Accordion header — collapsed by default */}
+                        <button onClick={() => setOpenBrand(open ? null : brand)} className="w-full text-left px-5 py-3.5 flex items-center gap-3 hover:bg-surface2 transition">
+                          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                            <h3 className="text-[15px] font-bold text-main">{brand}</h3>
+                            {(dnaGen === brand || (!rec && statusOf[brand] === "generating")) && <span className="text-[10px] px-2 py-0.5 rounded-full text-accent border border-[var(--accent)] animate-pulse">Generating…</span>}
+                            {!rec && dnaGen !== brand && statusOf[brand] === "pending" && regWebsite[brand] && <span className="text-[10px] px-2 py-0.5 rounded-full text-hint border border-main">Queued</span>}
+                            {!rec && statusOf[brand] === "failed" && <span className="text-[10px] px-2 py-0.5 rounded-full text-red-500 border border-red-200">Crawl failed</span>}
+                            {rec && <span className="text-[10px] px-2 py-0.5 rounded-full border border-green-200 bg-green-50 text-green-700">✓ Profile</span>}
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Latest" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
-                            <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://brand.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[200px]" />
-                            <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analyzing…" : rec ? "Update" : "Generate profile"}</button>
-                          </div>
+                          {rec && <span className="text-[10px] text-hint font-mono hidden md:inline">{new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length}v` : ""}</span>}
+                          <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition flex-shrink-0 ${open ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3" /></svg>
+                        </button>
+                        {open && (
+                        <div className="px-5 pb-5 border-t border-main pt-4">
+                        <div className="flex items-center gap-2 flex-wrap mb-3">
+                          {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Latest" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
+                          <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://brand.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[220px]" />
+                          <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analyzing…" : rec ? "Update" : "Generate profile"}</button>
                         </div>
                         {dnaGen === brand && <p className="text-xs text-accent animate-pulse">Crawling the site and cross-referencing its content… (~25s)</p>}
                         {rec && (
@@ -707,12 +743,54 @@ function IntelligenceContent() {
                             )}
                           </div>
                         )}
+                        </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
                 </div>
                 ))}
+
+                {/* Print-only render: ALL profiles expanded → ↓ PDF */}
+                {printAll && (
+                  <div id="brands-print">
+                    <style>{`#brands-print { display: none; } @media print { body * { visibility: hidden; } #brands-print, #brands-print * { visibility: visible; } #brands-print { display: block; position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
+                    <div style={{ fontFamily: "system-ui, sans-serif", color: "#111" }}>
+                      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>Brand profiles — {projectName}</h1>
+                      <p style={{ fontSize: 10, color: "#888", marginBottom: 16 }}>Generated by Groundwork · {new Date().toLocaleDateString()}</p>
+                      {groups.map(([groupLabel, groupBrands]) => (
+                        <div key={groupLabel}>
+                          <h2 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", margin: "18px 0 8px" }}>{groupLabel}</h2>
+                          {groupBrands.map(brand => {
+                            const rec = (dna[brand] || [])[0]; const p = rec?.profile || {};
+                            const claimHero = typeof p.claim === "string" ? p.claim : (p.claim?.hero || "");
+                            const F = ({ l, v }) => v ? <p style={{ fontSize: 11, margin: "3px 0" }}><b style={{ color: "#555" }}>{l}:</b> {v}</p> : null;
+                            return (
+                              <div key={brand} style={{ border: "1px solid #ddd", borderRadius: 8, padding: "12px 14px", marginBottom: 10, pageBreakInside: "avoid" }}>
+                                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{brand}</h3>
+                                {rec ? (<>
+                                  <F l="Website" v={rec.url} />
+                                  <F l="Purpose" v={p.purpose} />
+                                  <F l="Hero claim" v={claimHero} />
+                                  <F l="Positioning" v={p.positioning} />
+                                  <F l="Segments" v={Array.isArray(p.segments) ? p.segments.join(" · ") : p.segments} />
+                                  <F l="Discourse" v={p.discourse} />
+                                  <F l="Expressed role" v={p.role?.expressed} />
+                                  <F l="Tone" v={p.tone} />
+                                  <F l="Personality" v={p.personality} />
+                                  <F l="Archetype" v={p.archetype} />
+                                  <F l="Validated role" v={p.role?.validated} />
+                                  <F l="Gap" v={p.role?.gap} />
+                                </>) : <p style={{ fontSize: 11, color: "#999", fontStyle: "italic" }}>No profile generated yet</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()

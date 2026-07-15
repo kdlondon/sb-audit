@@ -18,8 +18,53 @@ const SUGGEST_MODEL = "claude-sonnet-4-6";
 const DEFAULT_INTENTS = ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"];
 const DEFAULT_DIMS = ["archetype", "tone", "execution", "funnel", "rating"];
 // Project language — EVERY AI call (profiles, analysis, reports) writes in it; foreign-language
-// sources get translated into it. Asked at the very start of the assistant.
+// sources get translated into it. Asked as the VERY FIRST question; the assistant chat itself
+// switches to the chosen language (Spanish fully translated; others fall back to English).
 const LANGUAGES = ["Español", "English", "Português", "Français", "Deutsch", "Italiano"];
+const MSGS = {
+  English: {
+    client: "Great. Which client is this study for?",
+    brand: "Got it. What's the focus brand we'll be auditing?",
+    market: "Which is the primary market?",
+    category: "What category or industry are they in?",
+    objectives: "What are the objectives of this study? (pick any)",
+    vp: "Now the part only you know — what's the value proposition / positioning?",
+    diff: "And the key differentiator?",
+    audience: "Briefly, who's the target audience?",
+    localFound: (n) => `Here are ${n} local competitors I found. Toggle any off, or add your own, then continue.`,
+    localFail: "I couldn't find competitors automatically — add them manually below.",
+    globalFound: (n) => `And ${n} global references worth benchmarking — same category, international leaders. Adjust and continue.`,
+    globalFail: "No global references found — add them manually below.",
+    linksSearching: (n) => `Looking up and verifying each brand's website and YouTube channel for ${n} brands (checked against the study category and market)…`,
+    linksDone: "Here's what I could VERIFY against each site's real content — empty fields mean I couldn't confirm an official one (better empty than wrong). Fill in what you know; Instagram/TikTok are always manual. Then create the study.",
+    noBrands: "No brands selected — ready to create?",
+    phBrand: "Focus brand (e.g. Scotiabank)", phMarket: "Primary market", phCategory: "Category / industry",
+    phVp: "Value proposition / positioning", phDiff: "Key differentiator", phAudience: "Audience summary",
+    phAddComp: "Add a competitor", phAddRef: "Add a reference", phNewClient: "New client name", phSelClient: "Select a client…", phOtherLang: "Other language…",
+    nLocal: (n) => `${n} local competitors`, nGlobal: (n) => `${n} global references`,
+  },
+  "Español": {
+    client: "Perfecto. ¿Para qué cliente es este estudio?",
+    brand: "Anotado. ¿Cuál es la marca principal que vamos a auditar?",
+    market: "¿Cuál es el mercado principal?",
+    category: "¿En qué categoría o industria compite?",
+    objectives: "¿Cuáles son los objetivos del estudio? (elige los que quieras)",
+    vp: "Ahora la parte que solo tú sabes — ¿cuál es la propuesta de valor / posicionamiento?",
+    diff: "¿Y el diferenciador clave?",
+    audience: "Brevemente, ¿quién es la audiencia objetivo?",
+    localFound: (n) => `Encontré ${n} competidores locales. Desactiva los que no apliquen o añade los tuyos, y continúa.`,
+    localFail: "No pude encontrar competidores automáticamente — añádelos manualmente abajo.",
+    globalFound: (n) => `Y ${n} referencias globales para benchmarking — misma categoría, líderes internacionales. Ajusta y continúa.`,
+    globalFail: "No encontré referencias globales — añádelas manualmente abajo.",
+    linksSearching: (n) => `Buscando y verificando la web y el canal de YouTube de ${n} marcas (contrastado con la categoría y el mercado del estudio)…`,
+    linksDone: "Esto es lo que pude VERIFICAR contra el contenido real de cada web — los campos vacíos significan que no pude confirmar el oficial (mejor vacío que incorrecto). Completa lo que sepas; Instagram/TikTok siempre son manuales. Luego crea el estudio.",
+    noBrands: "No hay marcas seleccionadas — ¿listo para crear?",
+    phBrand: "Marca principal (p.ej. Iberia)", phMarket: "Mercado principal", phCategory: "Categoría / industria",
+    phVp: "Propuesta de valor / posicionamiento", phDiff: "Diferenciador clave", phAudience: "Resumen de la audiencia",
+    phAddComp: "Añadir un competidor", phAddRef: "Añadir una referencia", phNewClient: "Nombre del nuevo cliente", phSelClient: "Selecciona un cliente…", phOtherLang: "Otro idioma…",
+    nLocal: (n) => `${n} competidores locales`, nGlobal: (n) => `${n} referencias globales`,
+  },
+};
 
 // Live Brand-DNA progress on the done screen: polls project_brands and shows a bar +
 // per-brand status chips. Generation itself runs in BrandDnaRunner (mounted below),
@@ -86,7 +131,7 @@ function OnboardingContent() {
 
   const scrollRef = useRef(null);
   const [msgs, setMsgs] = useState([]);
-  const [phase, setPhase] = useState("client");
+  const [phase, setPhase] = useState("language"); // language is ALWAYS the first question
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -113,6 +158,8 @@ function OnboardingContent() {
   const addUser = (text) => setMsgs(m => [...m, { role: "user", text }]);
   // Show a brief "typing" indicator before the assistant's next message.
   const askAI = async (text) => { setBusy(true); await new Promise(r => setTimeout(r, 650)); setBusy(false); addAI(text); };
+  // Chat copy in the chosen project language (Spanish translated; others fall back to English).
+  const t = (key, ...args) => { const d = MSGS[language] || MSGS.English; const v = d[key] ?? MSGS.English[key]; return typeof v === "function" ? v(...args) : v; };
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgs, phase, busy]);
 
@@ -125,45 +172,48 @@ function OnboardingContent() {
         if (own) { setClientMode("existing"); setClientId(own.id); setClientName(own.name); }
       }
     })();
-    addAI("Hi! I'm your study setup assistant. Let's create a competitive intelligence project.\n\nFirst — which client is this study for?");
+    addAI("Hi! I'm your study setup assistant. / ¡Hola! Soy tu asistente de configuración.\n\nFirst — which language should this project work in? Every AI analysis, brand profile and report will be written in it.\n¿En qué idioma quieres configurar el proyecto? Todos los análisis, perfiles y reportes se escribirán en él.");
   }, []);
 
   /* ── AI suggestions ── */
   const fetchLocal = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/suggest-competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_name: bp.name, industry: bp.category, market: bp.market, type: "local", model: SUGGEST_MODEL }) });
+      const res = await fetch("/api/suggest-competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_name: bp.name, industry: bp.category, market: bp.market, positioning: profile.positioning, type: "local", model: SUGGEST_MODEL }) });
       const d = await res.json();
       const s = Array.isArray(d.suggestions) ? d.suggestions : [];
       setLocalComps(s.map(x => ({ name: x.name, proximity: x.type || "direct", selected: true })));
-      addAI(s.length ? `Here are ${s.length} local competitors I found. Toggle any off, or add your own, then continue.` : "I couldn't find competitors automatically — add them manually below.");
-    } catch { addAI("Couldn't reach the AI — add competitors manually below."); }
+      addAI(s.length ? t("localFound", s.length) : t("localFail"));
+    } catch { addAI(t("localFail")); }
     setBusy(false);
   };
   const fetchGlobal = async () => {
     setBusy(true);
     try {
       const exclude = [bp.name, ...localComps.map(c => c.name)].filter(Boolean).join(", ");
-      const res = await fetch("/api/suggest-competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_name: bp.name, industry: bp.category, type: "global", exclude, model: SUGGEST_MODEL }) });
+      // positioning + market give the API the sub-category nuance and the home market to
+      // exclude — global refs must be SAME-CATEGORY leaders (UK/US/EU/LATAM priority).
+      const res = await fetch("/api/suggest-competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_name: bp.name, industry: bp.category, market: bp.market, positioning: profile.positioning, type: "global", exclude, model: SUGGEST_MODEL }) });
       const d = await res.json();
       const s = Array.isArray(d.suggestions) ? d.suggestions : [];
       setGlobalRefs(s.map(x => ({ name: x.name, country: x.country || "", selected: true })));
-      addAI(s.length ? `And ${s.length} global references worth benchmarking. Adjust and continue.` : "No global references found — add them manually below.");
-    } catch { addAI("Couldn't reach the AI — add references manually below."); }
+      addAI(s.length ? t("globalFound", s.length) : t("globalFail"));
+    } catch { addAI(t("globalFail")); }
     setBusy(false);
   };
 
   /* ── Digital presence: identify each brand's website + socials (replaces the old
         YouTube seed-content scout). These links feed the Brand DNA auto-crawl. ── */
-  const runLinks = async () => {
+  const runLinks = async (globalOverride) => {
+    const globals = globalOverride || globalRefs; // Continue may flush a just-typed name — state not applied yet
     const all = [
       ...(bp.name ? [{ name: bp.name, role: "principal" }] : []),
       ...localComps.filter(c => c.selected).map(c => ({ name: c.name, role: /adjacent/i.test(c.proximity || "") ? "adjacent" : "direct" })),
-      ...globalRefs.filter(g => g.selected).map(g => ({ name: g.name, role: "global", country: g.country || "" })),
+      ...globals.filter(g => g.selected).map(g => ({ name: g.name, role: "global", country: g.country || "" })),
     ];
-    if (!all.length) { addAI("No brands selected — ready to create?"); setPhase("create"); return; }
+    if (!all.length) { addAI(t("noBrands")); setPhase("create"); return; }
     setBusy(true);
-    addAI(`Looking up each brand's website and social channels (Instagram, TikTok, YouTube) for ${all.length} brands…`);
+    addAI(t("linksSearching", all.length));
     let links = [];
     try {
       const res = await fetch("/api/brand-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brands: all.map(b => ({ name: b.name })), market: bp.market, industry: bp.category }) });
@@ -173,7 +223,7 @@ function OnboardingContent() {
     const byName = {}; links.forEach(l => { byName[l.name.toLowerCase()] = l; });
     setBrandLinks(all.map(b => { const l = byName[b.name.toLowerCase()] || {}; return { ...b, website: l.website || "", instagram: l.instagram || "", tiktok: l.tiktok || "", youtube: l.youtube || "" }; }));
     setBusy(false);
-    addAI("Here's what I could VERIFY — each link was checked against the live site, so empty fields mean I couldn't confirm an official one (better empty than wrong). Fill in what you know, then create the study; brand profiles will generate in the background from each website.");
+    addAI(t("linksDone"));
     setPhase("create");
   };
   const setLink = (i, key, v) => setBrandLinks(p => p.map((b, j) => j === i ? { ...b, [key]: v } : b));
@@ -253,14 +303,15 @@ function OnboardingContent() {
   };
 
   /* ── Phase handlers ── */
+  const submitLanguage = (lang) => {
+    setLanguage(lang); addUser(lang);
+    const d = MSGS[lang] || MSGS.English; // state not applied yet — read the dict directly
+    setPhase("client"); askAI(d.client);
+  };
   const submitClient = () => {
     if (clientMode === "existing") { const c = clients.find(x => x.id === clientId); if (!c) return; setClientName(c.name); addUser(c.name); }
     else { if (!clientName.trim()) return; addUser(`${clientName.trim()} (new client)`); }
-    setPhase("language"); askAI("Which language should this project work in? Every AI analysis, brand profile and report will be written in it — content in other languages gets translated.");
-  };
-  const submitLanguage = (lang) => {
-    setLanguage(lang); addUser(lang);
-    setPhase("brand"); askAI("Got it. What's the focus brand we'll be auditing?");
+    setPhase("brand"); askAI(t("brand"));
   };
   const submitText = (val, next, q) => { if (!val.trim()) return; addUser(val.trim()); setInput(""); setPhase(next); if (q) askAI(q); };
 
@@ -359,35 +410,45 @@ function OnboardingContent() {
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { submitLanguage(input.trim()); setInput(""); } }} placeholder="Other language…" className="px-3.5 py-2 bg-surface border border-main rounded-full text-xs text-main focus:outline-none focus:border-[var(--accent)] w-[160px]" />
             </div>
           )}
-          {phase === "brand" && <TextSend value={input} setValue={setInput} placeholder="Focus brand (e.g. Scotiabank)" onSend={() => { setBp(b => ({ ...b, name: input.trim() })); submitText(input, "market", "Which is the primary market?"); }} />}
+          {phase === "brand" && <TextSend value={input} setValue={setInput} placeholder={t("phBrand")} onSend={() => { setBp(b => ({ ...b, name: input.trim() })); submitText(input, "market", t("market")); }} />}
           {phase === "market" && (
             <>
-              <div className="flex-1"><CountryInput value={bp.market} onChange={v => setBp(b => ({ ...b, market: v }))} placeholder="Primary market" dropUp className={inputCls} /></div>
-              <button onClick={() => { if (!bp.market.trim()) return; addUser(bp.market); setPhase("category"); askAI("What category or industry are they in?"); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
+              <div className="flex-1"><CountryInput value={bp.market} onChange={v => setBp(b => ({ ...b, market: v }))} placeholder={t("phMarket")} dropUp className={inputCls} /></div>
+              <button onClick={() => { if (!bp.market.trim()) return; addUser(bp.market); setPhase("category"); askAI(t("category")); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
             </>
           )}
           {phase === "category" && (
             <>
-              <div className="flex-1"><CountryInput value={bp.category} onChange={v => setBp(b => ({ ...b, category: v }))} options={CATEGORIES} dropUp className={inputCls} placeholder="Category / industry" /></div>
-              <button onClick={() => { if (!bp.category.trim()) return; addUser(bp.category); setPhase("objectives"); askAI("What are the objectives of this study? (pick any)"); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
+              <div className="flex-1"><CountryInput value={bp.category} onChange={v => setBp(b => ({ ...b, category: v }))} options={CATEGORIES} dropUp className={inputCls} placeholder={t("phCategory")} /></div>
+              <button onClick={() => { if (!bp.category.trim()) return; addUser(bp.category); setPhase("objectives"); askAI(t("objectives")); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Send</button>
             </>
           )}
-          {phase === "objectives" && <button onClick={() => { addUser(objectives.length ? objectives.join(", ") : "Skip"); setPhase("vp"); askAI("Now the part only you know — what's the value proposition / positioning?"); }} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Continue</button>}
-          {phase === "vp" && <TextSend value={input} setValue={setInput} placeholder="Value proposition / positioning" onSend={() => { setProfile(p => ({ ...p, positioning: input.trim() })); submitText(input, "diff", "And the key differentiator?"); }} />}
-          {phase === "diff" && <TextSend value={input} setValue={setInput} placeholder="Key differentiator" onSend={() => { setProfile(p => ({ ...p, differentiator: input.trim() })); submitText(input, "audience", "Briefly, who's the target audience?"); }} />}
-          {phase === "audience" && <TextSend value={input} setValue={setInput} placeholder="Audience summary" onSend={() => { setProfile(p => ({ ...p, audience: input.trim() })); addUser(input.trim()); setInput(""); setPhase("local"); fetchLocal(); }} />}
+          {phase === "objectives" && <button onClick={() => { addUser(objectives.length ? objectives.join(", ") : "Skip"); setPhase("vp"); askAI(t("vp")); }} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold">Continue</button>}
+          {phase === "vp" && <TextSend value={input} setValue={setInput} placeholder={t("phVp")} onSend={() => { setProfile(p => ({ ...p, positioning: input.trim() })); submitText(input, "diff", t("diff")); }} />}
+          {phase === "diff" && <TextSend value={input} setValue={setInput} placeholder={t("phDiff")} onSend={() => { setProfile(p => ({ ...p, differentiator: input.trim() })); submitText(input, "audience", t("audience")); }} />}
+          {phase === "audience" && <TextSend value={input} setValue={setInput} placeholder={t("phAudience")} onSend={() => { setProfile(p => ({ ...p, audience: input.trim() })); addUser(input.trim()); setInput(""); setPhase("local"); fetchLocal(); }} />}
           {phase === "local" && (
             <>
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} placeholder="Add a competitor" className={inputCls} />
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} placeholder={t("phAddComp")} className={inputCls} />
               <button onClick={() => { if (input.trim()) { setLocalComps(p => [...p, { name: input.trim(), proximity: "direct", selected: true }]); setInput(""); } }} className="px-3 py-2.5 border border-main rounded-xl text-xs text-muted">Add</button>
-              <button onClick={() => { addUser(`${localComps.filter(c => c.selected).length} local competitors`); setPhase("global"); fetchGlobal(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
+              <button onClick={() => {
+                // Flush any typed-but-not-added name so it isn't silently lost on Continue.
+                const pendingLocal = input.trim() ? [...localComps, { name: input.trim(), proximity: "direct", selected: true }] : localComps;
+                if (input.trim()) { setLocalComps(pendingLocal); setInput(""); }
+                addUser(t("nLocal", pendingLocal.filter(c => c.selected).length)); setPhase("global"); fetchGlobal();
+              }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
             </>
           )}
           {phase === "global" && (
             <>
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} placeholder="Add a reference" className={inputCls} />
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} placeholder={t("phAddRef")} className={inputCls} />
               <button onClick={() => { if (input.trim()) { setGlobalRefs(p => [...p, { name: input.trim(), country: "", selected: true }]); setInput(""); } }} className="px-3 py-2.5 border border-main rounded-xl text-xs text-muted">Add</button>
-              <button onClick={() => { addUser(`${globalRefs.filter(g => g.selected).length} global references`); runLinks(); }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
+              <button onClick={() => {
+                // Flush any typed-but-not-added name so it isn't silently lost on Continue.
+                const pendingGlobal = input.trim() ? [...globalRefs, { name: input.trim(), country: "", selected: true }] : globalRefs;
+                if (input.trim()) { setGlobalRefs(pendingGlobal); setInput(""); }
+                addUser(t("nGlobal", pendingGlobal.filter(g => g.selected).length)); runLinks(pendingGlobal);
+              }} className="px-4 py-2.5 bg-accent text-white rounded-xl text-xs font-bold whitespace-nowrap">Continue</button>
             </>
           )}
           {phase === "create" && <button onClick={finalize} disabled={saving || busy} className="ml-auto px-5 py-2.5 bg-accent text-white rounded-xl text-xs font-bold disabled:opacity-40">{saving ? "Creating…" : "Create study"}</button>}
