@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
+import { avgEngagementRate, fmtRate } from "@/lib/engagement";
 
 export const maxDuration = 60; // the AI composition can take ~15-25s; avoid the default timeout
 
@@ -24,12 +25,12 @@ export async function POST(request) {
   const category = framework?.industry || "the category";
   const lang = framework?.language || "English";
 
-  const items = rows.map((e) => { const cd = cdOf(e), s = cd._social || {}, m = cd._meta || {}; return { brand: e.competitor || e.brand || e.brand_name || "—", pillar: s.content_pillar || "Unclassified", eng: num(m.likes) + num(m.comments) }; });
+  const items = rows.map((e) => { const cd = cdOf(e), s = cd._social || {}, m = cd._meta || {}; return { brand: e.competitor || e.brand || e.brand_name || "—", pillar: s.content_pillar || "Unclassified", likes: num(m.likes), comments: num(m.comments), views: num(m.views), followers: num(m.followers) }; });
   const bc = {}; items.forEach((i) => (bc[i.brand] = (bc[i.brand] || 0) + 1));
   const real = items.filter((i) => bc[i.brand] >= 5);
   const brands = [...new Set(real.map((i) => i.brand))];
-  const ps = {}; real.forEach((i) => { const p = (ps[i.pillar] ||= { posts: 0, eng: 0 }); p.posts++; p.eng += i.eng; });
-  const landscape = Object.entries(ps).map(([p, v]) => `${p}: ${v.posts} posts, avg eng ${Math.round(v.eng / v.posts)}`).sort();
+  const ps = {}; real.forEach((i) => { const p = (ps[i.pillar] ||= { posts: [] }); p.posts.push(i); });
+  const landscape = Object.entries(ps).map(([p, v]) => `${p}: ${v.posts.length} posts, avg engagement rate ${fmtRate(avgEngagementRate(v.posts))}`).sort();
   const picksText = picks.length ? picks.map((p, i) => `${i + 1}. [${p.type}] ${p.headline} — ${p.body} (${p.evidence || ""})`).join("\n") : "(none selected — derive from the data)";
 
   const prompt = `Compose a Social Media Benchmark report for ${client} in ${category}, based on ${real.length} competitor posts across ${brands.length} brands (${brands.join(", ")}).

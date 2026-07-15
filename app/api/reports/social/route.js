@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
+import { engagementRate, avgEngagementRate, fmtRate } from "@/lib/engagement";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 7 sections in 2 passes; give Vercel headroom
@@ -63,7 +64,9 @@ export async function POST(request) {
       format: s.format || "", intent: e.communication_intent || "",
       territory: e.primary_territory || "", archetype: e.brand_archetype || "", tone: e.tone_of_voice || "",
       slogan: clean(e.main_slogan), rating: e.rating, year: y, weekday, ym, posted,
-      likes: num(m.likes), comments: num(m.comments), eng: num(m.likes) + 3 * num(m.comments),
+      likes: num(m.likes), comments: num(m.comments), views: num(m.views), followers: num(m.followers),
+      rate: engagementRate({ likes: m.likes, comments: m.comments, views: m.views, followers: m.followers }),
+      eng: num(m.likes) + num(m.comments), // raw interactions, for evidence context only
       text: clean(m.caption || e.synopsis || e.description).slice(0, 180),
     };
   });
@@ -92,7 +95,8 @@ export async function POST(request) {
 
   // ── Precomputed STATS ──────────────────────────────────────────────────────
   const round = (n) => Math.round(n);
-  const topByEng = (arr, n) => arr.slice().sort((a, b) => b.eng - a.eng).slice(0, n);
+  // Rank by engagement RATE when available (rate-first), falling back to raw interactions.
+  const topByEng = (arr, n) => arr.slice().sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || b.eng - a.eng).slice(0, n);
   const sampleByPillar = (arr, perPillar, cap) => {
     const byP = {}; arr.forEach((p) => (byP[p.pillar] ||= []).push(p));
     const out = []; Object.values(byP).forEach((ps) => topByEng(ps, perPillar).forEach((p) => out.push(p)));
@@ -100,8 +104,8 @@ export async function POST(request) {
   };
   const tally = (arr, key) => { const t = {}; arr.forEach((p) => { const v = p[key]; if (v) v.split(",").map((x) => x.trim()).filter(Boolean).forEach((x) => (t[x] = (t[x] || 0) + 1)); }); return Object.entries(t).sort((a, b) => b[1] - a[1]); };
 
-  const pillarStats = {}; pool.forEach((p) => { const v = (pillarStats[p.pillar] ||= { posts: 0, brands: new Set(), eng: 0 }); v.posts++; v.brands.add(p.brand); v.eng += p.eng; });
-  const pillarLandscape = Object.entries(pillarStats).map(([pillar, v]) => ({ pillar, posts: v.posts, brands: v.brands.size, avgEng: round(v.eng / v.posts) })).sort((a, b) => b.posts - a.posts);
+  const pillarStats = {}; pool.forEach((p) => { const v = (pillarStats[p.pillar] ||= { posts: [], brands: new Set() }); v.posts.push(p); v.brands.add(p.brand); });
+  const pillarLandscape = Object.entries(pillarStats).map(([pillar, v]) => ({ pillar, posts: v.posts.length, brands: v.brands.size, avgEng: fmtRate(avgEngagementRate(v.posts)) })).sort((a, b) => b.posts - a.posts);
 
   const perBrand = brands.map((b) => {
     const bi = pool.filter((p) => p.brand === b); if (!bi.length) return null;
@@ -111,7 +115,7 @@ export async function POST(request) {
     const topDay = Object.entries(wk).sort((a, b2) => b2[1] - a[1])[0]?.[0] || "—";
     const fmt = tally(bi, "format").slice(0, 3).map(([k, n]) => `${k} ${n}`);
     const plt = tally(bi, "platform").slice(0, 3).map(([k, n]) => `${k} ${n}`);
-    return { brand: b, posts: bi.length, avgEng: round(bi.reduce((s, p) => s + p.eng, 0) / bi.length), topPillars, topDay, fmt, plt, tone: tally(bi, "tone").slice(0, 2).map(([k]) => k), arch: tally(bi, "archetype").slice(0, 1).map(([k]) => k)[0] || "—" };
+    return { brand: b, posts: bi.length, avgEng: fmtRate(avgEngagementRate(bi)), topPillars, topDay, fmt, plt, tone: tally(bi, "tone").slice(0, 2).map(([k]) => k), arch: tally(bi, "archetype").slice(0, 1).map(([k]) => k)[0] || "—" };
   }).filter(Boolean);
 
   const formatMix = tally(pool, "format").map(([k, n]) => `${k}: ${n}`);

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { listFindings, saveFinding, deleteFinding } from "@/lib/findings";
+import { engagementRate, avgEngagementRate, rateCoverage, fmtRate } from "@/lib/engagement";
 import AuthGuard from "@/components/AuthGuard";
 import Nav from "@/components/Nav";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -75,7 +76,7 @@ const kfmt = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" 
 const splitVal = (v) => { const m = String(v).match(/^([\d.,]+)(.*)$/); return m ? [m[1], m[2]] : [String(v), ""]; };
 const KPI_NUM = { fontSize: 32, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)", fontWeight: 500 };
 const KPI_SUFFIX = { fontSize: 17, color: "rgba(22,20,19,0.5)" };
-function PillBars({ data, spark = null }) {
+function PillBars({ data, spark = null, fmt = kfmt }) {
   const rows = [...data].filter((r) => r && r.name).sort((a, b) => b.value - a.value);
   const max = Math.max(1, ...rows.map((r) => r.value));
   const sparkIdx = spark === "max" ? 0 : spark === "min" ? rows.length - 1 : -1;
@@ -87,7 +88,7 @@ function PillBars({ data, spark = null }) {
           <div className="rounded-full overflow-hidden" style={{ height: 18, background: "var(--data-track)" }}>
             <div className="rounded-full" style={{ height: 18, width: `${Math.max(3, (r.value / max) * 100)}%`, background: i === sparkIdx ? "var(--kd-data-spark)" : i === 0 ? "var(--accent-deep)" : i === 1 ? "var(--q1)" : "var(--q2)", transition: "width 0.6s var(--kd-easing)" }} />
           </div>
-          <span className="text-[11px] text-right" style={{ fontFamily: "var(--kd-mono)", color: "rgba(22,20,19,.6)" }}>{kfmt(r.value)}</span>
+          <span className="text-[11px] text-right" style={{ fontFamily: "var(--kd-mono)", color: "rgba(22,20,19,.6)" }}>{fmt(r.value)}</span>
         </div>
       ))}
     </div>
@@ -327,8 +328,9 @@ function IntelligenceContent() {
         platform: s.platform || m.platform || "—",
         format: s.format || "—",
         pillar: s.content_pillar || "",
-        likes: num(m.likes), comments: num(m.comments), views: num(m.views),
-        eng: num(m.likes) + num(m.comments),
+        likes: num(m.likes), comments: num(m.comments), views: num(m.views), followers: num(m.followers),
+        eng: num(m.likes) + num(m.comments),                                  // raw interactions (absolute)
+        rate: engagementRate({ likes: m.likes, comments: m.comments, views: m.views, followers: m.followers }), // engagement RATE (fraction) or null
         image_url: e.image_url || "", url: e.url || "", caption: m.caption || e.synopsis || "",
         posted_at: m.posted_at || "",
         analyzed: !!cd._ai_analyzed_at,
@@ -338,11 +340,11 @@ function IntelligenceContent() {
     const brandColor = Object.fromEntries(brands.map((b, i) => [b, PALETTE[i % PALETTE.length]]));
     const count = (key) => { const m = {}; rows.forEach((r) => { const k = r[key] || "—"; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); };
 
-    // posts + avg engagement by brand
+    // posts + avg engagement RATE by brand (interactions / followers). avgRate is a fraction
+    // (null when no follower/view data); measurable = how many of the brand's posts had it.
     const byBrand = brands.map((b) => {
       const br = rows.filter((r) => r.brand === b);
-      const eng = br.reduce((s, r) => s + r.likes + r.comments, 0);
-      return { name: b, posts: br.length, avgEng: br.length ? Math.round(eng / br.length) : 0, color: brandColor[b] };
+      return { name: b, posts: br.length, avgRate: avgEngagementRate(br), measurable: rateCoverage(br), color: brandColor[b] };
     }).sort((a, b) => b.posts - a.posts);
 
     // day-of-week cadence
@@ -368,9 +370,8 @@ function IntelligenceContent() {
 
     // Pillar groups for Explore (drop tiny noise pillars), each with its example posts sorted by engagement
     const pillarGroups = pillars.map((p) => {
-      const posts = rows.filter((r) => r.pillar === p).sort((a, b) => b.eng - a.eng);
-      const eng = posts.reduce((s, r) => s + r.eng, 0);
-      return { pillar: p, count: posts.length, avgEng: posts.length ? Math.round(eng / posts.length) : 0, brands: [...new Set(posts.map((r) => r.brand))], posts };
+      const posts = rows.filter((r) => r.pillar === p).sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || b.eng - a.eng);
+      return { pillar: p, count: posts.length, avgRate: avgEngagementRate(posts), brands: [...new Set(posts.map((r) => r.brand))], posts };
     }).filter((g) => g.count >= 3).sort((a, b) => b.count - a.count);
     const maxPillarCount = Math.max(1, ...pillarGroups.map((g) => g.count));
 
@@ -413,10 +414,10 @@ function IntelligenceContent() {
                   <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(v); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
                 </div>
               ))}
-              {(() => { const lead = [...d.byBrand].filter((b) => b.avgEng > 0).sort((a, b) => b.avgEng - a.avgEng)[0]; return lead ? (
+              {(() => { const lead = [...d.byBrand].filter((b) => b.avgRate != null).sort((a, b) => b.avgRate - a.avgRate)[0]; return lead ? (
                 <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--p-ember)", border: "1px solid rgba(0,0,0,0.035)" }}>
                   <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>Engagement leader</div>
-                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(kfmt(lead.avgEng)); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
+                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(fmtRate(lead.avgRate)); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
                   <div className="text-[9px] mt-1" style={{ color: "var(--d-ember)", fontFamily: "var(--kd-mono)" }}>↑ {lead.name}</div>
                 </div>
               ) : null; })()}
@@ -426,8 +427,10 @@ function IntelligenceContent() {
               <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.posts }))} />
             </Card>
 
-            <Card title="Average engagement by brand" hint="♥ + ✦ / post">
-              <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.avgEng }))} spark="min" />
+            <Card title="Engagement rate by brand" hint="interactions ÷ followers">
+              {d.byBrand.some((b) => b.avgRate != null)
+                ? <PillBars data={d.byBrand.filter((b) => b.avgRate != null).map((b) => ({ name: b.name, value: b.avgRate * 100 }))} spark="min" fmt={(v) => `${v.toFixed(v < 10 ? 1 : 0)}%`} />
+                : <p className="text-xs text-hint py-6 text-center">No follower data yet — recapture social feeds to compute engagement rate.</p>}
             </Card>
 
             <Card title="Format" hint="content type">
@@ -577,8 +580,8 @@ function IntelligenceContent() {
         ) : tab === "explore" ? (
           d.pillarGroups.length === 0 ? <NeedsAnalysis pct={d.analyzedPct} /> : (() => {
             const exRows = exBrand ? d.rows.filter((r) => r.brand === exBrand) : d.rows;
-            const pmap = {}; exRows.forEach((r) => { if (!r.pillar) return; const p = (pmap[r.pillar] ||= { count: 0, eng: 0 }); p.count++; p.eng += r.eng; });
-            const tree = Object.entries(pmap).map(([name, v]) => ({ name, size: v.count, avgEng: Math.round(v.eng / v.count) })).filter((g) => g.size >= 2).sort((a, b) => b.size - a.size);
+            const pmap = {}; exRows.forEach((r) => { if (!r.pillar) return; const p = (pmap[r.pillar] ||= { posts: [] }); p.posts.push(r); });
+            const tree = Object.entries(pmap).map(([name, v]) => ({ name, size: v.posts.length, avgRate: avgEngagementRate(v.posts) })).filter((g) => g.size >= 2).sort((a, b) => b.size - a.size);
             const subPosts = subData?.posts ? (exSub ? subData.posts.filter((p) => p.subpillar === exSub) : subData.posts) : [];
             const csvDownload = () => {
               const head = ["pillar", "subpillar", "brand", "likes", "comments", "url"];
@@ -607,7 +610,7 @@ function IntelligenceContent() {
                           className="rounded-xl p-3 text-left transition hover:brightness-95 flex flex-col justify-between"
                           style={{ flex: `${g.size} 1 ${Math.max(150, g.size * 9)}px`, minHeight: 118, background: PASTEL[i % PASTEL.length] }}>
                           <div className="text-[13px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.name}</div>
-                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} pieces of content · ❤ {g.avgEng.toLocaleString()}</div>
+                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} pieces of content · {g.avgRate != null ? `${fmtRate(g.avgRate)} eng.` : "—"}</div>
                         </button>
                       ))}
                     </div>
@@ -823,7 +826,7 @@ function IntelligenceContent() {
                   {d.pillarGroups.map((g, i) => (
                     <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
                       <div className="text-[11px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.pillar}</div>
-                      <div className="text-[9px] font-mono mt-1" style={{ color: "#52607a" }}>{g.count} · ❤{g.avgEng.toLocaleString()}</div>
+                      <div className="text-[9px] font-mono mt-1" style={{ color: "#52607a" }}>{g.count} · {g.avgRate != null ? fmtRate(g.avgRate) : "—"}</div>
                     </div>
                   ))}
                 </div>

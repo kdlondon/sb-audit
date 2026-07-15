@@ -22,13 +22,15 @@ const PLATFORMS = {
   instagram: {
     actor: "apify~instagram-scraper",
     handle: (input) => handleFromInput(input, "instagram\\.com"),
-    input: (username, limit) => ({ directUrls: [`https://www.instagram.com/${username}/`], resultsType: "posts", resultsLimit: limit, addParentData: false }),
+    // addParentData attaches the profile object to each post → gives us follower count.
+    input: (username, limit) => ({ directUrls: [`https://www.instagram.com/${username}/`], resultsType: "posts", resultsLimit: limit, addParentData: true }),
     normalize: (x, username) => (x && x.url ? {
       url: x.url,
       kind: igKind(x),
       caption: x.caption || "",
       thumbnail: x.displayUrl || (x.images && x.images[0]) || "",
       owner: x.ownerUsername || username,
+      followers: x.ownerFollowersCount ?? x.followersCount ?? x.parentData?.followersCount ?? null,
       likes: x.likesCount ?? null,
       comments: x.commentsCount ?? null,
       views: x.videoViewCount ?? x.videoPlayCount ?? null,
@@ -47,6 +49,7 @@ const PLATFORMS = {
       caption: x.text || "",
       thumbnail: x.videoMeta?.coverUrl || x.videoMeta?.originalCoverUrl || "",
       owner: x.authorMeta?.name || x.authorMeta?.nickName || username,
+      followers: x.authorMeta?.fans ?? x.authorMeta?.followerCount ?? null,
       likes: x.diggCount ?? null,
       comments: x.commentCount ?? null,
       views: x.playCount ?? null,

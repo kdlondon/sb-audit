@@ -150,6 +150,7 @@ export default function SocialFeedPicker({
                 likes: p.likes ?? null,
                 comments: p.comments ?? null,
                 views: p.views ?? null,
+                followers: p.followers ?? null,   // profile follower count → engagement RATE
                 posted_at: p.timestamp || "",
                 hashtags: p.hashtags || [],
               },

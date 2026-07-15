@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
+import { avgEngagementRate, fmtRate } from "@/lib/engagement";
 
 export const maxDuration = 60;
 
@@ -35,7 +36,8 @@ export async function POST(request) {
       format: s.format || "—",
       hero: /hero/i.test(e.communication_intent || ""),
       tone: e.tone_of_voice || "", exec: e.execution_style || "",
-      eng: num(m.likes) + num(m.comments), posted: m.posted_at || "",
+      likes: num(m.likes), comments: num(m.comments), views: num(m.views), followers: num(m.followers),
+      posted: m.posted_at || "",
     };
   });
   // Keep only real competitors (drop one-off noise handles: tagged accounts, commenters)
@@ -43,8 +45,8 @@ export async function POST(request) {
   const items = all.filter((i) => bc[i.brand] >= 5);
   const brands = [...new Set(items.map((i) => i.brand))];
   const pillarStats = {};
-  items.forEach((i) => { const p = (pillarStats[i.pillar] ||= { posts: 0, brands: new Set(), eng: 0 }); p.posts++; p.brands.add(i.brand); p.eng += i.eng; });
-  const pillarLandscape = Object.entries(pillarStats).map(([pillar, v]) => ({ pillar, posts: v.posts, brands: v.brands.size, avgEng: Math.round(v.eng / v.posts) })).sort((a, b) => b.posts - a.posts);
+  items.forEach((i) => { const p = (pillarStats[i.pillar] ||= { posts: [], brands: new Set() }); p.posts.push(i); p.brands.add(i.brand); });
+  const pillarLandscape = Object.entries(pillarStats).map(([pillar, v]) => ({ pillar, posts: v.posts.length, brands: v.brands.size, avgRate: avgEngagementRate(v.posts) })).sort((a, b) => b.posts - a.posts);
 
   const perBrand = brands.map((b) => {
     const bi = items.filter((i) => i.brand === b);
@@ -52,17 +54,18 @@ export async function POST(request) {
     const top = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p, n]) => `${p} ${Math.round(100 * n / bi.length)}%`);
     const dayc = [0, 0, 0, 0, 0, 0, 0]; bi.forEach((i) => { if (i.posted) { const d = new Date(i.posted).getDay(); if (!isNaN(d)) dayc[d]++; } });
     const topDay = DOW[dayc.indexOf(Math.max(...dayc))];
-    return { brand: b, posts: bi.length, heroPct: Math.round(100 * bi.filter((i) => i.hero).length / bi.length), avgEng: Math.round(bi.reduce((s, i) => s + i.eng, 0) / bi.length), topPillars: top, topDay };
+    return { brand: b, posts: bi.length, heroPct: Math.round(100 * bi.filter((i) => i.hero).length / bi.length), engRate: avgEngagementRate(bi), topPillars: top, topDay };
   });
 
   const summary = `CLIENT (own brand, NOT in the data below — frame opportunities FOR them): ${client}
 CATEGORY: ${category} · ${items.length} competitor posts across ${brands.length} brands.
+Engagement is the ENGAGEMENT RATE (interactions ÷ followers, %) — comparable across brands of any size; "—" means no follower data.
 
-PILLAR LANDSCAPE (how crowded each content territory is + avg engagement):
-${pillarLandscape.map((p) => `- ${p.pillar}: ${p.posts} posts, ${p.brands}/${brands.length} brands, avg eng ${p.avgEng}`).join("\n")}
+PILLAR LANDSCAPE (how crowded each content territory is + avg engagement rate):
+${pillarLandscape.map((p) => `- ${p.pillar}: ${p.posts} posts, ${p.brands}/${brands.length} brands, avg eng ${fmtRate(p.avgRate)}`).join("\n")}
 
 PER COMPETITOR:
-${perBrand.map((b) => `- ${b.brand}: ${b.posts} posts | top pillars: ${b.topPillars.join(", ")} | Hero ${b.heroPct}% | avg eng ${b.avgEng} | busiest day ${b.topDay}`).join("\n")}`;
+${perBrand.map((b) => `- ${b.brand}: ${b.posts} posts | top pillars: ${b.topPillars.join(", ")} | Hero ${b.heroPct}% | avg eng ${fmtRate(b.engRate)} | busiest day ${b.topDay}`).join("\n")}`;
 
   const DIMS = {
     white_space: "white space — content territories nobody or few brands own (opportunity)",
