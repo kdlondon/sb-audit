@@ -7,7 +7,8 @@ import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS, getFieldsForScope, get
 import { useFramework } from "@/lib/framework-context";
 import { objectiveOptions, canonObjective } from "@/lib/taxonomy";
 import AuthGuard from "@/components/AuthGuard";
-import Nav from "@/components/Nav";
+import Sidebar from "@/components/Sidebar";
+import SectionTabs from "@/components/SectionTabs";
 import ProjectGuard from "@/components/ProjectGuard";
 import SocialFeedPicker from "@/components/SocialFeedPicker";
 import { useProject } from "@/lib/project-context";
@@ -2346,24 +2347,27 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
 
+  // N2 subsections for the redesign shell (maps to the existing scope/viewMode state)
+  const CS_TABS=[{id:"local",label:"Local audit"},{id:"global",label:"Global benchmarks"},{id:"collections",label:"Collections"},{id:"map",label:"Map"}];
+  const csActive=viewMode==="collections"?"collections":viewMode==="map"?"map":scope==="global"?"global":"local";
+  const csOnTab=(id)=>{setActiveCollection(null);if(id==="collections"){setViewMode("collections");router.push("/audit?view=collections",{scroll:false});}else if(id==="map"){setViewMode("map");router.push("/audit?view=map",{scroll:false});}else{onScopeChange(id);setViewMode("entries");router.push(`/audit?scope=${id}`,{scroll:false});}};
+  const csTitle=viewMode==="collections"?"Collections":viewMode==="map"?"Map":scope==="global"?"Global benchmarks":"Local audit";
+  const csSubtitle=viewMode==="entries"?`${data.length} ${data.length===1?"piece":"pieces"} across your ${scope==="global"?"global benchmarks":"local competitors"}.`:viewMode==="collections"?"Curated groups of pieces.":"Pieces plotted by market.";
+
   return(
-    <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"var(--bg)",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
+    <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"transparent",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
-        {/* Bar 2 — Section bar: title + scope toggle */}
-        <div className="section-bar px-5 flex items-center justify-between relative" style={{background:"transparent",boxShadow:"none"}}>
-          {/* left — spacer (balances absolute-centered pill) */}
-          <span className="min-w-[90px]" aria-hidden="true"> </span>
-          {/* center — Cosmos-style segmented pill (subsections) */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
-            {[
-              {id:"local",label:"Local audit",active:scope==="local"&&viewMode==="entries",on:()=>{onScopeChange("local");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=local",{scroll:false});}},
-              {id:"global",label:"Global benchmarks",active:scope==="global"&&viewMode==="entries",on:()=>{onScopeChange("global");setViewMode("entries");setActiveCollection(null);router.push("/audit?scope=global",{scroll:false});}},
-              {id:"collections",label:"Collections",active:viewMode==="collections",on:()=>{setViewMode("collections");setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}},
-              {id:"map",label:"Map",active:viewMode==="map",on:()=>{setViewMode("map");setActiveCollection(null);router.push("/audit?view=map",{scroll:false});}},
-            ].map(t=>(
-              <button key={t.id} onClick={t.on} className={`px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition ${t.active?"kd-seg-active":"text-muted hover:text-main"}`}>{t.label}</button>
-            ))}
+        {/* Header + N2 tabs (redesign shell) */}
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"26px 34px 0"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20}}>
+            <div>
+              <h1 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:28,letterSpacing:"-.01em",margin:0,color:"var(--ink-900)"}}>{csTitle}</h1>
+              <p style={{fontFamily:"var(--font-body)",fontSize:13.5,color:"var(--text-secondary)",margin:"6px 0 0"}}>{csSubtitle}</p>
+            </div>
+            <span style={{fontFamily:"var(--font-mono)",fontSize:10.5,letterSpacing:".04em",color:"var(--text-muted)",whiteSpace:"nowrap",paddingTop:4}}>CREATIVE SOURCE</span>
           </div>
+          <div style={{marginTop:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:14}}>
+            <SectionTabs tabs={CS_TABS} active={csActive} onChange={csOnTab}/>
           {/* right — bulk actions when selecting, else the filter/sort/view/export tools */}
           <div className="min-w-[90px] flex justify-end items-center gap-1.5 relative z-[41]">
           {toolMenu&&<div className="fixed inset-0 z-40" onClick={()=>setToolMenu("")} />}
@@ -2448,6 +2452,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </>}
+          </div>
           </div>
         </div>
         {/* Collections View */}
@@ -2854,12 +2859,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
         {viewMode==="entries"&&<>
         <div>
-        <div className="max-w-[1180px] mx-auto px-6 pt-1 pb-2 text-[11px] text-hint tabular-nums">{fd.length} of {data.length} {fd.length===1?"item":"items"}</div>
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"20px 34px 12px"}}><span style={{fontFamily:"var(--font-mono)",fontSize:10.5,letterSpacing:".06em",color:"var(--text-muted)",textTransform:"uppercase"}}>{fd.length} of {data.length} {fd.length===1?"item":"items"}</span></div>
         {listMode==="list"?(
-          <div className="max-w-[1180px] mx-auto px-5 pb-5 overflow-auto" style={{maxHeight:"calc(100vh - var(--nav-h) - var(--sec-h) - 64px)",fontFamily:"var(--kd-sans)"}}>
-            <table className="w-full border-collapse text-sm">
-              <thead><tr className="border-b-2 border-main">
-                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2.5 py-2.5 text-[11px] text-muted uppercase font-medium sticky top-0 z-[5] bg-surface ${!c.nosort?"cursor-pointer hover:text-main select-none":""}`} style={{boxShadow:"inset 0 -2px 0 var(--border)",fontFamily:"var(--kd-mono)",letterSpacing:"0.06em"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5] bg-surface" style={{boxShadow:"inset 0 -2px 0 var(--border)"}}></th>
+          <div style={{maxWidth:1180,margin:"0 auto",padding:"0 34px 40px",fontFamily:"var(--font-body)"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>
+                {cols.map((c,i)=>(<th key={i} onClick={()=>!c.nosort&&handleSort(c.key)} className={`text-left px-2.5 py-2.5 sticky top-0 z-[5] ${!c.nosort?"cursor-pointer select-none":""}`} style={{fontFamily:"var(--font-mono)",fontSize:9.5,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--text-muted)",fontWeight:500,background:"var(--paper)",borderBottom:"1px solid var(--border-strong)"}}>{c.key==="_select"?<input type="checkbox" checked={selected.size===fd.length&&fd.length>0} onChange={()=>selected.size===fd.length?setSelected(new Set()):setSelected(new Set(fd.map(e=>e.id)))} className="accent-[var(--accent-ember)]" />:<span>{c.label} {sortCol===c.key?(sortDir==="asc"?"↑":"↓"):c.nosort?"":" ↕"}</span>}</th>))}<th className="sticky top-0 z-[5]" style={{background:"var(--paper)",borderBottom:"1px solid var(--border-strong)"}}></th>
               </tr></thead>
               <tbody>{fd.map(e=>{
                 const IC=({field,children,className=""})=>{
@@ -2903,53 +2908,50 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         className="w-full px-1 py-1 bg-surface border border-[var(--accent)] rounded text-xs text-main focus:outline-none" />
                     </td>);
                   }
-                  return(<td className={"px-2.5 py-3 cursor-pointer hover:bg-blue-50 dark:hover:bg-white/5 rounded transition "+className}
+                  return(<td className={"px-2.5 py-3 cursor-pointer rounded transition "+className} style={{color:"var(--text-secondary)"}}
                     onClick={ev=>{ev.stopPropagation();setInlineEdit({id:e.id,field});}}>
                     {children}
                   </td>);
                 };
-                return(<tr key={e.id} className={`border-b border-main cursor-pointer transition-colors ${sb?.id===e.id?"bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-[#011EFF]":"hover:bg-accent-soft"}`} onClick={()=>setSb(e)}>
-                  <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} /></td>
-                  <td className="px-2.5 py-3"><span className="inline-flex items-center gap-1.5"><span className="font-medium text-main">{(scope==="local"?(e.competitor||e.brand_name):(e.brand||e.brand_name))||"—"}</span>{e.custom_dimensions?._ai_analyzed_at&&<span title="Analizado por IA" className="text-[13px] leading-none" style={{color:"var(--kd-blue)"}}>✦</span>}</span></td>
-                  <IC field="description" className="max-w-[280px] truncate font-medium text-main">{e.description||"—"}</IC>
-                  <IC field="year" className="text-muted">{e.year||"—"}</IC>
-                  <IC field="type" className="text-muted">{e.type||"—"}</IC>
-                  <IC field="communication_intent" className="text-muted">{e.communication_intent||"—"}</IC>
-                  <td className="px-2.5 py-3 text-muted">{e.custom_dimensions?._social?.platform||"—"}</td>
-                  <IC field="rating" className="">{e.rating?<span style={{color:"var(--kd-ember)"}}>{"★".repeat(Number(e.rating))}</span>:"—"}</IC>
-                  <td className="px-2.5 py-3 text-hint text-[11px] whitespace-nowrap" style={{fontFamily:"var(--kd-mono)"}}>{fmtDate(e.created_at)}</td>
-                  <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="text-hint hover:text-red-400 cursor-pointer text-sm">×</span></td>
+                return(<tr key={e.id} className="gw-row cursor-pointer group" style={{borderBottom:"1px solid var(--border-hairline)",borderLeft:sb?.id===e.id?"2px solid var(--accent-ember)":"2px solid transparent",background:sb?.id===e.id?"var(--accent-ember-tint)":"transparent"}} onClick={()=>setSb(e)}>
+                  <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="accent-[var(--accent-ember)]" /></td>
+                  <td className="px-2.5 py-3"><span className="inline-flex items-center gap-1.5"><span style={{fontWeight:600,color:"var(--ink-900)"}}>{(scope==="local"?(e.competitor||e.brand_name):(e.brand||e.brand_name))||"—"}</span>{e.custom_dimensions?._ai_analyzed_at&&<span title="AI-analyzed" className="text-[13px] leading-none" style={{color:"var(--accent-ember)"}}>✦</span>}</span></td>
+                  <IC field="description" className="max-w-[280px] truncate" ><span style={{fontWeight:600,color:"var(--ink-900)"}}>{e.description||"—"}</span></IC>
+                  <IC field="year" className="">{e.year||"—"}</IC>
+                  <IC field="type" className="">{e.type||"—"}</IC>
+                  <IC field="communication_intent" className="">{e.communication_intent||"—"}</IC>
+                  <td className="px-2.5 py-3" style={{color:"var(--text-secondary)"}}>{e.custom_dimensions?._social?.platform||"—"}</td>
+                  <IC field="rating" className="">{Number(e.rating)>0?<span style={{fontSize:11,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(Number(e.rating))}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-Number(e.rating))}</span></span>:"—"}</IC>
+                  <td className="px-2.5 py-3 whitespace-nowrap" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>{fmtDate(e.created_at)}</td>
+                  <td className="px-2.5 py-3 opacity-0 group-hover:opacity-100 transition" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="cursor-pointer text-sm" style={{color:"var(--text-muted)"}}>×</span></td>
                 </tr>);
               })}</tbody>
             </table>
           </div>
         ):(
-          <div className="max-w-[1180px] mx-auto px-5 pt-1 pb-6" style={{fontFamily:"var(--kd-sans)"}}>
-            <div className="columns-2 md:columns-3" style={{columnGap:"24px"}}>
+          <div style={{maxWidth:1180,margin:"0 auto",padding:"0 34px 40px"}}>
+            <div className="columns-1 sm:columns-2 lg:columns-3" style={{columnGap:"18px"}}>
             {fd.map(e=>{
               const thumb=ytId(e.url)?`https://img.youtube.com/vi/${ytId(e.url)}/hqdefault.jpg`:e.image_url;
               const isVid=ytId(e.url)||isVideoFile(e.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(e.url||"");
               const plat=e.custom_dimensions?._social?.platform||e.custom_dimensions?._meta?.platform||(ytId(e.url)?"YouTube":/instagram/i.test(e.url||"")?"Instagram":/tiktok/i.test(e.url||"")?"TikTok":"");
-              const platColor={Instagram:"#E1306C",instagram:"#E1306C",TikTok:"#111",tiktok:"#111",YouTube:"#FF0000",Facebook:"#1877F2",LinkedIn:"#0A66C2"}[plat]||"#888";
-              return(<div key={e.id} onClick={()=>setSb(e)} className="kd-media-card mb-6 break-inside-avoid bg-surface border border-main rounded-xl overflow-hidden cursor-pointer group relative">
+              const bname=(scope==="local"?(e.competitor||e.brand_name):(e.brand||e.brand_name))||"—";
+              const rate=Number(e.rating)||0;
+              return(<div key={e.id} onClick={()=>setSb(e)} className="gw-card break-inside-avoid group" style={{marginBottom:18,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:16,overflow:"hidden",cursor:"pointer",position:"relative"}}>
                 <div className={`absolute top-2 left-2 z-10 ${selected.size>0||selected.has(e.id)?"opacity-100":"opacity-0 group-hover:opacity-100"} transition`} onClick={ev=>ev.stopPropagation()}>
-                  <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent)]" />
+                  <input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="w-4 h-4 rounded border-2 border-white shadow cursor-pointer accent-[var(--accent-ember)]" />
                 </div>
-                <div className="relative bg-surface2 overflow-hidden">
-                  {thumb?<img src={thumb} loading="lazy" className="w-full h-auto object-cover block" alt=""/>:isVideoFile(e.url)?<video src={e.url} className="w-full h-auto object-cover block" muted preload="metadata" onLoadedData={ev=>{ev.target.currentTime=1;}} />:<div className="h-28 flex items-center justify-center text-hint text-xs">No preview</div>}
+                <div style={{position:"relative",width:"100%",aspectRatio:"4/5",background:"var(--ink-200)",overflow:"hidden"}}>
+                  {thumb?<img src={thumb} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt=""/>:isVideoFile(e.url)?<video src={e.url} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} muted preload="metadata" onLoadedData={ev=>{ev.target.currentTime=1;}} />:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-muted)"}}>No preview</div>}
                   {isVid&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center"><svg width="13" height="13" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
                   {e.image_urls&&JSON.parse(e.image_urls||"[]").length>0&&<span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full">+{JSON.parse(e.image_urls||"[]").length}</span>}
                 </div>
-                <div className="p-3.5">
-                  <div className="flex gap-1 mb-2 flex-wrap">{(e.competitor||e.brand_name)&&<Tag v={e.competitor||e.brand_name}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div>
-                  {e.description&&<p className="text-[15px] font-medium text-main line-clamp-2 leading-snug">{e.description}</p>}
-                  <div className="flex justify-between items-center mt-3">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted uppercase tracking-wide" style={{fontFamily:"var(--kd-mono)"}}>
-                      {plat&&<><span className="w-1.5 h-1.5 rounded-full" style={{background:"#9ca3af"}}/>{plat}</>}
-                      {plat&&e.year&&<span className="text-hint">·</span>}
-                      {e.year&&<span>{e.year}</span>}
-                    </span>
-                    {e.rating&&<span className="text-[11px]" style={{color:"var(--kd-ember)"}}>{"★".repeat(Number(e.rating))}</span>}
+                <div style={{padding:"14px 16px 16px"}}>
+                  <span style={{fontFamily:"var(--font-mono)",fontSize:9,fontWeight:600,color:"var(--text-secondary)",background:"var(--ink-200)",borderRadius:5,padding:"3px 7px"}}>{bname}</span>
+                  {e.description&&<h3 className="line-clamp-2" style={{fontFamily:"var(--font-body)",fontSize:13,fontWeight:600,lineHeight:1.35,margin:"10px 0 0",color:"var(--ink-900)"}}>{e.description}</h3>}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:10}}>
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:9,letterSpacing:".06em",color:"var(--text-muted)",textTransform:"uppercase"}}>{plat}{plat&&e.year?" · ":""}{e.year||""}</span>
+                    {rate>0&&<span style={{fontSize:11,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(rate)}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-rate)}</span></span>}
                   </div>
                 </div>
               </div>);
@@ -3376,7 +3378,7 @@ function AuditPageInner(){
     return()=>window.removeEventListener("openAddForm",handler);
   },[scope]);
 
-  return(<AuthGuard><ProjectGuard><Nav/><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></ProjectGuard></AuthGuard>);
+  return(<AuthGuard><ProjectGuard><div className="gw-shell" style={{display:"flex",height:"100vh",background:"var(--paper)"}}><Sidebar/><main style={{flex:1,minWidth:0,height:"100vh",overflowY:"auto"}}><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></main></div></ProjectGuard></AuthGuard>);
 }
 
 export default function AuditPage(){

@@ -118,3 +118,7 @@
 
 /* ---- N2 segmented tabs ---- */
 .gw-tab { transition: color 0.12s ease, background 0.12s ease; }
+
+/* ---- List row hover ---- */
+.gw-row { transition: background 0.12s ease; }
+.gw-row:hover { background: rgba(26, 26, 26, 0.03) !important; }
