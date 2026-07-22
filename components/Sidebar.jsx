@@ -21,12 +21,13 @@ const MODULES = [
   { name: "Showcase", href: "/showcase", module: "showcase", icon: <I><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M12 16v4M8 20h8" /></I> },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ forceCollapsed = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const { projectName } = useProject() || {};
   const { role, userEmail, activeOrg } = useRole() || {};
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedState, setCollapsed] = useState(false);
+  const collapsed = forceCollapsed || collapsedState;
   const [acctOpen, setAcctOpen] = useState(false);
   const acctRef = useRef(null);
 
@@ -78,7 +79,7 @@ export default function Sidebar() {
             </div>}
         {!collapsed && <button onClick={toggleCollapse} title="Collapse" style={{ flex: "none", width: 22, height: 22, borderRadius: 6, background: "transparent", border: "none", color: "#8a8a8a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M15 6l-6 6 6 6" /></I></button>}
       </div>
-      {collapsed && <button onClick={toggleCollapse} title="Expand" style={{ margin: "0 auto 10px", width: 26, height: 26, borderRadius: 6, background: "#212121", border: "1px solid #2e2e2e", color: "#c9c9c9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M9 6l6 6-6 6" /></I></button>}
+      {collapsed && !forceCollapsed && <button onClick={toggleCollapse} title="Expand" style={{ margin: "0 auto 10px", width: 26, height: 26, borderRadius: 6, background: "#212121", border: "1px solid #2e2e2e", color: "#c9c9c9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M9 6l6 6-6 6" /></I></button>}
 
       {/* N0 — project context */}
       {collapsed ? (

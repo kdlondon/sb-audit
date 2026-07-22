@@ -9,6 +9,7 @@ import { objectiveOptions, canonObjective } from "@/lib/taxonomy";
 import AuthGuard from "@/components/AuthGuard";
 import Sidebar from "@/components/Sidebar";
 import SectionTabs from "@/components/SectionTabs";
+import FullView from "@/components/creative-source/FullView";
 import ProjectGuard from "@/components/ProjectGuard";
 import SocialFeedPicker from "@/components/SocialFeedPicker";
 import { useProject } from "@/lib/project-context";
@@ -276,13 +277,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const router=useRouter();
   const searchParams=useSearchParams();
   const editParam=searchParams.get("edit");
+  const fullParam=searchParams.get("full");
   const entryParam=searchParams.get("entry");
-  const vw=editParam?"form":"list";
+  const vw=editParam?"form":fullParam?"full":"list";
   const eid=editParam==="new"?null:editParam;
   const [fl,setFl]=useState({});
   const [sec,setSec]=useState(0);
   const [sb,setSbRaw]=useState(null);
   const setSb=(entry)=>{if(entry){router.push(`/audit?entry=${entry.id}`,{scroll:false});setSbRaw(entry);}else{router.push("/audit",{scroll:false});setSbRaw(null);}};
+  const openFull=(entry)=>{if(!entry)return;router.push(`/audit?full=${entry.id}`,{scroll:false});setSbRaw(null);};
   const [loading,setLoading]=useState(true);
   const [sortCol,setSortCol]=useState("created_at");
   const [sortDir,setSortDir]=useState("desc");
@@ -1789,6 +1792,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
   if(loading)return <div className="min-h-screen flex items-center justify-center text-hint text-sm">Loading…</div>;
 
+  // ── FULL VIEW (read-only) ──
+  if(vw==="full"){
+    const fe=data.find(x=>x.id===fullParam)||(sb&&sb.id===fullParam?sb:null);
+    const idx=fe?fd.findIndex(x=>x.id===fe.id):-1;
+    return(<FullView entry={fe} onBack={()=>router.push(`/audit?scope=${scope}`,{scroll:false})} onEdit={()=>fe&&openForm(fe)} onPdf={()=>fe&&downloadCase(fe)} downloading={downloading} index={idx>=0?idx+1:0} total={fd.length} scopeLabel={scope==="global"?"Global benchmarks":"Local audit"} />);
+  }
+
   // ── FORM ──
   if(vw==="form"){
     const y=ytId(cur.url);const vim=vimeoId(cur.url);const imgUrl=cur.image_url;
@@ -3008,7 +3018,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             <button onClick={()=>downloadCase(sb)} disabled={downloading} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"transparent",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"9px 12px",cursor:"pointer"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>{downloading?"…":"PDF"}</button>
             <div style={{flex:1}}/>
             <button onClick={()=>openForm(sb)} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-strong)",borderRadius:8,padding:"9px 14px",cursor:"pointer"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>
-            <button onClick={()=>openForm(sb)} className="gw-ember-btn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-body)",fontWeight:500,fontSize:11,color:"#fff",background:"var(--accent-ember-deep)",border:"none",borderRadius:8,padding:"10px 15px",cursor:"pointer"}}>View full<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M7 17 17 7M9 7h8v8"/></svg></button>
+            <button onClick={()=>openFull(sb)} className="gw-ember-btn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-body)",fontWeight:500,fontSize:11,color:"#fff",background:"var(--accent-ember-deep)",border:"none",borderRadius:8,padding:"10px 15px",cursor:"pointer"}}>View full<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M7 17 17 7M9 7h8v8"/></svg></button>
           </div>
         </div>
       </div>);
@@ -3351,7 +3361,9 @@ function AuditPageInner(){
     return()=>window.removeEventListener("openAddForm",handler);
   },[scope]);
 
-  return(<AuthGuard><ProjectGuard><div className="gw-shell" style={{display:"flex",height:"100vh",background:"var(--paper)"}}><Sidebar/><main style={{flex:1,minWidth:0,height:"100vh",overflowY:"auto"}}><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></main></div></ProjectGuard></AuthGuard>);
+  const wSearch=useSearchParams();
+  const chromeCollapsed=!!(wSearch.get("edit")||wSearch.get("full")); // full view + editor use the collapsed rail
+  return(<AuthGuard><ProjectGuard><div className="gw-shell" style={{display:"flex",height:"100vh",background:"var(--paper)"}}><Sidebar forceCollapsed={chromeCollapsed}/><main style={{flex:1,minWidth:0,height:"100vh",overflowY:"auto"}}><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></main></div></ProjectGuard></AuthGuard>);
 }
 
 export default function AuditPage(){

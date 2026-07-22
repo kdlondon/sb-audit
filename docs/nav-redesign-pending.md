@@ -13,8 +13,8 @@ _Handoff: `design_handoff_navigation` (README + views 01–09). Tokens ember, si
   - **Peek modal** = quick-read de view 07 (hero, handle, slogan ember, grid 4 campos, sinopsis, PDF/Edit/View full).
 
 ## ⏳ Pendiente — Creative Source
-1. **Full view (view 08)** — pantalla read-only con sidebar colapsado, pager, dossier completo del framework en cards numeradas. Hoy "View full" y "Edit" del peek abren el **editor** como interino.
-   - Al construirla, mover ahí lo que saqué del peek: **embeds inline (yt/vimeo/ig/tiktok/video), still-capture, crop, multi-imagen, transcript/insight/analyst-notes, mover individual (→Global/Local)**.
+1. ~~**Full view (view 08)**~~ ✅ HECHO — `components/creative-source/FullView.jsx`, read-only, sidebar colapsado (`?full=<id>` → forceCollapsed), top bar (back · pager · Export PDF · Edit), hero + slogan/metrics dark card + synopsis, framework completo en cards 01–05 + transcript/notes. "View full" del peek la abre; su "Edit" abre el editor.
+   - Nota: las herramientas SOLO-edición (still-capture, crop, multi-imagen, mover individual) viven en el **editor** (read-only no las lleva, por diseño). Transcript/insight/notes/todos los campos sí se ven en la full view.
 2. **Editor (view 09)** — form de edición a 2 columnas (fuente izq / acordeón de secciones der, una abierta), "Analyze with AI". Hoy funciona con estilo viejo dentro del shell.
 3. **Collections (view 06)** — re-skin + features nuevas que **necesitan backend**: cover mosaico 2×2, badge origen `AI CURATED`/`BY YOU`, chips "why it's here" (conecta con el spec de auto-colecciones del roadmap).
 4. **Columns dropdown** en la lista (toggle Year/Type/Intent/Platform/Rating/Created + ocultar por defecto para evitar scroll horizontal) — view 05.
