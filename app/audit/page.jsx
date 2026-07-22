@@ -2375,9 +2375,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           {selected.size===0&&viewMode==="entries"&&<>
             {(() => { const active=Object.values(fl).some(Boolean); return (
             <div className="relative">
-              <button onClick={()=>setToolMenu(toolMenu==="filter"?"":"filter")} title="Filters"
-                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${active||toolMenu==="filter"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.4" fill="var(--surface)"/><circle cx="15" cy="12" r="2.4" fill="var(--surface)"/><circle cx="9" cy="17" r="2.4" fill="var(--surface)"/></svg>
+              <button onClick={()=>setToolMenu(toolMenu==="filter"?"":"filter")} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:(active||toolMenu==="filter")?"var(--accent-ember)":"var(--text-secondary)",background:"var(--brand-white)",border:`1px solid ${(active||toolMenu==="filter")?"var(--accent-ember)":"var(--border-hairline)"}`,borderRadius:8,padding:"7px 11px",cursor:"pointer"}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6h11M4 12h7M4 18h4M17 6l3 3-3 3M17 18l3-3"/></svg>Filter{active&&<span style={{width:5,height:5,borderRadius:"50%",background:"var(--accent-ember)"}}/>}
               </button>
               {toolMenu==="filter"&&(
                 <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[280px] p-3 space-y-2.5">
@@ -2393,9 +2392,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </div>
             ); })()}
             <div className="relative">
-              <button onClick={()=>setToolMenu(toolMenu==="sort"?"":"sort")} title="Sort"
-                className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${toolMenu==="sort"?"border-accent text-accent bg-accent-soft":"border-main text-muted hover:text-main hover:border-[#bbb]"}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v16"/><path d="M4 7l3-3 3 3"/><path d="M17 20V4"/><path d="M14 17l3 3 3-3"/></svg>
+              <button onClick={()=>setToolMenu(toolMenu==="sort"?"":"sort")} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:toolMenu==="sort"?"var(--accent-ember)":"var(--text-secondary)",background:"var(--brand-white)",border:`1px solid ${toolMenu==="sort"?"var(--accent-ember)":"var(--border-hairline)"}`,borderRadius:8,padding:"7px 11px",cursor:"pointer"}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l-3 3M17 20l3-3"/></svg>Sort
               </button>
               {toolMenu==="sort"&&(
                 <div className="absolute right-0 top-full mt-2 bg-surface border border-main rounded-2xl shadow-xl z-50 w-[190px] py-1.5">
@@ -2405,13 +2403,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               )}
             </div>
-            <button onClick={()=>setListMode(listMode==="grid"?"list":"grid")} title={listMode==="grid"?"Switch to list":"Switch to grid"}
-              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
-              {listMode==="grid"?<ListIcon/>:<GridIcon/>}
-            </button>
-            <button onClick={doExport} title="Export"
-              className="w-9 h-9 rounded-full border border-main text-muted hover:text-main hover:border-[#bbb] flex items-center justify-center transition">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <button onClick={()=>setListMode("grid")} title="Grid" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:listMode==="grid"?"var(--ink-800)":"var(--brand-white)",border:`1px solid ${listMode==="grid"?"var(--ink-800)":"var(--border-hairline)"}`,borderRadius:8,color:listMode==="grid"?"#fff":"var(--text-secondary)",cursor:"pointer"}}><GridIcon/></button>
+            <button onClick={()=>setListMode("list")} title="List" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:listMode==="list"?"var(--ink-800)":"var(--brand-white)",border:`1px solid ${listMode==="list"?"var(--ink-800)":"var(--border-hairline)"}`,borderRadius:8,color:listMode==="list"?"#fff":"var(--text-secondary)",cursor:"pointer"}}><ListIcon/></button>
+            <button onClick={doExport} title="Export" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,color:"var(--text-secondary)",cursor:"pointer"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
             </button>
           </>}
           {selected.size>0&&<>
@@ -2976,74 +2971,48 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         document.body
       )}
 
-      {sb&&!sb._mapCountry&&(<div style={{position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24,background:"rgba(26,26,26,0.6)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)"}} onClick={()=>setSb(null)}>
-        <div onClick={ev=>ev.stopPropagation()} style={{width:"100%",maxWidth:540,maxHeight:"88vh",overflowY:"auto",background:"var(--brand-white)",borderRadius:18,boxShadow:"var(--shadow-modal)"}}>
-        <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10" style={{background:"var(--brand-white)"}}><b className="text-sm text-main" style={{fontFamily:"var(--font-body)"}}>{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
-        {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube-nocookie.com/embed/${ytId(sb.url)}?rel=0&modestbranding=1&iv_load_policy=3`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
-        {!ytId(sb.url)&&/vimeo\.com/i.test(sb.url||"")&&(()=>{const m=(sb.url||"").match(/vimeo\.com\/(?:video\/)?(\d+)/);return m?<div className="px-3 pt-2"><iframe width="100%" height="200" src={`https://player.vimeo.com/video/${m[1]}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>:null;})()}
-        {/instagram\.com\/(p|reel|tv)\//i.test(sb.url||"")&&<div className="px-3 pt-2"><iframe width="100%" height="460" src={`${(sb.url||"").split("?")[0].replace(/\/$/,"")}/embed`} frameBorder="0" scrolling="no" allowtransparency="true" className="rounded-md border border-main" /></div>}
-        {/tiktok\.com\/.*\/video\/(\d+)/i.test(sb.url||"")&&(()=>{const m=(sb.url||"").match(/video\/(\d+)/);return m?<div className="px-3 pt-2"><iframe width="100%" height="560" src={`https://www.tiktok.com/embed/v2/${m[1]}`} frameBorder="0" scrolling="no" allowFullScreen className="rounded-md border border-main" /></div>:null;})()}
-        {isVideoFile(sb.url)&&!ytId(sb.url)&&<div className="px-3 pt-2">
-          <video controls width="100%" className="rounded-md" src={sb.url} style={{maxHeight:240}} />
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <button onClick={()=>{
-              const v=document.querySelector(`video[src="${sb.url}"]`);
-              if(!v)return;
-              const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
-              c.getContext("2d").drawImage(v,0,0);
-              c.toBlob(async(blob)=>{
-                if(!blob)return;
-                const url=await uploadFile(blob.name?blob:new File([blob],`still_${Date.now()}.jpg`,{type:"image/jpeg"}));
-                if(url){
-                  if(!sb.image_url){
-                    await supabase.from("creative_source").update({image_url:url}).eq("id",sb.id);
-                    setSb({...sb,image_url:url});
-                  }else{
-                    const extras=JSON.parse(sb.image_urls||"[]");extras.push(url);
-                    await supabase.from("creative_source").update({image_urls:JSON.stringify(extras)}).eq("id",sb.id);
-                    setSb({...sb,image_urls:JSON.stringify(extras)});
-                  }
-                  setToast({message:"Still captured"});load();
-                }
-              },"image/jpeg",0.9);
-            }} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-main rounded-lg text-xs font-medium text-muted hover:text-main hover:border-[var(--accent)] transition">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
-              Capture still
-            </button>
+      {sb&&!sb._mapCountry&&(()=>{
+        const bname=sb.competitor||sb.brand_name||sb.brand||"—";
+        const heroThumb=ytId(sb.url)?`https://img.youtube.com/vi/${ytId(sb.url)}/hqdefault.jpg`:sb.image_url;
+        const isVid=ytId(sb.url)||isVideoFile(sb.url)||/(instagram\.com\/reel|tiktok\.com)/i.test(sb.url||"");
+        const plat=sb.custom_dimensions?._social?.platform||sb.custom_dimensions?._meta?.platform||(ytId(sb.url)?"YouTube":/instagram/i.test(sb.url||"")?"Instagram":/tiktok/i.test(sb.url||"")?"TikTok":"");
+        const rate=Number(sb.rating)||0;
+        const qr=[["ROLE",sb.bank_role],["ARCHETYPE",sb.brand_archetype],["TONE",sb.tone_of_voice],["TERRITORY",sb.primary_territory]].filter(([,v])=>v&&!String(v).startsWith("Not ")&&!String(v).startsWith("None"));
+        return (<div style={{position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24,background:"rgba(26,26,26,0.6)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)"}} onClick={()=>setSb(null)}>
+        <div onClick={ev=>ev.stopPropagation()} style={{width:"100%",maxWidth:540,maxHeight:"88vh",background:"var(--brand-white)",borderRadius:18,boxShadow:"var(--shadow-modal)",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+          {/* hero */}
+          <div style={{position:"relative",flex:"none"}}>
+            {heroThumb?<img src={heroThumb} onClick={()=>{if(isVid&&sb.url)window.open(sb.url,"_blank");else if(sb.image_url)setZoomImg(sb.image_url);}} style={{width:"100%",height:236,objectFit:"cover",display:"block",cursor:"pointer"}} alt=""/>:<div style={{width:"100%",height:236,background:"var(--ink-200)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>No preview</div>}
+            {isVid&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}><div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}><svg width="16" height="16" viewBox="0 0 20 20" fill="white"><polygon points="6,3 17,10 6,17"/></svg></div></div>}
+            <button onClick={()=>setSb(null)} style={{position:"absolute",top:12,right:12,width:30,height:30,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",cursor:"pointer"}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            <span style={{position:"absolute",bottom:12,left:14,fontFamily:"var(--font-mono)",fontSize:9,fontWeight:600,color:"#fff",background:"rgba(0,0,0,.55)",borderRadius:6,padding:"4px 9px"}}>{bname}</span>
           </div>
-        </div>}
-        {sb.image_url&&!ytId(sb.url)&&!/vimeo\.com|instagram\.com\/(p|reel|tv)\/|tiktok\.com\/.*\/video\//i.test(sb.url||"")&&<div className="px-3 pt-2 relative group/sb">
-          <img src={sb.image_url} className="w-full rounded-md cursor-pointer hover:opacity-90 transition" onClick={()=>setZoomImg(sb.image_url)} title="Click to zoom" />
-          <button onClick={()=>{setCropSrc(sb.image_url);setCropTarget("sidebar");}} className="absolute top-3 right-4 bg-black/60 text-white/80 hover:text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/sb:opacity-100 transition backdrop-blur-sm" title="Crop image">Crop</button>
-          {sb.image_urls&&JSON.parse(sb.image_urls||"[]").length>0&&(
-            <div className="flex gap-1.5 mt-1.5 flex-wrap">
-              {JSON.parse(sb.image_urls||"[]").map((url,i)=>(
-                <img key={i} src={url} className="w-16 h-16 object-cover rounded border border-main cursor-pointer hover:opacity-80" onClick={()=>window.open(url,"_blank")}/>
-              ))}
+          {/* body */}
+          <div style={{padding:"18px 22px",overflowY:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:24,height:24,borderRadius:"50%",background:"var(--ink-200)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-mono)",fontSize:10,fontWeight:600,flex:"none"}}>{bname.charAt(0).toUpperCase()}</span>
+              <div style={{minWidth:0,flex:1}}><div style={{fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:600,color:"var(--ink-900)"}}>{bname}</div>{sb.category&&<div style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--text-muted)"}}>{sb.category}</div>}</div>
+              {sb.url&&<a href={sb.url} target="_blank" rel="noopener" style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-accent)",flex:"none"}}>Open original ↗</a>}
             </div>
-          )}
-        </div>}
-        {sb.url&&!ytId(sb.url)&&!isVideoFile(sb.url)&&!sb.image_url&&<div className="px-3 pt-1"><a href={sb.url} target="_blank" className="text-[11px] text-accent break-all">{sb.url}</a></div>}
-        <div className="p-3">
-          <div className="flex gap-1 flex-wrap mb-2">{(sb.competitor||sb.brand_name)&&<Tag v={sb.competitor||sb.brand_name}/>}{sb.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{sb.brand}</span>}{sb.category&&<Tag v={sb.category}/>}{sb.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{sb.year}</span>}{sb.rating&&<span className="text-[11px]">{"★".repeat(Number(sb.rating))}</span>}</div>
-          <div className="flex gap-3 mt-1 flex-wrap">{sb.created_by&&<span className="text-[10px] text-hint">Added by <span className="text-main font-medium">{sb.created_by}</span></span>}{sb.created_at&&<span className="text-[10px] text-hint">Created <span className="text-main">{fmtDate(sb.created_at)}</span></span>}{sb.updated_at&&<span className="text-[10px] text-hint">Updated <span className="text-main">{fmtDate(sb.updated_at)}</span></span>}</div>
-          {[["Type",sb.type],["Portrait",sb.portrait],["Phase",sb.journey_phase],["Lifecycle",sb.client_lifecycle],["Door",sb.entry_door],["Role",sb.bank_role],["Archetype",sb.brand_archetype],["Tone",sb.tone_of_voice],["Language",sb.language_register],["Territory",sb.primary_territory],["Execution",sb.execution_style],["VP",sb.main_vp],["Slogan",sb.main_slogan]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main">{v}</span></div>))}
+            {sb.description&&<h2 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:18,lineHeight:1.2,margin:"14px 0 0",color:"var(--ink-900)"}}>{sb.description}</h2>}
+            <div style={{display:"flex",alignItems:"center",gap:12,marginTop:9,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"var(--font-mono)",fontSize:9.5,letterSpacing:".05em",color:"var(--text-muted)",textTransform:"uppercase"}}>{[plat,sb.year,sb.type].filter(Boolean).join(" · ")}</span>
+              {rate>0&&<span style={{fontSize:12,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(rate)}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-rate)}</span></span>}
+            </div>
+            {sb.main_slogan&&<div style={{marginTop:14,padding:"12px 14px",background:"var(--accent-ember-tint)",borderRadius:10}}><div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,lineHeight:1.25,color:"#5a3020"}}>&ldquo;{sb.main_slogan}&rdquo;</div></div>}
+            {qr.length>0&&<div style={{marginTop:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 20px"}}>{qr.map(([l,v])=><div key={l}><div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",color:"var(--text-muted)",marginBottom:3}}>{l}</div><div style={{fontFamily:"var(--font-body)",fontSize:11.5,color:"var(--ink-900)"}}>{v}</div></div>)}</div>}
+            {sb.synopsis&&<div style={{marginTop:16}}><div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",color:"var(--text-muted)",marginBottom:5}}>SYNOPSIS</div><p className="line-clamp-3" style={{fontFamily:"var(--font-body)",fontSize:11.5,lineHeight:1.55,color:"var(--text-secondary)",margin:0}}>{sb.synopsis}</p></div>}
+          </div>
+          {/* footer */}
+          <div style={{flex:"none",display:"flex",alignItems:"center",gap:10,padding:"14px 22px",borderTop:"1px solid var(--paper-edge)",background:"var(--brand-white)"}}>
+            <button onClick={()=>downloadCase(sb)} disabled={downloading} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"transparent",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"9px 12px",cursor:"pointer"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>{downloading?"…":"PDF"}</button>
+            <div style={{flex:1}}/>
+            <button onClick={()=>openForm(sb)} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-strong)",borderRadius:8,padding:"9px 14px",cursor:"pointer"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>
+            <button onClick={()=>openForm(sb)} className="gw-ember-btn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-body)",fontWeight:500,fontSize:11,color:"#fff",background:"var(--accent-ember-deep)",border:"none",borderRadius:8,padding:"10px 15px",cursor:"pointer"}}>View full<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M7 17 17 7M9 7h8v8"/></svg></button>
+          </div>
         </div>
-        {sb.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.synopsis}</div></div>}
-        {sb.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.insight}</div></div>}
-        {sb.transcript&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Transcript</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded max-h-[150px] overflow-auto whitespace-pre-wrap text-main">{sb.transcript}</div></div>}
-        {sb.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.analyst_comment}</div></div>}
-        <div className="p-3 border-t border-main sticky bottom-0 flex gap-2" style={{background:"var(--brand-white)"}}>
-          <button onClick={()=>openForm(sb)} className="gw-ember-btn flex-1 py-2 rounded-lg text-sm font-semibold text-white" style={{background:"var(--accent-ember-deep)"}}>Edit</button>
-          <button onClick={()=>downloadCase(sb)} disabled={downloading} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition disabled:opacity-50">
-            {downloading?"Generating...":"↓ PDF"}
-          </button>
-          <button onClick={()=>moveEntry(sb)} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition" title={`Move to ${sb.scope==="local"?"Global":"Local"}`}>
-            {sb.scope==="local"?"→ Global":"→ Local"}
-          </button>
-        </div>
-        </div>
-      </div>)}
+      </div>);
+      })()}
 
       {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
 
