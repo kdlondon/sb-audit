@@ -2356,7 +2356,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
 
   return(
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"transparent",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
-      <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
+      <div style={{marginRight:(sb&&sb._mapCountry)?380:0,transition:"margin 0.15s"}}>
         {/* Header + N2 tabs (redesign shell) — sticky glass */}
         <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(244,239,233,0.72)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:"1px solid var(--border-paper)"}}>
         <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 34px 14px"}}>
@@ -2976,8 +2976,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         document.body
       )}
 
-      {sb&&!sb._mapCountry&&(<div className="fixed right-0 w-[380px] bg-surface border-l border-main overflow-auto z-40" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h)",height:"calc(100vh - var(--nav-h))"}}>
-        <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10"><b className="text-sm text-main">{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
+      {sb&&!sb._mapCountry&&(<div style={{position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:24,background:"rgba(26,26,26,0.6)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)"}} onClick={()=>setSb(null)}>
+        <div onClick={ev=>ev.stopPropagation()} style={{width:"100%",maxWidth:540,maxHeight:"88vh",overflowY:"auto",background:"var(--brand-white)",borderRadius:18,boxShadow:"var(--shadow-modal)"}}>
+        <div className="p-3 border-b border-main flex justify-between items-center sticky top-0 bg-surface z-10" style={{background:"var(--brand-white)"}}><b className="text-sm text-main" style={{fontFamily:"var(--font-body)"}}>{sb.description||sb.competitor||sb.brand||sb.brand_name}</b><span onClick={()=>setSb(null)} className="cursor-pointer text-lg text-hint hover:text-main">×</span></div>
         {ytId(sb.url)&&<div className="px-3 pt-2"><iframe width="100%" height="195" src={`https://www.youtube-nocookie.com/embed/${ytId(sb.url)}?rel=0&modestbranding=1&iv_load_policy=3`} frameBorder="0" allowFullScreen className="rounded-md" /></div>}
         {!ytId(sb.url)&&/vimeo\.com/i.test(sb.url||"")&&(()=>{const m=(sb.url||"").match(/vimeo\.com\/(?:video\/)?(\d+)/);return m?<div className="px-3 pt-2"><iframe width="100%" height="200" src={`https://player.vimeo.com/video/${m[1]}`} frameBorder="0" allowFullScreen className="rounded-md" /></div>:null;})()}
         {/instagram\.com\/(p|reel|tv)\//i.test(sb.url||"")&&<div className="px-3 pt-2"><iframe width="100%" height="460" src={`${(sb.url||"").split("?")[0].replace(/\/$/,"")}/embed`} frameBorder="0" scrolling="no" allowtransparency="true" className="rounded-md border border-main" /></div>}
@@ -3032,14 +3033,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         {sb.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.insight}</div></div>}
         {sb.transcript&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Transcript</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded max-h-[150px] overflow-auto whitespace-pre-wrap text-main">{sb.transcript}</div></div>}
         {sb.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{sb.analyst_comment}</div></div>}
-        <div className="p-3 border-t border-main sticky bottom-0 bg-surface flex gap-2">
-          <button onClick={()=>openForm(sb)} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">Edit</button>
+        <div className="p-3 border-t border-main sticky bottom-0 flex gap-2" style={{background:"var(--brand-white)"}}>
+          <button onClick={()=>openForm(sb)} className="gw-ember-btn flex-1 py-2 rounded-lg text-sm font-semibold text-white" style={{background:"var(--accent-ember-deep)"}}>Edit</button>
           <button onClick={()=>downloadCase(sb)} disabled={downloading} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition disabled:opacity-50">
             {downloading?"Generating...":"↓ PDF"}
           </button>
           <button onClick={()=>moveEntry(sb)} className="px-3 py-2 border border-main rounded-lg text-xs text-muted hover:text-main hover:bg-surface2 transition" title={`Move to ${sb.scope==="local"?"Global":"Local"}`}>
             {sb.scope==="local"?"→ Global":"→ Local"}
           </button>
+        </div>
         </div>
       </div>)}
 
