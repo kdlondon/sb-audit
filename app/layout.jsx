@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./redesign.css";
 import { Inter } from "next/font/google";
 import { BrandProvider } from "@/lib/brand-context";
 import { RoleProvider } from "@/lib/role-context";

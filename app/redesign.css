@@ -1,0 +1,98 @@
+/* ============================================================================
+   Groundwork navigation redesign — design tokens + shell helpers.
+   Scoped to .gw-shell so it never clobbers the legacy globals.css tokens that
+   are still driving pages on the old top-nav. Single-accent (ember) palette,
+   no blue/violet/green. Source: design_handoff_navigation/tokens/*.
+   ============================================================================ */
+
+.gw-shell {
+  /* Brand core */
+  --brand-black: #000;
+  --brand-white: #fff;
+  --brand-cream: rgb(255, 247, 240);
+  --brand-paper: rgb(244, 239, 233);
+  --brand-ember: rgb(255, 74, 26);
+
+  /* Canvas */
+  --paper: var(--brand-paper);
+  --paper-edge: rgb(221, 217, 212);
+
+  /* Ink scale (warm neutral greys) */
+  --ink-900: #000;
+  --ink-800: rgb(26, 26, 26);
+  --ink-700: rgb(54, 54, 54);
+  --ink-500: rgb(138, 138, 138);
+  --ink-400: rgb(156, 156, 156);
+  --ink-300: rgb(208, 208, 208);
+  --ink-200: rgb(217, 213, 208);
+  --ink-150: rgb(229, 226, 222);
+  --ink-100: rgb(201, 196, 190);
+
+  /* Accent (ember only) */
+  --accent-ember: rgb(255, 74, 26);
+  --accent-ember-deep: rgb(223, 92, 41);
+  --accent-ember-tint: rgb(255, 207, 188);
+
+  /* Semantic aliases */
+  --surface-page: var(--paper);
+  --surface-card: var(--brand-white);
+  --surface-dark: var(--ink-800);
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-700);
+  --text-muted: var(--ink-500);
+  --text-on-dark: var(--paper);
+  --text-accent: var(--brand-ember);
+  --border-hairline: var(--ink-150);
+  --border-paper: var(--paper-edge);
+  --border-strong: var(--ink-300);
+
+  /* Type — Klamp 105 Mono is a self-hosted brand face not shipped in this
+     package; fall back to IBM Plex Mono (already loaded) so the wordmark/display
+     still read as mono. Swap in Klamp when the .otf lands. */
+  --font-display: "Klamp 105 Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Radius / elevation */
+  --radius-base: 8px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --shadow-card-hover: 0 6px 22px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 24px 60px rgba(0, 0, 0, 0.28);
+  --shadow-modal: 0 0 0 1px rgba(255, 255, 255, 0.7), 0 30px 90px rgba(0, 0, 0, 0.5);
+
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: var(--paper);
+}
+
+/* ---- Sidebar module/footer item hover ---- */
+.gw-mi { transition: background 0.12s ease, color 0.12s ease; }
+.gw-mi:hover { background: #242424; color: var(--brand-cream); }
+
+/* ---- Content toolbar buttons ---- */
+.gw-tbtn { transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease; }
+.gw-tbtn:hover { border-color: var(--border-strong); color: var(--ink-900); }
+
+/* ---- Cards ---- */
+.gw-card { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.gw-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+
+/* ---- Ember button press/hover ---- */
+.gw-ember-btn { transition: filter 0.12s ease, transform 0.06s ease; }
+.gw-ember-btn:hover { filter: brightness(0.96); }
+.gw-ember-btn:active { transform: translateY(1px); }
+
+/* ---- Collapsed-rail tooltip ---- */
+.gw-tip { position: relative; }
+.gw-tip > .gw-tip-bubble {
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  background: var(--ink-800); color: var(--brand-cream); font-family: var(--font-mono);
+  font-size: 11px; padding: 5px 9px; border-radius: 7px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s ease; z-index: 200;
+  box-shadow: var(--shadow-float);
+}
+.gw-tip:hover > .gw-tip-bubble { opacity: 1; }
+
+/* ---- N2 segmented tabs ---- */
+.gw-tab { transition: color 0.12s ease, background 0.12s ease; }
