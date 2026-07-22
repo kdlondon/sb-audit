@@ -2357,8 +2357,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   return(
     <div className="min-h-screen" style={{background:viewMode==="collections"&&activeCollection?"#ebebeb":"transparent",backgroundImage:viewMode==="collections"&&activeCollection?"radial-gradient(circle, #c8c8c8 1px, transparent 1px)":"none",backgroundSize:"22px 22px"}}>
       <div style={{marginRight:sb?380:0,transition:"margin 0.15s"}}>
-        {/* Header + N2 tabs (redesign shell) */}
-        <div style={{maxWidth:1180,margin:"0 auto",padding:"26px 34px 0"}}>
+        {/* Header + N2 tabs (redesign shell) — sticky glass */}
+        <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(244,239,233,0.72)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:"1px solid var(--border-paper)"}}>
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 34px 14px"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20}}>
             <div>
               <h1 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:28,letterSpacing:"-.01em",margin:0,color:"var(--ink-900)"}}>{csTitle}</h1>
@@ -2454,6 +2455,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           </>}
           </div>
           </div>
+        </div>
         </div>
         {/* Collections View */}
         {viewMode==="collections"&&!activeCollection&&(
