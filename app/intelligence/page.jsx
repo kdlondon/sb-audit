@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase";
 import { listFindings, saveFinding, deleteFinding } from "@/lib/findings";
 import { engagementRate, avgEngagementRate, rateCoverage, fmtRate } from "@/lib/engagement";
 import AuthGuard from "@/components/AuthGuard";
-import Nav from "@/components/Nav";
+import Sidebar from "@/components/Sidebar";
+import SectionTabs from "@/components/SectionTabs";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -379,21 +380,28 @@ function IntelligenceContent() {
   }, [entries, dashBrands]);
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
+  const INTEL_TABS = TABS.map(([id, label]) => ({ id, label }));
+  const intelTitle = (TABS.find((t) => t[0] === tab) || [])[1] || "Intelligence";
+  const intelSub = { dashboard: "Patterns across the competitive set.", insights: "AI-generated strategic reads from the data.", explore: "Drill into content territories and sub-pillars.", brands: "Each brand's profile — Expressed vs Validated.", generate: "Compose a report from your Analyst Picks." }[tab] || "";
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ background: "transparent" }}>
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
-      <div className="section-bar px-5 py-2.5 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
-        <span className="w-[200px]" aria-hidden="true"></span>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
-          {TABS.map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${tab === k ? "kd-seg-active" : "text-muted hover:text-main"}`}>{l}</button>
-          ))}
+      {/* Header + N2 tabs (redesign shell) — sticky glass */}
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(244,239,233,0.72)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid var(--border-paper)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 34px 14px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+            <div>
+              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 28, letterSpacing: "-.01em", margin: 0, color: "var(--ink-900)" }}>{intelTitle}</h1>
+              {intelSub && <p style={{ fontFamily: "var(--font-body)", fontSize: 13.5, color: "var(--text-secondary)", margin: "6px 0 0" }}>{intelSub}</p>}
+            </div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".04em", color: "var(--text-muted)", whiteSpace: "nowrap", paddingTop: 4 }}>INTELLIGENCE</span>
+          </div>
+          <div style={{ marginTop: 20 }}><SectionTabs tabs={INTEL_TABS} active={tab} onChange={setTab} /></div>
         </div>
-        <span className="text-xs text-hint w-[200px] text-right truncate">Social Media Benchmark · {projectName || ""}</span>
       </div>
 
-      <div className="section-bar-after px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: "calc(var(--sec-h) + 16px)" }}>
+      <div className="px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: 24 }}>
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
         ) : d.total === 0 && tab !== "brands" ? (
@@ -888,8 +896,13 @@ function IntelligenceContent() {
 
 export default function IntelligencePage() {
   return (
-    <AuthGuard><ProjectGuard><Nav />
-      <Suspense fallback={null}><IntelligenceContent /></Suspense>
+    <AuthGuard><ProjectGuard>
+      <div className="gw-shell" style={{ display: "flex", height: "100vh", background: "var(--paper)" }}>
+        <Sidebar />
+        <main style={{ flex: 1, minWidth: 0, height: "100vh", overflowY: "auto" }}>
+          <Suspense fallback={null}><IntelligenceContent /></Suspense>
+        </main>
+      </div>
     </ProjectGuard></AuthGuard>
   );
 }
