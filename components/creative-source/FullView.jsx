@@ -50,7 +50,7 @@ export default function FullView({ entry: e, onBack, onEdit, onPdf, downloading,
   return (
     <div className="gw-shell" style={{ background: "var(--paper)", minHeight: "100%" }}>
       <style>{`.gw-fv{font-family:var(--font-body);font-size:12.5px;line-height:1.5;color:var(--ink-900)}.gw-fl{font-family:var(--font-mono);font-size:8px;letter-spacing:.14em;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase}.gw-fvtag{font-family:var(--font-mono);font-size:10px;color:var(--text-secondary);background:var(--paper);border:1px solid var(--border-hairline);border-radius:16px;padding:4px 10px;white-space:nowrap}`}</style>
-      <div style={{ padding: "22px 40px 56px" }}>
+      <div style={{ padding: "22px 40px 56px", maxWidth: 1260, margin: "0 auto" }}>
         {/* top bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-secondary)", background: "transparent", border: "none", cursor: "pointer" }}>

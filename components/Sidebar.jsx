@@ -26,12 +26,13 @@ export default function Sidebar({ forceCollapsed = false }) {
   const router = useRouter();
   const { projectName } = useProject() || {};
   const { role, userEmail, activeOrg } = useRole() || {};
-  const [collapsedState, setCollapsed] = useState(false);
-  const collapsed = forceCollapsed || collapsedState;
+  const [collapsed, setCollapsed] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const acctRef = useRef(null);
 
-  useEffect(() => { try { setCollapsed(localStorage.getItem("gw-sidebar-collapsed") === "true"); } catch {} }, []);
+  useEffect(() => { try { if (localStorage.getItem("gw-sidebar-collapsed") === "true") setCollapsed(true); } catch {} }, []);
+  // Full view / editor collapse the rail on entry, but the arrow stays so the user can re-expand.
+  useEffect(() => { if (forceCollapsed) setCollapsed(true); }, [forceCollapsed]);
   const toggleCollapse = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem("gw-sidebar-collapsed", String(n)); } catch {} return n; });
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function Sidebar({ forceCollapsed = false }) {
             </div>}
         {!collapsed && <button onClick={toggleCollapse} title="Collapse" style={{ flex: "none", width: 22, height: 22, borderRadius: 6, background: "transparent", border: "none", color: "#8a8a8a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M15 6l-6 6 6 6" /></I></button>}
       </div>
-      {collapsed && !forceCollapsed && <button onClick={toggleCollapse} title="Expand" style={{ margin: "0 auto 10px", width: 26, height: 26, borderRadius: 6, background: "#212121", border: "1px solid #2e2e2e", color: "#c9c9c9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M9 6l6 6-6 6" /></I></button>}
+      {collapsed && <button onClick={toggleCollapse} title="Expand" style={{ margin: "0 auto 10px", width: 26, height: 26, borderRadius: 6, background: "#212121", border: "1px solid #2e2e2e", color: "#c9c9c9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I sw={1.7} w={15}><path d="M9 6l6 6-6 6" /></I></button>}
 
       {/* N0 — project context */}
       {collapsed ? (
