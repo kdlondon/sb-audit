@@ -88,6 +88,46 @@
   background: var(--paper);
 }
 
+/* ============================================================================
+   Legacy-token remap — pages re-skinned into the shell (Intelligence, etc.)
+   still reference globals.css chart/text tokens (--kd-data-*, --accent-deep,
+   --text, …). Those resolve to the OLD blue/violet + navy values by cascade.
+   Re-point them to the single ember + warm-ink system, scoped to .gw-shell so
+   globals.css and old-nav pages are untouched. Fixes: blue bars/donut/heatmap,
+   navy titles & numerals, slate body text.
+   ============================================================================ */
+.gw-shell {
+  /* Categorical chart ramp → ember → warm neutral → ink (never rainbow) */
+  --kd-data-1: rgb(255, 74, 26);
+  --kd-data-2: rgb(223, 92, 41);
+  --kd-data-3: rgb(183, 178, 168);
+  --kd-data-4: rgb(122, 116, 108);
+  --kd-data-5: rgb(74, 69, 63);
+  --kd-data-6: rgb(43, 39, 36);
+  --kd-data-track: rgba(26, 26, 26, 0.06);
+  --kd-data-spark: rgb(255, 74, 26);
+  /* Accent tiers (were oklch hue-266 blue/violet) → ember */
+  --accent-tint: rgba(255, 74, 26, 0.14);
+  --accent-step: rgba(255, 74, 26, 0.42);
+  --accent-deep: rgb(223, 92, 41);
+  --p-ember: rgba(255, 74, 26, 0.16);
+  --d-ember: rgb(223, 92, 41);
+  /* Neutral tiles (were cool oklch) → warm paper greys */
+  --p-stone: rgb(233, 229, 223);
+  --p-sand: rgb(238, 232, 224);
+  --q1: rgba(26, 26, 26, 0.80);
+  --q2: rgba(26, 26, 26, 0.34);
+  --q3: rgba(26, 26, 26, 0.14);
+  --data-track: rgba(26, 26, 26, 0.06);
+  /* Text/surface (were navy #0a0f3c / slate #5a5e7a) → warm ink */
+  --text: rgb(26, 26, 26);
+  --text2: rgb(107, 102, 96);
+  --text3: rgb(150, 145, 139);
+  --border: rgb(221, 217, 212);
+  --surface: #fff;
+  --surface2: rgb(244, 239, 233);
+}
+
 /* ---- Sidebar module/footer item hover ---- */
 .gw-mi { transition: background 0.12s ease, color 0.12s ease; }
 .gw-mi:hover { background: #242424; color: var(--brand-cream); }

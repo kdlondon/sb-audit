@@ -380,17 +380,21 @@ function IntelligenceContent() {
     return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries, dashBrands]);
 
-  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["explore", "Explore"], ["brands", "Brands"], ["generate", "Generate"]];
+  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["brands", "Brands"]];
   const INTEL_TABS = TABS.map(([id, label]) => ({ id, label }));
   const intelTitle = (TABS.find((t) => t[0] === tab) || [])[1] || "Intelligence";
-  const intelSub = { dashboard: "Patterns across the competitive set.", insights: "AI-generated strategic reads from the data.", explore: "Drill into content territories and sub-pillars.", brands: "Each brand's profile — Expressed vs Validated.", generate: "Compose a report from your Analyst Picks." }[tab] || "";
+  const intelSub = {
+    dashboard: `Category snapshot · ${d.brands.length} brand${d.brands.length === 1 ? "" : "s"} · ${d.total} piece${d.total === 1 ? "" : "s"} analyzed`,
+    insights: `Conclusions from ${d.total} piece${d.total === 1 ? "" : "s"} · ${d.analyzedPct}% analyzed`,
+    brands: "Each brand's profile — Expressed vs Validated.",
+  }[tab] || "";
 
   return (
     <div className="min-h-screen" style={{ background: "transparent" }}>
       <style>{`@media print { body * { visibility: hidden !important; } #intel-report, #intel-report * { visibility: visible !important; } #intel-report { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; } }`}</style>
       {/* Header + N2 tabs (redesign shell) — sticky glass */}
       <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(244,239,233,0.72)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid var(--border-paper)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 34px 14px" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 34px 14px" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
             <div>
               <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 28, letterSpacing: "-.01em", margin: 0, color: "var(--ink-900)" }}>{intelTitle}</h1>
@@ -402,7 +406,7 @@ function IntelligenceContent() {
         </div>
       </div>
 
-      <div className="px-5 py-5 max-w-[1100px] mx-auto" style={{ paddingTop: 24 }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 34px 56px" }}>
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
         ) : d.total === 0 && tab !== "brands" ? (
@@ -417,17 +421,18 @@ function IntelligenceContent() {
               {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--accent-deep)" }}>Clear</button>}
             </div>
             <div className="col-span-full flex gap-3 flex-wrap">
-              {[["Content", d.total], ["Brands", d.brands.length], ["AI-analyzed", `${d.analyzedPct}%`]].map(([l, v], i) => (
-                <div key={l} className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: i === 0 ? "var(--accent-tint)" : i === 1 ? "var(--p-stone)" : "var(--p-sand)", border: "1px solid rgba(0,0,0,0.035)" }}>
-                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>{l}</div>
+              {[["Content", d.total, "pieces analyzed"], ["Brands", d.brands.length, "in this benchmark"], ["AI-analyzed", `${d.analyzedPct}%`, "of the corpus"]].map(([l, v, sub], i) => (
+                <div key={l} className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)" }}>
+                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.5, fontFamily: "var(--kd-mono)", letterSpacing: ".04em" }}>{l}</div>
                   <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(v); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
+                  <div className="text-[10px] mt-1.5" style={{ color: "var(--text-muted)", fontFamily: "var(--kd-mono)" }}>{sub}</div>
                 </div>
               ))}
-              {(() => { const lead = [...d.byBrand].filter((b) => b.avgRate != null).sort((a, b) => b.avgRate - a.avgRate)[0]; return lead ? (
-                <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--p-ember)", border: "1px solid rgba(0,0,0,0.035)" }}>
-                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.55, fontFamily: "var(--kd-mono)" }}>Engagement leader</div>
-                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(fmtRate(lead.avgRate)); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
-                  <div className="text-[9px] mt-1" style={{ color: "var(--d-ember)", fontFamily: "var(--kd-mono)" }}>↑ {lead.name}</div>
+              {(() => { const rated = [...d.byBrand].filter((b) => b.avgRate != null).sort((a, b) => b.avgRate - a.avgRate); const lead = rated[0]; return lead ? (
+                <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)" }}>
+                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.5, fontFamily: "var(--kd-mono)", letterSpacing: ".04em" }}>Engagement leader</div>
+                  <div style={{ ...KPI_NUM, color: "var(--accent-ember)" }}>{(() => { const [n, suf] = splitVal(fmtRate(lead.avgRate)); return <>{n}{suf && <small style={{ ...KPI_SUFFIX, color: "var(--accent-ember)", opacity: 0.7 }}>{suf}</small>}</>; })()}</div>
+                  <div className="text-[10px] mt-1.5" style={{ color: "var(--text-muted)", fontFamily: "var(--kd-mono)" }}>{lead.name} · 1st of {rated.length}</div>
                 </div>
               ) : null; })()}
             </div>
@@ -542,18 +547,17 @@ function IntelligenceContent() {
           </div>
         ) : tab === "insights" ? (
           <div>
-            <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
-              <div>
-                <h3 className="text-base font-bold text-main">Insights</h3>
-                <p className="text-xs text-muted">Conclusions from {d.total} pieces of content · {d.analyzedPct}% analyzed</p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 14, padding: "10px 12px", marginBottom: 22 }}>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-mono uppercase tracking-widest mr-1.5" style={{ color: "var(--text-muted)" }}>Lenses</span>
+                {DIM_CHIPS.map(([k, l]) => (
+                  <button key={k} onClick={() => setDimension(k)} className="px-3 py-1.5 rounded-full text-[11px] font-medium border transition" style={dimension === k ? { background: "var(--ink-800)", borderColor: "var(--ink-800)", color: "var(--brand-cream)" } : { background: "var(--brand-white)", borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>{l}</button>
+                ))}
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setPicksOpen(true)} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2 flex items-center gap-1.5"><Bookmark on /> Analyst Picks ({picks.length})</button>
-                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{insLoading ? "Generating…" : insights ? "Regenerate" : "Generate insights"}</button>
+                <button onClick={() => setPicksOpen(true)} className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" style={{ border: "1px solid var(--border-hairline)", color: "var(--ink-800)" }}><Bookmark on /> Analyst Picks ({picks.length})</button>
+                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{insLoading ? "Generating…" : insights ? "Regenerate" : "Generate insights"}</button>
               </div>
-            </div>
-            <div className="flex gap-1.5 flex-wrap mb-6">
-              {DIM_CHIPS.map(([k, l]) => (<button key={k} onClick={() => setDimension(k)} className={`px-3 py-1 rounded-full text-[11px] font-medium border transition ${dimension === k ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:text-main"}`}>{l}</button>))}
             </div>
             {insErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{insErr}</div>}
             {insLoading && <p className="text-sm text-accent animate-pulse">The AI is reading the competitive landscape… (~15s)</p>}
@@ -670,12 +674,9 @@ function IntelligenceContent() {
               : (() => { const names = [...new Set([framework?.principalBrand?.name || framework?.brandName, ...(framework?.localCompetitors || []).map(b => b.name)].filter(Boolean))]; return [["Brands", names.length ? names : d.brands]]; })();
             return (
               <div>
-                <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-                  <p className="text-xs text-muted">Each brand's profile: <b>Expressed</b> (what its website says) vs <b>Validated</b> (what it actually does in its content). Click a brand to open its card.</p>
-                  <div className="flex gap-2">
-                    <button onClick={exportCsv} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Excel</button>
-                    <button onClick={() => setPrintAll(true)} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ PDF</button>
-                  </div>
+                <div className="flex items-center justify-end gap-2 flex-wrap mb-5">
+                  <button onClick={exportCsv} className="px-3 py-1.5 rounded-lg text-xs" style={{ border: "1px solid var(--border-hairline)", color: "var(--ink-800)" }}>↓ Excel</button>
+                  <button onClick={() => setPrintAll(true)} className="px-3 py-1.5 rounded-lg text-xs" style={{ border: "1px solid var(--border-hairline)", color: "var(--ink-800)" }}>↓ PDF</button>
                 </div>
                 {groups.map(([groupLabel, groupBrands]) => (
                 <div key={groupLabel} className="mb-7">
