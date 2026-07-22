@@ -18,20 +18,21 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 
 // Product UI Palette — data ramp by RANK (quiet). Resolved hex/rgba so Recharts
 // SVG fills render reliably (oklch CSS vars don't resolve inside <svg>).
-const PALETTE = ["#011EFF", "#5566F5", "#8A8FC9", "#B7B2A8", "#7A746C", "#2B2724"];
-// Exact DS values (oklch) so Recharts fills match the design system precisely (modern browsers resolve oklch in SVG)
-const ACCENT_DEEP = "oklch(0.520 0.135 266)";  // = --accent-deep, the focus mark
+// Redesign: single ember accent → warm neutral → ink. Never rainbow, never blue/violet/green.
+const PALETTE = ["#FF4A1A", "#DF5C29", "#B7B2A8", "#7A746C", "#4A453F", "#2B2724"];
+const ACCENT_DEEP = "#DF5C29";  // ember-deep, the focus mark
 const Q_INK = ["rgba(22,20,19,0.74)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)"]; // = q1/q2/q3 (exact)
-// Attenuated tints + greys for stacked categories — exact DS tokens, never rainbow
-const STACK_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.905 0.012 255)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)", "#2B2724"];
-// Pillar mix (top 4): accent-tint, accent-step, p-sand, p-ember; "Otros" always grey
-const PILLAR_HEX = ["oklch(0.900 0.052 266)", "oklch(0.912 0.038 262)", "oklch(0.930 0.018 82)", "oklch(0.902 0.055 44)"];
+// Attenuated ember tints + warm greys for stacked categories — single-accent ramp, never rainbow
+const STACK_HEX = ["rgba(255,74,26,0.82)", "rgba(255,74,26,0.58)", "rgba(255,74,26,0.38)", "rgba(223,92,41,0.32)", "rgba(183,178,168,0.85)", "rgba(22,20,19,0.30)", "rgba(22,20,19,0.14)", "#2B2724"];
+// Pillar mix (top 4): ember-tint, ember-step, warm sand, ember-deep tint; "Otros" always grey
+const PILLAR_HEX = ["rgba(255,74,26,0.75)", "rgba(255,74,26,0.46)", "rgba(183,178,168,0.85)", "rgba(223,92,41,0.34)"];
 const KD_EMBER = "#FF4A1A"; // the peak/alert spark for charts
 const fillForPillar = (p, i) => (p === "Otros" ? "rgba(22,20,19,0.14)" : PILLAR_HEX[i % PILLAR_HEX.length]);
-// CSS-var tints for pure-DOM stacked bars (not Recharts): accent-tint, accent-step, p-sand, p-ember; "Otros" grey
-const PILLAR_TINTS = ["var(--accent-tint)", "var(--accent-step)", "var(--p-sand)", "var(--p-ember)"];
-const fillForPillarVar = (p, i) => (p === "Otros" ? "var(--q3)" : PILLAR_TINTS[i % PILLAR_TINTS.length]);
-const PASTEL = ["#AEC6CF", "#C3B1E1", "#B5EAD7", "#FFDAC1", "#FFB7B2", "#C7CEEA", "#E2F0CB", "#F8C8DC", "#D4A5A5", "#B2D8D8", "#F3E0B5", "#CDE7BE"];
+// CSS-var tints for pure-DOM stacked bars (not Recharts) — ember ramp; "Otros" grey
+const PILLAR_TINTS = ["var(--accent-ember-tint)", "rgba(255,74,26,0.45)", "var(--ink-200)", "rgba(223,92,41,0.34)"];
+const fillForPillarVar = (p, i) => (p === "Otros" ? "var(--ink-150)" : PILLAR_TINTS[i % PILLAR_TINTS.length]);
+// Warm-only pastel ramp for category chips (no blue/violet/green)
+const PASTEL = ["#FFDAC1", "#FFC7B2", "#F3E0B5", "#EBD3BF", "#E4CBB3", "#D9BFA6", "#F0C9B8", "#D4A5A5", "#E7D3BC", "#CDBBA4", "#F2D2BE", "#DECBB4"];
 const TYPE_LABEL = { white_space: "White space", differential: "Differential", engagement: "Engagement", timing: "Timing", creative: "Creative", strategic: "Strategic" };
 const DIM_CHIPS = [["", "All"], ["white_space", "White space"], ["differential", "Differential"], ["engagement", "Engagement"], ["timing", "Timing"], ["creative", "Creative"], ["strategic", "Strategic"]];
 const Bookmark = ({ on }) => (
@@ -548,7 +549,7 @@ function IntelligenceContent() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPicksOpen(true)} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2 flex items-center gap-1.5"><Bookmark on /> Analyst Picks ({picks.length})</button>
-                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{insLoading ? "Generating…" : insights ? "Regenerate" : "Generate insights"}</button>
+                <button onClick={genInsights} disabled={insLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{insLoading ? "Generating…" : insights ? "Regenerate" : "Generate insights"}</button>
               </div>
             </div>
             <div className="flex gap-1.5 flex-wrap mb-6">
@@ -567,14 +568,14 @@ function IntelligenceContent() {
                   const thumb = d.pillarGroups.find((g) => g.pillar === ins.pillar)?.posts?.[0]?.image_url;
                   const feature = i === 0, picked = isPicked(ins);
                   return (
-                    <article key={i} className={`bg-surface border rounded-xl overflow-hidden flex flex-col ${feature ? "md:col-span-2" : ""} ${picked ? "border-[#7c3aed]" : "border-main"}`}>
+                    <article key={i} className={`bg-surface border rounded-xl overflow-hidden flex flex-col ${feature ? "md:col-span-2" : ""} ${picked ? "border-[var(--accent-ember)]" : "border-main"}`}>
                       {thumb && <div className={`w-full overflow-hidden bg-surface2 ${feature ? "h-44" : "h-28"}`}><img src={thumb} alt="" loading="lazy" className="w-full h-full object-cover" /></div>}
                       <div className="p-4 flex-1 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-hint">{TYPE_LABEL[ins.type] || ins.type}</span>
-                          <button onClick={() => togglePick(ins)} title="Save to Analyst Picks" className={`${picked ? "text-[#7c3aed]" : "text-hint hover:text-main"} transition`}><Bookmark on={picked} /></button>
+                          <button onClick={() => togglePick(ins)} title="Save to Analyst Picks" className={`${picked ? "text-[var(--accent-ember-deep)]" : "text-hint hover:text-main"} transition`}><Bookmark on={picked} /></button>
                         </div>
-                        {ins.stat && <div className="mb-2 flex items-baseline gap-2"><span className={`font-bold leading-none ${feature ? "text-4xl" : "text-3xl"}`} style={{ color: "#2563eb" }}>{ins.stat}</span><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{ins.stat_label}</span></div>}
+                        {ins.stat && <div className="mb-2 flex items-baseline gap-2"><span className={`font-bold leading-none ${feature ? "text-4xl" : "text-3xl"}`} style={{ color: "var(--accent-ember-deep)" }}>{ins.stat}</span><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{ins.stat_label}</span></div>}
                         <h4 className={`font-bold text-main leading-snug mb-2 ${feature ? "text-lg" : "text-[15px]"}`}>{ins.headline}</h4>
                         <p className="text-xs text-muted leading-relaxed flex-1">{ins.body}</p>
                         {ins.evidence && <p className="text-[10px] font-mono text-hint mt-3 pt-3 border-t border-main">{ins.evidence}</p>}
@@ -617,8 +618,8 @@ function IntelligenceContent() {
                         <button key={g.name} onClick={() => drillPillar(g.name, exBrand)}
                           className="rounded-xl p-3 text-left transition hover:brightness-95 flex flex-col justify-between"
                           style={{ flex: `${g.size} 1 ${Math.max(150, g.size * 9)}px`, minHeight: 118, background: PASTEL[i % PASTEL.length] }}>
-                          <div className="text-[13px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.name}</div>
-                          <div className="text-[11px] font-mono mt-2" style={{ color: "#52607a" }}>{g.size} pieces of content · {g.avgRate != null ? `${fmtRate(g.avgRate)} eng.` : "—"}</div>
+                          <div className="text-[13px] font-bold leading-snug" style={{ color: "var(--ink-800)" }}>{g.name}</div>
+                          <div className="text-[11px] font-mono mt-2" style={{ color: "var(--text-muted)" }}>{g.size} pieces of content · {g.avgRate != null ? `${fmtRate(g.avgRate)} eng.` : "—"}</div>
                         </button>
                       ))}
                     </div>
@@ -633,7 +634,7 @@ function IntelligenceContent() {
                       <>
                         <div className="flex gap-1.5 flex-wrap my-3">
                           <button onClick={() => setExSub("")} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${!exSub ? "bg-main text-white" : "bg-surface2 text-muted"}`}>All · {subData.posts.length}</button>
-                          {subData.subpillars.map((s, i) => <button key={s.name} onClick={() => setExSub(s.name)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: exSub === s.name ? PASTEL[i % PASTEL.length] : PASTEL[i % PASTEL.length] + "55", color: "#27324a" }}>{s.name} · {s.count}</button>)}
+                          {subData.subpillars.map((s, i) => <button key={s.name} onClick={() => setExSub(s.name)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: exSub === s.name ? PASTEL[i % PASTEL.length] : PASTEL[i % PASTEL.length] + "55", color: "var(--ink-800)" }}>{s.name} · {s.count}</button>)}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                           {subPosts.map((p, i) => (
@@ -698,10 +699,10 @@ function IntelligenceContent() {
                         <button onClick={() => setOpenBrand(open ? null : brand)} className="w-full text-left px-5 py-3.5 flex items-center gap-3 hover:bg-surface2 transition">
                           <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                             <h3 className="text-[15px] font-bold text-main">{brand}</h3>
-                            {(dnaGen === brand || (!rec && statusOf[brand] === "generating")) && <span className="text-[10px] px-2 py-0.5 rounded-full text-accent border border-[var(--accent)] animate-pulse">Generating…</span>}
+                            {(dnaGen === brand || (!rec && statusOf[brand] === "generating")) && <span className="text-[10px] px-2 py-0.5 rounded-full animate-pulse" style={{ color: "var(--accent-ember-deep)", border: "1px solid var(--accent-ember-tint)" }}>Generating…</span>}
                             {!rec && dnaGen !== brand && statusOf[brand] === "pending" && regWebsite[brand] && <span className="text-[10px] px-2 py-0.5 rounded-full text-hint border border-main">Queued</span>}
                             {!rec && statusOf[brand] === "failed" && <span className="text-[10px] px-2 py-0.5 rounded-full text-red-500 border border-red-200">Crawl failed</span>}
-                            {rec && <span className="text-[10px] px-2 py-0.5 rounded-full border border-green-200 bg-green-50 text-green-700">✓ Profile</span>}
+                            {rec && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: "var(--accent-ember-deep)", border: "1px solid var(--accent-ember-tint)", background: "var(--brand-cream)" }}>✓ Profile</span>}
                           </div>
                           {rec && <span className="text-[10px] text-hint font-mono hidden md:inline">{new Date(rec.created_at).toLocaleDateString()}{versions.length > 1 ? ` · ${versions.length}v` : ""}</span>}
                           <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition flex-shrink-0 ${open ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3" /></svg>
@@ -711,7 +712,7 @@ function IntelligenceContent() {
                         <div className="flex items-center gap-2 flex-wrap mb-3">
                           {versions.length > 1 && <select value={vi} onChange={e => setDnaVer(v => ({ ...v, [brand]: Number(e.target.value) }))} className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">{versions.map((r, i) => <option key={r.id} value={i}>{i === 0 ? "Latest" : new Date(r.created_at).toLocaleDateString()}</option>)}</select>}
                           <input value={urlVal} onChange={e => setDnaUrl(u => ({ ...u, [brand]: e.target.value }))} placeholder="https://brand.com" className="px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main w-[220px]" />
-                          <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{dnaGen === brand ? "Analyzing…" : rec ? "Update" : "Generate profile"}</button>
+                          <button onClick={() => genDna(brand)} disabled={dnaGen === brand} className="px-3 py-2 text-white rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{dnaGen === brand ? "Analyzing…" : rec ? "Update" : "Generate profile"}</button>
                         </div>
                         {dnaGen === brand && <p className="text-xs text-accent animate-pulse">Crawling the site and cross-referencing its content… (~25s)</p>}
                         {rec && (
@@ -735,13 +736,13 @@ function IntelligenceContent() {
                                 <Field label="Discourse" v={p.discourse} />
                                 <Field label="Expressed role" v={p.role?.expressed} />
                               </div>
-                              <div className="border border-main rounded-lg p-4" style={{ background: "rgba(124,58,237,0.04)" }}>
+                              <div className="border border-main rounded-lg p-4" style={{ background: "rgba(255,74,26,0.045)" }}>
                                 <div className="text-[9px] font-mono uppercase tracking-widest text-hint mb-3">Validated · what it does</div>
                                 <Field label="Tone" v={p.tone} />
                                 <Field label="Personality" v={p.personality} />
                                 <Field label="Archetype" v={p.archetype} />
                                 <Field label="Validated role" v={p.role?.validated} />
-                                {p.role?.gap && <div className="mt-1 text-xs text-[#7c3aed] rounded p-2" style={{ background: "rgba(124,58,237,0.08)" }}><b>Gap:</b> {p.role.gap}</div>}
+                                {p.role?.gap && <div className="mt-1 text-xs rounded p-2" style={{ color: "var(--accent-ember-deep)", background: "rgba(255,74,26,0.08)" }}><b>Gap:</b> {p.role.gap}</div>}
                               </div>
                             </div>
                             {Array.isArray(p.semantic_cloud) && p.semantic_cloud.length > 0 && (
@@ -814,7 +815,7 @@ function IntelligenceContent() {
               </div>
               <div className="flex gap-2">
                 {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Download PDF</button>}
-                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(90deg,#7c3aed,#2563eb)" }}>{repLoading ? "Composing…" : report ? "Regenerate" : "Generate report"}</button>
+                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{repLoading ? "Composing…" : report ? "Regenerate" : "Generate report"}</button>
               </div>
             </div>
             {repErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{repErr}</div>}
@@ -833,8 +834,8 @@ function IntelligenceContent() {
                 <div className="flex flex-wrap gap-1.5">
                   {d.pillarGroups.map((g, i) => (
                     <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
-                      <div className="text-[11px] font-bold leading-snug" style={{ color: "#27324a" }}>{g.pillar}</div>
-                      <div className="text-[9px] font-mono mt-1" style={{ color: "#52607a" }}>{g.count} · {g.avgRate != null ? fmtRate(g.avgRate) : "—"}</div>
+                      <div className="text-[11px] font-bold leading-snug" style={{ color: "var(--ink-800)" }}>{g.pillar}</div>
+                      <div className="text-[9px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>{g.count} · {g.avgRate != null ? fmtRate(g.avgRate) : "—"}</div>
                     </div>
                   ))}
                 </div>
@@ -843,8 +844,8 @@ function IntelligenceContent() {
                   <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.keyInsights}</h2>
                   <div className="space-y-4">
                     {picks.map((p, i) => (
-                      <div key={i} className="border-l-2 border-[#7c3aed] pl-4">
-                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{dl.types[p.type] || TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "#2563eb" }}>{p.stat}</span>}</div>
+                      <div key={i} className="border-l-2 border-[var(--accent-ember)] pl-4">
+                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{dl.types[p.type] || TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "var(--accent-ember-deep)" }}>{p.stat}</span>}</div>
                         <h4 className="text-[15px] font-bold text-main leading-snug">{p.headline}</h4>
                         <p className="text-xs text-muted leading-relaxed mt-0.5">{p.body}</p>
                       </div>
@@ -856,7 +857,7 @@ function IntelligenceContent() {
                   <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.recommendations}</h2>
                   <ol className="space-y-2">
                     {report.recommendations.map((r, i) => (
-                      <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[#7c3aed]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
+                      <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[var(--accent-ember-deep)]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
                     ))}
                   </ol>
                 </>)}
@@ -879,9 +880,9 @@ function IntelligenceContent() {
                 <div key={i} className="border border-main rounded-lg p-3">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-[9px] font-mono uppercase tracking-wide text-hint">{TYPE_LABEL[p.type] || p.type}</span>
-                    <button onClick={() => togglePick(p)} title="Remove" className="text-[#7c3aed]"><Bookmark on /></button>
+                    <button onClick={() => togglePick(p)} title="Remove" className="text-[var(--accent-ember-deep)]"><Bookmark on /></button>
                   </div>
-                  {p.stat && <div className="text-lg font-bold leading-none mb-1" style={{ color: "#2563eb" }}>{p.stat} <span className="text-[9px] font-mono text-hint">{p.stat_label}</span></div>}
+                  {p.stat && <div className="text-lg font-bold leading-none mb-1" style={{ color: "var(--accent-ember-deep)" }}>{p.stat} <span className="text-[9px] font-mono text-hint">{p.stat_label}</span></div>}
                   <h4 className="text-xs font-bold text-main leading-snug">{p.headline}</h4>
                   <p className="text-[11px] text-muted mt-1 leading-relaxed">{p.body}</p>
                 </div>
