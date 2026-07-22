@@ -1,3 +1,25 @@
+/* ===== Klamp 105 — self-hosted brand face (display + numerals) ===== */
+@font-face {
+  font-family: "Klamp 105 Mono";
+  src: url("/fonts/klamp/klamp-105-mono-medium.otf") format("opentype");
+  font-weight: 400 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Klamp 105";
+  src: url("/fonts/klamp/klamp-105-light.ttf") format("truetype");
+  font-weight: 300; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Klamp 105";
+  src: url("/fonts/klamp/klamp-105-book.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Klamp 105";
+  src: url("/fonts/klamp/klamp-105-heavy.ttf") format("truetype");
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+
 /* ============================================================================
    Groundwork navigation redesign — design tokens + shell helpers.
    Scoped to .gw-shell so it never clobbers the legacy globals.css tokens that
@@ -46,10 +68,10 @@
   --border-paper: var(--paper-edge);
   --border-strong: var(--ink-300);
 
-  /* Type — Klamp 105 Mono is a self-hosted brand face not shipped in this
-     package; fall back to IBM Plex Mono (already loaded) so the wordmark/display
-     still read as mono. Swap in Klamp when the .otf lands. */
+  /* Type — Klamp 105 (self-hosted, /public/fonts/klamp) for display + numerals;
+     IBM Plex Mono for labels/data; IBM Plex Sans for running body. */
   --font-display: "Klamp 105 Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-numeral: "Klamp 105", "Klamp 105 Mono", ui-monospace, monospace;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
