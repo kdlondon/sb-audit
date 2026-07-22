@@ -23,7 +23,8 @@ _Handoff: `design_handoff_navigation` (README + views 01–09). Tokens ember, si
 ## ⏳ Pendiente — otros módulos (Phase 3–4)
 6. **Intelligence (Phase 3)**
    - ~~Chrome~~ ✅ HECHO — shell (Sidebar + main), cabecera sticky glass con título Klamp por tab + eyebrow INTELLIGENCE, N2 `SectionTabs` (Dashboard/Insights/Explore/Brands/Generate) cableados al estado `tab`.
-   - ⏳ Re-skin de vistas **01–03**: Dashboard (charts a acento único, sin azul/violeta), Insights (cards), **Brands a 2 columnas** (Expressed/Validated; la 3ª Intended llega con el spec de Brand DNA a 3 bandas). Hoy el contenido conserva estilo `--kd-*` viejo dentro del shell.
+   - ~~Re-skin de vistas 01–03 (paleta ember)~~ ✅ HECHO — paletas de charts recortadas a rampa **ember → neutro cálido → ink** (fuera oklch hue-266 azul/violeta y arcoíris PASTEL); **Brands** ya a 2 columnas (Expressed/Validated) con tints/badges/botón en ember; Insights + Generate con marcas/stats/botones ember; textos slate → ink.
+   - ⏳ Afinado fino pendiente (opcional): revisar legibilidad de las series de charts con la nueva rampa mono sobre datos reales; Brands 3ª columna **Intended** llega con el spec Brand DNA a 3 bandas.
 7. **Roll-out (Phase 4)**: Scout · Report · Showcase · Settings · Chat · Admin adoptan `AppShell`; retirar `Nav.jsx` viejo + `.section-bar` de globals; converger tokens `.gw-shell` a globales; limpiar `--kd-*` obsoletos.
 
 ## Notas / deuda
