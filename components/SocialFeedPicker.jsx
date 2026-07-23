@@ -7,13 +7,13 @@ const COUNTRIES = ["Spain", "Argentina", "Chile", "Peru", "Colombia", "Mexico", 
 
 const proxied = (u) => (u ? `/api/social/thumb?u=${encodeURIComponent(u)}` : "");
 
+// Redesign: plain type labels (the design system bans emoji) + compact numerals
+const KIND_LABEL = { reel: "Reel", carousel: "Carousel", post: "Post", video: "Video", slideshow: "Slideshow" };
+const nfmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M"
+  : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
+
 // Redesign console label (mono, uppercase, wide tracking)
 const SFP_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 };
-
-const KIND_BADGE = {
-  reel: "🎬 Reel", carousel: "🖼 Carousel", post: "🖼 Post",
-  video: "🎬 Video", slideshow: "🖼 Slideshow",
-};
 
 const PLATFORM_META = {
   instagram: { label: "Instagram", placeholder: "@competitor.official  or  instagram.com/competitor" },
@@ -91,12 +91,11 @@ export default function SocialFeedPicker({
 
   const kinds = [...new Set(posts.map((p) => p.kind))];
   const visible = posts.filter((p) => filterKind === "all" || p.kind === filterKind);
-  const allSelected = visible.length > 0 && visible.every((p) => selected.has(p.url));
+  // Design: Select all takes the currently-filtered items; once anything is
+  // selected the control becomes Clear selection and empties it outright.
   const toggleAll = () => setSelected((prev) => {
-    const n = new Set(prev);
-    if (allSelected) visible.forEach((p) => n.delete(p.url));
-    else visible.forEach((p) => n.add(p.url));
-    return n;
+    if (prev.size > 0) return new Set();
+    return new Set(visible.map((p) => p.url));
   });
 
   const importSelected = async () => {
@@ -244,44 +243,70 @@ export default function SocialFeedPicker({
 
       {posts.length > 0 && (
         <>
-          {/* Toolbar */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex gap-1 flex-wrap">
-              <button onClick={() => setFilterKind("all")}
-                className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === "all" ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>All</button>
-              {kinds.map((k) => (
-                <button key={k} onClick={() => setFilterKind(k)}
-                  className={`px-2 py-1 rounded text-[11px] font-medium ${filterKind === k ? "bg-accent text-white" : "bg-surface2 text-muted hover:text-main"}`}>
-                  {KIND_BADGE[k] || k}
-                </button>
-              ))}
+          {/* Results toolbar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", paddingBottom: 14, borderBottom: "1px solid var(--paper-edge)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+              <span style={{ flex: "none", width: 36, height: 36, borderRadius: "50%", background: "var(--accent-ember-tint)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 600, color: "#7a3a24" }}>
+                {(handle.replace(/^@/, "")[0] || "?").toUpperCase()}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--ink-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{handle.replace(/^@/, "")}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".06em", color: "var(--text-muted)", marginTop: 3 }}>
+                  {posts.length} post{posts.length === 1 ? "" : "s"} fetched · {PLATFORM_META[platform]?.label || platform}
+                </div>
+              </div>
             </div>
-            <button onClick={toggleAll} className="text-[11px] text-accent hover:underline">
-              {allSelected ? "Deselect all" : "Select all"}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 10, padding: 3 }}>
+                {["all", ...kinds].map((k) => {
+                  const on = filterKind === k;
+                  return (
+                    <button key={k} onClick={() => setFilterKind(k)}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: on ? "var(--ink-800)" : "transparent", color: on ? "var(--brand-cream)" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: on ? 600 : 500 }}>
+                      {k === "all" ? "All" : (KIND_LABEL[k] || k)}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={toggleAll}
+                style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-800)" }}>
+                {selected.size > 0 ? "Clear selection" : "Select all"}
+              </button>
+            </div>
           </div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[420px] overflow-auto pr-1">
+          {/* Grid — whole card toggles selection */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, animation: "gwrise .3s ease" }}>
             {visible.map((p) => {
               const sel = selected.has(p.url);
+              const stats = [
+                p.views != null ? `${nfmt(p.views)} views` : null,
+                p.likes != null ? `${nfmt(p.likes)} likes` : null,
+                timeAgo(p.timestamp),
+              ].filter(Boolean).join(" · ");
               return (
                 <button key={p.url} onClick={() => toggle(p.url)}
-                  className={`relative text-left rounded-lg overflow-hidden border-2 transition ${sel ? "border-accent" : "border-transparent hover:border-main"}`}>
-                  <div className="aspect-square bg-surface2 overflow-hidden">
+                  style={{ textAlign: "left", padding: 9, borderRadius: 14, cursor: "pointer",
+                    border: `1.5px solid ${sel ? "var(--accent-ember)" : "transparent"}`,
+                    background: sel ? "var(--brand-white)" : "transparent", transition: "background .12s ease, border-color .12s ease" }}>
+                  <div style={{ position: "relative", aspectRatio: "4 / 5", background: "var(--ink-800)", borderRadius: 11, overflow: "hidden" }}>
                     {p.thumbnail
-                      ? <img src={proxied(p.thumbnail)} alt="" loading="lazy" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-hint text-xs">no image</div>}
+                      ? <img src={proxied(p.thumbnail)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.22)" }}>
+                          <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                        </span>}
+                    <span style={{ position: "absolute", top: 7, left: 7, background: "rgba(0,0,0,.55)", color: "#fff", borderRadius: 5, padding: "3px 6px", fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: ".08em", textTransform: "uppercase" }}>
+                      {KIND_LABEL[p.kind] || p.kind}
+                    </span>
+                    <span style={{ position: "absolute", top: 7, right: 7, width: 22, height: 22, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: sel ? "var(--accent-ember)" : "rgba(0,0,0,.25)", border: `1px solid ${sel ? "var(--accent-ember)" : "rgba(255,255,255,.7)"}` }}>
+                      {sel && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                    </span>
                   </div>
-                  <div className="absolute top-1 left-1 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded">{KIND_BADGE[p.kind] || p.kind}</div>
-                  <div className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${sel ? "bg-accent text-white" : "bg-black/50 text-white/80"}`}>{sel ? "✓" : ""}</div>
-                  <div className="p-1.5">
-                    <div className="text-[10px] text-main line-clamp-2 leading-tight">{p.caption ? p.caption.split("\n")[0] : "—"}</div>
-                    <div className="text-[9px] text-hint mt-0.5 flex gap-2">
-                      {p.likes != null && <span>❤ {p.likes.toLocaleString()}</span>}
-                      <span>{timeAgo(p.timestamp)}</span>
-                    </div>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.35, color: "var(--ink-800)", marginTop: 9, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {p.caption ? p.caption.split("\n")[0] : "—"}
                   </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>{stats}</div>
                 </button>
               );
             })}

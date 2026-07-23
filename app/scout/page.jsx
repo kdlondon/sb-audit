@@ -271,6 +271,8 @@ export default function ScoutPage() {
 
   // UI state
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Redesign: the row header expands (one open at a time); the checkbox selects.
+  const [openVideo, setOpenVideo] = useState(null);
   const searchInputRef = useRef(null);
 
   const askAssistant = async () => {
@@ -1175,14 +1177,23 @@ Rules:
               )}
 
               {/* Results header */}
-              {!savedTab && <><div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <p className="text-sm text-main font-medium">Found {filteredVideos.length} pieces</p>
+              {!savedTab && <>
+              {/* Results toolbar */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", paddingBottom: 14, borderBottom: "1px solid var(--paper-edge)", marginBottom: 16 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--ink-900)" }}>
+                    {brand ? <>Results for &ldquo;{brand}&rdquo;</> : "Results"}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".06em", color: "var(--text-muted)", marginTop: 3 }}>
+                    {filteredVideos.length} video{filteredVideos.length === 1 ? "" : "s"} found · YouTube
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   {videos.some(v => v.score !== null) && (
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] text-muted">Min score:</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <label style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)" }}>Min score</label>
                       <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                        className="px-2 py-1 bg-surface border border-main rounded text-xs text-main">
+                        style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "6px 9px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-800)", outline: "none" }}>
                         <option value={0}>All</option>
                         <option value={5}>5+</option>
                         <option value={7}>7+</option>
@@ -1190,101 +1201,92 @@ Rules:
                       </select>
                     </div>
                   )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={selectAll} className="text-xs text-accent hover:underline">Select all ({filteredVideos.length})</button>
-                  <button onClick={() => setSelected(new Set())} className="text-xs text-muted hover:text-main">Clear</button>
+                  <button onClick={() => selected.size > 0 ? setSelected(new Set()) : selectAll()}
+                    style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-800)" }}>
+                    {selected.size > 0 ? "Clear selection" : "Select all"}
+                  </button>
                 </div>
               </div>
 
-              {/* Video cards */}
-              <div className="space-y-3 mb-6">
+              {/* Video rows */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, animation: "gwrise .3s ease" }}>
                 {filteredVideos.map(v => {
                   const isDuplicate = existingUrls.has(`https://www.youtube.com/watch?v=${v.videoId}`);
                   const isSelected = selected.has(v.videoId);
+                  const open = openVideo === v.videoId;
                   return (
                     <div key={v.videoId}
-                      onClick={() => !isDuplicate && toggleSelect(v.videoId)}
-                      className={`bg-surface border rounded-xl p-4 flex gap-4 cursor-pointer transition ${
-                        isDuplicate ? "opacity-50 border-main cursor-not-allowed" :
-                        isSelected ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-main hover:border-[var(--accent)]"
-                      }`}>
-                      {/* Checkbox + Save */}
-                      <div className="flex flex-col items-center gap-2 pt-1">
-                        <input type="checkbox" checked={isSelected} disabled={isDuplicate}
-                          onChange={() => toggleSelect(v.videoId)}
-                          onClick={e => e.stopPropagation()}
-                          className="rounded border-gray-300 text-accent" />
+                      style={{ background: "var(--brand-white)", borderRadius: 12, border: `1.5px solid ${isSelected ? "var(--accent-ember)" : "var(--border-hairline)"}`, opacity: isDuplicate ? 0.55 : 1, transition: "border-color .12s ease" }}>
+                      {/* Row header — click expands (selection lives on the checkbox) */}
+                      <div onClick={() => !isDuplicate && setOpenVideo(open ? null : v.videoId)}
+                        style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", cursor: isDuplicate ? "not-allowed" : "pointer" }}>
+                        <button onClick={e => { e.stopPropagation(); if (!isDuplicate) toggleSelect(v.videoId); }} disabled={isDuplicate}
+                          aria-label={isSelected ? "Deselect" : "Select"}
+                          style={{ flex: "none", width: 22, height: 22, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: isDuplicate ? "not-allowed" : "pointer",
+                            background: isSelected ? "var(--accent-ember)" : "transparent", border: `1px solid ${isSelected ? "var(--accent-ember)" : "var(--border-strong)"}` }}>
+                          {isSelected && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                        </button>
+
+                        <div onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}
+                          style={{ position: "relative", flex: "none", width: 120, height: 68, borderRadius: 8, overflow: "hidden", background: "var(--ink-800)", cursor: "pointer" }}>
+                          {v.thumbnail && <img src={v.thumbnail} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                          {!v.thumbnail && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.22)" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>}
+                          {v.duration && (
+                            <span style={{ position: "absolute", bottom: 5, right: 5, background: "rgba(0,0,0,.78)", color: "#fff", borderRadius: 4, padding: "2px 5px", fontFamily: "var(--font-mono)", fontSize: 9 }}>
+                              {formatDuration(v.duration)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 600, color: "var(--ink-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.title}</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".04em", color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {[v.channel, v.duration ? formatDuration(v.duration) : null, `${formatViews(v.viewCount)} views`, v.year].filter(Boolean).join(" · ")}
+                            {v.isOfficial && " · Official"}
+                            {isDuplicate && " · Already imported"}
+                          </div>
+                        </div>
+
+                        {v.score !== null && <ScoreBadge score={v.score} />}
                         <button
                           title={savedVideoIds.has(v.videoId) ? "Saved" : "Save for later"}
                           onClick={e => { e.stopPropagation(); if (savedVideoIds.has(v.videoId)) { const si = savedItems.find(s => s.video_id === v.videoId); if (si) handleRemoveSaved(si.id); } else handleSaveItem(v); }}
-                          className={`w-6 h-6 flex items-center justify-center rounded transition ${savedVideoIds.has(v.videoId) ? "text-[#0019FF]" : "text-gray-400 hover:text-[#0019FF]"}`}>
+                          style={{ flex: "none", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: savedVideoIds.has(v.videoId) ? "var(--accent-ember)" : "var(--ink-300)" }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill={savedVideoIds.has(v.videoId) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
                         </button>
+                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="var(--text-muted)" strokeWidth="1.6" style={{ flex: "none", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s ease" }}><path d="M2 4l3 3 3-3" /></svg>
                       </div>
 
-                      {/* Thumbnail */}
-                      <div className="w-40 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-surface2 relative cursor-pointer group/thumb"
-                        onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}>
-                        {v.thumbnail && <img src={v.thumbnail} className="w-full h-full object-cover" alt="" />}
-                        <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover/thumb:opacity-100 transition">
-                            <svg width="14" height="14" viewBox="0 0 20 20" fill="#0a0a0a"><polygon points="6,3 17,10 6,17" /></svg>
-                          </div>
-                        </div>
-                        {v.duration && (
-                          <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                            {formatDuration(v.duration)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-main leading-snug line-clamp-2">{v.title}</h3>
-                          {v.score !== null && <ScoreBadge score={v.score} />}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-muted">{v.channel}</p>
-                          {v.isOfficial && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Official</span>
-                          )}
-                          {savedVideoIds.has(v.videoId) && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold">Saved</span>
-                          )}
-                          <span className="text-xs text-hint">&middot; {formatViews(v.viewCount)} views &middot; {v.year}</span>
-                        </div>
-                        {v.reason && <p className="text-[11px] text-hint mt-1 italic">{v.reason}</p>}
-                        <button onClick={e => { e.stopPropagation(); setPreview({ videoId: v.videoId, title: v.title }); }}
-                          className="text-[11px] text-accent hover:underline mt-1 inline-block">Watch video</button>
-                        {isDuplicate && <p className="text-[10px] text-amber-500 font-medium mt-1">Already imported</p>}
-
-                        {/* Settings area — shows when selected */}
-                        {isSelected && !isDuplicate && (
-                          <div className="mt-3 pt-3 border-t border-main space-y-3" onClick={e => e.stopPropagation()}>
-                            {/* Scope selector */}
-                            <div className="flex items-center gap-3">
-                              <label className="text-[10px] text-muted uppercase font-semibold">Import to:</label>
-                              <div className="flex bg-surface2 rounded-lg p-0.5">
-                                <button onClick={() => setVideoScopes(prev => ({ ...prev, [v.videoId]: "local" }))}
-                                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[v.videoId] || scope) === "local" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
-                                  Local
-                                </button>
-                                <button onClick={() => setVideoScopes(prev => ({ ...prev, [v.videoId]: "global" }))}
-                                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${(videoScopes[v.videoId] || scope) === "global" ? "bg-surface text-accent shadow-sm" : "text-muted"}`}>
-                                  Global
-                                </button>
+                      {/* Expanded per-video OPTIONS */}
+                      <div>
+                        {open && !isDuplicate && (
+                          <div style={{ margin: "0 14px", paddingTop: 14, paddingBottom: 14, borderTop: "1px dashed var(--border-hairline)", animation: "gwrise .22s ease" }} onClick={e => e.stopPropagation()}>
+                            {v.reason && (
+                              <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: 12.5, color: "var(--text-secondary)", margin: "0 0 14px" }}>{v.reason}</p>
+                            )}
+                            {/* OPTIONS row — scope stays here until the import bar owns it (phase 4) */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 14, marginBottom: 14 }}>
+                              <div>
+                                <label style={SC_FLD_LABEL}>Import to</label>
+                                <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 9, padding: 3 }}>
+                                  {["local", "global"].map(s => {
+                                    const on = (videoScopes[v.videoId] || scope) === s;
+                                    return (
+                                      <button key={s} onClick={() => setVideoScopes(prev => ({ ...prev, [v.videoId]: s }))}
+                                        style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", background: on ? "var(--ink-800)" : "transparent", color: on ? "var(--brand-cream)" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: on ? 600 : 500, textTransform: "capitalize" }}>
+                                        {s}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                            {/* Communication Intent */}
-                            <div className="flex items-center gap-3">
-                              <label className="text-[10px] text-muted uppercase font-semibold">Intent:</label>
-                              <select value={videoIntents[v.videoId] || ""} onChange={ev => setVideoIntents(prev => ({ ...prev, [v.videoId]: ev.target.value }))}
-                                className="px-2 py-1 bg-surface border border-main rounded text-xs text-main">
-                                <option value="">— Select —</option>
-                                {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                              </select>
+                              <div>
+                                <label style={SC_FLD_LABEL}>Intent</label>
+                                <select value={videoIntents[v.videoId] || ""} onChange={ev => setVideoIntents(prev => ({ ...prev, [v.videoId]: ev.target.value }))} style={SC_CTRL}>
+                                  <option value="">— Select —</option>
+                                  {INTENT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              </div>
                             </div>
                             {/* Video embed + Screenshot capture */}
                             <div>
@@ -1334,33 +1336,27 @@ Rules:
                                 </div>
                               )}
                             </div>
-                            {/* Transcript */}
-                            <div>
-                              <div className="flex justify-between items-center mb-1">
-                                <label className="text-[10px] text-muted uppercase font-semibold">Transcript / Copy</label>
-                                <span className="text-[9px] text-hint">Paste here for better AI analysis</span>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 14 }}>
+                              <div>
+                                <label style={SC_FLD_LABEL}>Transcript</label>
+                                <textarea
+                                  value={transcripts[v.videoId] || ""}
+                                  onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                                  rows={3}
+                                  placeholder="Paste the transcript or ad copy — sharpens the AI read."
+                                  style={{ ...SC_CTRL, resize: "vertical" }}
+                                />
                               </div>
-                              <textarea
-                                value={transcripts[v.videoId] || ""}
-                                onChange={e => setTranscripts(prev => ({ ...prev, [v.videoId]: e.target.value }))}
-                                rows={3}
-                                placeholder="Paste the video transcript or ad copy here..."
-                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
-                              />
-                            </div>
-                            {/* FIX #3: Analyst Notes */}
-                            <div>
-                              <div className="flex justify-between items-center mb-1">
-                                <label className="text-[10px] text-muted uppercase font-semibold">Analyst Notes</label>
-                                <span className="text-[9px] text-hint">Your observations, sent to AI on import</span>
+                              <div>
+                                <label style={SC_FLD_LABEL}>Notes</label>
+                                <textarea
+                                  value={analystNotes[v.videoId] || ""}
+                                  onChange={e => setAnalystNotes(prev => ({ ...prev, [v.videoId]: e.target.value }))}
+                                  rows={3}
+                                  placeholder="Your observations — sent to the AI on import."
+                                  style={{ ...SC_CTRL, resize: "vertical" }}
+                                />
                               </div>
-                              <textarea
-                                value={analystNotes[v.videoId] || ""}
-                                onChange={e => setAnalystNotes(prev => ({ ...prev, [v.videoId]: e.target.value }))}
-                                rows={2}
-                                placeholder="Add your notes about this video..."
-                                className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main resize-y focus:outline-none focus:border-[var(--accent)]"
-                              />
                             </div>
                           </div>
                         )}
