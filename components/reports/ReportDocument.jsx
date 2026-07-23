@@ -14,6 +14,8 @@ const BREADCRUMB = {
   paddingBottom: 16, borderBottom: "1px solid var(--paper-edge)", marginBottom: 34,
 };
 
+const norm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, " ").trim();
+
 export default function ReportDocument({ report, renderMarkdown, breadcrumb, onRegenerate, regeneratingKey, notice, onUndo, onDismissNotice }) {
   const doc = report?.content_blocks;
   if (!isV2(doc)) {
@@ -38,6 +40,10 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
     // label and the heading the engine wrote. If a second heading opens the section, it is
     // that generated one — prefer it and drop the label, rather than printing both.
     if (b.type === "h2" && cur.blocks.length === 0) { cur.title = b.text; continue; }
+    // A heading that merely restates the section title (any level, any case) is a
+    // duplicate — engines often open with "# EXECUTIVE READ" under a section already
+    // called Executive read.
+    if ((b.type === "h2" || b.type === "h3") && cur.blocks.length === 0 && norm(b.text) === norm(cur.title)) continue;
     cur.blocks.push(b);
   }
 
