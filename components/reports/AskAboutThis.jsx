@@ -16,7 +16,7 @@ const SUGGESTED = [
 const PANEL_W = 380;
 const PANEL_H = 330;
 
-export default function AskAboutThis({ containerRef, reportTitle, reportText, projectId, brandId }) {
+export default function AskAboutThis({ containerRef, reportTitle, reportText, projectId, brandId, language }) {
   const [sel, setSel] = useState(null);          // { text, rect }
   const [mode, setMode] = useState(null);        // null | 'pill' | 'ask'
   const [question, setQuestion] = useState("");
@@ -61,7 +61,7 @@ export default function AskAboutThis({ containerRef, reportTitle, reportText, pr
       const system = `You are the analyst's assistant inside a competitive-intelligence report titled "${reportTitle || "Report"}".
 The user has selected a passage and is asking about it. Answer about THAT passage specifically.
 Ground every answer in the report's own content and reasoning. If the report does not support an answer, say so plainly rather than inventing evidence.
-Be concise — 2-4 sentences unless the question genuinely needs more. No preamble, no restating the question. Reply in the same language as the passage.`;
+Be concise — 2-4 sentences unless the question genuinely needs more. No preamble, no restating the question.\nAnswer in ${language || "the same language as the passage"} — the report's language, not English.`;
       const context = `REPORT (for context):\n${String(reportText || "").slice(0, 12000)}\n\nSELECTED PASSAGE:\n"""${sel.text}"""`;
       const res = await fetch("/api/ai", {
         method: "POST", headers: { "Content-Type": "application/json" },

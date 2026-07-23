@@ -34,6 +34,10 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
     const cur = sections[sections.length - 1];
     // The first h2 of a section is its title — promoted out of the prose.
     if (b.type === "h2" && cur.title === null && cur.blocks.length === 0) { cur.title = b.text; continue; }
+    // Reports generated before the titles were de-duplicated store BOTH the card's English
+    // label and the heading the engine wrote. If a second heading opens the section, it is
+    // that generated one — prefer it and drop the label, rather than printing both.
+    if (b.type === "h2" && cur.blocks.length === 0) { cur.title = b.text; continue; }
     cur.blocks.push(b);
   }
 

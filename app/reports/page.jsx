@@ -516,6 +516,7 @@ function ReportsContent(){
   // Regenerate ONE section of a saved report, with the analyst's instruction as direction.
   // Only that section's blocks are replaced; everything else is left untouched.
   const[regenKeyBusy,setRegenKeyBusy]=useState(null);
+  const[regenNotice,setRegenNotice]=useState(null);   // { text, prevDoc, key }
   const regenerateSection=async(sectionKey,instruction)=>{
     const rep=viewingReport; if(!rep||regenKeyBusy)return;
     const cfg=rep.report_config||{};
@@ -568,9 +569,24 @@ function ReportsContent(){
       if(!save.ok||out.error)throw new Error(out.error||"Could not save");
 
       setViewingReport(r=>r?{...r,content_blocks:next,content:blocksToMarkdown(next)}:r);
-      showToast(`Section regenerated (${before} → ${fresh.length} blocks)`);
-    }catch(e){ showToast("Regenerate failed: "+(e.message||"unknown")); }
+      setRegenNotice({key:sectionKey,text:"Section regenerated",prevDoc:doc});
+    }catch(e){ setRegenNotice({key:sectionKey,text:"Regenerate failed: "+(e.message||"unknown")}); }
     setRegenKeyBusy(null);
+  };
+
+  // Restore the section as it was before the last regeneration.
+  const undoRegenerate=async()=>{
+    const n=regenNotice; const rep=viewingReport;
+    if(!n?.prevDoc||!rep)return;
+    const{data:{session}}=await supabase.auth.getSession();
+    const res=await fetch("/api/reports/save",{
+      method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},
+      body:JSON.stringify({report:{id:rep.id,project_id:projectId,content:blocksToMarkdown(n.prevDoc),content_blocks:n.prevDoc}}),
+    });
+    const out=await res.json().catch(()=>({}));
+    if(!res.ok||out.error){setRegenNotice({key:n.key,text:"Could not undo: "+(out.error||res.statusText)});return;}
+    setViewingReport(r=>r?{...r,content_blocks:n.prevDoc,content:blocksToMarkdown(n.prevDoc)}:r);
+    setRegenNotice(null);
   };
 
   const closeV2Run=()=>{
@@ -1781,8 +1797,8 @@ RULES:
 
                 <h1 style={{fontFamily:"var(--font-display)",fontSize:34,fontWeight:700,letterSpacing:"-.015em",color:"var(--ink-900)",margin:"20px 0 0"}}>{viewingReport?.title||reportTitle||"Report"}</h1>
 
-                {viewingReport&&(
-                  <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginTop:18}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:20}}>
+                  {viewingReport&&(<>
                     <span style={{fontFamily:"var(--font-mono)",fontSize:9.5,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)"}}>Status</span>
                     <div style={{display:"inline-flex",gap:2,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:12,padding:4}}>
                       {[["in_process","In process"],["in_review","In review"],["delivered","Delivered"]].map(([k,l])=>{
@@ -1792,29 +1808,20 @@ RULES:
                           await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({id:viewingReport.id,action:"status",value:k})});
                           setViewingReport(r=>r?{...r,status:k}:r);
                           setSavedReports(rs=>rs.map(r=>r.id===viewingReport.id?{...r,status:k}:r));
-                        }} style={{padding:"7px 16px",borderRadius:9,border:"none",cursor:"pointer",background:on?"var(--ink-800)":"transparent",color:on?"var(--brand-cream)":"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:on?600:500}}>{l}</button>;
+                        }} style={{padding:"7px 14px",borderRadius:9,border:"none",cursor:"pointer",background:on?"var(--ink-800)":"transparent",color:on?"var(--brand-cream)":"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:on?600:500}}>{l}</button>;
                       })}
                     </div>
-                    <span style={{display:"inline-flex",alignItems:"center",gap:7,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>
-                      <span style={{width:7,height:7,borderRadius:"50%",background:"var(--ink-300)"}}/>Saved
-                    </span>
-                  </div>
-                )}
-
-                <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:18}}>
-                  <button onClick={()=>viewingReport&&router.push(`/reports/editor?id=${viewingReport.id}`)} className="gw-ember-btn"
-                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--accent-ember)",color:"#fff",border:"none",borderRadius:10,padding:"11px 20px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:14,fontWeight:700}}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit
-                  </button>
-                  <button onClick={()=>{navigator.clipboard?.writeText(activeContent||"");showToast("Copied");}} className="gw-tbtn"
-                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"11px 18px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy
+                    <span style={{width:1,alignSelf:"stretch",background:"var(--border-hairline)",margin:"0 2px"}}/>
+                  </>)}
+                  <button onClick={()=>{navigator.clipboard?.writeText(activeContent||"");}} className="gw-tbtn"
+                    style={{display:"inline-flex",alignItems:"center",gap:7,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 14px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12.5,color:"var(--ink-800)"}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy
                   </button>
                   <div style={{position:"relative"}}>
                     <button onClick={()=>setDownloadMenu(!downloadMenu)} className="gw-tbtn"
-                      style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"11px 18px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4l3 3 3-3"/></svg>
+                      style={{display:"inline-flex",alignItems:"center",gap:7,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 14px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12.5,color:"var(--ink-800)"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4l3 3 3-3"/></svg>
                     </button>
                     {downloadMenu&&(
                       <div style={{position:"absolute",left:0,top:"100%",marginTop:6,zIndex:40,minWidth:170,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:12,boxShadow:"var(--shadow-card-hover)",padding:5}}>
@@ -1824,10 +1831,18 @@ RULES:
                     )}
                   </div>
                   <button onClick={()=>viewingReport&&router.push(`/showcase?report=${viewingReport.id}`)}
-                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--ink-800)",color:"var(--brand-cream)",border:"none",borderRadius:10,padding:"11px 20px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:14,fontWeight:700}}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Generate Visual Presentation
+                    style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:8,background:"var(--ink-800)",color:"var(--brand-cream)",border:"none",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:13.5,fontWeight:700}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Generate Visual Presentation
                   </button>
                 </div>
+
+                {regenNotice&&(
+                  <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:14,padding:"10px 14px",borderRadius:10,background:"var(--accent-ember-tint)",color:"#7a3a24",fontFamily:"var(--font-body)",fontSize:12.5}}>
+                    <span style={{flex:1,minWidth:0}}>{regenNotice.text}</span>
+                    {regenNotice.prevDoc&&<button onClick={undoRegenerate} style={{background:"transparent",border:"none",padding:0,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11,color:"#7a3a24",textDecoration:"underline"}}>Undo</button>}
+                    <button onClick={()=>setRegenNotice(null)} style={{background:"transparent",border:"none",padding:0,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11,color:"#7a3a24"}}>Dismiss</button>
+                  </div>
+                )}
               </div>
               <div className="flex">
                 <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
@@ -1850,6 +1865,7 @@ RULES:
                       reportText={viewingReport.content||activeContent}
                       projectId={projectId}
                       brandId={brandId}
+                      language={framework?.language}
                     />
                   )}
                 </div>
@@ -1890,21 +1906,9 @@ RULES:
                 )}
               </div>
 
-              {/* Selection toolbar — Ask + Comment */}
-              {selectionPos&&!assistOpen&&!commentDraft&&(
-                <div className="fixed bottom-6 left-6 z-50 flex gap-2" style={{animation:"fadeIn 0.2s"}}>
-                  <button onClick={()=>{setAssistOpen(true);setAssistMessages([]);setSelectionPos(null);}}
-                    className="px-4 py-2.5 bg-[#0a0f3c] text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                    Ask about this
-                  </button>
-                  <button onClick={()=>{setCommentDraft({quote:assistSelection});setSelectionPos(null);}}
-                    className="px-4 py-2.5 bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-2xl hover:opacity-90 transition flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
-                    Comment
-                  </button>
-                </div>
-              )}
+              {/* The legacy selection toolbar (navy Ask + amber Comment) is gone:
+                  Ask about this is now <AskAboutThis/> in the design system, and
+                  Comment was dropped from scope. */}
 
               {/* Inline comment popup on hover */}
               {hoverComment&&!activeComment&&(

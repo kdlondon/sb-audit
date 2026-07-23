@@ -226,6 +226,13 @@ function Quadrant({ data = {} }) {
         <span>{data.xLabel || "supply →"}</span>
         <span>{data.yLabel || "↑ demand"}</span>
       </div>
+      {/* Without this the chart is a puzzle: it never said what ember meant. */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border-hairline)" }}>
+        <span style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 14, background: "var(--accent-ember)", color: "#fff", fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600 }}>✦</span>
+        <span style={{ fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)" }}>
+          <b>The white space</b> — territories few brands publish (low supply) that still perform well (high demand). Everything else is shown for contrast: crowded territories on the right, low-demand ones below.
+        </span>
+      </div>
     </div>
   );
 }
