@@ -160,29 +160,35 @@ Backfill: reportes → `status='in_process'`, `archived=false`; showcases existe
 
 ---
 
-## 10. Fases — estado
+## 10. Fases — estado (2026-07-24)
 
 | Fase | Qué | Estado |
 |---|---|---|
-| **F0** | Migraciones · modelo de bloques · conversión de legacy | ✅ Hecho |
-| **F1** | Library sobre el shell: N2, filtros, orden, chips, ⋯ (Rename/Delete/Archive) + modales | ✅ Hecho |
-| **F2** | Generate 1 (objetivos + chips) + 2 (configurador por reporte) + objetivos en Settings | ✅ Hecho |
-| **F3** | Generación por secciones + progreso real + guardado incremental + fallo a mitad | ✅ Hecho |
-| **B1–B11** | Vía backend: migración, modelos, cards, bloques, citas, resolvedor, APIs, orquestador, motor Innovation, bloques visuales | ✅ Hecho |
-| **F4** | Documento: **render de bloques ricos**, autosave, banner de concurrencia, 4 herramientas, raíl de comentarios | ⏳ **Siguiente** — riesgo alto |
-| **F5** | Download (pdf · md · doc) + reescritura de citas a URL pública | ⏳ Pendiente |
-| **Fx** | Ruta pública de caso `/case/[id]` (auth-gated) — habilita el link de caso en descargas | ⏳ Pendiente |
-| **F6** | Presentación visual anidada (migrar Showcase + re-skin) | ⏸ Aparcado |
+| **F0** | Migraciones · modelo de bloques · conversión de legacy | ✅ |
+| **F1** | Library: N2, filtros, orden, chips, ⋯ (Rename/Delete/Archive), modales | ✅ |
+| **F2** | Generate 1 (objetivos) + 2 (configurador por reporte) + objetivos en Settings | ✅ |
+| **F3** | Generación por secciones · progreso real · guardado incremental · fallo a mitad | ✅ |
+| **B1–B11** | Vía backend completa (migración, cards, bloques, citas, resolvedor, APIs, orquestador, motor Innovation, bloques visuales) | ✅ |
+| **F4** | Documento: bloques ricos, tratamiento del entregable, cabecera con estados, **Regenerate con prompt + Undo**, **Ask about this** | ✅ (Comment y Edit **descartados** por decisión) |
+| **F5** | Download + **citas navegables** | 🟡 Parcial — ver abajo |
+| **Fx** | Ruta pública de caso `/case/[id]` | ⏳ Pendiente |
+| **F6** | Presentación visual (migrar Showcase + re-skin) | ⏸ Aparcado |
 | **F7** | Showcase fuera del sidebar | ⏸ Aparcado (atado a F6) |
 
-### Deuda técnica identificada durante F1–F3
-1. **Seis peticiones recargan los mismos datos.** Cada sección vuelve a leer todas las entradas, el framework y el Brand DNA. Funciona, pero es 6× la carga y 6× la superficie de fallo. Lo correcto: que la ruta acepte varias secciones en una llamada.
-2. **Los bloques visuales (B11) se generan pero no se pintan.** `socialVisuals`/`flagshipVisuals` ya devuelven KPI, barras, heatmap y matriz 2×2 con datos reales, y el motor social los adjunta — pero el documento aún renderiza solo markdown. Se conectan en F4.
-3. **El motor Innovation nunca se ha ejecutado.** Construido y carteado, sin correr.
-4. **Los extractos de sección sí se han probado** (White space, 2026-07-23): generan y guardan.
+### Qué queda exactamente
 
-### Lección de la tanda de fallos (F2–F3)
-Cinco causas encadenadas —columnas faltantes, uuid inválido, update bloqueado por RLS, 404 engañoso, y techo de tokens— **todas se presentaban como éxito**. El patrón a evitar: convertir un fallo en un resultado plausible (`catch` vacío, `data` sin comprobar `error`, update que no afecta filas). Instrumentar los caminos de escritura con comprobación de errores **antes** de darlos por terminados, no al depurar.
+**1. Citas navegables (F5 + Fx) — van juntas.** Hoy una cita es `cite:ID`, que solo Groundwork entiende. En el `.md` descargado se sustituye por la URL original de la pieza (Instagram, YouTube), no por Groundwork. Falta: la ruta `/case/[id]` (auth-gated) y que el export reescriba a esa URL absoluta. `lib/report-citations.js` ya está escrito, sin cablear.
+
+**2. El visor del caso.** Al hacer clic en una cita se abre el panel lateral pero no muestra la pieza como el visor de Creative Source. Reportado y **sin arreglar**.
+
+**3. `.doc` en Download.** El diseño lo pide; hoy solo hay `.md` y `.pdf`.
+
+**4. Layouts para secciones con estructura.** *Positioning x-ray* y *Declared vs deployed* son literalmente "declara / demuestra / brecha" por marca y salen como prosa corrida; piden una tabla comparativa. Requiere que el motor devuelva esos datos estructurados — el mismo patrón que ya usan los gráficos.
+
+### Deuda técnica
+1. **Seis peticiones recargan los mismos datos** por informe. Funciona, pero es 6× la carga y 6× la superficie de fallo — origen de buena parte de los fallos de F2–F3. Lo correcto: que la ruta acepte varias secciones por llamada.
+2. **El motor Innovation nunca se ha ejecutado.**
+3. **Los bloques se persisten**: arreglar un generador no arregla los informes ya guardados. Todo render debe aguantar datos de cualquier versión (aprendido dos veces con el cuadrante y los títulos).
 
 ## 11. Riesgos
 
