@@ -25,7 +25,7 @@ import { useProject } from "@/lib/project-context";
 import { useRole } from "@/lib/role-context";
 import { useFramework } from "@/lib/framework-context";
 import { useRouter } from "next/navigation";
-import Nav from "@/components/Nav";
+import Sidebar from "@/components/Sidebar";
 import SocialFeedPicker from "@/components/SocialFeedPicker";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -138,10 +138,23 @@ function VideoPreview({ videoId, title, onClose }) {
 }
 
 /* ─── MAIN COMPONENT ─── */
+// Monoline brand glyphs (~1.6px) for the N1 channel toggle — no emoji, no brand fills.
+const G = ({ children }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
+const CHANNELS = [
+  { id: "youtube", label: "YouTube", glyph: <G><rect x="2" y="5" width="20" height="14" rx="4" /><path d="M10 9.5l5 2.5-5 2.5z" /></G> },
+  { id: "instagram", label: "Instagram", glyph: <G><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r=".9" fill="currentColor" stroke="none" /></G> },
+  { id: "tiktok", label: "TikTok", glyph: <G><path d="M15 4v9.5a4 4 0 11-3.2-3.92" /><path d="M15 4a5 5 0 004.5 4" /></G> },
+];
+
 export default function ScoutPage() {
   const { projectId, projectName, brandId } = useProject();
   const { framework } = useFramework() || {};
-  const [source, setSource] = useState("youtube"); // youtube | social
+  // Redesign: three channels at the same level (YouTube · Instagram · TikTok).
+  // `source` stays derived so the existing YouTube/social branches keep working.
+  const [channel, setChannel] = useState("instagram"); // youtube | instagram | tiktok
+  const source = channel === "youtube" ? "youtube" : "social";
   // brand_id is a UUID column; in the project-centric flow brandId is the project-id
   // string ("proj_..."), which is NOT a valid uuid. Null it out so saves don't fail.
   const safeBrandId = brandId && !String(brandId).startsWith("proj_") ? brandId : null;
@@ -578,7 +591,7 @@ Rules:
             "execution_style", "main_slogan", "rating", "funnel"];
           fields.forEach(f => { if (a[f]) updates[f] = a[f]; });
           if (Object.keys(updates).length > 0) {
-            await supabase.from(table).update(updates).eq("id", entry.id);
+            await supabase.from("creative_source").update(updates).eq("id", entry.id);
           }
         }
       } catch { /* ignore */ }
@@ -787,7 +800,7 @@ Rules:
               "execution_style", "main_slogan", "rating", "funnel"];
             fields.forEach(f => { if (a[f]) updates[f] = a[f]; });
             if (Object.keys(updates).length > 0) {
-              await supabase.from(table).update(updates).eq("id", entry.id);
+              await supabase.from("creative_source").update(updates).eq("id", entry.id);
             }
           }
         } catch { /* ignore */ }
@@ -819,40 +832,59 @@ Rules:
   const showEmptyState = videos.length === 0 && !searching && !ranking && !importing && !importDone && !savedTab;
   const showResults = (videos.length > 0 || savedTab) && !searching && !importing && !importDone;
 
+  // Design: changing channel resets the flow (clears results + selection).
+  // The social branch resets by remounting SocialFeedPicker via key={channel}.
+  const selectChannel = (id) => {
+    if (id === channel) return;
+    setChannel(id);
+    setVideos([]);
+    setSelected(new Set());
+    setSavedTab(false);
+    setImportDone(false);
+    setImportCount(0);
+    setMinScore(0);
+    setPreview(null);
+  };
+
   // ─── RENDER ───
   return (
-    <AuthGuard><ProjectGuard><Nav />
-      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <AuthGuard><ProjectGuard>
+      <div className="gw-shell" style={{ display: "flex", height: "100vh", background: "var(--paper)" }}>
+      <Sidebar />
+      <main style={{ flex: 1, minWidth: 0, height: "100vh", overflowY: "auto", position: "relative" }}>
         {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 shadow-lg" style={{ animation: "fadeIn 0.3s" }}>{toast}</div>}
         {preview && <VideoPreview videoId={preview.videoId} title={preview.title} onClose={() => setPreview(null)} />}
 
-        <div className="max-w-5xl mx-auto p-6">
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 34px 56px" }}>
 
-          {/* ─── CONVERSATIONAL HEADER ─── */}
-          {showEmptyState && (
-            <div className="text-center pt-12 pb-8" style={{ animation: "fadeIn 0.5s" }}>
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: "#0a0f3c" }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </div>
-              <h1 className="text-2xl font-bold text-main mb-2">Scout</h1>
-              <p className="text-sm text-muted max-w-md mx-auto">Tell me a brand, a market, or just an idea — I&apos;ll find the competitive content for you</p>
-            </div>
-          )}
+          {/* ─── TITLE BLOCK (redesign) ─── */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: ".16em", color: "var(--text-muted)", textTransform: "uppercase" }}>Scout /</div>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 700, color: "var(--ink-900)", letterSpacing: "-.01em", margin: "8px 0 0" }}>Find the field</h1>
+            <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: 15, color: "var(--text-secondary)", margin: "8px 0 0" }}>Pick a channel, pull the content, then import what matters as entries.</p>
+          </div>
 
-          {/* ─── SOURCE TOGGLE (YouTube / Instagram) ─── */}
-          <div className="max-w-2xl mx-auto mb-4 flex justify-center">
-            <div className="flex bg-surface2 rounded-lg p-0.5">
-              {[["youtube","YouTube"],["social","Social"]].map(([k,l])=>(
-                <button key={k} onClick={()=>setSource(k)} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition ${source===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>
-              ))}
-            </div>
+          {/* ─── CHANNEL TOGGLE (OPTION L1) — changing channel resets the flow ─── */}
+          <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
+            {CHANNELS.map(({ id, label, glyph }) => {
+              const on = channel === id;
+              return (
+                <button key={id} onClick={() => selectChannel(id)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 9, border: "none", cursor: "pointer",
+                    background: on ? "var(--ink-800)" : "transparent", color: on ? "var(--brand-cream)" : "var(--text-muted)",
+                    fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: on ? 600 : 500, transition: "background .12s ease, color .12s ease" }}>
+                  {glyph}{label}
+                </button>
+              );
+            })}
           </div>
 
           {/* ─── SOCIAL FEED (Instagram / TikTok) ─── */}
           {source==="social" && (
             <div className="max-w-2xl mx-auto mb-6 bg-surface border border-main rounded-2xl shadow-sm p-4">
               <SocialFeedPicker
-                platforms={["instagram","tiktok"]}
+                key={channel}
+                platforms={[channel]}
                 projectId={projectId}
                 scope="global"
                 defaultCountry={framework?.primaryMarket||""}
@@ -1438,7 +1470,7 @@ Rules:
             );
           })()}
         </div>
-      </div>
+      </main>
 
       {/* ─── SCOUT ASSISTANT BUBBLE ─── */}
       <div className="fixed bottom-6 right-6 z-50">
@@ -1544,6 +1576,7 @@ Rules:
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><path d="M12 2a7 7 0 017 7c0 3-2 5.5-4 7l-1 4h-4l-1-4c-2-1.5-4-4-4-7a7 7 0 017-7z"/><circle cx="12" cy="9" r="2" fill="white"/></svg>
           )}
         </button>
+      </div>
       </div>
     </ProjectGuard></AuthGuard>
   );

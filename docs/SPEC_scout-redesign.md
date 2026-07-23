@@ -15,7 +15,7 @@ _Contexto: Phase 4 del rediseño de navegación. Scout es el primer módulo del 
 | Selección | Set por rama, UI distinta | Unificada: card social entera togglea; en YouTube el checkbox togglea y **no** expande |
 | Import | Botón dentro del listado | **Barra fija inferior** que aparece con ≥1 seleccionado: contador ember + SCOPE + BRAND + COUNTRY + "Import as entries" |
 | Progreso | Texto/contador | **Overlay** sobre `<main>` con spinner ember, título, sub y barra de progreso |
-| Opciones por vídeo | scope + intent + notas + transcript | **SEGMENT (mm:ss ×2) · TRANSCRIPT (auto-pull) · NOTES** |
+| Opciones por vídeo | scope + intent + notas + transcript | **TRANSCRIPT (auto-pull) · NOTES · INTENT** (el scope sube a la barra de import). **SEGMENT descartado** — decisión Sergio 2026-07-23 |
 | Navegación | `Nav` superior antiguo | **Sidebar del shell**, sin sub-tabs N2 |
 
 Cambio conceptual clave: **la jerarquía de control pasa a OPTION → ACTION → FILTER.** Configurar la extracción (consola) va arriba; la acción ember la dispara; los filtros solo estrechan resultados; y las opciones de destino (scope/brand/country) se deciden **al importar**, no al buscar. Eso es lo que justifica mover esos tres campos abajo.
@@ -49,21 +49,23 @@ Cambio conceptual clave: **la jerarquía de control pasa a OPTION → ACTION →
 
 ---
 
-## 4. Decisiones que necesito de ti (el diseño no las cubre)
+## 4. Decisiones (RESUELTAS — Sergio, 2026-07-23)
 
-El diseño describe un Scout más simple que el actual. Hay funcionalidad **viva hoy** que no aparece en el handoff. No la voy a borrar por mi cuenta:
+El diseño describe un Scout más simple que el actual. Resolución sobre la funcionalidad viva que el handoff no cubre:
 
-| Función actual | Estado en el diseño | Propuesta |
-|---|---|---|
-| **Saved items** (pestaña + tabla `scout_saved`) | No aparece | **Conservar**. Tiene tabla propia y trabajo del analista guardado. Sugiero moverlo a un acceso secundario, no a un tab N2 |
-| **Ranking con IA** (`ScoreBadge`, `minScore`) | No aparece | **Preguntar**: ¿se retira o vuelve como orden/filtro de resultados? |
-| **Captura de frames** (`/api/youtube-frames`) | No aparece | Sugiero **moverlo al editor** de Creative Source (donde ya viven las herramientas de edición), no a Scout |
-| **Asistente** (`askAssistant`) | No aparece | **Preguntar**: ¿se retira o pasa a Messages? |
-| **`autoAnalyze`** (analizar con IA al importar) | Implícito en "running AI read" | **Conservar**, siempre activo según el copy del overlay |
-| **Intent por vídeo** (`videoIntents`) | Sustituido por SEGMENT/TRANSCRIPT/NOTES | **Preguntar**: ¿se retira? |
-| **SEGMENT (mm:ss)** | Nuevo en el diseño | **Necesita backend**. Ver punto 6 |
+| Función actual | Decisión |
+|---|---|
+| **Saved items** (pestaña + tabla `scout_saved`) | ✅ **Se mantiene** (propuesta aceptada sin objeción) |
+| **Ranking con IA** (`ScoreBadge`, `minScore`) | ✅ **Se mantiene** por ahora |
+| **Captura de frames** (`/api/youtube-frames`) | ➡️ **Se mueve al editor** de Creative Source. Sale de Scout |
+| **Asistente** (`askAssistant`) | ✅ **Se mantiene** |
+| **`autoAnalyze`** (analizar con IA al importar) | ✅ **Se mantiene**, siempre activo ("running AI read") |
+| **Intent por vídeo** (`videoIntents`) | ✅ **Se mantiene** |
+| **SEGMENT (mm:ss)** | ❌ **Descartado.** No se implementa. Sin migración |
 
-**Pregunta abierta del propio handoff (línea 89):** las opciones por vídeo de YouTube se expanden *inline*, pero la regla general de navegación dice "drill-down = panel/modal". El handoff pide confirmar. **Mi recomendación: mantener el inline expand** — son 3 campos, y abrir un panel para eso rompe el ritmo de revisar una lista larga.
+Panel expandido de YouTube queda: **TRANSCRIPT · NOTES · INTENT**.
+
+**Pregunta abierta del handoff (línea 89):** opciones por vídeo *inline* vs. panel. **Se mantiene el inline expand** — son pocos campos y un panel rompe el ritmo de revisar una lista larga.
 
 ---
 
@@ -81,14 +83,9 @@ Se arregla cambiando `table` → `"creative_source"`. Lo incluyo en la Fase 1 po
 
 ---
 
-## 6. SEGMENT: necesita backend
+## 6. SEGMENT — descartado
 
-El diseño añade recorte por tiempo (mm:ss inicio/fin) por vídeo. Hoy no existe: ni columnas en `creative_source`, ni uso en el import. Opciones:
-
-- **A (mínima):** guardar `segment_start` / `segment_end` como metadato + recortar el transcript a esa ventana antes de mandarlo a la IA. Sin tocar vídeo. **Recomendada.**
-- **B (completa):** procesar el clip. Coste alto, fuera del alcance de un re-skin.
-
-Voy con **A** salvo que digas lo contrario. Requiere una migración con dos columnas.
+Se retira del alcance por decisión de producto. **Sin migración, sin columnas nuevas, sin cambios en el import.** El panel expandido de YouTube conserva TRANSCRIPT · NOTES · INTENT.
 
 ---
 
@@ -125,8 +122,8 @@ Voy con **A** salvo que digas lo contrario. Requiere una migración con dos colu
 - *Riesgo alto: es el punto donde se escriben datos. Verificar con import real de 1–2 piezas antes de soltar.*
 
 **Fase 5 — Cierre**
-- SEGMENT (opción A) + migración.
-- Reubicar lo que se decida en el punto 4.
+- Mover **captura de frames** al editor de Creative Source (sale de Scout).
+- Reubicar Saved items / Asistente / Ranking dentro de la vista única sin romper la jerarquía (no son N2).
 - Limpiar `#0019FF` / `#0a0f3c` restantes.
 
 ---
