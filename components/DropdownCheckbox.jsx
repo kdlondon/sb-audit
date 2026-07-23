@@ -68,7 +68,7 @@ export default function DropdownCheckbox({
             <button key={opt} type="button" onClick={() => toggle(opt)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
                 selected.includes(opt)
-                  ? "bg-accent-soft border-accent text-accent"
+                  ? "gw-chip-on"
                   : "bg-surface border-main text-muted hover:border-accent/40 hover:text-main"
               }`}>
               {opt}
@@ -123,7 +123,7 @@ export default function DropdownCheckbox({
       {selected.length > 0 && !open && (
         <div className="flex flex-wrap gap-1 mt-1.5">
           {selected.map(v => (
-            <span key={v} className="inline-flex items-center gap-1 bg-accent-soft border border-accent/20 rounded-full pl-2 pr-1 py-0.5 text-[10px] text-accent font-medium">
+            <span key={v} className="inline-flex items-center gap-1 gw-chip-on rounded-full pl-2 pr-1 py-0.5 text-[10px] font-medium">
               {v}
               <button type="button" onClick={(e) => { e.stopPropagation(); remove(v); }} className="text-accent/50 hover:text-red-500">×</button>
             </span>

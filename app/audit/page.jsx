@@ -150,7 +150,7 @@ function CountryInput({ value, onChange }) {
         onFocus={() => { setFocused(true); if (query.length > 0) setOpen(true); }}
         onBlur={() => setFocused(false)}
         placeholder="Type to search..."
-        className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main"
+        className="w-full gw-finput"
         style={focused ? {borderColor:"var(--accent)",outline:"none"} : {}}
       />
       {open && filtered.length > 0 && (
@@ -1855,9 +1855,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
               ):(<div className="space-y-2">
                 <div className="flex items-center gap-2"><div className="flex bg-surface2 rounded-lg p-0.5">{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>{setMaterialType(k);}} className={`px-3 py-1 rounded-md text-xs font-medium transition ${materialType===k?"bg-surface text-accent shadow-sm":"text-muted"}`}>{l}</button>))}</div></div>
-                {materialType==="video"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Video URL (YouTube / Vimeo)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
-                {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
-                {materialType==="web"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>}
+                {materialType==="video"&&<div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Video URL (YouTube / Vimeo)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." className="w-full gw-finput" /></div>}
+                {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
+                {materialType==="web"&&<div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full gw-finput" /></div>}
                 {materialType==="social"&&<div className="space-y-2">
                   <div className="flex bg-surface2 rounded-lg p-0.5 w-fit">
                     {[["single","Single post"],["feed","Profile feed"]].map(([k,l])=>(
@@ -1865,7 +1865,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     ))}
                   </div>
                   {socialMode==="single"
-                    ? <div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Instagram post / reel URL</label><input value={cur.url||""} onChange={e=>setSocialUrl(e.target.value)} placeholder="https://www.instagram.com/p/... or /reel/..." className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div>
+                    ? <div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Instagram post / reel URL</label><input value={cur.url||""} onChange={e=>setSocialUrl(e.target.value)} placeholder="https://www.instagram.com/p/... or /reel/..." className="w-full gw-finput" /></div>
                     : <SocialFeedPicker
                         platforms={["instagram","tiktok"]}
                         projectId={projectId}
@@ -1876,8 +1876,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         onImported={async(n)=>{setToast({message:`✓ ${n} entr${n===1?"y":"ies"} importada${n===1?"":"s"} del feed`});await load();}}
                       />}
                 </div>}
-                {materialType==="image"&&(<div className="flex gap-2"><div className="flex-1"><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Image URL</label><input value={cur.image_url||""} onChange={e=>setImageFromUrl(e.target.value)} placeholder="https://...image.jpg" className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main" /></div><div className="flex items-end"><label className="px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Upload"}<input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});}} className="hidden" /></label></div></div>)}
-                {materialType==="document"&&<div><label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Upload Document (PDF, Word, TXT)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={e=>{if(e.target.files[0])uploadDocument(e.target.files[0]);}} className="hidden" /></label></div>}
+                {materialType==="image"&&(<div className="flex gap-2"><div className="flex-1"><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Image URL</label><input value={cur.image_url||""} onChange={e=>setImageFromUrl(e.target.value)} placeholder="https://...image.jpg" className="w-full gw-finput" /></div><div className="flex items-end"><label className="px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Upload"}<input type="file" accept="image/*" multiple onChange={async(e)=>{const files=[...e.target.files];if(files.length===0)return;setUploading(true);setToast({message:`Uploading ${files.length} image${files.length>1?"s":""}...`});for(let i=0;i<files.length;i++){const url=await uploadSingleImage(files[i]);if(!url)continue;if(i===0&&!cur.image_url){setCur(prev=>({...prev,image_url:url,url:""}));setMaterialType("image");}else{setCur(prev=>({...prev,image_urls:JSON.stringify([...(prev.image_urls?JSON.parse(prev.image_urls||"[]"):[]),url])}));}}setUploading(false);setToast({message:`✓ ${files.length} image${files.length>1?"s":""} uploaded`});}} className="hidden" /></label></div></div>)}
+                {materialType==="document"&&<div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Upload Document (PDF, Word, TXT)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={e=>{if(e.target.files[0])uploadDocument(e.target.files[0]);}} className="hidden" /></label></div>}
               </div>)}
             </div>
             <div className="flex-1 overflow-auto" onDrop={handleDrop} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}>
@@ -2085,7 +2085,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           // Country field — special autocomplete
                           if (f.type === "country_search") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                               <CountryInput value={val} onChange={v => setVal(v)} />
                             </div>
                           );
@@ -2093,7 +2093,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           // Rating — star selector
                           if (f.type === "rating") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                               <StarRating value={val} onChange={v => setVal(v)} />
                             </div>
                           );
@@ -2101,7 +2101,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           // Brand selector — conditional on scope
                           if (f.type === "brand_selector") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">Brand</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">Brand</label>
                               {formScope === "local" ? (
                                 <select value={cur.competitor || cur.brand_name || ""} onChange={async (e) => {
                                   const v = e.target.value;
@@ -2121,7 +2121,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                     if (bp?.sub_category) updates.sub_category = bp.sub_category;
                                   }
                                   setCur(prev => ({...prev, ...updates}));
-                                }} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                }} className="w-full gw-finput">
                                   <option value="">— Select competitor —</option>
                                   {localCompetitors.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                                 </select>
@@ -2132,7 +2132,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                     setGlobalBrandConfirmed(false);
                                     setCur({...cur, brand_name: v, brand: v, scope: "global"});
                                   }} placeholder="Type brand name..."
-                                    className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                                    className="w-full gw-finput" />
                                   {cur.brand && cur.brand.length > 1 && !globalBrandConfirmed && (
                                     <div className="absolute z-40 mt-1 w-full bg-surface border border-main rounded-lg shadow-lg max-h-32 overflow-auto">
                                       {globalBrands.filter(b => b.name.toLowerCase().includes((cur.brand||"").toLowerCase())).slice(0,5).map(b => (
@@ -2174,7 +2174,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                           }
                                           setGlobalBrandConfirmed(true);
                                         }}
-                                          className="w-full text-left px-3 py-1.5 text-xs text-accent hover:bg-accent-soft transition font-medium">
+                                          className="w-full text-left px-3 py-1.5 text-xs transition font-medium" style={{color:"var(--accent-ember-deep)"}}>
                                           + Create "{cur.brand}" as new brand
                                         </button>
                                       )}
@@ -2188,7 +2188,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           // Toggle (scope) — two buttons, state only (no page reload)
                           if (f.type === "toggle") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                               <div className="flex gap-1">
                                 {(fWithValues.values || []).map(v => (
                                   <button key={v} type="button" onClick={() => {
@@ -2202,9 +2202,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                       setCur(prev => ({...prev, scope: v, country: "", competitor: "", brand: "", brand_name: ""}));
                                     }
                                   }}
-                                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                                      formScope === v ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted hover:border-accent/40"
-                                    }`}>
+                                    className="gw-tab" style={{flex:1,padding:"7px 12px",borderRadius:8,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11.5,
+                                      fontWeight:formScope===v?600:500,
+                                      background:formScope===v?"var(--ink-800)":"var(--brand-white)",
+                                      color:formScope===v?"var(--brand-cream)":"var(--text-muted)",
+                                      border:`1px solid ${formScope===v?"var(--ink-800)":"var(--border-hairline)"}`}}>
                                     {v === "local" ? "Local" : "Global"}
                                   </button>
                                 ))}
@@ -2230,9 +2232,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                             const sorted = sortOpts(opts);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                                 <select value={val} onChange={e => setVal(e.target.value)}
-                                  className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                  className="w-full gw-finput">
                                   <option value="">—</option>
                                   {sorted.map(o => <option key={o} value={o}>{o}</option>)}
                                   <option value="__other__">- Other</option>
@@ -2277,9 +2279,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                             const sorted = sortOpts(fWithValues.values);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                                 <select value={val} onChange={e => setVal(e.target.value)}
-                                  className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main">
+                                  className="w-full gw-finput">
                                   <option value="">—</option>
                                   {sorted.map(o => <option key={o} value={o}>{o}</option>)}
                                 </select>
@@ -2296,7 +2298,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                             const sorted = sortOpts(fWithValues.values);
                             return (
                               <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                                <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                                <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                                 <DropdownCheckbox
                                   options={sorted}
                                   selected={val ? String(val).split(",").map(v => v.trim()).filter(Boolean) : []}
@@ -2327,18 +2329,18 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           // Textarea
                           if (f.type === "textarea") return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                               <textarea value={val} onChange={e => setVal(e.target.value)} rows={2}
-                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main resize-y" />
+                                className="w-full gw-finput resize-y" />
                             </div>
                           );
 
                           // Default: text input
                           return (
                             <div key={f.key} style={fieldStyle(dbKey)} className="rounded px-1 -mx-1">
-                              <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{f.name}</label>
+                              <label className="block text-[10px] uppercase mb-1.5 gw-flabel">{f.name}</label>
                               <input value={val} onChange={e => setVal(e.target.value)}
-                                className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main" />
+                                className="w-full gw-finput" />
                             </div>
                           );
                         })}
@@ -2353,8 +2355,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 const setSocial=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_social:{...((prev.custom_dimensions||{})._social||{}),[k]:v}}}));
                 const platformVal=social.platform||({instagram:"Instagram",tiktok:"TikTok",facebook:"Facebook",linkedin:"LinkedIn",youtube:"YouTube"}[meta.platform]||"");
                 const open=sec===99;
-                const lbl="block text-[9px] text-hint uppercase font-semibold mb-0.5";
-                const inp="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main";
+                const lbl="block text-[9px] uppercase mb-1.5 gw-flabel";
+                const inp="w-full gw-finput";
                 const socKeys=["platform","format","post_objective","content_pillar","visual_codes"];
                 const socFilled=socKeys.filter(k=>{const v=k==="platform"?platformVal:social[k];return v!==undefined&&v!==null&&String(v).trim()!=="";}).length;
                 const socComplete=socFilled===socKeys.length;
@@ -2562,11 +2564,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="bg-surface border border-main rounded-lg p-4 mb-4">
                 <div className="space-y-3">
                   <div><label className="text-xs font-medium text-muted block mb-1">Name *</label>
-                    <input value={newCol.name} onChange={e=>setNewCol({...newCol,name:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Collection name" autoFocus /></div>
+                    <input value={newCol.name} onChange={e=>setNewCol({...newCol,name:e.target.value})} className="w-full gw-finput focus:outline-none focus:border-accent" placeholder="Collection name" autoFocus /></div>
                   <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
-                    <input value={newCol.description} onChange={e=>setNewCol({...newCol,description:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Optional description" /></div>
+                    <input value={newCol.description} onChange={e=>setNewCol({...newCol,description:e.target.value})} className="w-full gw-finput focus:outline-none focus:border-accent" placeholder="Optional description" /></div>
                   <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
-                    <input value={newCol.objective} onChange={e=>setNewCol({...newCol,objective:e.target.value})} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" placeholder="Optional objective" /></div>
+                    <input value={newCol.objective} onChange={e=>setNewCol({...newCol,objective:e.target.value})} className="w-full gw-finput focus:outline-none focus:border-accent" placeholder="Optional objective" /></div>
                   <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" checked={newCol.is_private} onChange={e=>setNewCol({...newCol,is_private:e.target.checked})} /> Private (only visible to you)</label>
                   <div className="flex gap-2">
                     <button onClick={()=>{if(!newCol.name.trim()){setToast({message:"Name is required"});return;}createCollection(newCol);}} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">Save</button>
@@ -3140,11 +3142,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             <h3 className="text-sm font-bold text-main mb-3">Edit Collection</h3>
             <div className="space-y-3">
               <div><label className="text-xs font-medium text-muted block mb-1">Name</label>
-                <input defaultValue={editingCollection.name} onChange={e=>{editingCollection._name=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                <input defaultValue={editingCollection.name} onChange={e=>{editingCollection._name=e.target.value;}} className="w-full gw-finput focus:outline-none focus:border-accent" /></div>
               <div><label className="text-xs font-medium text-muted block mb-1">Description</label>
-                <input defaultValue={editingCollection.description||""} onChange={e=>{editingCollection._description=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                <input defaultValue={editingCollection.description||""} onChange={e=>{editingCollection._description=e.target.value;}} className="w-full gw-finput focus:outline-none focus:border-accent" /></div>
               <div><label className="text-xs font-medium text-muted block mb-1">Objective</label>
-                <input defaultValue={editingCollection.objective||""} onChange={e=>{editingCollection._objective=e.target.value;}} className="w-full px-2 py-1.5 bg-surface border border-main rounded text-sm text-main focus:outline-none focus:border-accent" /></div>
+                <input defaultValue={editingCollection.objective||""} onChange={e=>{editingCollection._objective=e.target.value;}} className="w-full gw-finput focus:outline-none focus:border-accent" /></div>
               <label className="flex items-center gap-2 text-xs text-main"><input type="checkbox" defaultChecked={editingCollection.is_private} onChange={e=>{editingCollection._is_private=e.target.checked;}} /> Private</label>
               <div className="flex gap-2">
                 <button onClick={()=>{updateCollection(editingCollection.id,{name:editingCollection._name??editingCollection.name,description:editingCollection._description??editingCollection.description,objective:editingCollection._objective??editingCollection.objective,is_private:editingCollection._is_private??editingCollection.is_private});}} className="px-3 py-1.5 text-xs bg-[#333] text-white rounded-lg font-semibold">Save</button>
