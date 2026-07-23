@@ -138,6 +138,12 @@ function VideoPreview({ videoId, title, onClose }) {
 }
 
 /* ─── MAIN COMPONENT ─── */
+// ── Console styling (redesign) ──
+const SC_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 };
+const SC_FLD_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 };
+const SC_CTRL = { width: "100%", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "8px 10px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", outline: "none" };
+const SC_CHECK = { display: "flex", alignItems: "center", gap: 7, fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer", paddingBottom: 8 };
+
 // Monoline brand glyphs (~1.6px) for the N1 channel toggle — no emoji, no brand fills.
 const G = ({ children }) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
@@ -153,7 +159,7 @@ export default function ScoutPage() {
   const { framework } = useFramework() || {};
   // Redesign: three channels at the same level (YouTube · Instagram · TikTok).
   // `source` stays derived so the existing YouTube/social branches keep working.
-  const [channel, setChannel] = useState("instagram"); // youtube | instagram | tiktok
+  const [channel, setChannel] = useState("youtube"); // youtube | instagram | tiktok
   const source = channel === "youtube" ? "youtube" : "social";
   // brand_id is a UUID column; in the project-centric flow brandId is the project-id
   // string ("proj_..."), which is NOT a valid uuid. Null it out so saves don't fail.
@@ -881,7 +887,7 @@ Rules:
 
           {/* ─── SOCIAL FEED (Instagram / TikTok) ─── */}
           {source==="social" && (
-            <div className="max-w-2xl mx-auto mb-6 bg-surface border border-main rounded-2xl shadow-sm p-4">
+            <div style={{ marginBottom: 24, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
               <SocialFeedPicker
                 key={channel}
                 platforms={[channel]}
@@ -895,101 +901,80 @@ Rules:
             </div>
           )}
 
-          {/* ─── SEARCH INPUT (chat-style) ─── */}
-          <div className={`${source==="social" ? "hidden" : ""} ${!showEmptyState ? "mb-4" : "mb-6"} max-w-2xl mx-auto`}>
-            <div className="bg-surface border border-main rounded-2xl shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" className="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {/* ─── CONSOLE — YouTube (OPTION → ACTION). Scope/brand/country live in the import bar. ─── */}
+          <div className={source === "social" ? "hidden" : ""} style={{ marginBottom: 24 }}>
+            <div style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
+              <label style={SC_LABEL}>Search query</label>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input ref={searchInputRef} value={brand} onChange={e => setBrand(e.target.value)}
-                  placeholder="Search a brand, market, or topic..."
-                  className="flex-1 text-sm text-main bg-transparent focus:outline-none placeholder:text-hint"
-                  onKeyDown={e => { if (e.key === "Enter") handleSearch(); }} />
-                <button onClick={handleSearch} disabled={searching || !brand.trim()}
-                  className="px-4 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-30 transition flex-shrink-0"
-                  style={{ background: "#0019FF" }}>
-                  {searching ? "Searching..." : "Scout"}
+                  placeholder="A brand, a market, or a topic…"
+                  onKeyDown={e => { if (e.key === "Enter") handleSearch(); }}
+                  style={{ flex: 1, minWidth: 0, background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "11px 13px", fontFamily: "var(--font-body)", fontSize: 15, color: "var(--ink-900)", outline: "none" }} />
+                <button onClick={handleSearch} disabled={searching || !brand.trim()} className="gw-ember-btn"
+                  style={{ flex: "none", display: "flex", alignItems: "center", gap: 8, background: "var(--accent-ember-deep)", color: "#fff", border: "none", borderRadius: 9, padding: "11px 18px", fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: (searching || !brand.trim()) ? 0.4 : 1 }}>
+                  {searching ? "Scouting…" : "Scout"}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
                 </button>
               </div>
 
-              {/* Advanced filters — collapsed by default */}
-              <div className="border-t border-main">
-                <button onClick={() => setFiltersOpen(!filtersOpen)}
-                  className="w-full px-4 py-2 flex items-center justify-between text-[10px] text-muted hover:text-main transition">
-                  <span className="uppercase font-semibold tracking-wider">Advanced filters</span>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition ${filtersOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3" /></svg>
-                </button>
-                {filtersOpen && (
-                  <div className="px-4 pb-4 space-y-3" style={{ animation: "fadeIn 0.2s" }}>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Category / Keywords</label>
-                        <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="E.g., commercial, campaign, ad"
-                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Market</label>
-                        <select value={region} onChange={e => setRegion(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
-                          {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-                        </select>
-                      </div>
+              <button onClick={() => setFiltersOpen(!filtersOpen)}
+                style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+                Advanced filters
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ transform: filtersOpen ? "rotate(180deg)" : "none", transition: "transform .15s ease" }}><path d="M2 4l3 3 3-3" /></svg>
+              </button>
+
+              {filtersOpen && (
+                <div style={{ marginTop: 14, paddingTop: 16, borderTop: "1px dashed var(--border-hairline)", animation: "gwrise .22s ease" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Keywords</label>
+                      <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="commercial, campaign…" style={SC_CTRL} />
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Timeframe</label>
-                        <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
-                          {TIMEFRAMES.map(t => <option key={t.days} value={t.days}>{t.label}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Max results</label>
-                        <select value={maxResults} onChange={e => setMaxResults(Number(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
-                          {[10, 15, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-hint uppercase font-semibold mb-1">Duration</label>
-                        <select value={durationFilter} onChange={e => setDurationFilter(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-xs text-main">
-                          <option value="commercial">Commercials (15-90s)</option>
-                          <option value="short">Short (&lt;4 min)</option>
-                          <option value="any">Any length</option>
-                        </select>
-                      </div>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Market</label>
+                      <select value={region} onChange={e => setRegion(e.target.value)} style={SC_CTRL}>
+                        {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                      </select>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input type="checkbox" checked={contentType === "official"} onChange={e => setContentType(e.target.checked ? "official" : "all")} className="rounded border-gray-300 text-accent" />
-                          <span className="text-[10px] text-muted">Official content only</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input type="checkbox" checked={autoAnalyze} onChange={e => setAutoAnalyze(e.target.checked)} className="rounded border-gray-300 text-accent" />
-                          <span className="text-[10px] text-muted">AI analyze on import</span>
-                        </label>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-[9px] text-hint uppercase font-semibold">Min ranking</label>
-                        <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                          className="px-2 py-1 bg-surface2 border border-main rounded text-xs text-main">
-                          <option value={0}>0/10</option>
-                          <option value={1}>1/10</option>
-                          <option value={2}>2/10</option>
-                          <option value={3}>3/10</option>
-                          <option value={4}>4/10</option>
-                          <option value={5}>5/10</option>
-                          <option value={6}>6/10</option>
-                          <option value={7}>7/10</option>
-                          <option value={8}>8/10</option>
-                          <option value={9}>9/10</option>
-                        </select>
-                      </div>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Published</label>
+                      <select value={timeframe} onChange={e => setTimeframe(Number(e.target.value))} style={SC_CTRL}>
+                        {TIMEFRAMES.map(t => <option key={t.days} value={t.days}>{t.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Duration</label>
+                      <select value={durationFilter} onChange={e => setDurationFilter(e.target.value)} style={SC_CTRL}>
+                        <option value="commercial">Commercials (15-90s)</option>
+                        <option value="short">Short (&lt;4 min)</option>
+                        <option value="any">Any length</option>
+                      </select>
                     </div>
                   </div>
-                )}
-              </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginTop: 14, alignItems: "end" }}>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Max results</label>
+                      <select value={maxResults} onChange={e => setMaxResults(Number(e.target.value))} style={SC_CTRL}>
+                        {[10, 15, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={SC_FLD_LABEL}>Min ranking</label>
+                      <select value={minScore} onChange={e => setMinScore(Number(e.target.value))} style={SC_CTRL}>
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => <option key={n} value={n}>{n}/10</option>)}
+                      </select>
+                    </div>
+                    <label style={SC_CHECK}>
+                      <input type="checkbox" checked={contentType === "official"} onChange={e => setContentType(e.target.checked ? "official" : "all")} style={{ accentColor: "var(--accent-ember)" }} />
+                      Official content only
+                    </label>
+                    <label style={SC_CHECK}>
+                      <input type="checkbox" checked={autoAnalyze} onChange={e => setAutoAnalyze(e.target.checked)} style={{ accentColor: "var(--accent-ember)" }} />
+                      AI analyze on import
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

@@ -7,6 +7,9 @@ const COUNTRIES = ["Spain", "Argentina", "Chile", "Peru", "Colombia", "Mexico", 
 
 const proxied = (u) => (u ? `/api/social/thumb?u=${encodeURIComponent(u)}` : "");
 
+// Redesign console label (mono, uppercase, wide tracking)
+const SFP_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 };
+
 const KIND_BADGE = {
   reel: "🎬 Reel", carousel: "🖼 Carousel", post: "🖼 Post",
   video: "🎬 Video", slideshow: "🖼 Slideshow",
@@ -206,25 +209,33 @@ export default function SocialFeedPicker({
         </div>
       )}
 
-      {/* Handle input */}
-      <div className="flex gap-2 items-end">
-        <div className="flex-1">
-          <label className="block text-[10px] text-muted uppercase font-semibold mb-0.5">{PLATFORM_META[platform]?.label || platform} profile</label>
+      {/* Handle input (redesign console: OPTION → ACTION) */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <label style={SFP_LABEL}>{PLATFORM_META[platform]?.label || platform} handle</label>
+          <div style={{ display: "flex", alignItems: "center", background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "0 13px" }}>
+            <span style={{ fontFamily: "var(--font-body)", fontSize: 15, color: "var(--text-muted)", flex: "none" }}>@</span>
+            <input
+              value={handle.replace(/^@/, "")}
+              onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))}
+              onKeyDown={(e) => e.key === "Enter" && fetchFeed()}
+              placeholder={(PLATFORM_META[platform]?.placeholder || "@profile").replace(/^@/, "")}
+              style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", padding: "11px 0 11px 3px", fontFamily: "var(--font-body)", fontSize: 15, color: "var(--ink-900)" }}
+            />
+          </div>
+        </div>
+        <div style={{ flex: "none" }}>
+          <label style={SFP_LABEL}>Posts to fetch</label>
           <input
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && fetchFeed()}
-            placeholder={PLATFORM_META[platform]?.placeholder || "@profile"}
-            className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main"
+            type="number" min={1} max={50} value={limit}
+            onChange={(e) => { const n = Number(e.target.value); setLimit(Number.isFinite(n) ? Math.max(1, Math.min(50, n)) : 12); }}
+            style={{ width: 88, textAlign: "center", background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "11px 8px", fontFamily: "var(--font-numeral)", fontSize: 15, color: "var(--ink-900)", outline: "none" }}
           />
         </div>
-        <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}
-          className="px-2 py-2 bg-surface2 border border-main rounded-lg text-sm text-main">
-          {[6, 12, 24, 48].map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <button onClick={fetchFeed} disabled={loading || !handle.trim()}
-          className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
-          {loading ? "Loading…" : "Fetch feed"}
+        <button onClick={fetchFeed} disabled={loading || !handle.trim()} className="gw-ember-btn"
+          style={{ flex: "none", display: "flex", alignItems: "center", gap: 8, background: "var(--accent-ember-deep)", color: "#fff", border: "none", borderRadius: 9, padding: "11px 18px", fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: (loading || !handle.trim()) ? 0.4 : 1 }}>
+          {loading ? "Fetching…" : "Fetch feed"}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
         </button>
       </div>
 

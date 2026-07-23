@@ -159,6 +159,10 @@
 /* ---- N2 segmented tabs ---- */
 .gw-tab { transition: color 0.12s ease, background 0.12s ease; }
 
+/* ---- Motion (Scout handoff): restrained rise-in + loader spin. No bounce/scale. ---- */
+@keyframes gwrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gwspin { to { transform: rotate(360deg); } }
+
 /* ---- List row hover ---- */
 .gw-row { transition: background 0.12s ease; }
 .gw-row:hover { background: rgba(26, 26, 26, 0.03) !important; }
