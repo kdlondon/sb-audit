@@ -142,6 +142,7 @@ function MultiUrlInput({ label, urls, onChange, max = 10 }) {
    PROFILE TAB — Brand identity, market, audience, analysis
    ═══════════════════════════════════════════════════════════════ */
 function ProfileTab({ brandId, orgId, refreshFramework }) {
+  const [objectives, setObjectives] = useState([]);
   const supabase = createClient();
   const { projectId } = useProject() || {};
   const [loading, setLoading] = useState(true);
@@ -1143,7 +1144,6 @@ function SettingsContent() {
   const { projectId } = useProject() || {};
   const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
 
-  const [objectives, setObjectives] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
 
   const tabs = [
