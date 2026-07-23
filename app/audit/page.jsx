@@ -3454,6 +3454,16 @@ function AuditPageInner(){
 
   const wSearch=useSearchParams();
   const chromeCollapsed=!!(wSearch.get("edit")||wSearch.get("full")); // full view + editor use the collapsed rail
+
+  // "New entry" (sidebar) arrives as ?add=1 with no scope, and usually while we are
+  // ALREADY on /audit — where the param-parsing effect above never re-runs, since it
+  // keys on projectId. Watch the param itself and fall back to the active scope.
+  const addParam=wSearch.get("add");
+  useEffect(()=>{
+    if(!addParam||!projectId)return;
+    const s=wSearch.get("scope");
+    handleAddWithScope(s==="local"||s==="global"?s:scope);
+  },[addParam,projectId]); // eslint-disable-line react-hooks/exhaustive-deps
   return(<AuthGuard><ProjectGuard><div className="gw-shell" style={{display:"flex",height:"100vh",background:"var(--paper)"}}><Sidebar forceCollapsed={chromeCollapsed}/><main style={{flex:1,minWidth:0,height:"100vh",overflowY:"auto"}}><AuditContent scope={scope} onScopeChange={handleScopeChange} onAddWithScope={handleAddWithScope} pendingForm={pendingForm} clearPendingForm={()=>setPendingForm(false)} projectId={projectId} initialEntry={initialEntry} clearInitialEntry={()=>setInitialEntry(null)} initialCollectionId={initialCollectionId} clearInitialCollectionId={()=>setInitialCollectionId(null)} initialViewMode={initialViewMode} key={scope}/></main></div></ProjectGuard></AuthGuard>);
 }
 
