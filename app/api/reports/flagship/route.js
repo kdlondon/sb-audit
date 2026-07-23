@@ -79,7 +79,8 @@ export async function POST(request) {
   const ctx = (sel) => sel.map(({ p, w }) => `- ${p.id ? `[#${p.id}] ` : ""}[${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
 
   const subjPool = (pool) => scope === "brand" ? pool.filter((p) => p.brand === subject) : pool;
-  const head = `Category: ${category}. Brands in study: ${brands.join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.`;
+  // head is built lazily below, once the filters exist — naming every project brand here
+  // while the evidence was filtered made the model write about brands the analyst excluded.
   const rules = `Use the weighted EVIDENCE (higher wN = stronger brand signal — weight it accordingly; never treat high-volume tactical posts as strategic). CRITICAL: this is a finished, client-facing deliverable — do NOT mention weights, "wN" values, evidence counts, "brand_dna", or your methodology/how-you-analyzed. Write the polished section only. Cite brands by name. No fabrication beyond the evidence.
 - When you ENUMERATE elements (axes, territories, opportunities, brands, examples), use a Markdown bullet or numbered list — never a long comma-separated sentence.
 - BACK CLAIMS WITH EXAMPLES: when you reference a specific captured piece, link it inline as [a short descriptive name](cite:ID) using the #ID shown for that piece in the evidence. Cite real examples liberally. Do NOT cite the web profile entries (those have no #ID).
@@ -110,6 +111,10 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     if (fl.yearTo && p.year && Number(p.year) > Number(fl.yearTo)) return false;
     return true;
   };
+  // Brands actually in scope after filtering — this is what the prompt must name.
+  const scopedBrands = [...new Set(pieces.filter(passFilter).map((p) => p.brand))].filter((b) => b && b !== "—");
+  const head = `Category: ${category}. Brands in study: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; any other brand in the project is deliberately out of scope and must not be discussed." : ""}`;
+
   const selFor = (key) => ALL_DEFS[key].pool.filter(passFilter)
     .map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, 24);
@@ -118,7 +123,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
     const dir = [custom, ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
+    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 4000) };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
@@ -126,7 +131,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
   };
   const inRange = pieces.filter(passFilter).length;
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, inRange, brandDna: dnaPieces.length };

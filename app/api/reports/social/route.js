@@ -129,7 +129,8 @@ export async function POST(request) {
 
   const statBrands = perBrand.map((b) => `- ${b.brand}: ${b.posts} posts · avg eng ${b.avgEng} · pillars [${b.topPillars.join(", ")}] · busiest ${b.topDay} · formats [${b.fmt.join(", ")}] · platforms [${b.plt.join(", ")}] · tone [${b.tone.join("/")}] · archetype ${b.arch}`).join("\n");
   const statPillars = pillarLandscape.map((p) => `- ${p.pillar}: ${p.posts} posts, ${p.brands}/${brands.length} brands, avg eng ${p.avgEng}`).join("\n");
-  const statHeader = `Category: ${category}. Brands: ${brands.join(", ")}. ${pool.length} social posts, ${dateRange}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.`;
+  const scopedBrands = [...new Set(pool.map((p) => p.brand))].filter(Boolean);
+  const statHeader = `Category: ${category}. Brands: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. ${pool.length} social posts, ${dateRange}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.`;
 
   const ctx = (list) => list.map((p) => `- [#${p.id}] [${p.brand}] (${p.pillar} · ${p.platform || "?"} · ${p.format || "?"}) eng ${p.likes}L/${p.comments}C${p.year ? " · " + p.year : ""}: ${p.text}`).join("\n");
 
@@ -173,11 +174,11 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
     const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Benchmark.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 1800) };
+    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 3200) };
   };
   const genTakeaways = async (body) => {
     const dir = dirOf("takeaways");
-    return { key: "takeaways", title: "Takeaways", markdown: await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+    return { key: "takeaways", title: "Takeaways", markdown: await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
   };
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, posts: pool.length, pillars: pillarLandscape.length, dateRange };
 

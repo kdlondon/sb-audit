@@ -88,7 +88,8 @@ export async function POST(request) {
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, n);
   const ctx = (sel) => sel.map(({ p, w }) => `- ${p.id ? `[#${p.id}] ` : ""}[${p.brand}] (${p.communication_intent || "?"} · ${p.channel || "?"}${p.territory ? " · " + p.territory : ""}): ${p.text || p.slogan || ""}`).join("\n");
 
-  const head = `Category: ${category}. Brands: ${brands.join(", ")}. ${focusNote}`;
+  const scopedBrands = [...new Set(pool.filter(passFilter).map((p) => p.brand))].filter((b) => b && b !== "—");
+  const head = `Category: ${category}. Brands: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. ${focusNote}${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; others are out of scope." : ""}`;
   const rules = `CRITICAL DISTINCTION — this report is about the MESSAGE, not the craft. You are studying how brands COMMUNICATE innovations and disruptive PROPOSITIONS: a new service, platform, ecosystem, business model or capability the brand is putting into the world (e.g. a brand launching a geolocated community app for small businesses). You are NOT judging whether the content is creatively novel or well-executed — that is a different report. A beautifully-made ad with no innovation message does NOT belong here; a plain post announcing a genuinely new proposition DOES.
 - Enumerate with Markdown bullet/numbered lists, never long comma sentences.
 - Back claims with examples: link a captured piece inline as [short name](cite:ID) using its #ID. Cite liberally.
@@ -110,7 +111,7 @@ export async function POST(request) {
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const dir = [(cfgMap[key]?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior innovation strategist writing the "${sd.title}" section of an Innovation Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE:\n${ctx(selFor()).slice(0, 7000)}`;
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 1800) };
+    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 3200) };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
@@ -118,7 +119,7 @@ export async function POST(request) {
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1100) };
+    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
   };
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, innovationSignals: innov.length };
 
