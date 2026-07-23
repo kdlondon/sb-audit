@@ -26,6 +26,17 @@ const nf = (v) => {
     : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
 };
 
+// Chart cards carry a title on the left and a unit hint on the right, per the design.
+function CardHead({ title, hint }) {
+  if (!title && !hint) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+      {title && <span style={{ fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)" }}>{title}</span>}
+      {hint && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)" }}>{hint}</span>}
+    </div>
+  );
+}
+
 export default function ReportBlock({ block }) {
   if (!block) return null;
   switch (block.type) {
@@ -64,6 +75,7 @@ function Bars({ data = {} }) {
   const max = data.max || Math.max(1, ...items.map((i) => Number(i.value) || 0));
   return (
     <div style={CARD}>
+      <CardHead title={data.title} hint={data.hint} />
       <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {items.map((i, n) => (
           <div key={n} style={{ display: "grid", gridTemplateColumns: "132px 1fr 58px", alignItems: "center", gap: 12 }}>
@@ -90,6 +102,7 @@ function Split({ data = {} }) {
   const total = items.reduce((s, i) => s + Number(i.value), 0) || 1;
   return (
     <div style={CARD}>
+      <CardHead title={data.title} />
       <div style={{ display: "flex", height: 22, borderRadius: 11, overflow: "hidden" }}>
         {items.map((i, n) => (
           <div key={n} title={`${i.label} ${Math.round((i.value / total) * 100)}%`}
@@ -115,6 +128,7 @@ function Heatmap({ data = {} }) {
   const max = Math.max(1, ...flat);
   return (
     <div style={{ ...CARD, overflowX: "auto" }}>
+      <CardHead title={data.title} />
       <table style={{ borderCollapse: "separate", borderSpacing: 3, minWidth: 420 }}>
         <thead>
           <tr>
@@ -164,6 +178,7 @@ function Quadrant({ data = {} }) {
   const H = 260;
   return (
     <div style={CARD}>
+      <CardHead title={data.title} />
       <div style={{ position: "relative", height: H, margin: "6px 0 4px" }}>
         {/* quadrant guides */}
         <div style={{ position: "absolute", inset: 0, border: "1px solid var(--border-hairline)", borderRadius: 8 }} />
