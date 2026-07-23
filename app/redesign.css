@@ -169,31 +169,58 @@
 @keyframes gwrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes gwspin { to { transform: rotate(360deg); } }
 
-/* ---- Editor form fields (view 09) ---- */
-.gw-flabel {
+/* ---- Editor form fields (view 09) — values taken from the approved handoff ---- */
+.gw-flabel {            /* = .fl */
+  display: block;
   font-family: var(--font-mono);
-  letter-spacing: 0.12em;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 500;
+  margin-bottom: 6px;
 }
-.gw-finput {
-  background: var(--paper);
+.gw-finput {            /* = .inp / .sel */
+  width: 100%;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--ink-900);
+  background: var(--brand-white);
   border: 1px solid var(--border-hairline);
   border-radius: 8px;
   padding: 9px 11px;
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  color: var(--ink-900);
   outline: none;
   transition: border-color 0.12s ease;
 }
-.gw-finput:focus { border-color: var(--accent-ember); }
+.gw-finput:focus { border-color: var(--accent-ember-deep); }
 
 .gw-fhint {
   font-family: var(--font-mono);
-  letter-spacing: 0.04em;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
+
+/* Option pill — the design's .chp. Separate pills, not a segmented track. */
+.gw-chp {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  background: var(--brand-white);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.gw-chp.on { background: var(--ink-800); color: #fff; border-color: var(--ink-800); }
+
+/* Accordion section card */
+.gw-sec { display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; transition: background 0.12s ease; }
+.gw-sec:hover { background: var(--paper); }
 
 /* Selected multi-choice chip — a selection is a data mark, so it reads ember. */
 .gw-chip-on {

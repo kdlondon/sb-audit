@@ -25,26 +25,6 @@ function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);retur
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||(u.includes("supabase.co/storage")&&!/\.(mp4|mov|webm|avi)(\?|$)/i.test(u)));}
 function isVideoFile(u){return u&&/\.(mp4|mov|webm|avi)(\?|$)/i.test(u);}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
-// Editor section progress: a tick once every field in the section has a value,
-// otherwise how many are still to go. Framework sections vary in length, so the
-// bare "13/13" carried no meaning on its own.
-function SecCount({filled,total,complete,open}){
-  if(!total)return null;
-  if(complete)return(
-    <span style={{display:"flex",alignItems:"center",gap:4,fontFamily:"var(--font-mono)",fontSize:10,padding:"2px 8px",borderRadius:20,background:"var(--accent-ember)",color:"#fff"}}>
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-      Complete
-    </span>
-  );
-  return(
-    <span style={{fontFamily:"var(--font-mono)",fontSize:10,padding:"2px 8px",borderRadius:20,
-      background:open?"rgba(255,255,255,.12)":"var(--brand-white)",
-      color:open?"var(--brand-cream)":"var(--text-muted)",
-      border:`1px solid ${open?"transparent":"var(--border-hairline)"}`}}>
-      {total-filled} left
-    </span>
-  );
-}
 // Framework section names often already carry their own "1. " prefix — strip it so
 // the editor renders one consistent numbering instead of "1 · 1. Identification".
 const stripNum=(s)=>String(s||"").replace(/^\s*\d+\s*[.·)\-–]\s*/,"");
@@ -1831,30 +1811,31 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     const y=ytId(cur.url);const vim=vimeoId(cur.url);const imgUrl=cur.image_url;
     return(
       <div className="min-h-screen" style={{background:"var(--paper)"}}>
-        {/* Editor chrome — same sticky glass header as the rest of the shell */}
-        <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(244,239,233,0.72)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:"1px solid var(--border-paper)"}}>
-          <div style={{padding:"18px 28px 16px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
+        {/* Editor chrome — measurements from the approved handoff: 34/48 padding,
+            ember-deep eyebrow at 9px/.18em, 24px display title, ink-800 Save. */}
+        <div style={{padding:"34px 48px 0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14,maxWidth:1260}}>
             <div style={{minWidth:0}}>
-              <div style={{fontFamily:"var(--font-mono)",fontSize:10.5,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)"}}>Creative Source · {eid?"Edit entry":"New entry"}</div>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:9,letterSpacing:".18em",textTransform:"uppercase",color:"var(--accent-ember-deep)",marginBottom:6}}>Creative Source · {eid?"Edit entry":"New entry"}</div>
               <div style={{display:"flex",alignItems:"baseline",gap:12,flexWrap:"wrap"}}>
-                <h2 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:26,letterSpacing:"-.01em",margin:"6px 0 0",color:"var(--ink-900)"}}>{eid?"Edit entry":"New entry"}</h2>
-                {ytLoading&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">{materialType==="social"?"Fetching Instagram data…":"Fetching YouTube data…"}</span>}
-                {analyzing&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">AI analyzing…</span>}
+                <h1 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:24,letterSpacing:"-.01em",margin:0,color:"var(--ink-900)"}}>{eid?"Edit entry":"New entry"}</h1>
+                {ytLoading&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">{materialType==="social"?"Fetching Instagram data\u2026":"Fetching YouTube data\u2026"}</span>}
+                {analyzing&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">AI analyzing\u2026</span>}
               </div>
             </div>
-            <div style={{display:"flex",gap:8,alignItems:"center",flex:"none"}}>
-              <button onClick={clearForm} className="gw-tbtn" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"8px 13px",cursor:"pointer"}}>Clear</button>
-              <button onClick={()=>{router.push("/audit",{scroll:false});setCur({});setMaterialType("none");}} className="gw-tbtn" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"8px 13px",cursor:"pointer"}}>Cancel</button>
-              <button onClick={save} className="gw-ember-btn" style={{fontFamily:"var(--font-display)",fontSize:14,fontWeight:700,color:"#fff",background:"var(--accent-ember)",border:"none",borderRadius:9,padding:"9px 20px",cursor:"pointer"}}>Save</button>
+            <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center",flex:"none"}}>
+              <button onClick={clearForm} style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)",background:"transparent",border:"none",padding:"8px 10px",cursor:"pointer"}}>Clear</button>
+              <button onClick={()=>{router.push("/audit",{scroll:false});setCur({});setMaterialType("none");}} style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"8px 14px",cursor:"pointer"}}>Cancel</button>
+              <button onClick={save} style={{fontFamily:"var(--font-body)",fontSize:11,fontWeight:500,color:"var(--brand-white)",background:"var(--ink-800)",border:"none",borderRadius:8,padding:"9px 18px",cursor:"pointer"}}>Save</button>
             </div>
           </div>
         </div>
-        <div className="flex" style={{height:"calc(100vh - 84px)"}}>
-          <div className="flex-1 flex flex-col overflow-hidden">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 404px",gap:26,alignItems:"start",maxWidth:1260,padding:"22px 48px 48px"}}>
+          <div className="flex flex-col" style={{minWidth:0}}>
             <div className="bg-surface border-b border-main px-4 py-3 flex-shrink-0">
               {materialType==="none"?(<div><p className="mb-2.5 gw-flabel text-[10px] uppercase">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="gw-tbtn flex-1 min-w-[100px] text-center" style={{padding:"12px 10px",borderRadius:9,border:"1px solid var(--border-hairline)",background:"var(--brand-white)",fontFamily:"var(--font-mono)",fontSize:11.5,color:"var(--ink-800)",cursor:"pointer"}}>{l}</button>))}</div></div>
               ):(<div className="space-y-2">
-                <div className="flex items-center gap-2"><div style={{display:"inline-flex",gap:2,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:3,flexWrap:"wrap"}}>{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>{const on=materialType===k;return(<button key={k} onClick={()=>{setMaterialType(k);}} className="gw-tab" style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",background:on?"var(--ink-800)":"transparent",color:on?"var(--brand-cream)":"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:on?600:500}}>{l}</button>);})}</div></div>
+                <div className="flex items-center gap-2"><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{[["video","Video URL"],["videoFile","Video File"],["web","Website"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>{const on=materialType===k;return(<button key={k} onClick={()=>{setMaterialType(k);}} className={on?"gw-chp on":"gw-chp"}>{l}</button>);})}</div></div>
                 {materialType==="video"&&<div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Video URL (YouTube / Vimeo)</label><input value={cur.url||""} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." className="w-full gw-finput" /></div>}
                 {materialType==="videoFile"&&<div className="flex gap-2 items-end"><div className="flex-1"><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Upload Video (MP4, MOV, WebM)</label>{cur.url&&!ytId(cur.url)?<p className="text-xs text-accent truncate mb-1">{cur.url.split("/").pop()}</p>:null}<label className="inline-flex px-3 py-1.5 bg-surface2 border border-main rounded text-xs text-muted cursor-pointer hover:bg-accent-soft">{uploading?"Uploading...":"Choose file"}<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={e=>{if(e.target.files[0])uploadVideoFile(e.target.files[0]);}} className="hidden" /></label></div></div>}
                 {materialType==="web"&&<div><label className="block text-[9px] uppercase mb-1.5 gw-flabel">Website URL</label><input value={cur.url||""} onChange={e=>setWebUrl(e.target.value)} placeholder="https://www.example.com" className="w-full gw-finput" /></div>}
@@ -2007,7 +1988,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <div style={fieldStyle("transcript")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] uppercase gw-flabel">Transcript / Copy</label><span className="text-[9px] gw-fhint">{ytLoading&&!cur.transcript?<span className="text-accent animate-pulse">Bringing the transcript…</span>:"Paste from YouTube or type what you see"}</span></div><textarea value={cur.transcript||""} onChange={e=>setCur({...cur,transcript:e.target.value})} rows={4} placeholder={ytLoading&&!cur.transcript?"Bringing the transcript…":"Paste the video transcript, ad copy, or any text content here..."} className="w-full gw-finput resize-y" /></div>
                 <div style={fieldStyle("analyst_comment")}><div className="flex justify-between items-center mb-1"><label className="text-[10px] uppercase gw-flabel">Analyst notes</label><span className="text-[9px] gw-fhint">Your observations — also sent to AI</span></div><textarea value={cur.analyst_comment||""} onChange={e=>setCur({...cur,analyst_comment:e.target.value})} rows={3} placeholder="What stands out? Initial observations, strategic notes..." className="w-full gw-finput resize-y" /></div>
                 {cur.type==="Social post"&&<div><div className="flex justify-between items-center mb-1"><label className="text-[10px] uppercase gw-flabel">Caption</label><span className="text-[9px] gw-fhint">Post text — sent to the AI</span></div><textarea value={cur.custom_dimensions?._meta?.caption||""} onChange={e=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_meta:{...((prev.custom_dimensions||{})._meta||{}),caption:e.target.value}}}))} rows={4} placeholder="Social post caption / copy..." className="w-full gw-finput resize-y" /></div>}
-                {(cur.image_url||cur.transcript||cur.analyst_comment||cur.custom_dimensions?._meta?.caption)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="gw-ember-btn w-full" style={{fontFamily:"var(--font-display)",fontSize:14,fontWeight:700,color:"#fff",background:"var(--accent-ember)",border:"none",borderRadius:9,padding:"11px 16px",cursor:"pointer"}}>{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
+                {(cur.image_url||cur.transcript||cur.analyst_comment||cur.custom_dimensions?._meta?.caption)&&(<button onClick={analyzeWithAI} disabled={analyzing} className="gw-ember-btn w-full" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"var(--font-body)",fontSize:12,fontWeight:500,color:"var(--brand-white)",background:"var(--accent-ember-deep)",border:"none",borderRadius:10,padding:13,cursor:"pointer"}}>{analyzing?"Analyzing with AI...":"✦ Analyze with AI"}</button>)}
                 {(()=>{ const bd=cur.custom_dimensions?._rating; const dims=Array.isArray(bd?.dimensions)?bd.dimensions:[]; if(!dims.length)return null; return (
                   <div className="mt-1 rounded-lg border border-main bg-surface2 p-2.5">
                     <div className="flex items-center justify-between mb-1.5">
@@ -2031,8 +2012,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           {/* FORM FIELDS PANEL — config-driven from system + custom dimensions */}
           {/* Framework sections — proportional per the design (was a fixed 380px rail,
               which squeezed every field into a column too narrow to read). */}
-          <div className="overflow-auto" style={{flex:"0 0 42%",minWidth:400,borderLeft:"1px solid var(--border-hairline)",background:"var(--brand-white)"}}>
-            <div className="p-3">
+          <div style={{minWidth:0}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
               {allDimensions.filter(d => d.fields?.length > 0).map((dim, di) => {
                 const isOpen = sec === di;
                 const isCustom = !dim.is_system;
@@ -2050,24 +2031,18 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 const complete = counted.length > 0 && filled === counted.length;
 
                 return (
-                  <div key={di} className="mb-1.5">
+                  <div key={di} style={{background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:14,overflow:"hidden"}}>
                     <div onClick={() => setSec(isOpen ? -1 : di)}
                       title={`${filled} of ${counted.length} fields completed`}
-                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer",
-                        background: isOpen ? "var(--ink-800)" : "var(--paper)",
-                        border: `1px solid ${isOpen ? "var(--ink-800)" : "var(--border-hairline)"}`,
-                        color: isOpen ? "var(--brand-cream)" : "var(--ink-800)" }}>
-                      <span style={{ fontFamily:"var(--font-mono)", fontSize:11.5, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      className="gw-sec">
+                      <span style={{ fontFamily:"var(--font-mono)", fontSize:12, fontWeight:600, color:"var(--ink-900)", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {di + 1} · {stripNum(dim.name)}
-                        {isCustom && <span style={{ fontWeight:400, opacity:.6, marginLeft:6 }}>(custom)</span>}
+                        {isCustom && <span style={{ fontWeight:400, opacity:.55, marginLeft:6 }}>(custom)</span>}
                       </span>
-                      <span style={{ flex:"none", display:"flex", alignItems:"center", gap:8 }}>
-                        <SecCount filled={filled} total={counted.length} complete={complete} open={isOpen}/>
-                        <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ opacity:.7, transform: isOpen ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}><path d="M2 4l3 3 3-3"/></svg>
-                      </span>
+                      <span style={{ marginLeft:"auto", fontSize:16, lineHeight:1, color:"var(--text-muted)" }}>{isOpen ? "−" : "+"}</span>
                     </div>
                     {isOpen && (
-                      <div className="py-2 space-y-3">
+                      <div style={{padding:"2px 16px 18px",display:"flex",flexDirection:"column",gap:14,borderTop:"1px solid var(--paper-edge)"}}>
                         {(dim.fields || []).filter(f => !skipKeys.has(f.key) && !skipKeys.has(f.db_key)).map(f => {
                           const dbKey = f.db_key || f.key;
                           // Override values from framework for communication_intent
@@ -2202,11 +2177,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                                       setCur(prev => ({...prev, scope: v, country: "", competitor: "", brand: "", brand_name: ""}));
                                     }
                                   }}
-                                    className="gw-tab" style={{flex:1,padding:"7px 12px",borderRadius:8,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11.5,
-                                      fontWeight:formScope===v?600:500,
-                                      background:formScope===v?"var(--ink-800)":"var(--brand-white)",
-                                      color:formScope===v?"var(--brand-cream)":"var(--text-muted)",
-                                      border:`1px solid ${formScope===v?"var(--ink-800)":"var(--border-hairline)"}`}}>
+                                    className={formScope===v?"gw-chp on":"gw-chp"}>
                                     {v === "local" ? "Local" : "Global"}
                                   </button>
                                 ))}
@@ -2361,18 +2332,14 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 const socFilled=socKeys.filter(k=>{const v=k==="platform"?platformVal:social[k];return v!==undefined&&v!==null&&String(v).trim()!=="";}).length;
                 const socComplete=socFilled===socKeys.length;
                 const socIdx=allDimensions.filter(d=>d.fields?.length>0).length+1;
-                return(<div className="mb-1.5">
+                return(<div style={{background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:14,overflow:"hidden"}}>
                   <div onClick={()=>setSec(open?-1:99)}
                     title={`${socFilled} of ${socKeys.length} fields completed`}
-                    style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"10px 12px",borderRadius:10,cursor:"pointer",
-                      background:open?"var(--ink-800)":"var(--paper)",border:`1px solid ${open?"var(--ink-800)":"var(--border-hairline)"}`,color:open?"var(--brand-cream)":"var(--ink-800)"}}>
-                    <span style={{fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:600}}>{socIdx} · Social content</span>
-                    <span style={{flex:"none",display:"flex",alignItems:"center",gap:8}}>
-                      <SecCount filled={socFilled} total={socKeys.length} complete={socComplete} open={open}/>
-                      <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" style={{opacity:.7,transform:open?"rotate(180deg)":"none",transition:"transform .15s ease"}}><path d="M2 4l3 3 3-3"/></svg>
-                    </span>
+                    className="gw-sec">
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--ink-900)"}}>{socIdx} · Social content</span>
+                    <span style={{marginLeft:"auto",fontSize:16,lineHeight:1,color:"var(--text-muted)"}}>{open?"−":"+"}</span>
                   </div>
-                  {open&&(<div className="py-2 space-y-3">
+                  {open&&(<div style={{padding:"2px 16px 18px",display:"flex",flexDirection:"column",gap:14,borderTop:"1px solid var(--paper-edge)"}}>
                     {meta.platform&&<div className="text-[9px] gw-fhint">{meta.platform}{meta.likes!=null?` · ❤ ${meta.likes.toLocaleString()}`:""}{meta.comments!=null?` · 💬 ${meta.comments.toLocaleString()}`:""}{meta.views!=null?` · ▶ ${meta.views.toLocaleString()}`:""}</div>}
                     <div className="grid grid-cols-2 gap-2">
                       <div><label className={lbl}>Platform</label>
@@ -2391,7 +2358,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>);
               })()}
             </div>
-            <div className="p-3 border-t border-main"><button onClick={save} className="w-full bg-accent text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90">{eid?"Save changes":"Save entry"}</button></div>
+            <div style={{marginTop:10}}><button onClick={save} style={{width:"100%",fontFamily:"var(--font-body)",fontSize:12,fontWeight:500,color:"var(--brand-white)",background:"var(--ink-800)",border:"none",borderRadius:10,padding:12,cursor:"pointer"}}>{eid?"Save changes":"Save entry"}</button></div>
           </div>
         </div>
         {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
