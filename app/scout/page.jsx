@@ -143,9 +143,9 @@ const SC_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 1
 const SC_FLD_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 };
 const SC_CTRL = { width: "100%", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "8px 10px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", outline: "none" };
 const SC_CHECK = { display: "flex", alignItems: "center", gap: 7, fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer", paddingBottom: 8 };
-// ── Import bar (dark) ──
-const BAR_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,247,240,.55)", marginBottom: 6 };
-const BAR_CTRL = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 9, padding: "8px 10px", fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--brand-cream)", outline: "none", minWidth: 150 };
+// ── Import bar (white floating panel) ──
+const BAR_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 };
+const BAR_CTRL = { width: "100%", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 10, padding: "9px 11px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", outline: "none" };
 
 // Monoline brand glyphs (~1.6px) for the N1 channel toggle — no emoji, no brand fills.
 const G = ({ children }) => (
@@ -1047,11 +1047,11 @@ Rules:
               {/* Results / Saved toggle */}
               <div className="flex items-center gap-2 mb-4">
                 <button onClick={() => setSavedTab(false)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!savedTab ? "bg-[#0019FF] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!savedTab ? "bg-[var(--accent-ember)] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
                   Results ({filteredVideos.length})
                 </button>
                 <button onClick={() => setSavedTab(true)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${savedTab ? "bg-[#0019FF] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${savedTab ? "bg-[var(--accent-ember)] text-white" : "bg-surface border border-main text-muted hover:text-main"}`}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill={savedTab ? "white" : "none"} stroke={savedTab ? "white" : "currentColor"} strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
                   Saved ({savedItems.length})
                 </button>
@@ -1203,7 +1203,7 @@ Rules:
                               {/* Actions */}
                               <div className="flex items-center gap-2">
                                 <button onClick={() => handleImportSaved(item)}
-                                  className="px-3 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition" style={{ background: "#0019FF" }}>
+                                  className="px-3 py-1.5 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition" style={{ background: "var(--accent-ember)" }}>
                                   Import {autoAnalyze ? "+ AI Analyze" : ""}
                                 </button>
                                 <button onClick={() => handleRemoveSaved(item.id)}
@@ -1425,7 +1425,7 @@ Rules:
               </p>
               <div className="flex justify-center gap-3">
                 <button onClick={() => router.push("/audit")}
-                  className="px-5 py-2 text-white rounded-lg text-sm font-semibold" style={{ background: "#0019FF" }}>
+                  className="px-5 py-2 text-white rounded-lg text-sm font-semibold" style={{ background: "var(--accent-ember)" }}>
                   View in Audit
                 </button>
                 <button onClick={() => { setImportDone(false); setVideos([]); setSelected(new Set()); setBrand(""); setKeywords(""); }}
@@ -1475,48 +1475,50 @@ Rules:
         {/* ─── IMPORT BAR — appears with ≥1 selected, not during import. Owns the
             three destination OPTIONS for both branches. ─── */}
         {barCount > 0 && !barBusy && (
-          <div style={{ flex: "none", background: "var(--ink-800)", padding: "16px 44px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", boxShadow: "0 -8px 28px rgba(0,0,0,.16)", animation: "gwrise .25s ease" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontFamily: "var(--font-numeral)", fontSize: 30, lineHeight: 1, color: "var(--accent-ember)" }}>{barCount}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,247,240,.6)", lineHeight: 1.3 }}>Selected /<br />to import</span>
-            </div>
-            <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,.14)" }} />
-
-            <div>
-              <label style={BAR_LABEL}>Scope</label>
-              <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.06)", borderRadius: 9, padding: 3 }}>
-                {["local", "global"].map(s => {
-                  const on = scope === s;
-                  return (
-                    <button key={s} onClick={() => setScope(s)}
-                      style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", background: on ? "var(--accent-ember)" : "transparent", color: on ? "#fff" : "rgba(255,247,240,.7)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: on ? 700 : 500, textTransform: "capitalize" }}>
-                      {s}
-                    </button>
-                  );
-                })}
+          <div style={{ flex: "none", padding: "0 34px 20px" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto", background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 20, padding: "16px 22px", display: "flex", alignItems: "center", gap: 22, flexWrap: "nowrap", boxShadow: "0 -8px 28px rgba(0,0,0,.10)", animation: "gwrise .25s ease" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
+                <span style={{ fontFamily: "var(--font-numeral)", fontSize: 30, lineHeight: 1, color: "var(--accent-ember)" }}>{barCount}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", lineHeight: 1.35 }}>Selected /<br />to import</span>
               </div>
-            </div>
+              <span style={{ flex: "none", width: 1, alignSelf: "stretch", background: "var(--border-hairline)" }} />
 
-            <div>
-              <label style={BAR_LABEL}>Brand</label>
-              <select value={importBrand} onChange={e => setImportBrand(e.target.value)} style={BAR_CTRL}>
-                <option value="">Auto — from source</option>
-                {barBrandOptions.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
+              <div style={{ flex: "none" }}>
+                <label style={BAR_LABEL}>Scope</label>
+                <div style={{ display: "inline-flex", gap: 2, background: "var(--paper)", borderRadius: 10, padding: 3 }}>
+                  {["local", "global"].map(s => {
+                    const on = scope === s;
+                    return (
+                      <button key={s} onClick={() => setScope(s)}
+                        style={{ padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: on ? "var(--accent-ember)" : "transparent", color: on ? "#fff" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11.5, fontWeight: on ? 700 : 500, textTransform: "capitalize" }}>
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            <div>
-              <label style={BAR_LABEL}>Country</label>
-              <select value={region} onChange={e => setRegion(e.target.value)} style={BAR_CTRL}>
-                {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-              </select>
-            </div>
+              <div style={{ flex: "1 1 0", minWidth: 0, maxWidth: 240 }}>
+                <label style={BAR_LABEL}>Brand</label>
+                <select value={importBrand} onChange={e => setImportBrand(e.target.value)} style={BAR_CTRL}>
+                  <option value="">Auto — from source</option>
+                  {barBrandOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
 
-            <button onClick={() => (source === "social" ? socialSel.run?.() : handleImport())} className="gw-ember-btn"
-              style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 9, background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 10, padding: "13px 22px", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-              Import as entries
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
-            </button>
+              <div style={{ flex: "1 1 0", minWidth: 0, maxWidth: 220 }}>
+                <label style={BAR_LABEL}>Country</label>
+                <select value={region} onChange={e => setRegion(e.target.value)} style={BAR_CTRL}>
+                  {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                </select>
+              </div>
+
+              <button onClick={() => (source === "social" ? socialSel.run?.() : handleImport())} className="gw-ember-btn"
+                style={{ marginLeft: "auto", flex: "none", display: "flex", alignItems: "center", gap: 9, background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 10, padding: "13px 22px", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                Import as entries
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+              </button>
+            </div>
           </div>
         )}
 
@@ -1538,7 +1540,8 @@ Rules:
       </main>
 
       {/* ─── SCOUT ASSISTANT BUBBLE ─── */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* Lifts clear of the import bar so it never covers the Import action */}
+      <div className="fixed right-6 z-50" style={{ bottom: barCount > 0 && !barBusy ? 128 : 24, transition: "bottom .2s ease" }}>
         {assistOpen && (
           <div className="absolute bottom-16 right-0 w-[360px] bg-surface border border-main rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: "60vh" }}>
             <div className="px-4 py-3 flex justify-between items-center cursor-pointer" style={{ background: "#0a0f3c" }} onClick={() => setAssistOpen(false)}>
@@ -1565,7 +1568,7 @@ Rules:
               {assistMessages.map((m, i) => (
                 <div key={i} className={`${m.role === "user" ? "text-right" : ""}`} style={{ animation: "fadeIn 0.3s ease-out" }}>
                   {m.role === "user" ? (
-                    <div className="inline-block max-w-[90%] px-3 py-2 rounded-xl rounded-br-sm text-xs text-white" style={{ background: "#0019FF" }}>{m.text}</div>
+                    <div className="inline-block max-w-[90%] px-3 py-2 rounded-xl rounded-br-sm text-xs text-white" style={{ background: "var(--accent-ember)" }}>{m.text}</div>
                   ) : m.parsed ? (
                     <div className="space-y-3 text-xs" style={{ animation: "fadeIn 0.5s ease-out" }}>
                       {m.parsed.intro && <p className="text-muted">{m.parsed.intro}</p>}
@@ -1590,7 +1593,7 @@ Rules:
                           <p className="text-[10px] font-bold uppercase tracking-wider text-accent mb-1.5">Search Keywords</p>
                           <div className="flex flex-wrap gap-1">
                             {m.parsed.keywords.map((kw, ki) => (
-                              <span key={ki} className="px-2 py-1 bg-accent-soft text-accent rounded-full text-[10px] font-medium cursor-pointer hover:bg-[#0019FF] hover:text-white transition"
+                              <span key={ki} className="px-2 py-1 bg-accent-soft text-accent rounded-full text-[10px] font-medium cursor-pointer hover:bg-[var(--accent-ember)] hover:text-white transition"
                                 onClick={() => { setBrand(""); setKeywords(kw); setAssistOpen(false); }}>
                                 {kw}
                               </span>
@@ -1626,7 +1629,7 @@ Rules:
                 placeholder="Ask about brands, markets..."
                 className="flex-1 px-3 py-2 bg-surface2 border border-main rounded-lg text-xs text-main focus:outline-none focus:border-[var(--accent)]" />
               <button onClick={askAssistant} disabled={assistLoading || !assistQuery.trim()}
-                className="px-3 py-2 bg-[#0019FF] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">
+                className="px-3 py-2 bg-[var(--accent-ember)] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">
                 Send
               </button>
             </div>
@@ -1634,7 +1637,7 @@ Rules:
         )}
         <button onClick={() => setAssistOpen(!assistOpen)}
           className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition"
-          style={{ background: "#0019FF" }}>
+          style={{ background: "var(--accent-ember)" }}>
           {assistOpen ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           ) : (

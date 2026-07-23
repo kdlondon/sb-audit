@@ -299,7 +299,7 @@ export default function SocialFeedPicker({
           </div>
 
           {/* Grid — whole card toggles selection */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, animation: "gwrise .3s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, alignItems: "start", animation: "gwrise .3s ease" }}>
             {visible.map((p) => {
               const sel = selected.has(p.url);
               const stats = [
@@ -309,7 +309,7 @@ export default function SocialFeedPicker({
               ].filter(Boolean).join(" · ");
               return (
                 <button key={p.url} onClick={() => toggle(p.url)}
-                  style={{ textAlign: "left", padding: 9, borderRadius: 14, cursor: "pointer",
+                  style={{ display: "flex", flexDirection: "column", width: "100%", textAlign: "left", padding: 9, borderRadius: 14, cursor: "pointer",
                     border: `1.5px solid ${sel ? "var(--accent-ember)" : "transparent"}`,
                     background: sel ? "var(--brand-white)" : "transparent", transition: "background .12s ease, border-color .12s ease" }}>
                   <div style={{ position: "relative", aspectRatio: "4 / 5", background: "var(--ink-800)", borderRadius: 11, overflow: "hidden" }}>
@@ -326,7 +326,8 @@ export default function SocialFeedPicker({
                       {sel && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                     </span>
                   </div>
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.35, color: "var(--ink-800)", marginTop: 9, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {/* Fixed two-line box so the stats line sits at the same height on every card */}
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.35, height: "2.7em", color: "var(--ink-800)", marginTop: 9, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {p.caption ? p.caption.split("\n")[0] : "—"}
                   </div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>{stats}</div>
