@@ -38,9 +38,12 @@ export async function POST(request) {
   if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
-  const { data: rows } = await admin.from("creative_source")
+  const { data: rows, error: rowsErr } = await admin.from("creative_source")
     .select("id,competitor,brand,brand_name,scope,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,execution_style,main_slogan,synopsis,description,analyst_comment,custom_dimensions")
     .eq("project_id", project_id).eq("scope", "global");
+  // A failed query must not masquerade as an empty benchmark: that reads as permanent and
+  // is never retried, when it is usually transient.
+  if (rowsErr) return Response.json({ error: `Could not load entries: ${rowsErr.message}` }, { status: 503 });
   if (!rows || rows.length === 0) return Response.json({ error: "No global benchmark entries found. Capture global cases (scope = global) first." }, { status: 404 });
 
   let framework = null; try { framework = await loadFramework(project_id); } catch {}
