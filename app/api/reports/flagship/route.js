@@ -91,7 +91,11 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     landscape: { title: "Category landscape", pool: allPieces, task: `Map how the category communicates: the territories occupied and who owns what. 2-3 tight paragraphs + a short bullet list of territory ownership.` },
     positioning: { title: "Positioning x-ray", pool: subjPool(allPieces), task: `Contrast EXPRESSED (what the brand says — Brand DNA / web, the brand_dna evidence) vs VALIDATED (what its content actually does) ${scope === "brand" ? `for ${subject}` : "for each main brand"}. Surface the gap between the two — that gap is the key insight.` },
     hero: { title: "Hero & message consistency", pool: subjPool(allPieces), task: `Assess whether the hero/brand message is stable over time and coherent across channels (only hero-level signals are included here). Flag drift or inconsistency vs the declared positioning.` },
-    whitespace: { title: "White space & opportunity", pool: allPieces, task: `Identify territories and angles nobody clearly owns, then name 3-5 concrete opportunity territories for ${client}.` },
+    whitespace: { title: "White space & opportunity", pool: allPieces, task: `Identify territories and angles nobody clearly owns, then name 3-5 concrete opportunity territories for ${client}.
+
+AFTER the prose, append a fenced \`\`\`json block listing the white spaces you just identified, so they can be charted. One object per space:
+[{"name":"short label, max 5 words","supply":1-5,"demand":1-5,"closest":"brand nearest to it, or null"}]
+supply = how covered the space already is (1 = nobody, 5 = crowded). demand = how much pull it has with the audience (1 = little, 5 = strong). Judge both from the evidence and your analysis. Include ONLY spaces you discussed in the prose, in the same order.` },
   };
   const titleFor = { exec: "Executive read", recommendations: "Strategic recommendations" };
   const DEFAULT_ORDER = ["exec", "landscape", "positioning", "hero", "whitespace", "recommendations"];
@@ -131,17 +135,29 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     .map((t) => ({ name: t.name, count: t.count, brands: t.brands.size, pull: t.ratings.length ? t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length : null }))
     .sort((a, b) => b.count - a.count);
   const visualStats = { territories, brandCount: (scopedBrands.length ? scopedBrands : brands).length, totalPieces: pieces.length, inRange: inScope.length };
-  const withVisuals = (sec) => sec ? { ...sec, visuals: flagshipVisuals(sec.key, visualStats) } : sec;
+  const withVisuals = (sec) => sec ? { ...sec, visuals: flagshipVisuals(sec.key, { ...visualStats, gaps: sec.data }) } : sec;
 
   const selFor = (key) => ALL_DEFS[key].pool.filter(passFilter)
     .map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, 24);
 
+  // A section may append a fenced json block with structured data for its chart. Pull it
+  // out, keep it aside, and strip it from the prose the analyst reads.
+  const extractData = (md) => {
+    const m = /```json\s*([\s\S]*?)```/i.exec(md || "");
+    if (!m) return { markdown: md, data: null };
+    let data = null;
+    try { data = JSON.parse(m[1].trim()); } catch { data = null; }
+    return { markdown: (md.slice(0, m.index) + md.slice(m.index + m[0].length)).trim(), data };
+  };
+
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
     const dir = [custom, ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 4000) };
+    const raw = await claude(apiKey, prompt, 4000);
+    const { markdown, data } = extractData(raw);
+    return { key, title: sd.title, markdown, data };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");

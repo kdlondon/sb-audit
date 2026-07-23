@@ -206,7 +206,7 @@ function Quadrant({ data = {} }) {
             color: p.hero ? "#fff" : "var(--text-secondary)",
             fontFamily: "var(--font-body)", fontSize: 12, fontWeight: p.hero ? 600 : 400,
           }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}{p.caption ? <span style={{ opacity: .65, fontWeight: 400 }}> · {p.caption}</span> : null}</span>
             {p.hero && <span style={{ flex: "none" }}>✦</span>}
           </span>
         ))}
@@ -230,7 +230,9 @@ function Quadrant({ data = {} }) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border-hairline)" }}>
         <span style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 14, background: "var(--accent-ember)", color: "#fff", fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600 }}>✦</span>
         <span style={{ fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)" }}>
-          <b>The white space</b> — territories few brands publish (low supply) that still perform well (high demand). Everything else is shown for contrast: crowded territories on the right, low-demand ones below.
+          <b>The white space</b> — {data.qualitative
+            ? <>the openings named in this section: little worked by the category, but with real pull. Both axes are the analyst&rsquo;s read of the evidence, not a count.</>
+            : <>territories few brands publish that still perform well. Positions come from the captured pieces and their ratings.</>}
         </span>
       </div>
     </div>
