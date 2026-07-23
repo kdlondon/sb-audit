@@ -342,7 +342,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [showReportModal,setShowReportModal]=useState(false);
   const [closingNotes,setClosingNotes]=useState([]);
   const [exportMenuOpen,setExportMenuOpen]=useState(false);
-  const [toolMenu,setToolMenu]=useState(""); // "filter" | "sort" | "" — Cosmos-style circular tool popovers
+  const [toolMenu,setToolMenu]=useState(""); // "filter" | "sort" | "columns" | "" — Cosmos-style circular tool popovers
+  // Which optional list columns are on. Persisted so the analyst's table stays put.
+  const [visibleCols,setVisibleCols]=useState({});
+  useEffect(()=>{try{const s=localStorage.getItem("gw-cs-cols");if(s)setVisibleCols(JSON.parse(s));}catch{}},[]);
+  const toggleCol=(k)=>setVisibleCols(prev=>{const next={...prev,[k]:prev[k]===false};try{localStorage.setItem("gw-cs-cols",JSON.stringify(next));}catch{}return next;});
   const [mapData,setMapData]=useState([]);
   const [reportInstructions,setReportInstructions]=useState("");
   const [reportGenerating,setReportGenerating]=useState(false);
@@ -2344,7 +2348,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   // ── LIST ──
   const EXEC_OPTS=["Live action","Animation","Mixed media","Typography","Stock footage","UGC","Illustration","Cinematic","Documentary","Manifesto","Motion graphics","Photography","Data visualisation","Interactive","AR/VR","Other"];
   const PLATFORM_OPTS=["Instagram","TikTok","Facebook","LinkedIn","YouTube","X (Twitter)","Threads","Pinterest","Snapchat","Reddit"];
-  const cols=[{key:"_select",label:"",nosort:true},{key:scope==="local"?"competitor":"brand",label:"Brand"},{key:"description",label:"Title"},{key:"year",label:"Yr"},{key:"type",label:"Type"},{key:"communication_intent",label:"Int."},{key:"platform",label:"Platform",nosort:true},{key:"rating",label:"★"},{key:"created_at",label:"Created"}];
+  // Toggleable columns (view 05). Brand + Title always stay — they identify the row.
+  const allCols=[{key:"_select",label:"",nosort:true,fixed:true},{key:scope==="local"?"competitor":"brand",label:"Brand",fixed:true},{key:"description",label:"Title",fixed:true},{key:"year",label:"Yr",toggle:"year"},{key:"type",label:"Type",toggle:"type"},{key:"communication_intent",label:"Int.",toggle:"intent"},{key:"platform",label:"Platform",nosort:true,toggle:"platform"},{key:"rating",label:"★",toggle:"rating"},{key:"created_at",label:"Created",toggle:"created"}];
+  const showCol=(k)=>visibleCols[k]!==false;
+  const cols=allCols.filter(c=>c.fixed||showCol(c.toggle));
   const hasSocial=data.some(e=>e.type==="Social post"||e.custom_dimensions?._social?.content_pillar);
   const pillarOpts=[...new Set(data.map(e=>e.custom_dimensions?._social?.content_pillar).filter(Boolean))].sort();
   const socialFilters=hasSocial&&pillarOpts.length?[["content_pillar","Content pillar",pillarOpts]]:[];
@@ -2355,6 +2362,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const filterKeys=scope==="local"?[["competitor","Competitor",competitorOpts],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
+  const COL_LABELS={year:"Year",type:"Type",intent:"Intent",platform:"Platform",rating:"Rating",created:"Created"};
   const GridIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>;
 
   // N2 subsections for the redesign shell (maps to the existing scope/viewMode state)
@@ -2413,6 +2421,30 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               )}
             </div>
+            {listMode==="list"&&(
+              <div className="relative">
+                <button onClick={()=>setToolMenu(toolMenu==="columns"?"":"columns")} className="gw-tbtn" style={{display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font-mono)",fontSize:11,color:toolMenu==="columns"?"var(--accent-ember)":"var(--text-secondary)",background:"var(--brand-white)",border:`1px solid ${toolMenu==="columns"?"var(--accent-ember)":"var(--border-hairline)"}`,borderRadius:8,padding:"7px 11px",cursor:"pointer"}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>Columns
+                </button>
+                {toolMenu==="columns"&&(
+                  <div style={{position:"absolute",right:0,top:"100%",marginTop:8,zIndex:50,width:200,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:14,boxShadow:"var(--shadow-card-hover)",padding:"10px 6px 6px"}}>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:9.5,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)",padding:"0 10px 8px"}}>Toggle columns</div>
+                    {allCols.filter(c=>c.toggle).map(c=>{
+                      const on=visibleCols[c.toggle]!==false;
+                      return (
+                        <button key={c.toggle} onClick={()=>toggleCol(c.toggle)}
+                          style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)",textAlign:"left"}}>
+                          <span style={{flex:"none",width:16,height:16,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",background:on?"var(--accent-ember)":"transparent",border:`1px solid ${on?"var(--accent-ember)":"var(--border-strong)"}`}}>
+                            {on&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                          </span>
+                          {COL_LABELS[c.toggle]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             <button onClick={()=>setListMode("grid")} title="Grid" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:listMode==="grid"?"var(--ink-800)":"var(--brand-white)",border:`1px solid ${listMode==="grid"?"var(--ink-800)":"var(--border-hairline)"}`,borderRadius:8,color:listMode==="grid"?"#fff":"var(--text-secondary)",cursor:"pointer"}}><GridIcon/></button>
             <button onClick={()=>setListMode("list")} title="List" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:listMode==="list"?"var(--ink-800)":"var(--brand-white)",border:`1px solid ${listMode==="list"?"var(--ink-800)":"var(--border-hairline)"}`,borderRadius:8,color:listMode==="list"?"#fff":"var(--text-secondary)",cursor:"pointer"}}><ListIcon/></button>
             <button onClick={doExport} title="Export" className="gw-tbtn" style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,color:"var(--text-secondary)",cursor:"pointer"}}>
@@ -2924,12 +2956,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   <td className="px-2.5 py-3" onClick={ev=>ev.stopPropagation()}><input type="checkbox" checked={selected.has(e.id)} onChange={()=>toggleSelect(e.id)} className="accent-[var(--accent-ember)]" /></td>
                   <td className="px-2.5 py-3"><span className="inline-flex items-center gap-1.5"><span style={{fontWeight:600,color:"var(--ink-900)"}}>{(scope==="local"?(e.competitor||e.brand_name):(e.brand||e.brand_name))||"—"}</span>{e.custom_dimensions?._ai_analyzed_at&&<span title="AI-analyzed" className="text-[13px] leading-none" style={{color:"var(--accent-ember)"}}>✦</span>}</span></td>
                   <IC field="description" className="max-w-[280px] truncate" ><span style={{fontWeight:600,color:"var(--ink-900)"}}>{e.description||"—"}</span></IC>
-                  <IC field="year" className="">{e.year||"—"}</IC>
-                  <IC field="type" className="">{e.type||"—"}</IC>
-                  <IC field="communication_intent" className="">{e.communication_intent||"—"}</IC>
-                  <td className="px-2.5 py-3" style={{color:"var(--text-secondary)"}}>{e.custom_dimensions?._social?.platform||"—"}</td>
-                  <IC field="rating" className="">{Number(e.rating)>0?<span style={{fontSize:11,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(Number(e.rating))}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-Number(e.rating))}</span></span>:"—"}</IC>
-                  <td className="px-2.5 py-3 whitespace-nowrap" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>{fmtDate(e.created_at)}</td>
+                  {showCol("year")&&<IC field="year" className="">{e.year||"—"}</IC>}
+                  {showCol("type")&&<IC field="type" className="">{e.type||"—"}</IC>}
+                  {showCol("intent")&&<IC field="communication_intent" className="">{e.communication_intent||"—"}</IC>}
+                  {showCol("platform")&&<td className="px-2.5 py-3" style={{color:"var(--text-secondary)"}}>{e.custom_dimensions?._social?.platform||"—"}</td>}
+                  {showCol("rating")&&<IC field="rating" className="">{Number(e.rating)>0?<span style={{fontSize:11,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(Number(e.rating))}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-Number(e.rating))}</span></span>:"—"}</IC>}
+                  {showCol("created")&&<td className="px-2.5 py-3 whitespace-nowrap" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>{fmtDate(e.created_at)}</td>}
                   <td className="px-2.5 py-3 opacity-0 group-hover:opacity-100 transition" onClick={ev=>ev.stopPropagation()}><span onClick={()=>del(e.id)} className="cursor-pointer text-sm" style={{color:"var(--text-muted)"}}>×</span></td>
                 </tr>);
               })}</tbody>
