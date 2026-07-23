@@ -476,7 +476,11 @@ function ReportsContent(){
       // Match the column set the existing (working) insert writes — scope and brand_id
       // included. Omitting them is what made the insert fail while the run reported success.
       const row={
-        id,title,template_type:card.id,project_id:projectId,brand_id:brandId,
+        id,title,template_type:card.id,project_id:projectId,
+        // brand_id is a uuid column, but BrandContext falls back to the PROJECT id when a
+        // project has no brand — passing that yields "invalid input syntax for type uuid".
+        // Only send it when it really is a uuid.
+        brand_id:UUID_RE.test(String(brandId||""))?brandId:null,
         scope:cfg.source?.mode==="audit"?(cfg.source.value==="both"?"local":cfg.source.value):"local",
         sections:(cfg.sections||[]).filter(x=>x.on!==false).map(x=>x.key).join(","),
         competitors:cfg.source?.mode==="brand"?(Array.isArray(cfg.source.value)?cfg.source.value.join(","):""):"",
@@ -2112,6 +2116,8 @@ RULES:
     </div>
   );
 }
+
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function ReportsPage(){
   return (
