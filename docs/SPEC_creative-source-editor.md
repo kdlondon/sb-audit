@@ -98,6 +98,25 @@ Regla: **solo se tocan clases y envoltorios, nunca `value`/`onChange`/`setVal`.*
 
 ---
 
+## 4bis. Estado — fases E1–E6 HECHAS
+
+| Fase | Commit | Qué |
+|---|---|---|
+| E1 | `1f9d79d` | Cabecera glass estándar (eyebrow + Klamp + Clear·Cancel·Save); Clear deja el rojo |
+| E2 | `1f9d79d` | Panel del framework de 380px fijo → 42% con suelo de 400px |
+| E3 | `1f9d79d` | Secciones numeradas, activo ink-800, chip de completitud |
+| E3-fix | `aa5ef6a` | Doble numeración, sección 5 huérfana (`sec===99`) alineada, chip a "Complete"/"N left" |
+| E4 | `9fa8117` | Campos a `.gw-flabel` / `.gw-finput`; scope a pill ink; chips multi en ember |
+| E5 | `ca365ab` | Columna izquierda: material picker, transcript/notas, Analyze en ember |
+| E6 | `ca365ab` | Barrido: sin azul/violeta/verde; `--accent-soft` templado en el shell |
+
+**Bug encontrado y arreglado aparte** (`93db545`): el botón **New entry** de la sidebar no abría el formulario. Mandaba `?add=1` sin scope y el handler exigía scope; además ese efecto dependía de `projectId`, así que estando ya en `/audit` no se re-ejecutaba. Verificado por Sergio.
+
+### Pendiente de E0
+La prueba de referencia (crear entrada, un campo de cada tipo, guardar, reabrir) **sigue sin hacerse**. E4 fue la fase que la hacía necesaria.
+
+---
+
 ## 5. Pendientes hermanos (mismo módulo)
 
 | Pieza | Estado | Nota |
