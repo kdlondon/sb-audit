@@ -471,8 +471,7 @@ function ReportsContent(){
     // markdown still lands rather than losing the whole report.
     const saveDoc=async(doc)=>{
       const md=blocksToMarkdown(doc);
-      const base={content:md,updated_at:new Date().toISOString()};
-      const full={...base,content_blocks:doc};
+      const full={content:md,updated_at:new Date().toISOString(),content_blocks:doc};
       // Match the column set the existing (working) insert writes — scope and brand_id
       // included. Omitting them is what made the insert fail while the run reported success.
       const row={
@@ -490,24 +489,26 @@ function ReportsContent(){
       // If a column isn't on this database yet, PostgREST names it in the error. Drop that
       // one and retry rather than losing the whole report — and remember it for later saves.
       const unknownCol=(e)=>{const m=/'([a-z_]+)' column|column "([a-z_]+)"/i.exec(e?.message||"");return m?(m[1]||m[2]):null;};
-      const write=async(payload,isInsert)=>{
-        let body={...payload};
-        for(const c of (v2RunRef.current.dropped||[]))delete body[c];
-        for(let i=0;i<4;i++){
-          const{error}=isInsert
-            ? await supabase.from("saved_reports").insert(body)
-            : await supabase.from("saved_reports").update(body).eq("id",id);
-          if(!error)return;
-          const col=unknownCol(error);
-          if(!col||!(col in body))throw new Error(`Could not save report: ${error.message}`);
-          delete body[col];
-          v2RunRef.current.dropped=[...(v2RunRef.current.dropped||[]),col];
-        }
-        throw new Error("Could not save report after dropping unknown columns");
-      };
 
-      if(!v2RunRef.current.inserted){ await write(row,true); v2RunRef.current.inserted=true; }
-      else { await write(full,false); }
+      // UPSERT the whole row every time. An insert-then-update pair silently diverges: if
+      // the update matches no rows (RLS, or a mismatched key) Supabase returns no error, so
+      // the report keeps whatever the first save wrote — which is how a 6-section run ended
+      // up stored with one section. `.select()` lets us assert a row actually landed.
+      let body={...row};
+      for(const c of (v2RunRef.current.dropped||[]))delete body[c];
+      for(let i=0;i<4;i++){
+        const{data,error}=await supabase.from("saved_reports").upsert(body,{onConflict:"id"}).select("id");
+        if(!error){
+          if(!data||data.length===0)throw new Error("Report save affected no rows — check permissions on saved_reports");
+          return;
+        }
+        const col=unknownCol(error);
+        if(!col||!(col in body))throw new Error(`Could not save report: ${error.message}`);
+        delete body[col];
+        v2RunRef.current.dropped=[...(v2RunRef.current.dropped||[]),col];
+      }
+      throw new Error("Could not save report after dropping unknown columns");
+
     };
 
     const r=await generateReport({
