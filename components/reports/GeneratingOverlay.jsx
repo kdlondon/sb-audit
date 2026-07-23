@@ -12,7 +12,7 @@ const Spinner = () => (
 const Check = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>;
 const Bang = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /></svg>;
 
-export default function GeneratingOverlay({ sections = [], statuses = {}, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onDismiss }) {
+export default function GeneratingOverlay({ sections = [], statuses = {}, errors = {}, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onDismiss }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const someFailed = failed.length > 0;
 
@@ -61,7 +61,11 @@ export default function GeneratingOverlay({ sections = [], statuses = {}, done =
                   color: isDone || isNow ? "var(--ink-900)" : isErr ? "var(--accent-ember-deep)" : "var(--text-muted)",
                   fontWeight: isNow ? 600 : 400,
                 }}>{s.title}</span>
-                {isErr && <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--accent-ember-deep)" }}>failed</span>}
+                {isErr && (
+                  <span title={errors[s.key] || "Failed"} style={{ marginLeft: "auto", maxWidth: 150, fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".04em", color: "var(--accent-ember-deep)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {errors[s.key] || "failed"}
+                  </span>
+                )}
               </div>
             );
           })}

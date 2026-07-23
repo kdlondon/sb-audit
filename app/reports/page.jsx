@@ -476,7 +476,7 @@ function ReportsContent(){
       onProgress:({done,total,current,status})=>setV2Run(prev=>prev?{...prev,done,total,statuses:{...prev.statuses,[current]:status}}:prev),
     });
 
-    setV2Run(prev=>prev?{...prev,failed:r.failed,finished:true,done:r.produced.length}:prev);
+    setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,finished:true,done:r.produced.length}:prev);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
   };
@@ -1663,6 +1663,7 @@ RULES:
               done={v2Run.done}
               total={v2Run.total}
               failed={v2Run.failed}
+              errors={v2Run.errors}
               finished={v2Run.finished}
               onOpenPartial={closeV2Run}
               onDismiss={closeV2Run}
