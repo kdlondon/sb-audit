@@ -25,6 +25,29 @@ function vimeoId(u){if(!u)return null;const m=u.match(/vimeo\.com\/(\d+)/);retur
 function isImgUrl(u){return u&&(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(u)||(u.includes("supabase.co/storage")&&!/\.(mp4|mov|webm|avi)(\?|$)/i.test(u)));}
 function isVideoFile(u){return u&&/\.(mp4|mov|webm|avi)(\?|$)/i.test(u);}
 function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",color:"#fff",padding:"1px 6px",borderRadius:3,fontSize:11,fontWeight:600}}>{v}</span>;}
+// Editor section progress: a tick once every field in the section has a value,
+// otherwise how many are still to go. Framework sections vary in length, so the
+// bare "13/13" carried no meaning on its own.
+function SecCount({filled,total,complete,open}){
+  if(!total)return null;
+  if(complete)return(
+    <span style={{display:"flex",alignItems:"center",gap:4,fontFamily:"var(--font-mono)",fontSize:10,padding:"2px 8px",borderRadius:20,background:"var(--accent-ember)",color:"#fff"}}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      Complete
+    </span>
+  );
+  return(
+    <span style={{fontFamily:"var(--font-mono)",fontSize:10,padding:"2px 8px",borderRadius:20,
+      background:open?"rgba(255,255,255,.12)":"var(--brand-white)",
+      color:open?"var(--brand-cream)":"var(--text-muted)",
+      border:`1px solid ${open?"transparent":"var(--border-hairline)"}`}}>
+      {total-filled} left
+    </span>
+  );
+}
+// Framework section names often already carry their own "1. " prefix — strip it so
+// the editor renders one consistent numbering instead of "1 · 1. Identification".
+const stripNum=(s)=>String(s||"").replace(/^\s*\d+\s*[.·)\-–]\s*/,"");
 
 function ImageViewer({src,onCrop}){
   const [scale,setScale]=useState(1);
@@ -2029,23 +2052,17 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 return (
                   <div key={di} className="mb-1.5">
                     <div onClick={() => setSec(isOpen ? -1 : di)}
+                      title={`${filled} of ${counted.length} fields completed`}
                       style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer",
                         background: isOpen ? "var(--ink-800)" : "var(--paper)",
                         border: `1px solid ${isOpen ? "var(--ink-800)" : "var(--border-hairline)"}`,
                         color: isOpen ? "var(--brand-cream)" : "var(--ink-800)" }}>
                       <span style={{ fontFamily:"var(--font-mono)", fontSize:11.5, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {di + 1} · {dim.name}
+                        {di + 1} · {stripNum(dim.name)}
                         {isCustom && <span style={{ fontWeight:400, opacity:.6, marginLeft:6 }}>(custom)</span>}
                       </span>
                       <span style={{ flex:"none", display:"flex", alignItems:"center", gap:8 }}>
-                        {counted.length > 0 && (
-                          <span style={{ fontFamily:"var(--font-mono)", fontSize:10, padding:"2px 7px", borderRadius:20,
-                            background: complete ? "var(--accent-ember)" : (isOpen ? "rgba(255,255,255,.12)" : "var(--brand-white)"),
-                            color: complete ? "#fff" : (isOpen ? "var(--brand-cream)" : "var(--text-muted)"),
-                            border: complete ? "1px solid var(--accent-ember)" : `1px solid ${isOpen ? "transparent" : "var(--border-hairline)"}` }}>
-                            {filled}/{counted.length}
-                          </span>
-                        )}
+                        <SecCount filled={filled} total={counted.length} complete={complete} open={isOpen}/>
                         <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ opacity:.7, transform: isOpen ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}><path d="M2 4l3 3 3-3"/></svg>
                       </span>
                     </div>
@@ -2338,9 +2355,20 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 const open=sec===99;
                 const lbl="block text-[9px] text-hint uppercase font-semibold mb-0.5";
                 const inp="w-full px-2 py-1.5 bg-surface2 border border-main rounded text-sm text-main";
-                return(<div className="mb-1">
-                  <div onClick={()=>setSec(open?-1:99)} className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${open?"bg-purple-50 text-purple-700 border border-purple-300":"bg-surface2 border border-main text-main"}`}>
-                    <span>5. Social content</span><span className="text-hint">{open?"−":"+"}</span>
+                const socKeys=["platform","format","post_objective","content_pillar","visual_codes"];
+                const socFilled=socKeys.filter(k=>{const v=k==="platform"?platformVal:social[k];return v!==undefined&&v!==null&&String(v).trim()!=="";}).length;
+                const socComplete=socFilled===socKeys.length;
+                const socIdx=allDimensions.filter(d=>d.fields?.length>0).length+1;
+                return(<div className="mb-1.5">
+                  <div onClick={()=>setSec(open?-1:99)}
+                    title={`${socFilled} of ${socKeys.length} fields completed`}
+                    style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"10px 12px",borderRadius:10,cursor:"pointer",
+                      background:open?"var(--ink-800)":"var(--paper)",border:`1px solid ${open?"var(--ink-800)":"var(--border-hairline)"}`,color:open?"var(--brand-cream)":"var(--ink-800)"}}>
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:600}}>{socIdx} · Social content</span>
+                    <span style={{flex:"none",display:"flex",alignItems:"center",gap:8}}>
+                      <SecCount filled={socFilled} total={socKeys.length} complete={socComplete} open={open}/>
+                      <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" style={{opacity:.7,transform:open?"rotate(180deg)":"none",transition:"transform .15s ease"}}><path d="M2 4l3 3 3-3"/></svg>
+                    </span>
                   </div>
                   {open&&(<div className="py-2 space-y-3">
                     {meta.platform&&<div className="text-[9px] text-hint">{meta.platform}{meta.likes!=null?` · ❤ ${meta.likes.toLocaleString()}`:""}{meta.comments!=null?` · 💬 ${meta.comments.toLocaleString()}`:""}{meta.views!=null?` · ▶ ${meta.views.toLocaleString()}`:""}</div>}
