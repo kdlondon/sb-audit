@@ -7,6 +7,10 @@ import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
 import Sidebar from "@/components/Sidebar";
 import ReportLibrary from "@/components/reports/ReportLibrary";
+import ReportTypePicker from "@/components/reports/ReportTypePicker";
+import ReportConfigurator from "@/components/reports/ReportConfigurator";
+import { generateReport } from "@/lib/report-generate";
+import { blocksToMarkdown } from "@/lib/report-blocks";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -423,6 +427,52 @@ function ReportsContent(){
   const filterField="project_id"; // Use project_id for data queries during transition
   const filterValue=projectId||brandId;
   const{framework,frameworkLoaded,hasDimension}=useFramework()||{};
+  // Report v2 — Generate flow: picked report card + per-section generation progress.
+  const[v2Card,setV2Card]=useState(null);
+  const[v2Progress,setV2Progress]=useState(null);
+  const[v2Collections,setV2Collections]=useState([]);
+  useEffect(()=>{ if(!projectId)return; (async()=>{
+    const{data}=await supabase.from("collections").select("id,name").eq("project_id",projectId).order("created_at",{ascending:false});
+    setV2Collections(data||[]);
+  })(); },[projectId]);
+
+  // Generate section-by-section against the card's engine, saving as it goes so a
+  // mid-run failure never discards what already landed (lib/report-generate).
+  const runV2Generate=async(card,cfg)=>{
+    if(!card||!projectId)return;
+    const id=String(Date.now());
+    const title=`${card.title} — ${new Date().toLocaleDateString()}`;
+    const{data:{session}}=await supabase.auth.getSession();
+    let inserted=false;
+    setV2Progress({done:0,total:(cfg.sections||[]).filter(s=>s.on!==false).length,current:null});
+
+    const postSection=async(key,{priorSections})=>{
+      const res=await fetch(`/api/reports/${card.route}`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          project_id:projectId, icp:cfg.lens, section:key, priorSections,
+          sections:cfg.sections, source:cfg.source,
+          filters:{brands:cfg.source?.mode==="brand"?cfg.source.value:undefined,intents:cfg.intents,yearFrom:cfg.yearFrom,yearTo:cfg.yearTo},
+        }),
+      });
+      const d=await res.json();
+      if(d.error)throw new Error(d.error);
+      return d.section;
+    };
+    const saveDoc=async(doc)=>{
+      const row={id,title,template_type:card.id,project_id:projectId,created_by:session?.user?.email||"",content:blocksToMarkdown(doc),content_blocks:doc,status:"in_process",archived:false,updated_at:new Date().toISOString()};
+      if(!inserted){ await supabase.from("saved_reports").insert(row); inserted=true; }
+      else { await supabase.from("saved_reports").update({content:row.content,content_blocks:doc,updated_at:row.updated_at}).eq("id",id); }
+    };
+
+    try{
+      await generateReport({card,config:cfg,postSection,saveDoc,onProgress:(p)=>setV2Progress(p)});
+    }catch(e){ /* per-section errors are already absorbed by the orchestrator */ }
+    setV2Progress(null); setV2Card(null);
+    const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
+    setSavedReports(reports||[]);
+    router.push(`/reports?report=${id}`,{scroll:false});
+  };
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
@@ -1570,7 +1620,28 @@ RULES:
 
       {/* GENERATE / VIEW */}
       {(view==="generate"||(view==="archive"&&viewingReport))&&(
-        <div className="px-5 py-5 w-full flex justify-center"><div className="w-full max-w-5xl" style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"24px 34px 56px"}}><div style={{marginRight:viewerOpen?390:0,transition:"margin 0.15s"}}>
+
+          {/* Report v2 — step 1 (type) / step 2 (configurator) */}
+          {view==="generate"&&!activeContent&&!v2Card&&(
+            <ReportTypePicker
+              objectives={framework?.objectives||[]}
+              onOpenSettings={()=>router.push("/settings")}
+              onPick={(c)=>setV2Card(c)}
+            />
+          )}
+          {view==="generate"&&!activeContent&&v2Card&&(
+            <ReportConfigurator
+              card={v2Card}
+              projectId={projectId}
+              brands={[...new Set(localData.concat(globalData).map(e=>e.competitor||e.brand||e.brand_name).filter(Boolean))].sort()}
+              intents={framework?.communicationIntents||[]}
+              collections={v2Collections}
+              generating={!!v2Progress}
+              onBack={()=>setV2Card(null)}
+              onGenerate={(cfg)=>runV2Generate(v2Card,cfg)}
+            />
+          )}
 
           {/* REPORT CONTENT */}
           {activeContent&&(
@@ -1778,7 +1849,7 @@ RULES:
           )}
 
           {/* CONFIGURATOR */}
-          {!activeContent&&(
+          {!activeContent&&!v2Card&&(
             <>
               {!selectedTemplate?(
                 <div>

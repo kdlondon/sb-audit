@@ -8,6 +8,10 @@ alter table saved_reports add column if not exists archived   boolean     defaul
 alter table saved_reports add column if not exists deleted_at timestamptz;                        -- soft delete (restorable ~30d)
 alter table saved_reports add column if not exists updated_at timestamptz default now();          -- concurrency witness
 
+-- v2 content model: ordered blocks with stable ids (the comment anchor). `content` keeps a
+-- markdown render so legacy readers and .md/.doc export keep working.
+alter table saved_reports add column if not exists content_blocks jsonb;
+
 -- Backfill existing rows to the active/in-process baseline.
 update saved_reports set status   = 'in_process' where status   is null;
 update saved_reports set archived = false        where archived is null;
