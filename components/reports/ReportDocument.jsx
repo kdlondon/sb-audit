@@ -14,7 +14,7 @@ const BREADCRUMB = {
   paddingBottom: 16, borderBottom: "1px solid var(--paper-edge)", marginBottom: 34,
 };
 
-export default function ReportDocument({ report, renderMarkdown, breadcrumb, onRegenerate, regeneratingKey }) {
+export default function ReportDocument({ report, renderMarkdown, breadcrumb, onRegenerate, regeneratingKey, notice, onUndo, onDismissNotice }) {
   const doc = report?.content_blocks;
   if (!isV2(doc)) {
     return (
@@ -53,6 +53,9 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
               <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: "var(--ink-300)", flex: "none" }}>{numeral}</span>
                 <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, letterSpacing: "-.01em", color: "var(--ink-900)", margin: 0, flex: 1 }}>{sec.title}</h2>
+                {notice?.key === sec.key && (
+                  <SectionFlag notice={notice} onUndo={onUndo} onDismiss={onDismissNotice} />
+                )}
                 {onRegenerate && sec.key !== "_" && (
                   <RegenerateControl sectionKey={sec.key} busy={regeneratingKey === sec.key} onRegenerate={onRegenerate} />
                 )}
@@ -132,6 +135,23 @@ function RegenerateControl({ sectionKey, busy, onRegenerate }) {
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--ink-300)", marginTop: 8 }}>Leave empty to simply rewrite it. ⌘↵ to run.</div>
         </div>
       )}
+    </span>
+  );
+}
+
+// The regeneration notice belongs to its section, not to the page — so Undo visibly
+// reverts THAT section and nothing else.
+function SectionFlag({ notice, onUndo, onDismiss }) {
+  const failed = /failed|could not/i.test(notice.text || "");
+  return (
+    <span style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 9, padding: "5px 11px", borderRadius: 14,
+      background: "var(--accent-ember-tint)", color: "#7a3a24", fontFamily: "var(--font-mono)", fontSize: 10.5, animation: "gwrise .16s ease" }}>
+      {!failed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+      <span style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{notice.text}</span>
+      {notice.prevDoc && (
+        <button onClick={onUndo} style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", color: "#7a3a24", textDecoration: "underline" }}>Undo</button>
+      )}
+      <button onClick={onDismiss} title="Dismiss" style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "#7a3a24", fontSize: 13, lineHeight: 1 }}>×</button>
     </span>
   );
 }

@@ -1836,13 +1836,6 @@ RULES:
                   </button>
                 </div>
 
-                {regenNotice&&(
-                  <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:14,padding:"10px 14px",borderRadius:10,background:"var(--accent-ember-tint)",color:"#7a3a24",fontFamily:"var(--font-body)",fontSize:12.5}}>
-                    <span style={{flex:1,minWidth:0}}>{regenNotice.text}</span>
-                    {regenNotice.prevDoc&&<button onClick={undoRegenerate} style={{background:"transparent",border:"none",padding:0,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11,color:"#7a3a24",textDecoration:"underline"}}>Undo</button>}
-                    <button onClick={()=>setRegenNotice(null)} style={{background:"transparent",border:"none",padding:0,cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11,color:"#7a3a24"}}>Dismiss</button>
-                  </div>
-                )}
               </div>
               <div className="flex">
                 <div className="flex-1 px-8 py-6" ref={reportRef} data-report-content>
@@ -1853,6 +1846,9 @@ RULES:
                           renderMarkdown={renderContent}
                           onRegenerate={regenerateSection}
                           regeneratingKey={regenKeyBusy}
+                          notice={regenNotice}
+                          onUndo={undoRegenerate}
+                          onDismissNotice={()=>setRegenNotice(null)}
                           breadcrumb={[REPORT_CARDS[viewingReport.template_type]?.title||viewingReport.template_type||"Report",projectName,viewingReport.scope==="global"?"Global":"Category",`${(viewingReport.icp||"brand")} lens`].filter(Boolean).join(" · ")}
                         />
                       : renderContent(activeContent)}
