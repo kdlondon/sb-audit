@@ -14,6 +14,14 @@ import LandscapeRegistry from "@/components/LandscapeRegistry";
 import TaxonomyDropdown from "@/components/TaxonomyDropdown";
 import CountryInput from "@/components/CountryInput";
 
+// Study objectives — MUST stay in sync with the onboarding list. Each objective drives
+// which report Groundwork suggests in Report > Generate (see lib/report-cards).
+const OBJECTIVES = [
+  "Competitive positioning & messaging", "Identify white spaces / opportunities",
+  "Creative inspiration & benchmarking", "Innovation scan", "Brand consistency audit",
+  "Category landscape map", "Tone & territory analysis", "Social content & engagement",
+];
+
 const BRAND_ARCHETYPES = [
   "Innocent", "Explorer", "Sage", "Hero", "Outlaw", "Magician",
   "Regular Guy", "Lover", "Jester", "Caregiver", "Creator", "Ruler",
@@ -192,6 +200,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
         setSubCategory(fw.sub_category || "");
         setMarket(fw.primary_market || "");
         setMarketsToObserve(fw.global_markets || []);
+        setObjectives(Array.isArray(fw.objectives) ? fw.objectives : []);
         setTargetAudience(fw.brand_audience || "");
         setValueProposition(fw.brand_positioning || "");
         setKeyDifferentiator(fw.brand_differentiator || "");
@@ -271,6 +280,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
         brand_differentiator: keyDifferentiator.trim(),
         brand_tone: brandTone.trim(),
         communication_intents: communicationIntents,
+        objectives,
         language,
       }).eq("project_id", projectId);
       error = e;
@@ -407,6 +417,34 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
             {BRAND_ARCHETYPES.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* ── Study objectives ── */}
+      {/* These drive which reports Groundwork suggests in Report > Generate. Same list as
+          onboarding, so a project set up either way behaves identically. */}
+      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+        <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Study objectives</h4>
+        <p className="text-xs text-muted -mt-1">What this study is for. Each objective suggests a report in <b>Report › Generate</b>.</p>
+        <div className="flex flex-wrap gap-2">
+          {OBJECTIVES.map(o => {
+            const on = objectives.includes(o);
+            return (
+              <button key={o} type="button"
+                onClick={() => setObjectives(prev => on ? prev.filter(x => x !== o) : [...prev, o])}
+                className="px-3 py-1.5 rounded-full text-xs border transition"
+                style={on
+                  ? { background: "var(--accent-ember)", borderColor: "var(--accent-ember)", color: "#fff", fontWeight: 600 }
+                  : { background: "var(--surface)", borderColor: "var(--border)", color: "var(--text2)" }}>
+                {on && "✓ "}{o}
+              </button>
+            );
+          })}
+        </div>
+        {objectives.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--accent-ember-deep)" }}>
+            No objectives selected — Report will not suggest anything until you pick at least one.
+          </p>
+        )}
       </div>
 
       {/* ── Analysis settings ── */}
@@ -1105,6 +1143,7 @@ function SettingsContent() {
   const { projectId } = useProject() || {};
   const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
 
+  const [objectives, setObjectives] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
 
   const tabs = [

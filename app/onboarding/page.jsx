@@ -8,10 +8,12 @@ import AuthGuard from "@/components/AuthGuard";
 import CountryInput from "@/components/CountryInput";
 import BrandDnaRunner from "@/components/BrandDnaRunner";
 
+// MUST stay in sync with the list in app/settings (each objective maps to a suggested
+// report in lib/report-cards).
 const OBJECTIVES = [
   "Competitive positioning & messaging", "Identify white spaces / opportunities",
   "Creative inspiration & benchmarking", "Innovation scan", "Brand consistency audit",
-  "Category landscape map", "Tone & territory analysis",
+  "Category landscape map", "Tone & territory analysis", "Social content & engagement",
 ];
 const CATEGORIES = ["Banking & Financial Services", "Insurance", "Fintech", "Retail", "E-commerce", "Telecommunications", "Technology", "Software / SaaS", "Automotive", "Food & Beverage", "Consumer Goods (CPG)", "Healthcare", "Pharmaceuticals", "Travel & Hospitality", "Airlines", "Energy & Utilities", "Real Estate", "Education", "Media & Entertainment", "Fashion & Apparel", "Beauty & Cosmetics", "Sports", "Government / Public Sector", "Non-profit", "Other"];
 const SUGGEST_MODEL = "claude-sonnet-4-6";
