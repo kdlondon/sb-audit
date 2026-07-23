@@ -126,6 +126,9 @@
   --border: rgb(221, 217, 212);
   --surface: #fff;
   --surface2: rgb(244, 239, 233);
+  /* Page canvas: globals ships #FBF8F4, which reads as a white band against the
+     shell's paper in fades/gradients. Pin it to paper. */
+  --bg: var(--paper);
 }
 
 /* ---- Sidebar module/footer item hover ---- */

@@ -143,10 +143,13 @@ const SC_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 1
 const SC_FLD_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 };
 const SC_CTRL = { width: "100%", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "8px 10px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", outline: "none" };
 const SC_CHECK = { display: "flex", alignItems: "center", gap: 7, fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer", paddingBottom: 8 };
+// ── Import bar (dark) ──
+const BAR_LABEL = { display: "block", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,247,240,.55)", marginBottom: 6 };
+const BAR_CTRL = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 9, padding: "8px 10px", fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--brand-cream)", outline: "none", minWidth: 150 };
 
 // Monoline brand glyphs (~1.6px) for the N1 channel toggle — no emoji, no brand fills.
 const G = ({ children }) => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>{children}</svg>
 );
 const CHANNELS = [
   { id: "youtube", label: "YouTube", glyph: <G><rect x="2" y="5" width="20" height="14" rx="4" /><path d="M10 9.5l5 2.5-5 2.5z" /></G> },
@@ -273,6 +276,12 @@ export default function ScoutPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Redesign: the row header expands (one open at a time); the checkbox selects.
   const [openVideo, setOpenVideo] = useState(null);
+  // Import bar owns scope/brand/country for BOTH branches. Empty brand = derive it
+  // from the source (YouTube channel / social profile owner), the previous behaviour.
+  const [importBrand, setImportBrand] = useState("");
+  // The social branch reports its selection up so one bar drives both branches.
+  const [socialSel, setSocialSel] = useState({ count: 0, importing: false, progress: { done: 0, total: 0 }, run: null });
+  const handleSocialSelection = useCallback((s) => setSocialSel(s), []);
   const searchInputRef = useRef(null);
 
   const askAssistant = async () => {
@@ -558,7 +567,7 @@ Rules:
     entry.scope = scope;
     entry.brand_name = item.channel || "";
     if (scope === "global") {
-      entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
+      entry.country = regionLabel;
     }
     entry.competitor = scope === "local" ? (item.channel || "") : undefined;
     entry.brand = scope === "global" ? (item.channel || "") : undefined;
@@ -759,13 +768,14 @@ Rules:
       const note = analystNotes[v.videoId];
       if (note) entry.analyst_comment = note;
 
-      // [PHASE 0] unified fields
+      // [PHASE 0] unified fields — the import bar's BRAND overrides the channel when set
+      const owner = importBrand || v.channel || "";
       entry.scope = vidScope;
-      entry.brand_name = v.channel || "";
-      entry.competitor = vidScope === "local" ? (v.channel || "") : undefined;
-      entry.brand = vidScope === "global" ? (v.channel || "") : undefined;
+      entry.brand_name = owner;
+      entry.competitor = vidScope === "local" ? owner : undefined;
+      entry.brand = vidScope === "global" ? owner : undefined;
       if (vidScope === "global") {
-        entry.country = REGION_CODES.find(r => r.code === region)?.label || "";
+        entry.country = regionLabel;
       }
 
       // Insert
@@ -840,6 +850,23 @@ Rules:
   const showEmptyState = videos.length === 0 && !searching && !ranking && !importing && !importDone && !savedTab;
   const showResults = (videos.length > 0 || savedTab) && !searching && !importing && !importDone;
 
+  // "All regions" is a SEARCH filter, not a country — never persist it as one.
+  const regionLabel = region ? (REGION_CODES.find(r => r.code === region)?.label || "") : "";
+
+  // ── Import bar / overlay, unified across both branches ──
+  const barCount = source === "social" ? socialSel.count : selected.size;
+  const barBusy = source === "social" ? socialSel.importing : importing;
+  const barTotal = source === "social" ? socialSel.progress?.total : importProgress.total;
+  const barDone = source === "social" ? socialSel.progress?.done : importProgress.current;
+  const barPct = barTotal > 0 ? Math.round((barDone / barTotal) * 100) : 0;
+  const barBrandOptions = (() => {
+    const principal = framework?.principalBrand?.name || framework?.brandName || "";
+    const list = scope === "global"
+      ? (framework?.globalBenchmarks || [])
+      : [...(principal ? [{ name: principal }] : []), ...(framework?.localCompetitors || [])];
+    return [...new Set(list.map(b => b?.name).filter(Boolean))];
+  })();
+
   // Design: changing channel resets the flow (clears results + selection).
   // The social branch resets by remounting SocialFeedPicker via key={channel}.
   const selectChannel = (id) => {
@@ -859,33 +886,43 @@ Rules:
     <AuthGuard><ProjectGuard>
       <div className="gw-shell" style={{ display: "flex", height: "100vh", background: "var(--paper)" }}>
       <Sidebar />
-      <main style={{ flex: 1, minWidth: 0, height: "100vh", overflowY: "auto", position: "relative" }}>
+      <main style={{ flex: 1, minWidth: 0, height: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
         {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 shadow-lg" style={{ animation: "fadeIn 0.3s" }}>{toast}</div>}
         {preview && <VideoPreview videoId={preview.videoId} title={preview.title} onClose={() => setPreview(null)} />}
+        {/* Scroll region — the import bar sits below it as a flex:none sibling */}
+        <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
 
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 34px 56px" }}>
-
-          {/* ─── TITLE BLOCK (redesign) ─── */}
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: ".16em", color: "var(--text-muted)", textTransform: "uppercase" }}>Scout /</div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 700, color: "var(--ink-900)", letterSpacing: "-.01em", margin: "8px 0 0" }}>Find the field</h1>
-            <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: 15, color: "var(--text-secondary)", margin: "8px 0 0" }}>Pick a channel, pull the content, then import what matters as entries.</p>
+        {/* Header + channel toggle (redesign shell) — sticky glass, same chrome as
+            Creative Source and Intelligence: title left, module eyebrow right. */}
+        <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(244,239,233,0.72)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid var(--border-paper)" }}>
+          <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 34px 14px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+              <div>
+                <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 28, letterSpacing: "-.01em", margin: 0, color: "var(--ink-900)" }}>Find the field</h1>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 13.5, color: "var(--text-secondary)", margin: "6px 0 0" }}>Pick a channel, pull the content, then import what matters as entries.</p>
+              </div>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".04em", color: "var(--text-muted)", whiteSpace: "nowrap", paddingTop: 4 }}>SCOUT</span>
+            </div>
+            {/* Channel toggle (OPTION L1) — matches the N2 pill metrics. Changing channel resets the flow. */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 24, padding: 4 }}>
+                {CHANNELS.map(({ id, label, glyph }) => {
+                  const on = channel === id;
+                  return (
+                    <button key={id} className="gw-tab" onClick={() => selectChannel(id)}
+                      style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 15px", borderRadius: 20, border: "none", cursor: "pointer",
+                        background: on ? "var(--ink-800)" : "transparent", color: on ? "#fff" : "var(--text-secondary)",
+                        fontFamily: "var(--font-mono)", fontSize: 11.5, fontWeight: on ? 600 : 500, whiteSpace: "nowrap" }}>
+                      {glyph}{label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* ─── CHANNEL TOGGLE (OPTION L1) — changing channel resets the flow ─── */}
-          <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
-            {CHANNELS.map(({ id, label, glyph }) => {
-              const on = channel === id;
-              return (
-                <button key={id} onClick={() => selectChannel(id)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 9, border: "none", cursor: "pointer",
-                    background: on ? "var(--ink-800)" : "transparent", color: on ? "var(--brand-cream)" : "var(--text-muted)",
-                    fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: on ? 600 : 500, transition: "background .12s ease, color .12s ease" }}>
-                  {glyph}{label}
-                </button>
-              );
-            })}
-          </div>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 34px 56px" }}>
 
           {/* ─── SOCIAL FEED (Instagram / TikTok) ─── */}
           {source==="social" && (
@@ -893,6 +930,11 @@ Rules:
               <SocialFeedPicker
                 key={channel}
                 platforms={[channel]}
+                externalBar
+                barScope={scope}
+                barBrand={importBrand}
+                barCountry={regionLabel || framework?.primaryMarket || ""}
+                onSelection={handleSocialSelection}
                 projectId={projectId}
                 scope="global"
                 defaultCountry={framework?.primaryMarket||""}
@@ -1366,33 +1408,10 @@ Rules:
                 })}
               </div>
 
-              {/* Import bar */}
-              {selected.size > 0 && (
-                <div className="sticky bottom-4 bg-surface border border-main rounded-xl p-4 shadow-lg flex items-center justify-between">
-                  <p className="text-sm text-main font-medium">{selected.size} video{selected.size > 1 ? "s" : ""} selected</p>
-                  <button onClick={handleImport}
-                    className="px-6 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition"
-                    style={{ background: "#0019FF" }}>
-                    Import {selected.size} {autoAnalyze ? "+ AI Analyze" : ""}
-                  </button>
-                </div>
-              )}
               </>}
             </div>
           )}
 
-          {/* Import progress */}
-          {importing && (
-            <div className="bg-surface border border-main rounded-xl p-8 text-center">
-              <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-accent" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              <h3 className="text-lg font-bold text-main mb-2">Importing entries...</h3>
-              <p className="text-sm text-muted mb-4">{importProgress.label}</p>
-              <div className="w-full bg-surface2 rounded-full h-2 mb-2">
-                <div className="h-2 rounded-full transition-all duration-300" style={{ width: `${(importProgress.current / importProgress.total) * 100}%`, background: "#0019FF" }} />
-              </div>
-              <p className="text-xs text-hint">{importProgress.current} of {importProgress.total}</p>
-            </div>
-          )}
 
           {/* Import complete */}
           {importDone && (
@@ -1436,8 +1455,8 @@ Rules:
               <div className="max-w-2xl mx-auto">
                 <p className="text-[10px] text-hint uppercase font-semibold tracking-wider mb-3 text-center">Try searching for</p>
                 <div className="relative overflow-hidden group/carousel">
-                  <div className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to right, var(--bg), transparent)" }} />
-                  <div className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to left, var(--bg), transparent)" }} />
+                  <div className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to right, var(--paper) 30%, rgba(244,239,233,0))" }} />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: "linear-gradient(to left, var(--paper) 30%, rgba(244,239,233,0))" }} />
                   <div className="flex gap-2.5 py-1 group-hover/carousel:[animation-play-state:paused]"
                     style={{ animation: "scoutCarousel 25s linear infinite", width: "max-content" }}>
                     {looped.map((q, i) => (
@@ -1451,6 +1470,71 @@ Rules:
             );
           })()}
         </div>
+        </div>{/* end scroll region */}
+
+        {/* ─── IMPORT BAR — appears with ≥1 selected, not during import. Owns the
+            three destination OPTIONS for both branches. ─── */}
+        {barCount > 0 && !barBusy && (
+          <div style={{ flex: "none", background: "var(--ink-800)", padding: "16px 44px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", boxShadow: "0 -8px 28px rgba(0,0,0,.16)", animation: "gwrise .25s ease" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ fontFamily: "var(--font-numeral)", fontSize: 30, lineHeight: 1, color: "var(--accent-ember)" }}>{barCount}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,247,240,.6)", lineHeight: 1.3 }}>Selected /<br />to import</span>
+            </div>
+            <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,.14)" }} />
+
+            <div>
+              <label style={BAR_LABEL}>Scope</label>
+              <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.06)", borderRadius: 9, padding: 3 }}>
+                {["local", "global"].map(s => {
+                  const on = scope === s;
+                  return (
+                    <button key={s} onClick={() => setScope(s)}
+                      style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", background: on ? "var(--accent-ember)" : "transparent", color: on ? "#fff" : "rgba(255,247,240,.7)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: on ? 700 : 500, textTransform: "capitalize" }}>
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={BAR_LABEL}>Brand</label>
+              <select value={importBrand} onChange={e => setImportBrand(e.target.value)} style={BAR_CTRL}>
+                <option value="">Auto — from source</option>
+                {barBrandOptions.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={BAR_LABEL}>Country</label>
+              <select value={region} onChange={e => setRegion(e.target.value)} style={BAR_CTRL}>
+                {REGION_CODES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+              </select>
+            </div>
+
+            <button onClick={() => (source === "social" ? socialSel.run?.() : handleImport())} className="gw-ember-btn"
+              style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 9, background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 10, padding: "13px 22px", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+              Import as entries
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+        )}
+
+        {/* ─── IMPORTING OVERLAY ─── */}
+        {barBusy && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 20, background: "rgba(244,239,233,.82)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <span style={{ width: 52, height: 52, borderRadius: "50%", border: "3px solid var(--ink-150)", borderTopColor: "var(--accent-ember)", animation: "gwspin .8s linear infinite" }} />
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--ink-900)" }}>
+              Importing {barTotal || barCount} {source === "social" ? "post" : "video"}{(barTotal || barCount) === 1 ? "" : "s"}…
+            </div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: ".06em", color: "var(--text-muted)" }}>
+              {source === "social" ? "Fetching media · running AI read" : "Pulling transcript · running AI read"}
+            </div>
+            <div style={{ width: 260, height: 6, borderRadius: 3, background: "var(--ink-150)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${barPct}%`, background: "var(--accent-ember)", borderRadius: 3, transition: "width .3s ease" }} />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ─── SCOUT ASSISTANT BUBBLE ─── */}

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import { useFramework } from "@/lib/framework-context";
 
@@ -43,11 +43,22 @@ export default function SocialFeedPicker({
   defaultCategory = "",
   defaultSubCategory = "",
   onImported,
+  // Redesign: when the shell owns the import bar, it also owns scope/brand/country
+  // and triggers the import. The picker then renders results only.
+  externalBar = false,
+  barScope,
+  barBrand,
+  barCountry,
+  onSelection,
 }) {
   const { framework } = useFramework() || {};
   const [pScope, setPScope] = useState(scope);
   const [pBrand, setPBrand] = useState("");
   const [pCountry, setPCountry] = useState(defaultCountry || framework?.primaryMarket || "");
+  // Effective import options — the shell's bar wins when it is driving.
+  const eScope = externalBar ? (barScope || "local") : pScope;
+  const eBrand = externalBar ? (barBrand || "") : pBrand;
+  const eCountry = externalBar ? (barCountry || "") : pCountry;
   // Local scope includes the PRINCIPAL brand (the study subject) ahead of competitors.
   const principalName = framework?.principalBrand?.name || framework?.brandName || "";
   const brandOptions = pScope === "global"
@@ -119,12 +130,12 @@ export default function SocialFeedPicker({
             body: JSON.stringify({ platform, url: p.url, thumbnail: p.thumbnail, kind: p.kind }),
           });
           const meta = await res.json().catch(() => ({}));
-          const owner = pBrand || p.owner || handle.replace(/^@/, "").trim();
+          const owner = eBrand || p.owner || handle.replace(/^@/, "").trim();
           const caption = p.caption || "";
           const entry = {
             id: `${Date.now()}_${my}_${Math.random().toString(36).slice(2, 5)}`,
             project_id: projectId,
-            scope: pScope,
+            scope: eScope,
             type: "Social post",
             url: p.url,
             brand_name: owner,
@@ -133,7 +144,7 @@ export default function SocialFeedPicker({
             image_url: meta?.thumbnail || "",
             transcript: meta?.transcript || "",
             year: p.year || "",
-            country: pCountry || "",
+            country: eCountry || "",
             category: defaultCategory || "",
             sub_category: defaultSubCategory || "",
             created_by: email,
@@ -158,7 +169,7 @@ export default function SocialFeedPicker({
               },
             },
           };
-          if (pScope === "global") entry.brand = owner; else entry.competitor = owner;
+          if (eScope === "global") entry.brand = owner; else entry.competitor = owner;
           const { error } = await supabase.from("creative_source").insert(entry);
           if (!error) imported++;
         } catch {}
@@ -171,9 +182,20 @@ export default function SocialFeedPicker({
     if (onImported) onImported(imported);
   };
 
+  // Report selection + expose the trigger so the shell's import bar can drive this
+  // branch. Deps are primitives/identities that only change on real state changes,
+  // so this cannot loop with the parent's setState.
+  useEffect(() => {
+    if (!externalBar) return;
+    onSelection?.({ count: selected.size, importing, progress, run: importSelected });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalBar, selected, importing, progress, posts, eScope, eBrand, eCountry]);
+
   return (
     <div className="space-y-3">
-      {/* Scope + brand + country — entries import with the REAL brand/scope/country */}
+      {/* Scope + brand + country — entries import with the REAL brand/scope/country.
+          Hidden when the shell's import bar owns these options. */}
+      {!externalBar && (
       <div className="flex flex-wrap items-end gap-2 pb-3 border-b border-main">
         <div>
           <label className="block text-[9px] text-hint uppercase font-semibold mb-0.5">Scope</label>
@@ -196,6 +218,7 @@ export default function SocialFeedPicker({
           <datalist id="sfp-countries">{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
         </div>
       </div>
+      )}
       {/* Platform tabs */}
       {platforms.length > 1 && (
         <div className="flex bg-surface2 rounded-lg p-0.5 w-fit">
@@ -312,7 +335,8 @@ export default function SocialFeedPicker({
             })}
           </div>
 
-          {/* Import bar */}
+          {/* Import bar — only when the shell isn't providing one */}
+          {!externalBar && (
           <div className="flex items-center justify-between gap-3 pt-1 border-t border-main">
             <span className="text-xs text-muted">{selected.size} selected</span>
             <button onClick={importSelected} disabled={importing || selected.size === 0}
@@ -322,6 +346,7 @@ export default function SocialFeedPicker({
                 : `Import ${selected.size || ""} as entries →`}
             </button>
           </div>
+          )}
         </>
       )}
     </div>
