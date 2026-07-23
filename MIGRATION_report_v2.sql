@@ -38,9 +38,12 @@ do $$ begin
   end if;
 end $$;
 
--- ── saved_showcases: nest under a report + archive the standalone ones ──
+-- ── saved_showcases: columns prepared for nesting under a report ──
 alter table saved_showcases add column if not exists report_id text;                    -- the report this presentation belongs to
 alter table saved_showcases add column if not exists archived  boolean default false;
 
--- Existing showcases predate the nesting model → archive them (decision 2026-07-23).
-update saved_showcases set archived = true where report_id is null and archived is not true;
+-- NOTE: the archiving UPDATE is deliberately NOT run yet. The visual presentation (deck)
+-- is parked, so Showcase stays in the sidebar — archiving now would leave users with no
+-- way to build a presentation at all. Run this only when the deck ships and Showcase
+-- leaves the sidebar:
+--   update saved_showcases set archived = true where report_id is null and archived is not true;

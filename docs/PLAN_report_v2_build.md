@@ -248,9 +248,25 @@ v3 no cambia el flujo: **añade los dos entregables diseñados** encima del mód
 | 5 | **Paleta cálida de datos** contradice el "acento único ember, nunca otro tono" que venimos aplicando | Es una **excepción deliberada y acotada**: solo series múltiples en gráficos, nunca cromo/títulos/marcas de un solo valor. La adopto como tal, documentada |
 | 6 | v3 §8 deja abierto "valores de gráfico editables" | Es parte de F4 (bloques ricos editables), no un extra |
 
-### Orden actualizado (v3 §9 + lo nuestro)
-**F0** migraciones + bloques · **F1** Library (acordeón, iconos de formato, rename/delete) · **F2** Generate 1-2 · **F3** generación por secciones · **F4** refinamiento (bloques ricos editables, autosave, concurrencia, comentarios) · **F5** documento paginado + PDF · **F6** deck + PPTX + embed anidado · **F7** Showcase fuera del sidebar.
+### Resolución de las inconsistencias (Sergio, 2026-07-23)
+
+| # | Resolución |
+|---|---|
+| 1 | **Se mantiene nuestro acuerdo**: "Others" = motores **construidos** no sugeridos para el objetivo elegido. No se pinta un catálogo de informes inexistentes |
+| 2 | **Se mantiene**: Innovation ya está construido (B10); entra en el catálogo, sin fase propia |
+| 3 | **Se mantiene la decisión cerrada nº1**: los **bloques son la fuente de verdad**; el HTML es un render (y lo que se imprime a PDF). Guardar HTML rompería comentarios anclados y regeneración por sección |
+| 4 | **La presentación visual queda APARCADA.** No se avanza con el deck hasta nueva orden. Ver aviso abajo |
+| 5 | **La paleta cálida es para los REPORTES** (gráficos de series múltiples del documento). El cromo de la app sigue en ember único |
+| 6 | Valores de gráfico editables = parte de F4 |
+
+> ⚠️ **Dependencia que crea aparcar la presentación (nº4).** F7 sacaba Showcase del sidebar *porque* la presentación pasaba a vivir dentro del reporte. Si el deck no se construye, **retirar Showcase dejaría al usuario sin ninguna forma de hacer presentaciones**. Por tanto **F7 queda atado a F6**: mientras el deck esté aparcado, **Showcase se queda en el sidebar** y `saved_showcases` no se archiva. La columna `archived` de la migración se queda preparada pero **el UPDATE de archivado no se ejecuta todavía**.
+
+### Orden actualizado
+**F0** migraciones + bloques · **F1** Library (acordeón, iconos de formato, rename/delete) · **F2** Generate 1-2 · **F3** generación por secciones · **F4** refinamiento (bloques ricos editables, autosave, concurrencia, comentarios) · **F5** documento paginado + PDF.
+**⏸ Aparcado:** F6 deck + PPTX + embed anidado · F7 Showcase fuera del sidebar.
 *(Innovation ya no es fase: construido en B10.)*
+
+**Consecuencia en Library**: el icono ▦ (visual) y el toggle Text/Visual del acordeón se diseñan y construyen, pero en estado "sin presentación" permanente hasta que se retome F6. Alternativa: ocultarlos hasta entonces. **A decidir al llegar a F1.**
 
 ---
 
