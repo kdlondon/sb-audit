@@ -1,106 +1,115 @@
 # Report v2 — plan de implementación
 
-_Handoff: `Report v2 Handoff` (README + `Report v2.dc.html`). Decisiones de diseño cerradas._
-_Sustituye a `SPEC_report-redesign.md`. El flujo y el brief viven en `FLUJO_report_v2.md`._
+_Handoff: `Report v2 Handoff` (README + `Report v2.dc.html`)._
+_Flujo y brief de diseño: `FLUJO_report_v2.md`. Acuerdos base: `ACUERDOS_report-intelligence_junio.md`._
+_Decisiones cerradas con Sergio 2026-07-23._
 
 ---
 
-## 1. Brecha real contra el código
+## 1. Decisiones cerradas
 
-Medida sobre el repo, no sobre el spec.
-
-### Ya existe y se reutiliza
-| Pieza | Dónde | Nota |
+| # | Tema | Decisión |
 |---|---|---|
-| 3 motores de informe | `app/api/reports/{flagship,social,global}` | Con lente ICP, findings y filtros |
-| Motor de pesos | `lib/weights.js` | Ya tiene los 3 modos por familia |
-| **Regeneración por sección** | `route.js` param `section: regenKey` | **Clave — ver §3** |
-| Config por sección (on/off + prompt) | param `sections: cfgIn` | El prompt por sección ya está soportado |
-| `maxDuration = 300` | flagship route | Margen para generación larga |
-| Colecciones | `collections` + `collection_entries` | "By collection" es viable ya |
-| Editor TipTap | `app/reports/editor` | Visual/Source, @-insert, autosave |
-| Presentaciones | `app/showcase` (2.586 líneas) + `saved_showcases` | El motor se conserva |
+| 1 | Informes legacy (guardados hoy como texto corrido) | **Convertir al abrir** — trocear en bloques con id, una vez, invisible |
+| 2 | Configurador | **Uno por tipo de reporte**, no universal. Cada reporte declara sus secciones |
+| 3 | Secciones extraíbles | Son **un reporte más en la lista**; su configurador ofrece la sección núcleo + Executive read (opcional) + Recommendations (opcional) como checkboxes |
+| 4 | Comentarios al regenerar una sección | **Se borran** |
+| 5 | Modelo LLM | **Subir al más capaz + centralizar** en una constante compartida |
+| 6 | Innovation scan | **Motor nuevo y distinto** (no se mapea a Global). Ver §4 |
+| 7 | "Others" (Competitor Snapshot, etc.) | **Fuera.** No se generan |
+| 8 | Formato de los reportes | **Rico** (bullets, tablas, matrices, gráficos, imagen de caso incrustada). Ver §5 |
+| 9 | Link de caso descargado | **Ruta pública + reescritura al exportar.** Ver §6 |
 
-### No existe — hay que construirlo
-| Falta | Impacto |
+---
+
+## 2. Catálogo definitivo (8 objetivos → destino)
+
+Los 8 objetivos son los que el usuario elige en el **onboarding** (7 actuales + el social nuevo).
+
+| Objetivo | Destino | Tipo | Estado |
+|---|---|---|---|
+| Competitive positioning & messaging | Strategic Positioning | Informe (Flagship) | ✅ Construido |
+| Social content & engagement *(nuevo)* | Social Content Benchmark | Informe (Core) | ✅ Construido |
+| Creative inspiration & benchmarking | Global Creative Inspiration | Informe (Core) | ✅ Construido |
+| Innovation scan | **Innovation Report** | Informe (Core) | 🔨 **A construir** |
+| Category landscape map | Category landscape | Sección extraíble | ⚙️ Preset del flagship |
+| Identify white spaces / opportunities | White space & opportunity | Sección extraíble | ⚙️ Preset del flagship |
+| Brand consistency audit | Hero & message consistency | Sección extraíble | ⚙️ Preset del flagship |
+| Tone & territory analysis | Positioning x-ray | Sección extraíble | ⚙️ Preset del flagship |
+
+**Competitor Snapshot y los otros 3 "Others" no existen y no se pintan.**
+
+---
+
+## 3. Configurador por reporte (decisión 2)
+
+El configurador es **una plantilla que cada reporte rellena distinto**. La card **Sections** se pinta a partir de la "report-card" del reporte elegido.
+
+- **Strategic Positioning** → 6 secciones toggleables + reorder + prompt por sección.
+- **Social Benchmark** → sus 7.
+- **Global / Innovation** → las suyas.
+- **Sección extraíble** (p. ej. White space) → 1 sección núcleo (fija) + `☐ Executive read` + `☐ Recommendations`.
+
+Común a todos: **Source** (by brand / by audit / by collection + contador de casos), **Lens** (Brand/Agency/VC), **Time frame**, **Communication intents**.
+Fuera de todos: Weighting (ahora automático por familia), Brands (ya en Source), Custom instructions.
+
+**Implementación**: un registro `REPORT_CARDS` (una entrada por tipo) que declara `{ family, weightMode, sections[], sourceDefaults }`. El configurador y el orquestador de generación leen de ahí. Añadir un reporte nuevo = añadir una entrada, no tocar UI.
+
+---
+
+## 4. Innovation Report vs Global — la distinción va en el prompt
+
+- **Innovation Report** — estudia **el mensaje de marca sobre innovaciones / propuestas disruptivas**: qué innovación *comunica* la marca, no si el contenido es novedoso. Ej.: una marca comunicando una app de comunidad geolocalizada para negocios → entra. Fuente natural: `communication_intent = Innovation` + señales de propuesta/servicio disruptivo. Familia de peso: brand-signal filtrada a innovación.
+- **Global Creative Inspiration** — contenido impresionante por **ejecución, abordaje creativo, insight disruptivo**, que **NO mueve el producto a un espacio de innovación**. Es craft, no propuesta. Familia: quality (rating).
+
+Ambas definiciones entran **explícitas y contrastadas** en sus prompts para que no se solapen.
+
+> **Sesión aparte recomendada**: revisar los prompts completos de los 3+1 motores uno a uno antes de tocarlos. Es trabajo de producto (qué le pedimos a la IA), no de build; conviene no mezclarlo. Los prompts son editables sin tocar arquitectura.
+
+---
+
+## 5. Formato rico (decisión 8) — amplía el modelo de bloques
+
+Hoy los reportes son prosa markdown. El modelo de bloques con id habilita tipos ricos. Bloques previstos:
+
+| Tipo | Uso |
 |---|---|
-| `status`, `archived`, `deleted_at`, `updated_at` en `saved_reports` | Bloquea Library |
-| Tabla de comentarios con autor + rol | Bloquea P5 |
-| **Contenido por bloques con id** | Bloquea comentarios anclados y regeneración fiable |
-| `report_id` en `saved_showcases` | Bloquea presentación anidada |
-| Objetivo social (8º) + selector en Settings | Bloquea Suggested |
-| Motor **Innovation Report** | Objetivo 4 lo pide como Core — **no existe** |
-| Los 4 de "Others" | Competitor Snapshot, Opportunity, Creative Intelligence, Agnostic Snapshot — **no existen** |
+| `h2` / `p` / `bullets` | Texto (base) |
+| `table` | Comparativas marca × dimensión |
+| `matrix` | White space (2×2 de territorios/ejes) |
+| `chart` | Mix de pilares, cadencia, engagement… (datos ya precalculados en Social) |
+| `case` | **Caso incrustado**: imagen + marca + una línea, no un link suelto |
+
+**Dos consecuencias:**
+1. Los motores deben **devolver datos estructurados** (no solo prosa) para los bloques graficables. Algunos ya precalculan stats (Social); otros hay que ampliarlos.
+2. Necesita **un pase de diseño**: cómo se ven matriz, card de caso, gráfico y tabla dentro del sistema Groundwork. **Lo defines tú como estilo; yo lo implemento como tipos de bloque.**
+
+*Esto ensancha F0 (más tipos de bloque) y añade una dependencia de diseño antes de F3.*
 
 ---
 
-## 2. El modelo de contenido por bloques (F0 — lo más importante)
+## 6. Link de caso navegable (decisión 9)
 
-Hoy `saved_reports.content` es un blob. Pasa a:
+**Bug confirmado en el código**: una cita es `[nombre](cite:ID)`, y `cite:ID` no es una URL — solo Groundwork la entiende (abre la barra lateral del caso). En un archivo descargado, el clic no lleva a nada.
 
-```json
-{
-  "v": 2,
-  "blocks": [
-    { "id": "blk_a1b2c3", "type": "h2",   "sectionKey": "landscape", "text": "Category landscape" },
-    { "id": "blk_d4e5f6", "type": "p",    "sectionKey": "landscape", "text": "…" }
-  ]
-}
-```
+Arreglo:
+1. **Ruta pública de caso** `/(case)/[id]` — auth-gated: si no hay sesión, pide login; tras entrar, muestra el detalle de la pieza. Hoy no existe.
+2. **Al exportar**, reescribir las citas de `cite:ID` → `https://groundwork.kad.london/case/ID` (absoluta). Dentro de la app siguen abriendo la barra lateral sin recargar.
 
-- **`id` estable**: se genera una vez y **no cambia** al editar el texto. Es el ancla de los comentarios.
-- **`sectionKey`**: permite regenerar una sección entera (sustituir todos sus bloques) sin tocar el resto.
-- Un comentario guarda `block_id + start + end`, no la cadena de texto.
-
-**Compatibilidad**: los informes guardados hoy no tienen bloques. El lector debe aceptar ambos: si `content` no es `{v:2}`, se trata como legacy y se muestra en solo lectura (o se migra al abrirlo, troceando por párrafos y asignando ids). *Decisión pendiente: migrar al abrir o dejar legacy en solo lectura. Recomiendo migrar al abrir — es una función pura y evita dos caminos de render para siempre.*
+Acotado y de alto valor: hace navegables los entregables descargados.
 
 ---
 
-## 3. Hallazgo que ahorra una fase entera
-
-El handoff pide **generación por secciones con guardado incremental**, y las rutas **ya aceptan `section: regenKey`** para generar una sola sección.
-
-Es decir: **no hay que reescribir los motores.** El cliente orquesta —llama a la ruta una vez por sección, guarda cada resultado al llegar, y actualiza el progreso "3 de 6"— y el backend se queda como está.
-
-Ventajas: progreso real gratis, fallo a mitad sin pérdida (lo generado ya está guardado), y ningún riesgo sobre el prompting que hoy funciona.
-
-**Coste**: N llamadas en vez de 1 (más latencia total, mismo coste de tokens). Aceptable, y es exactamente lo que el diseño muestra.
-
-> ⚠️ **Excepción**: `exec` y `recommendations` son de *síntesis* — necesitan las secciones analíticas ya escritas (la ruta ya recibe `priorSections`). Van al final, siempre, sin importar el orden que el analista dé a las demás.
-
----
-
-## 4. Secciones extraíbles como informe
-
-Cuatro de los ocho objetivos resuelven a una **sección** del flagship, no a un informe.
-
-**No requiere motor nuevo.** Es un preset de configuración: llamar al flagship con esa única sección activa. La ruta ya lo soporta vía `sections: cfgIn`.
-
-Queda por decidir: una sección extraída, **¿lleva su propio Executive read y recomendaciones?** Mi recomendación: **sí, versión corta**, o el entregable es un fragmento suelto sin apertura ni cierre.
-
----
-
-## 5. Motores que sí hay que construir
-
-- **Innovation Report** (Core, objetivo 4). Es un informe nuevo. Según el acuerdo de junio, cada informe nuevo solo necesita su "report card": estructura de secciones + perfil de peso + fuentes.
-- **Los 4 de "Others"**. El handoff los lista pero no existen.
-
-> **Propuesta de alcance:** F1–F6 construyen **la maquinaria** con los 3 motores actuales + las secciones extraíbles. **Innovation y los Others quedan fuera de este bloque** y se pintan deshabilitados con su etiqueta. Añadirlos después es una "report card" cada uno, no tocar la arquitectura. Si se meten ahora, F2 se dobla en tamaño.
-
----
-
-## 6. Migraciones (F0)
+## 7. Migraciones (F0)
 
 `MIGRATION_report_v2.sql`:
 
 ```sql
--- saved_reports
-alter table saved_reports add column if not exists status text default 'in_process';
+alter table saved_reports add column if not exists status text default 'in_process';   -- in_process|in_review|delivered
 alter table saved_reports add column if not exists archived boolean default false;
 alter table saved_reports add column if not exists deleted_at timestamptz;
 alter table saved_reports add column if not exists updated_at timestamptz default now();
 
--- comentarios anclados por bloque
 create table if not exists report_comments (
   id uuid primary key default gen_random_uuid(),
   report_id text not null,
@@ -116,55 +125,80 @@ create table if not exists report_comments (
   deleted_at timestamptz
 );
 
--- presentación anidada
 alter table saved_showcases add column if not exists report_id text;
 alter table saved_showcases add column if not exists archived boolean default false;
 ```
 
-Backfill: reportes existentes → `status='in_process'`, `archived=false`. Showcases existentes → `archived=true` (decisión tomada).
-
-*Nota: `report_id` va como `text` porque `saved_reports.id` hoy se genera en cliente como string, no uuid.*
+Backfill: reportes → `status='in_process'`, `archived=false`; showcases existentes → `archived=true`.
+`report_id` es `text` porque `saved_reports.id` se genera en cliente como string.
 
 ---
 
-## 7. Fases
+## 8. Modelo de contenido por bloques
+
+```json
+{ "v": 2, "blocks": [
+  { "id": "blk_a1b2", "type": "h2",    "sectionKey": "landscape", "text": "Category landscape" },
+  { "id": "blk_c3d4", "type": "p",     "sectionKey": "landscape", "text": "…" },
+  { "id": "blk_e5f6", "type": "matrix","sectionKey": "whitespace","data": { "axes": […], "cells": […] } },
+  { "id": "blk_g7h8", "type": "case",  "sectionKey": "cases",     "data": { "entryId": "…", "brand": "…", "line": "…" } }
+]}
+```
+
+- `id` estable — ancla de comentarios (`block_id + start + end`), nunca por texto.
+- `sectionKey` — regenerar una sección = sustituir sus bloques.
+- Lector acepta legacy: si `content` no es `{v:2}`, se convierte al abrir (función pura, párrafos → bloques `p` con id).
+
+---
+
+## 9. Aprovechamientos (ya en el código)
+
+- Las rutas **ya aceptan `section: regenKey`** → la generación por secciones se orquesta desde el cliente, sin reescribir motores.
+- Config por sección (on/off + **prompt por sección**) ya soportada vía `sections: cfgIn`.
+- `exec` y `recommendations` son de síntesis (reciben `priorSections`) → siempre al final.
+- `maxDuration = 300`, motor de pesos con 3 modos, lente ICP, findings, editor TipTap, motor de presentaciones: se reutilizan.
+
+---
+
+## 10. Fases
 
 | Fase | Qué | Riesgo |
 |---|---|---|
-| **F0** | Migraciones + modelo de bloques + lectura de legacy | Medio — toca el shape de datos |
-| **F1** | Library sobre el shell: N2, filtros, orden, chips de estado, indicador de presentación, ⋯ con Rename/Delete/Archive, modales | Bajo |
-| **F2** | Generate 1 (tipo, 8 objetivos, chips Flagship/Core/Section) + 2 (Source con contador de casos, Lens, Configure) + selector de objetivos en Settings | Medio |
-| **F3** | Generación por secciones orquestada en cliente + progreso real + guardado incremental + fallo a mitad | Medio |
-| **F4** | Documento: autosave, banner de concurrencia, las 4 herramientas, raíl de comentarios con rol | **Alto** — es donde se guarda el trabajo |
-| **F5** | Download pdf · md · doc | Bajo |
+| **F0** | Migraciones · modelo de bloques (incl. tipos ricos) · conversión de legacy | Medio |
+| **F1** | Library sobre el shell: N2, filtros, orden, chips, indicador de presentación, ⋯ (Rename/Delete/Archive) + modales | Bajo |
+| **F2** | Generate 1 (8 objetivos, chips Flagship/Core/Section) + 2 (**configurador por reporte** vía `REPORT_CARDS`) + selector de objetivos en Settings | Medio |
+| **F3** | Generación por secciones orquestada + progreso real + guardado incremental + fallo a mitad. *(Depende del diseño de los bloques ricos.)* | Medio |
+| **F4** | Documento: autosave, banner de concurrencia, 4 herramientas, raíl de comentarios con rol | **Alto** |
+| **F5** | Download (pdf·md·doc) + **reescritura de citas a URL pública** | Medio |
 | **F6** | Presentación anidada + Showcase fuera del sidebar + aviso | Medio |
+| **F7** | **Innovation Report** (report-card nueva, prompt contrastado con Global) | Bajo — sin tocar arquitectura |
+| **Fx** | **Ruta pública de caso** `/case/[id]` (auth-gated) — habilita F5. Puede ir en paralelo | Medio |
 
-**F4 es la fase crítica.** Autosave + comentarios anclados + regeneración conviven sobre el mismo documento. Se construye después de F0 justamente para que los bloques ya existan.
-
----
-
-## 8. Riesgos y cómo los acoto
-
-1. **Perder trabajo del analista en F4.** El autosave sobre un documento con comentarios anclados es la zona de mayor daño potencial. → Guardar siempre versión nueva, nunca sobrescribir a ciegas; `updated_at` como testigo de concurrencia.
-2. **Comentarios huérfanos** si un bloque se regenera. → Al regenerar una sección, sus comentarios quedan marcados como "sobre una versión anterior" en vez de borrarse en silencio. **Decisión de producto pendiente.**
-3. **Informes legacy que dejan de abrirse.** → Criterio: ningún informe guardado hoy puede dejar de abrirse. Se verifica antes de cerrar F0.
-4. **Showcase fuera del sidebar** afecta a la navegación de todos los módulos. → Va el último (F6), cuando todo lo demás está estable.
+**Fuera de fase, previo**: pase de **diseño de bloques ricos** (matriz, case, chart, tabla) — bloquea F3.
+**Recomendada, previa a tocar prompts**: sesión de revisión de prompts uno a uno.
 
 ---
 
-## 9. Lo que NO toco sin permiso
+## 11. Riesgos
 
-- El **prompting** de los 3 motores y el motor de pesos.
-- La rúbrica de rating y los findings.
-- El editor TipTap: se **embebe**, no se reescribe.
-- El motor de presentaciones: cambia de dónde cuelga, no cómo funciona.
+1. **Perder trabajo del analista en F4** — guardar versión nueva, nunca sobrescribir a ciegas; `updated_at` como testigo de concurrencia.
+2. **Comentarios al regenerar** — se borran (decidido); avisar en la UI antes de regenerar una sección con comentarios.
+3. **Legacy que deja de abrirse** — criterio duro: ningún informe guardado hoy puede dejar de abrirse. Se verifica al cerrar F0.
+4. **Showcase fuera del sidebar** afecta a toda la navegación → va el último (F6).
+5. **Motores devolviendo datos para gráficos** — algunos hoy solo devuelven prosa; ampliar sin romper el texto.
 
 ---
 
-## 10. Decisiones que necesito antes de F0
+## 12. Lo que NO toco sin permiso
 
-1. **Legacy**: ¿migrar al abrir o dejar en solo lectura? *(Recomiendo migrar.)*
-2. **Sección extraída**: ¿lleva exec + recomendaciones cortas? *(Recomiendo sí.)*
-3. **Innovation + los 4 Others**: ¿fuera de este bloque, deshabilitados con etiqueta? *(Recomiendo sí.)*
-4. **Comentarios al regenerar**: ¿marcar como versión anterior, o borrar?
-5. **Modelo**: el handoff pide "el más avanzado disponible"; hoy las rutas usan `claude-sonnet-4-6` fijo. ¿Lo subo y lo centralizo en una constante compartida?
+- El **prompting** actual (se revisa en sesión aparte antes de editar).
+- El **motor de pesos**, la rúbrica de rating, los findings.
+- El **editor TipTap** (se embebe) y el **motor de presentaciones** (cambia de dónde cuelga, no cómo funciona).
+
+---
+
+## 13. Sigue abierto
+
+1. **Diseño de los bloques ricos** — lo defines dentro del sistema Groundwork.
+2. **Sesión de prompts** — revisión uno a uno de los 3+1 motores.
+3. **Ruta pública de caso** — confirmar `/case/[id]` como path y su gating.
