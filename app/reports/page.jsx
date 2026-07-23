@@ -465,10 +465,31 @@ function ReportsContent(){
       if(d.error)throw new Error(d.error);
       return d.section;
     };
+    // Persist a section. Errors are RAISED, never swallowed — a run that reports "5 of 6
+    // written" while nothing reached the database is worse than an honest failure.
+    // Degrades gracefully if content_blocks isn't migrated yet: retries without it so the
+    // markdown still lands rather than losing the whole report.
     const saveDoc=async(doc)=>{
-      const row={id,title,template_type:card.id,project_id:projectId,created_by:session?.user?.email||"",content:blocksToMarkdown(doc),content_blocks:doc,status:"in_process",archived:false,updated_at:new Date().toISOString()};
-      if(!v2RunRef.current.inserted){ await supabase.from("saved_reports").insert(row); v2RunRef.current.inserted=true; }
-      else { await supabase.from("saved_reports").update({content:row.content,content_blocks:doc,updated_at:row.updated_at}).eq("id",id); }
+      const md=blocksToMarkdown(doc);
+      const base={content:md,updated_at:new Date().toISOString()};
+      const full={...base,content_blocks:doc};
+      const row={id,title,template_type:card.id,project_id:projectId,created_by:session?.user?.email||"",status:"in_process",archived:false,...full};
+      const missingCol=(e)=>/content_blocks/i.test(e?.message||"")||e?.code==="PGRST204";
+
+      if(!v2RunRef.current.inserted){
+        let{error}=await supabase.from("saved_reports").insert(row);
+        if(error&&missingCol(error)){
+          const{content_blocks,...noBlocks}=row;
+          ({error}=await supabase.from("saved_reports").insert(noBlocks));
+          if(!error)v2RunRef.current.noBlocks=true;
+        }
+        if(error)throw new Error(`Could not save report: ${error.message}`);
+        v2RunRef.current.inserted=true;
+      }else{
+        const patch=v2RunRef.current.noBlocks?base:full;
+        const{error}=await supabase.from("saved_reports").update(patch).eq("id",id);
+        if(error)throw new Error(`Could not save report: ${error.message}`);
+      }
     };
 
     const r=await generateReport({
@@ -480,7 +501,7 @@ function ReportsContent(){
       }:prev),
     });
 
-    setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,finished:true,done:r.produced.length}:prev);
+    setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,saveError:r.saveError,finished:true,done:r.produced.length}:prev);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
   };
@@ -1669,6 +1690,7 @@ RULES:
               failed={v2Run.failed}
               errors={v2Run.errors}
               finished={v2Run.finished}
+              saveError={v2Run.saveError}
               onOpenPartial={closeV2Run}
               onDismiss={closeV2Run}
               onRetry={()=>{const{card,cfg}=v2RunRef.current;runV2Generate(card,cfg,v2Run.failed);}}

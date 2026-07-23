@@ -12,9 +12,9 @@ const Spinner = () => (
 const Check = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>;
 const Bang = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /></svg>;
 
-export default function GeneratingOverlay({ sections = [], statuses = {}, errors = {}, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onDismiss }) {
+export default function GeneratingOverlay({ sections = [], statuses = {}, errors = {}, saveError = null, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onDismiss }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const someFailed = failed.length > 0;
+  const someFailed = failed.length > 0 || !!saveError;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(244,239,233,.86)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -32,9 +32,14 @@ export default function GeneratingOverlay({ sections = [], statuses = {}, errors
           </div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".06em", color: "var(--text-muted)" }}>
             {finished
-              ? (someFailed ? `${done} of ${total} sections written · the rest can be regenerated` : `${total} sections · saved`)
+              ? (saveError ? `${done} of ${total} written — but NOT saved` : someFailed ? `${done} of ${total} sections written · the rest can be regenerated` : `${total} sections · saved`)
               : `${done} of ${total} sections · saved as it goes`}
           </div>
+          {finished && saveError && (
+            <div style={{ width: "100%", marginTop: 4, padding: "10px 12px", borderRadius: 9, background: "var(--accent-ember-tint)", color: "#7a3a24", fontFamily: "var(--font-body)", fontSize: 12.5, lineHeight: 1.5, textAlign: "left" }}>
+              {saveError}
+            </div>
+          )}
 
           <div style={{ width: "100%", height: 6, borderRadius: 3, background: "var(--ink-150)", overflow: "hidden", marginTop: 4 }}>
             <div style={{ height: "100%", width: `${pct}%`, background: "var(--accent-ember)", borderRadius: 3, transition: "width .3s ease" }} />
@@ -80,7 +85,7 @@ export default function GeneratingOverlay({ sections = [], statuses = {}, errors
             )}
             <button onClick={onOpenPartial || onDismiss} className="gw-ember-btn"
               style={{ background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 13.5, fontWeight: 700 }}>
-              {someFailed ? "Open what we have →" : "Open report →"}
+              {saveError ? "Close" : someFailed ? "Open what we have →" : "Open report →"}
             </button>
           </div>
         )}
