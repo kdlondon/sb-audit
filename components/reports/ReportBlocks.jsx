@@ -169,39 +169,45 @@ function Heatmap({ data = {} }) {
   );
 }
 
-// White-space 2×2 — supply (x) against pull (y). The open + in-demand corner reads ember.
+// White-space 2×2. Items are BUCKETED into the four quadrants and laid out as pills
+// inside each cell — free scatter piled dozens of labels on top of each other and made
+// the chart unreadable. The open + in-demand cell is the opportunity, marked ember.
 function Quadrant({ data = {} }) {
   const pts = data.points || [];
-  if (pts.length < 2) return null;
-  const xs = pts.map((p) => Number(p.x) || 0), ys = pts.map((p) => Number(p.y) || 0);
-  const xMax = Math.max(1, ...xs), yMax = Math.max(1, ...ys);
-  const H = 260;
+  if (pts.length < 3) return null;
+  const cell = (open, wanted) => pts.filter((p) => !!p.open === open && !!p.wanted === wanted);
+  const Cell = ({ open, wanted, corner }) => {
+    const items = cell(open, wanted);
+    return (
+      <div style={{ minHeight: 104, padding: 12, display: "flex", flexDirection: "column", gap: 7, alignItems: open ? "flex-start" : "flex-end", justifyContent: wanted ? "flex-start" : "flex-end" }}>
+        {corner && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--ink-300)" }}>{corner}</span>}
+        {items.map((p, n) => (
+          <span key={n} style={{
+            display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 16, maxWidth: "100%",
+            background: p.hero ? "var(--accent-ember)" : "var(--brand-white)",
+            border: `1px solid ${p.hero ? "var(--accent-ember)" : "var(--border-hairline)"}`,
+            color: p.hero ? "#fff" : "var(--text-secondary)",
+            fontFamily: "var(--font-body)", fontSize: 12, fontWeight: p.hero ? 600 : 400,
+          }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}</span>
+            {p.hero && <span style={{ flex: "none" }}>✦</span>}
+          </span>
+        ))}
+      </div>
+    );
+  };
   return (
     <div style={CARD}>
       <CardHead title={data.title} />
-      <div style={{ position: "relative", height: H, margin: "6px 0 4px" }}>
-        {/* quadrant guides */}
-        <div style={{ position: "absolute", inset: 0, border: "1px solid var(--border-hairline)", borderRadius: 8 }} />
-        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "var(--border-hairline)" }} />
-        <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: "var(--border-hairline)" }} />
-        {pts.map((p, n) => {
-          const left = (Number(p.x) / xMax) * 88 + 6;
-          const bottom = (Number(p.y) / yMax) * 80 + 8;
-          return (
-            <div key={n} style={{ position: "absolute", left: `${left}%`, bottom: `${bottom}%`, transform: "translate(-50%,50%)", display: "flex", alignItems: "center", gap: 6, maxWidth: "42%" }}>
-              <span style={{ flex: "none", width: 9, height: 9, borderRadius: "50%", background: p.hero ? "var(--accent-ember)" : "var(--ink-800)" }} />
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.3,
-                color: p.hero ? "var(--accent-ember-deep)" : "var(--text-secondary)",
-                fontWeight: p.hero ? 600 : 400,
-              }}>{p.label}</span>
-            </div>
-          );
-        })}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid var(--border-hairline)", borderRadius: 10, overflow: "hidden", background: "var(--paper)" }}>
+        <div style={{ borderRight: "1px dashed var(--border-strong)", borderBottom: "1px dashed var(--border-strong)" }}><Cell open wanted corner="LOW SUPPLY · HIGH DEMAND" /></div>
+        <div style={{ borderBottom: "1px dashed var(--border-strong)" }}><Cell open={false} wanted corner="CROWDED · HIGH DEMAND" /></div>
+        <div style={{ borderRight: "1px dashed var(--border-strong)" }}><Cell open wanted={false} /></div>
+        <div><Cell open={false} wanted={false} /></div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 8 }}>
-        <span>← {data.xLabel || "supply"}</span>
-        <span>{data.yLabel || "pull"} ↑</span>
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 10 }}>
+        <span>{data.xLabel || "supply →"}</span>
+        <span>{data.yLabel || "↑ demand"}</span>
       </div>
     </div>
   );

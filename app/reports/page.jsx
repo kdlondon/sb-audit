@@ -1707,64 +1707,62 @@ RULES:
           {/* REPORT CONTENT */}
           {activeContent&&(
             <div className="bg-surface rounded-lg border border-main">
-              <div className="sticky top-0 z-20 bg-surface border-b border-main px-5 py-3" style={{borderTopLeftRadius:"0.5rem",borderTopRightRadius:"0.5rem"}}>
-                {/* Row 1: Back + Title + Icon buttons */}
-                <div className="flex items-center gap-3">
-                  <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}} className="text-muted hover:text-main flex-shrink-0">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                  </button>
-                  <input className="text-2xl font-bold text-main flex-1 min-w-0 bg-transparent focus:outline-none focus:bg-surface focus:px-2 focus:rounded-lg transition-all"
-                    defaultValue={viewingReport?.title||reportTitleRef.current||reportTitle||"Report"}
-                    key={viewingReport?.id}
-                    onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&viewingReport&&v!==viewingReport.title){await supabase.from("saved_reports").update({title:v}).eq("id",viewingReport.id);setViewingReport({...viewingReport,title:v});const{data}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});setSavedReports(data||[]);}}}
-                    onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();}}
-                  />
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Copy */}
-                    <button onClick={copyReport} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title={copied?"Copied!":"Copy"}>
-                      {copied?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-                      :<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>}
-                    </button>
-                    {/* Download */}
-                    <div className="relative">
-                      <button onClick={()=>setDownloadMenu(!downloadMenu)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title="Download">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                      </button>
-                      {downloadMenu&&<>
-                        <div className="fixed inset-0 z-30" onClick={()=>setDownloadMenu(false)}/>
-                        <div className="absolute top-full right-0 mt-1 bg-surface border border-main rounded-lg shadow-lg overflow-hidden z-40 w-[80px]">
-                          <button onClick={()=>{downloadMD();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">.md</button>
-                          <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft border-t border-main">.pdf</button>
-                        </div>
-                      </>}
+              {/* Document header — handoff shape: back · Klamp title · STATUS + autosave,
+                  then the action row (primary -> utilities -> publish). */}
+              <div style={{padding:"26px 30px 20px",borderBottom:"1px solid var(--paper-edge)"}}>
+                <button onClick={()=>{router.push("/reports?tab=archive",{scroll:false});setViewingReport(null);setReport("");}}
+                  style={{display:"inline-flex",alignItems:"center",gap:7,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"7px 13px",cursor:"pointer",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)"}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Library
+                </button>
+
+                <h1 style={{fontFamily:"var(--font-display)",fontSize:34,fontWeight:700,letterSpacing:"-.015em",color:"var(--ink-900)",margin:"20px 0 0"}}>{viewingReport?.title||reportTitle||"Report"}</h1>
+
+                {viewingReport&&(
+                  <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginTop:18}}>
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:9.5,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)"}}>Status</span>
+                    <div style={{display:"inline-flex",gap:2,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:12,padding:4}}>
+                      {[["in_process","In process"],["in_review","In review"],["delivered","Delivered"]].map(([k,l])=>{
+                        const on=(viewingReport.status||"in_process")===k;
+                        return <button key={k} onClick={async()=>{
+                          const{data:{session}}=await supabase.auth.getSession();
+                          await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({id:viewingReport.id,action:"status",value:k})});
+                          setViewingReport(r=>r?{...r,status:k}:r);
+                          setSavedReports(rs=>rs.map(r=>r.id===viewingReport.id?{...r,status:k}:r));
+                        }} style={{padding:"7px 16px",borderRadius:9,border:"none",cursor:"pointer",background:on?"var(--ink-800)":"transparent",color:on?"var(--brand-cream)":"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:on?600:500}}>{l}</button>;
+                      })}
                     </div>
-                    {viewingReport&&<>
-                      {/* Refresh */}
-                      <button onClick={async()=>{
-                        if(!confirm("Regenerate with latest data?"))return;
-                        const tmpl=TEMPLATES.find(t=>t.id===viewingReport.template_type);
-                        if(tmpl){setSelectedTemplate(tmpl);setSections(tmpl.sections.map(s=>s.id));setCompetitors((viewingReport.competitors||"").split(",").filter(Boolean));setYearFrom(viewingReport.year_from||"");setYearTo(viewingReport.year_to||"");setCustomInstructions(viewingReport.custom_instructions||"");setReportTitle(viewingReport.title||"");reportTitleRef.current=viewingReport.title||"";setViewingReport(null);router.push("/reports?tab=generate",{scroll:false});setPendingGenerate(true);}
-                      }} className="w-8 h-8 flex items-center justify-center rounded-lg border border-amber-300 text-amber-500 hover:bg-amber-50 transition" title="Refresh">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                      </button>
-                      {/* Edit */}
-                      <button onClick={()=>router.push(`/reports/editor?id=${viewingReport.id}`)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-main text-muted hover:text-main hover:bg-surface2 transition" title="Edit">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                      {/* Showcase */}
-                      <button onClick={()=>generateShowcaseFromReport()} disabled={generatingShowcase} className="h-8 px-3 flex items-center gap-1.5 rounded-lg text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition" style={{background:"#1D9A42"}} title="Generate Showcase">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                        {generatingShowcase?"...":"Showcase"}
-                      </button>
-                    </>}
+                    <span style={{display:"inline-flex",alignItems:"center",gap:7,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-muted)"}}>
+                      <span style={{width:7,height:7,borderRadius:"50%",background:"var(--ink-300)"}}/>Saved
+                    </span>
                   </div>
-                </div>
-                {/* Row 2: Metadata */}
-                <div className="flex items-center gap-2 text-[10px] text-hint mt-1 ml-8 flex-wrap">
-                  {viewingReport?.template_type&&<span className={`px-1.5 py-0.5 rounded font-semibold ${BADGE[viewingReport.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===viewingReport.template_type)?.label||""}</span>}
-                  {viewingReport?.year_from && viewingReport?.year_to && <span>{viewingReport.year_from}–{viewingReport.year_to}</span>}
-                  {viewingReport?.created_at && <span>{new Date(viewingReport.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(viewingReport.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>}
-                  {viewingReport?.competitors && <span className="truncate max-w-[300px]" title={viewingReport.competitors}>{viewingReport.competitors}</span>}
+                )}
+
+                <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:18}}>
+                  <button onClick={()=>viewingReport&&router.push(`/reports/editor?id=${viewingReport.id}`)} className="gw-ember-btn"
+                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--accent-ember)",color:"#fff",border:"none",borderRadius:10,padding:"11px 20px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:14,fontWeight:700}}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit
+                  </button>
+                  <button onClick={()=>{navigator.clipboard?.writeText(activeContent||"");showToast("Copied");}} className="gw-tbtn"
+                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"11px 18px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy
+                  </button>
+                  <div style={{position:"relative"}}>
+                    <button onClick={()=>setDownloadMenu(!downloadMenu)} className="gw-tbtn"
+                      style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"11px 18px",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4l3 3 3-3"/></svg>
+                    </button>
+                    {downloadMenu&&(
+                      <div style={{position:"absolute",left:0,top:"100%",marginTop:6,zIndex:40,minWidth:170,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:12,boxShadow:"var(--shadow-card-hover)",padding:5}}>
+                        <button onClick={()=>{downloadMD();setDownloadMenu(false);}} style={{width:"100%",textAlign:"left",padding:"9px 11px",borderRadius:7,border:"none",background:"transparent",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>Markdown .md</button>
+                        <button onClick={()=>{downloadPDF();setDownloadMenu(false);}} style={{width:"100%",textAlign:"left",padding:"9px 11px",borderRadius:7,border:"none",background:"transparent",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:13,color:"var(--ink-800)"}}>PDF .pdf</button>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={()=>viewingReport&&router.push(`/showcase?report=${viewingReport.id}`)}
+                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--ink-800)",color:"var(--brand-cream)",border:"none",borderRadius:10,padding:"11px 20px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:14,fontWeight:700}}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Generate Visual Presentation
+                  </button>
                 </div>
               </div>
               <div className="flex">
