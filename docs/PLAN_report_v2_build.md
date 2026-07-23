@@ -197,6 +197,31 @@ Backfill: reportes → `status='in_process'`, `archived=false`; showcases existe
 
 ---
 
+## 12bis. Vía backend (mientras el diseño se termina en Claude Design)
+
+Todo lo que NO depende de pantallas. Se puede construir ya, en paralelo al diseño, sin bloquear nada.
+
+| Paso | Qué | Depende de diseño? | Nuevo/aislado? |
+|---|---|---|---|
+| **B1** | `MIGRATION_report_v2.sql` (status/archived/deleted_at/updated_at + `report_comments` + `report_id` en showcases) | No | Solo se escribe; Sergio la corre |
+| **B2** | `lib/models.js` — ids de modelo centralizados; reportes al más capaz | No | Nuevo, aislado |
+| **B3** | `lib/report-cards.js` — registro `REPORT_CARDS` (familia, weightMode, secciones por reporte) | No | Nuevo, aislado |
+| **B4** | `lib/report-blocks.js` — modelo de bloques con id + conversor de legacy + bloques↔markdown | No | Nuevo, aislado |
+| **B5** | `lib/report-citations.js` — reescritura `cite:ID` → URL absoluta para export | No | Nuevo, aislado |
+| **B6** | Resolvedor `resolveSource({mode,value})` → entries[] (by brand / audit / collection) | No | Nuevo, aislado |
+| **B7** | API comentarios (CRUD sobre `report_comments`, anclados a block_id) | No | Nuevo endpoint |
+| **B8** | API estado/archivar/borrar-suave sobre `saved_reports` | No | Nuevo endpoint |
+| **B9** | Orquestador de generación por secciones (helper server/cliente sobre las rutas actuales) | No | Envuelve lo existente |
+| **B10** | **Innovation Report** — report-card + ruta, prompt contrastado con Global | No (prompt = sesión aparte) | Nuevo motor |
+| **B11** | Datos estructurados desde los motores (para bloques `chart`/`matrix`/`table`) | **Parcial** — el esquema sí, el gráfico concreto necesita diseño | Amplía motores |
+| **Bx** | Ruta pública de caso `/case/[id]` (fetch + gating; la piel, luego) | La piel sí; la lógica no | Nuevo |
+
+**Orden sugerido de trabajo backend:** B1 → B2 → B4 → B3 → B5 → B6 → B8 → B7 → B9 → B10. B11 y Bx quedan a medias hasta que aterrice el diseño (esquema listo, render después).
+
+**Regla dura durante esta vía:** todo lo nuevo va en archivos nuevos y **sin cablear a las páginas actuales**, para que el módulo Report siga funcionando igual hasta que empiece F1. Nada de esto cambia comportamiento visible.
+
+---
+
 ## 13. Sigue abierto
 
 1. **Diseño de los bloques ricos** — lo defines dentro del sistema Groundwork.
