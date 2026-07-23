@@ -173,9 +173,26 @@ function Heatmap({ data = {} }) {
 // inside each cell — free scatter piled dozens of labels on top of each other and made
 // the chart unreadable. The open + in-demand cell is the opportunity, marked ember.
 function Quadrant({ data = {} }) {
-  const pts = data.points || [];
-  if (pts.length < 3) return null;
-  const cell = (open, wanted) => pts.filter((p) => !!p.open === open && !!p.wanted === wanted);
+  const raw = data.points || [];
+  if (raw.length < 3) return null;
+
+  // Be robust to any stored data: blocks are persisted inside the document, so a report
+  // generated before the bucketing existed still arrives here. If open/wanted are missing,
+  // derive them from x/y around the medians; and cap per cell whatever the source said, so
+  // an old uncapped block can't stack forty pills down one column.
+  const med = (vals) => { const s = [...vals].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  const needsDerive = raw.some((p) => p.open === undefined || p.wanted === undefined);
+  const xm = med(raw.map((p) => Number(p.x) || 0));
+  const ym = med(raw.map((p) => Number(p.y) || 0));
+  const pts = raw.map((p) => needsDerive
+    ? { ...p, open: (Number(p.x) || 0) <= xm, wanted: (Number(p.y) || 0) >= ym, hero: (Number(p.x) || 0) <= xm && (Number(p.y) || 0) >= ym }
+    : p);
+
+  const PER_CELL = 4;
+  const cell = (open, wanted) => pts
+    .filter((p) => !!p.open === open && !!p.wanted === wanted)
+    .sort((a, b) => (open ? (Number(b.y) || 0) - (Number(a.y) || 0) : (Number(b.x) || 0) - (Number(a.x) || 0)))
+    .slice(0, PER_CELL);
   const Cell = ({ open, wanted, corner }) => {
     const items = cell(open, wanted);
     return (
