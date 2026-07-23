@@ -473,23 +473,37 @@ function ReportsContent(){
       const md=blocksToMarkdown(doc);
       const base={content:md,updated_at:new Date().toISOString()};
       const full={...base,content_blocks:doc};
-      const row={id,title,template_type:card.id,project_id:projectId,created_by:session?.user?.email||"",status:"in_process",archived:false,...full};
-      const missingCol=(e)=>/content_blocks/i.test(e?.message||"")||e?.code==="PGRST204";
-
-      if(!v2RunRef.current.inserted){
-        let{error}=await supabase.from("saved_reports").insert(row);
-        if(error&&missingCol(error)){
-          const{content_blocks,...noBlocks}=row;
-          ({error}=await supabase.from("saved_reports").insert(noBlocks));
-          if(!error)v2RunRef.current.noBlocks=true;
+      // Match the column set the existing (working) insert writes — scope and brand_id
+      // included. Omitting them is what made the insert fail while the run reported success.
+      const row={
+        id,title,template_type:card.id,project_id:projectId,brand_id:brandId,
+        scope:cfg.source?.mode==="audit"?(cfg.source.value==="both"?"local":cfg.source.value):"local",
+        sections:(cfg.sections||[]).filter(x=>x.on!==false).map(x=>x.key).join(","),
+        competitors:cfg.source?.mode==="brand"?(Array.isArray(cfg.source.value)?cfg.source.value.join(","):""):"",
+        year_from:cfg.yearFrom||null,year_to:cfg.yearTo||null,
+        created_by:session?.user?.email||"",status:"in_process",archived:false,...full,
+      };
+      // If a column isn't on this database yet, PostgREST names it in the error. Drop that
+      // one and retry rather than losing the whole report — and remember it for later saves.
+      const unknownCol=(e)=>{const m=/'([a-z_]+)' column|column "([a-z_]+)"/i.exec(e?.message||"");return m?(m[1]||m[2]):null;};
+      const write=async(payload,isInsert)=>{
+        let body={...payload};
+        for(const c of (v2RunRef.current.dropped||[]))delete body[c];
+        for(let i=0;i<4;i++){
+          const{error}=isInsert
+            ? await supabase.from("saved_reports").insert(body)
+            : await supabase.from("saved_reports").update(body).eq("id",id);
+          if(!error)return;
+          const col=unknownCol(error);
+          if(!col||!(col in body))throw new Error(`Could not save report: ${error.message}`);
+          delete body[col];
+          v2RunRef.current.dropped=[...(v2RunRef.current.dropped||[]),col];
         }
-        if(error)throw new Error(`Could not save report: ${error.message}`);
-        v2RunRef.current.inserted=true;
-      }else{
-        const patch=v2RunRef.current.noBlocks?base:full;
-        const{error}=await supabase.from("saved_reports").update(patch).eq("id",id);
-        if(error)throw new Error(`Could not save report: ${error.message}`);
-      }
+        throw new Error("Could not save report after dropping unknown columns");
+      };
+
+      if(!v2RunRef.current.inserted){ await write(row,true); v2RunRef.current.inserted=true; }
+      else { await write(full,false); }
     };
 
     const r=await generateReport({
