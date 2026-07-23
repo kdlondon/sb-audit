@@ -222,6 +222,38 @@ Todo lo que NO depende de pantallas. Se puede construir ya, en paralelo al dise�
 
 ---
 
+## 12ter. Actualización handoff v3 (GW3)
+
+v3 no cambia el flujo: **añade los dos entregables diseñados** encima del módulo v2.
+
+### Lo que trae
+1. **El documento deja de ser un muro de texto.** Cada sección = numeral + heading + **visual** + prosa editable. Los tipos de visual quedan especificados: **KPI row · ranking bars · format split · heatmap comparativo · white-space 2×2 · pull-quote**. → **Cierra B11**: ya no es "esquema sí, gráfico luego".
+2. **Los gráficos son bloques de datos, no imágenes.** El motor debe emitirlos como datos estructurados y editables.
+3. **PDF = imprimir el mismo HTML** (`doc-page.js`, una página por sección). No hay render aparte.
+4. **La presentación es un deck real** (`deck-stage.js`, 1920×1080, 10 diapositivas), embebido en la vista anidada, exporta PDF/PPTX.
+5. **Paleta de datos cálida** — clay `#BE6B45`, ochre `#C6A15B`, taupe `#A89B88`, **solo para series múltiples**. Ember sigue marcando el líder.
+
+### Impacto en el código ya escrito
+- `lib/report-blocks.js`: `BLOCK_TYPES` actualizado al set real de v3 (`kpi`, `bars`, `split`, `heatmap`, `quadrant`, `pullquote`) sustituyendo mis `matrix`/`chart` genéricos. Degradación a markdown para export .md/.doc; el PDF conserva el gráfico porque imprime el HTML.
+- **B11 pasa de bloqueado a construible**: los motores deben emitir estos bloques con datos.
+
+### ⚠️ Inconsistencias detectadas (v3 vs. lo acordado)
+
+| # | Inconsistencia | Lectura |
+|---|---|---|
+| 1 | **v3 mantiene un bloque "Others"** ("engines not tied to a chosen objective"). Acordamos que los 4 Others **no van** | El bloque Others queda **vacío** salvo que se muestren informes no ligados al objetivo elegido pero **sí existentes** (p. ej. el flagship cuando no es objetivo). Propongo: "Others" = motores construidos no sugeridos, no un catálogo de informes inexistentes |
+| 2 | **El Innovation Report desaparece del orden de build de v3** (§9 no lo incluye) | Ya está **construido** (B10). No requiere fase; solo entra en el catálogo |
+| 3 | **v3 §0 dice "editado como HTML rico"**, pero §1.1 y §5 dicen bloques estructurados | Fuente de verdad = **bloques**; el HTML es un *render* (y lo que se imprime a PDF). Si se guardara HTML, se pierden los comentarios anclados y la regeneración por sección |
+| 4 | **El deck es NUEVO** (`deck-stage.js`, 10 slides diseñadas). Mi plan asumía reutilizar el motor de Showcase (2.586 líneas, `saved_showcases`) | **Cambio de alcance real**: no es "colgar Showcase de un reporte", es **construir un generador de deck nuevo**. Showcase queda archivado, no reutilizado. F6 crece bastante |
+| 5 | **Paleta cálida de datos** contradice el "acento único ember, nunca otro tono" que venimos aplicando | Es una **excepción deliberada y acotada**: solo series múltiples en gráficos, nunca cromo/títulos/marcas de un solo valor. La adopto como tal, documentada |
+| 6 | v3 §8 deja abierto "valores de gráfico editables" | Es parte de F4 (bloques ricos editables), no un extra |
+
+### Orden actualizado (v3 §9 + lo nuestro)
+**F0** migraciones + bloques · **F1** Library (acordeón, iconos de formato, rename/delete) · **F2** Generate 1-2 · **F3** generación por secciones · **F4** refinamiento (bloques ricos editables, autosave, concurrencia, comentarios) · **F5** documento paginado + PDF · **F6** deck + PPTX + embed anidado · **F7** Showcase fuera del sidebar.
+*(Innovation ya no es fase: construido en B10.)*
+
+---
+
 ## 13. Sigue abierto
 
 1. **Diseño de los bloques ricos** — lo defines dentro del sistema Groundwork.
