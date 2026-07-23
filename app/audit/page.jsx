@@ -1807,20 +1807,26 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   if(vw==="form"){
     const y=ytId(cur.url);const vim=vimeoId(cur.url);const imgUrl=cur.image_url;
     return(
-      <div className="min-h-screen" style={{background:"var(--bg)"}}>
-        <div className="bg-surface border-b border-main px-5 py-3 flex justify-between items-center sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-main">{eid?"Edit entry":"New entry"}</h2>
-            {ytLoading&&<span className="text-xs text-accent animate-pulse">{materialType==="social"?"Fetching Instagram data…":"Fetching YouTube data…"}</span>}
-            {analyzing&&<span className="text-xs text-accent animate-pulse">AI analyzing...</span>}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={clearForm} className="px-3 py-1.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Clear</button>
-            <button onClick={()=>{router.push("/audit",{scroll:false});setCur({});setMaterialType("none");}} className="px-3 py-1.5 text-sm border border-main rounded-lg text-muted hover:bg-surface2">Cancel</button>
-            <button onClick={save} className="px-4 py-1.5 text-sm bg-accent text-white rounded-lg font-semibold hover:opacity-90">Save</button>
+      <div className="min-h-screen" style={{background:"var(--paper)"}}>
+        {/* Editor chrome — same sticky glass header as the rest of the shell */}
+        <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(244,239,233,0.72)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:"1px solid var(--border-paper)"}}>
+          <div style={{padding:"18px 28px 16px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:10.5,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)"}}>Creative Source · {eid?"Edit entry":"New entry"}</div>
+              <div style={{display:"flex",alignItems:"baseline",gap:12,flexWrap:"wrap"}}>
+                <h2 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:26,letterSpacing:"-.01em",margin:"6px 0 0",color:"var(--ink-900)"}}>{eid?"Edit entry":"New entry"}</h2>
+                {ytLoading&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">{materialType==="social"?"Fetching Instagram data…":"Fetching YouTube data…"}</span>}
+                {analyzing&&<span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">AI analyzing…</span>}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flex:"none"}}>
+              <button onClick={clearForm} className="gw-tbtn" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"8px 13px",cursor:"pointer"}}>Clear</button>
+              <button onClick={()=>{router.push("/audit",{scroll:false});setCur({});setMaterialType("none");}} className="gw-tbtn" style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"8px 13px",cursor:"pointer"}}>Cancel</button>
+              <button onClick={save} className="gw-ember-btn" style={{fontFamily:"var(--font-display)",fontSize:14,fontWeight:700,color:"#fff",background:"var(--accent-ember)",border:"none",borderRadius:9,padding:"9px 20px",cursor:"pointer"}}>Save</button>
+            </div>
           </div>
         </div>
-        <div className="flex" style={{height:"calc(100vh - 52px)"}}>
+        <div className="flex" style={{height:"calc(100vh - 84px)"}}>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="bg-surface border-b border-main px-4 py-3 flex-shrink-0">
               {materialType==="none"?(<div><p className="text-sm font-medium text-main mb-2">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="flex-1 min-w-[100px] py-3 rounded-lg border border-main text-sm font-medium text-main hover:bg-accent-soft hover:border-[var(--accent)] transition text-center">{l}</button>))}</div></div>
@@ -2000,7 +2006,9 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           </div>
 
           {/* FORM FIELDS PANEL — config-driven from system + custom dimensions */}
-          <div className="w-[380px] border-l border-main bg-surface overflow-auto">
+          {/* Framework sections — proportional per the design (was a fixed 380px rail,
+              which squeezed every field into a column too narrow to read). */}
+          <div className="overflow-auto" style={{flex:"0 0 42%",minWidth:400,borderLeft:"1px solid var(--border-hairline)",background:"var(--brand-white)"}}>
             <div className="p-3">
               {allDimensions.filter(d => d.fields?.length > 0).map((dim, di) => {
                 const isOpen = sec === di;
@@ -2009,16 +2017,37 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 const skipKeys = new Set(["url", "image_url", "transcript", "analyst_comment"]);
                 // Rating is rendered inline in Section A via StarRating, not skipped
 
+                // Completeness chip (the design's {{ cN }}): filled / total, counting only
+                // the fields this section actually renders.
+                const counted = (dim.fields || []).filter(f => !skipKeys.has(f.key) && !skipKeys.has(f.db_key));
+                const filled = counted.filter(f => {
+                  const v = cur[f.db_key || f.key] ?? cur.custom_dimensions?.[f.key];
+                  return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== "";
+                }).length;
+                const complete = counted.length > 0 && filled === counted.length;
+
                 return (
-                  <div key={di} className="mb-1">
+                  <div key={di} className="mb-1.5">
                     <div onClick={() => setSec(isOpen ? -1 : di)}
-                      className={`px-3 py-2 rounded-lg cursor-pointer flex justify-between text-xs font-semibold ${
-                        isOpen
-                          ? isCustom ? "bg-purple-50 text-purple-700 border border-purple-300" : "bg-accent-soft text-accent border border-[var(--accent)]"
-                          : "bg-surface2 border border-main text-main"
-                      }`}>
-                      <span>{isCustom ? `${di + 1}. ${dim.name}` : dim.name}{isCustom && <span className="text-hint font-normal ml-1">(custom)</span>}</span>
-                      <span className="text-hint">{isOpen ? "−" : "+"}</span>
+                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"10px 12px", borderRadius:10, cursor:"pointer",
+                        background: isOpen ? "var(--ink-800)" : "var(--paper)",
+                        border: `1px solid ${isOpen ? "var(--ink-800)" : "var(--border-hairline)"}`,
+                        color: isOpen ? "var(--brand-cream)" : "var(--ink-800)" }}>
+                      <span style={{ fontFamily:"var(--font-mono)", fontSize:11.5, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {di + 1} · {dim.name}
+                        {isCustom && <span style={{ fontWeight:400, opacity:.6, marginLeft:6 }}>(custom)</span>}
+                      </span>
+                      <span style={{ flex:"none", display:"flex", alignItems:"center", gap:8 }}>
+                        {counted.length > 0 && (
+                          <span style={{ fontFamily:"var(--font-mono)", fontSize:10, padding:"2px 7px", borderRadius:20,
+                            background: complete ? "var(--accent-ember)" : (isOpen ? "rgba(255,255,255,.12)" : "var(--brand-white)"),
+                            color: complete ? "#fff" : (isOpen ? "var(--brand-cream)" : "var(--text-muted)"),
+                            border: complete ? "1px solid var(--accent-ember)" : `1px solid ${isOpen ? "transparent" : "var(--border-hairline)"}` }}>
+                            {filled}/{counted.length}
+                          </span>
+                        )}
+                        <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ opacity:.7, transform: isOpen ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}><path d="M2 4l3 3 3-3"/></svg>
+                      </span>
                     </div>
                     {isOpen && (
                       <div className="py-2 space-y-3">
