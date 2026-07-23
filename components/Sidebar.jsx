@@ -68,7 +68,11 @@ export default function Sidebar({ forceCollapsed = false }) {
 
   return (
     <aside style={{ width: W, flex: "none", background: "var(--ink-800)", display: "flex", flexDirection: "column",
-      padding: collapsed ? "18px 10px 14px" : "18px 14px 14px", height: "100vh", position: "sticky", top: 0, transition: "width 0.16s ease", overflow: "visible" }}>
+      padding: collapsed ? "18px 10px 14px" : "18px 14px 14px", height: "100vh", position: "sticky", top: 0, transition: "width 0.16s ease", overflow: "visible",
+      /* Above every page chrome layer (sticky glass headers sit at 30-41) so the
+         collapsed-rail tooltips and the account popover are never painted over —
+         a backdrop-filter header would otherwise blur them. Stays below modals (50+). */
+      zIndex: 45 }}>
 
       {/* Wordmark + collapse toggle */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", gap: 8, padding: collapsed ? "4px 0 14px" : "4px 6px 14px" }}>
