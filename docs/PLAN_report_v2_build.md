@@ -255,7 +255,7 @@ v3 no cambia el flujo: **añade los dos entregables diseñados** encima del mód
 | 1 | **Se mantiene nuestro acuerdo**: "Others" = motores **construidos** no sugeridos para el objetivo elegido. No se pinta un catálogo de informes inexistentes |
 | 2 | **Se mantiene**: Innovation ya está construido (B10); entra en el catálogo, sin fase propia |
 | 3 | **Se mantiene la decisión cerrada nº1**: los **bloques son la fuente de verdad**; el HTML es un render (y lo que se imprime a PDF). Guardar HTML rompería comentarios anclados y regeneración por sección |
-| 4 | **La presentación visual queda APARCADA.** No se avanza con el deck hasta nueva orden. Ver aviso abajo |
+| 4 | **La presentación visual queda APARCADA.** No se avanza hasta nueva orden. **Aclaración (Sergio):** cuando se retome, **se migra la funcionalidad del Showcase existente** y se le aplica el **estilo visual del handoff** — no se reconstruye un deck desde cero. Esto reduce F6 de "motor nuevo" a "migración + re-skin". Ver aviso abajo |
 | 5 | **La paleta cálida es para los REPORTES** (gráficos de series múltiples del documento). El cromo de la app sigue en ember único |
 | 6 | Valores de gráfico editables = parte de F4 |
 

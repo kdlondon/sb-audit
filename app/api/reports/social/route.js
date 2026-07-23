@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 import { engagementRate, avgEngagementRate, fmtRate } from "@/lib/engagement";
+import { socialVisuals } from "@/lib/report-visuals";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 7 sections in 2 passes; give Vercel headroom
@@ -177,13 +178,18 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   };
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, posts: pool.length, pillars: pillarLandscape.length, dateRange };
 
+  // Visual blocks are computed from the SAME precomputed stats the prompts use — never
+  // asked of the model — so a client-facing chart can't carry an invented number.
+  const visualStats = { perBrand, pillarLandscape, formatMix, platformMix, totalPosts: pool.length, brandCount: brands.length, windowLabel: dateRange };
+  const withVisuals = (sec) => sec ? { ...sec, visuals: socialVisuals(sec.key, visualStats) } : sec;
+
   try {
     // SINGLE-SECTION regeneration
     if (regenKey) {
-      if (SECTIONS[regenKey]) return Response.json({ section: await genSection(regenKey), meta });
+      if (SECTIONS[regenKey]) return Response.json({ section: withVisuals(await genSection(regenKey)), meta });
       if (regenKey === "takeaways") {
         const body = (Array.isArray(priorSections) ? priorSections : []).filter((s) => s && SECTIONS[s.key]).map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
-        return Response.json({ section: await genTakeaways(body), meta });
+        return Response.json({ section: withVisuals(await genTakeaways(body)), meta });
       }
       return Response.json({ error: "Unknown section: " + regenKey }, { status: 400 });
     }
@@ -198,7 +204,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     }
     const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
     if (takeaways) byKey.takeaways = takeaways;
-    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
+    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean).map(withVisuals);
     return Response.json({ sections, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
