@@ -39,9 +39,12 @@ export async function POST(request) {
   if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
-  const { data: rows } = await admin.from("creative_source")
+  const { data: rows, error: rowsErr } = await admin.from("creative_source")
     .select("id,competitor,brand,brand_name,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,main_slogan,synopsis,description,custom_dimensions")
     .eq("project_id", project_id);
+  // A failed query must not masquerade as an empty project: that reads as a permanent
+  // "no entries" and is never retried, when in fact it is usually transient.
+  if (rowsErr) return Response.json({ error: `Could not load entries: ${rowsErr.message}` }, { status: 503 });
   if (!rows || rows.length === 0) return Response.json({ error: "No entries found for this project" }, { status: 404 });
 
   let framework = null; try { framework = await loadFramework(project_id); } catch {}
