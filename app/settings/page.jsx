@@ -16,6 +16,11 @@ import CountryInput from "@/components/CountryInput";
 
 // Study objectives — MUST stay in sync with the onboarding list. Each objective drives
 // which report Groundwork suggests in Report > Generate (see lib/report-cards).
+// Settings renders outside .gw-shell, where the --accent-ember custom properties are
+// not defined, so the ember values are literal here.
+const EMBER = "rgb(255,74,26)";
+const EMBER_DEEP = "rgb(223,92,41)";
+
 const OBJECTIVES = [
   "Competitive positioning & messaging", "Identify white spaces / opportunities",
   "Creative inspiration & benchmarking", "Innovation scan", "Brand consistency audit",
@@ -426,7 +431,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Study objectives</h4>
         <p className="text-xs text-muted -mt-1">What this study is for. Each objective suggests a report in <b>Report › Generate</b>.</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" style={{ justifyContent: "flex-start" }}>
           {OBJECTIVES.map(o => {
             const on = objectives.includes(o);
             return (
@@ -434,7 +439,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
                 onClick={() => setObjectives(prev => on ? prev.filter(x => x !== o) : [...prev, o])}
                 className="px-3 py-1.5 rounded-full text-xs border transition"
                 style={on
-                  ? { background: "var(--accent-ember)", borderColor: "var(--accent-ember)", color: "#fff", fontWeight: 600 }
+                  ? { background: EMBER, borderColor: EMBER, color: "#fff", fontWeight: 600 }
                   : { background: "var(--surface)", borderColor: "var(--border)", color: "var(--text2)" }}>
                 {on && "✓ "}{o}
               </button>
@@ -442,7 +447,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
           })}
         </div>
         {objectives.length === 0 && (
-          <p className="text-xs" style={{ color: "var(--accent-ember-deep)" }}>
+          <p className="text-xs" style={{ color: EMBER_DEEP }}>
             No objectives selected — Report will not suggest anything until you pick at least one.
           </p>
         )}
