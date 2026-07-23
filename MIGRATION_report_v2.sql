@@ -12,6 +12,10 @@ alter table saved_reports add column if not exists updated_at timestamptz defaul
 -- markdown render so legacy readers and .md/.doc export keep working.
 alter table saved_reports add column if not exists content_blocks jsonb;
 
+-- The generation config (lens, source, filters, section prompts) so a single section can be
+-- regenerated later with exactly the settings the report was created with.
+alter table saved_reports add column if not exists report_config jsonb;
+
 -- Backfill existing rows to the active/in-process baseline.
 update saved_reports set status   = 'in_process' where status   is null;
 update saved_reports set archived = false        where archived is null;

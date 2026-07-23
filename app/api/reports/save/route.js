@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const ALLOWED = new Set([
   "id", "title", "content", "content_blocks", "template_type", "project_id", "brand_id",
   "scope", "sections", "competitors", "custom_instructions", "year_from", "year_to",
-  "created_by", "status", "archived", "updated_at",
+  "created_by", "status", "archived", "updated_at", "report_config",
 ]);
 
 export async function POST(request) {

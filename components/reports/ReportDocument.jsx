@@ -4,6 +4,7 @@
 // cards, and text-forward body. Text stays the protagonist; visuals support it.
 //
 // Falls back to plain markdown for reports saved before the block model existed.
+import { useState } from "react";
 import ReportBlock, { isVisualBlock } from "./ReportBlocks";
 import { isV2 } from "@/lib/report-blocks";
 
@@ -13,7 +14,7 @@ const BREADCRUMB = {
   paddingBottom: 16, borderBottom: "1px solid var(--paper-edge)", marginBottom: 34,
 };
 
-export default function ReportDocument({ report, renderMarkdown, breadcrumb }) {
+export default function ReportDocument({ report, renderMarkdown, breadcrumb, onRegenerate, regeneratingKey }) {
   const doc = report?.content_blocks;
   if (!isV2(doc)) {
     return (
@@ -47,10 +48,15 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb }) {
             {sec.title && (
               <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: "var(--ink-300)", flex: "none" }}>{numeral}</span>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, letterSpacing: "-.01em", color: "var(--ink-900)", margin: 0 }}>{sec.title}</h2>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, letterSpacing: "-.01em", color: "var(--ink-900)", margin: 0, flex: 1 }}>{sec.title}</h2>
+                {onRegenerate && sec.key !== "_" && (
+                  <RegenerateControl sectionKey={sec.key} busy={regeneratingKey === sec.key} onRegenerate={onRegenerate} />
+                )}
               </div>
             )}
-            <SectionBody blocks={sec.blocks} renderMarkdown={renderMarkdown} />
+            <div style={{ animation: regeneratingKey === sec.key ? "gwpulse .9s ease-in-out infinite" : undefined }}>
+              <SectionBody blocks={sec.blocks} renderMarkdown={renderMarkdown} />
+            </div>
           </section>
         );
       })}
@@ -79,4 +85,49 @@ function SectionBody({ blocks, renderMarkdown }) {
   });
   flush("end");
   return <>{out}</>;
+}
+
+// Per-section regenerate. The analyst says what to change BEFORE it runs — the instruction
+// is passed to the engine as direction for that section only.
+function RegenerateControl({ sectionKey, busy, onRegenerate }) {
+  const [open, setOpen] = useState(false);
+  const [instr, setInstr] = useState("");
+  const submit = () => { onRegenerate(sectionKey, instr.trim()); setOpen(false); setInstr(""); };
+
+  if (busy) {
+    return (
+      <span style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--accent-ember-deep)" }}>
+        <span style={{ width: 11, height: 11, borderRadius: "50%", border: "2px solid var(--accent-ember-tint)", borderTopColor: "var(--accent-ember)", animation: "gwspin .8s linear infinite" }} />
+        Regenerating…
+      </span>
+    );
+  }
+  return (
+    <span style={{ flex: "none", position: "relative" }}>
+      <button onClick={() => setOpen((v) => !v)} className="gw-tbtn" title="Regenerate this section"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-secondary)" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" /></svg>
+        Regenerate
+      </button>
+      {open && (
+        <div onClick={(e) => e.stopPropagation()}
+          style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, zIndex: 40, width: 340, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 14, boxShadow: "0 16px 44px rgba(0,0,0,.16)", padding: 14, textAlign: "left" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 }}>Tell the AI what to change</div>
+          <textarea autoFocus value={instr} onChange={(e) => setInstr(e.target.value)} rows={3}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+            placeholder="e.g. focus on the gap between what Iberia says and what it does; shorter, more concrete"
+            style={{ width: "100%", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 9, padding: "9px 11px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", outline: "none", resize: "vertical", lineHeight: 1.5 }} />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+            <button onClick={() => setOpen(false)} style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-secondary)" }}>Cancel</button>
+            <button onClick={submit} className="gw-ember-btn"
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 12.5, fontWeight: 600 }}>
+              Regenerate
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--ink-300)", marginTop: 8 }}>Leave empty to simply rewrite it. ⌘↵ to run.</div>
+        </div>
+      )}
+    </span>
+  );
 }

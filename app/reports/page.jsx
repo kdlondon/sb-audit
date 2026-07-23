@@ -12,8 +12,8 @@ import ReportConfigurator from "@/components/reports/ReportConfigurator";
 import { REPORT_CARDS } from "@/lib/report-cards";
 import ReportDocument from "@/components/reports/ReportDocument";
 import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
-import { generateReport } from "@/lib/report-generate";
-import { blocksToMarkdown } from "@/lib/report-blocks";
+import { generateReport, sectionToBlocks } from "@/lib/report-generate";
+import { blocksToMarkdown, isV2, fromLegacy } from "@/lib/report-blocks";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -482,6 +482,9 @@ function ReportsContent(){
         competitors:cfg.source?.mode==="brand"?(Array.isArray(cfg.source.value)?cfg.source.value.join(","):""):"",
         year_from:cfg.yearFrom||null,year_to:cfg.yearTo||null,
         created_by:session?.user?.email||"",status:"in_process",archived:false,
+        // Keep the config so a section can be regenerated later with the same lens,
+        // source and filters instead of guessed defaults.
+        report_config:{cardId:card.id,route:card.route,lens:cfg.lens,source:cfg.source,yearFrom:cfg.yearFrom,yearTo:cfg.yearTo,intents:cfg.intents,sections:cfg.sections},
         content:blocksToMarkdown(doc),content_blocks:doc,
       };
       // Saved server-side: saved_reports' RLS allows INSERT but rejects UPDATE, so writing
@@ -507,6 +510,66 @@ function ReportsContent(){
     setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,saveError:r.saveError,finished:true,done:r.produced.length}:prev);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
+  };
+
+  // Regenerate ONE section of a saved report, with the analyst's instruction as direction.
+  // Only that section's blocks are replaced; everything else is left untouched.
+  const[regenKeyBusy,setRegenKeyBusy]=useState(null);
+  const regenerateSection=async(sectionKey,instruction)=>{
+    const rep=viewingReport; if(!rep||regenKeyBusy)return;
+    const cfg=rep.report_config||{};
+    const card=REPORT_CARDS[rep.template_type]||REPORT_CARDS[cfg.cardId]||REPORT_CARDS.strategic_positioning;
+    const route=cfg.route||card.route;
+    setRegenKeyBusy(sectionKey);
+    try{
+      const doc=isV2(rep.content_blocks)?rep.content_blocks:fromLegacy(rep.content);
+      // Synthesis sections need the analytical prose that precedes them.
+      const prior=[];
+      let cur=null;
+      for(const b of doc.blocks){
+        if(b.sectionKey&&b.sectionKey!==cur){cur=b.sectionKey;prior.push({key:cur,title:"",markdown:""});}
+        const last=prior[prior.length-1];
+        if(last&&b.text)last.markdown+=(last.markdown?"\n\n":"")+b.text;
+      }
+      const sectionsCfg=(cfg.sections||card.sections.map(x=>({key:x.key,on:true})))
+        .map(x=>x.key===sectionKey?{...x,prompt:instruction||x.prompt||""}:x);
+
+      const res=await fetch(`/api/reports/${route}`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          project_id:projectId,icp:cfg.lens||"brand",section:sectionKey,
+          priorSections:prior.filter(p=>p.key!==sectionKey),
+          sections:sectionsCfg,source:cfg.source,
+          filters:{brands:cfg.source?.mode==="brand"?cfg.source.value:undefined,intents:cfg.intents,yearFrom:cfg.yearFrom,yearTo:cfg.yearTo},
+        }),
+      });
+      const d=await res.json();
+      if(d.error)throw new Error(d.error);
+
+      // Swap this section's blocks in place, preserving document order.
+      const fresh=sectionToBlocks({...d.section,key:sectionKey});
+      const before=doc.blocks.filter(b=>b.sectionKey===sectionKey).length;
+      let inserted=false;
+      const blocks=[];
+      for(const b of doc.blocks){
+        if(b.sectionKey===sectionKey){ if(!inserted){blocks.push(...fresh);inserted=true;} continue; }
+        blocks.push(b);
+      }
+      if(!inserted)blocks.push(...fresh);
+      const next={v:2,blocks};
+
+      const{data:{session}}=await supabase.auth.getSession();
+      const save=await fetch("/api/reports/save",{
+        method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},
+        body:JSON.stringify({report:{id:rep.id,project_id:projectId,content:blocksToMarkdown(next),content_blocks:next}}),
+      });
+      const out=await save.json().catch(()=>({}));
+      if(!save.ok||out.error)throw new Error(out.error||"Could not save");
+
+      setViewingReport(r=>r?{...r,content_blocks:next,content:blocksToMarkdown(next)}:r);
+      showToast(`Section regenerated (${before} → ${fresh.length} blocks)`);
+    }catch(e){ showToast("Regenerate failed: "+(e.message||"unknown")); }
+    setRegenKeyBusy(null);
   };
 
   const closeV2Run=()=>{
@@ -1772,6 +1835,8 @@ RULES:
                       ? <ReportDocument
                           report={viewingReport}
                           renderMarkdown={renderContent}
+                          onRegenerate={regenerateSection}
+                          regeneratingKey={regenKeyBusy}
                           breadcrumb={[REPORT_CARDS[viewingReport.template_type]?.title||viewingReport.template_type||"Report",projectName,viewingReport.scope==="global"?"Global":"Category",`${(viewingReport.icp||"brand")} lens`].filter(Boolean).join(" · ")}
                         />
                       : renderContent(activeContent)}
