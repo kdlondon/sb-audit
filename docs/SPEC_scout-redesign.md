@@ -121,10 +121,31 @@ Se retira del alcance por decisión de producto. **Sin migración, sin columnas 
 - Unificar el import de ambas ramas contra `creative_source`.
 - *Riesgo alto: es el punto donde se escriben datos. Verificar con import real de 1–2 piezas antes de soltar.*
 
-**Fase 5 — Cierre**
-- Mover **captura de frames** al editor de Creative Source (sale de Scout).
-- Reubicar Saved items / Asistente / Ranking dentro de la vista única sin romper la jerarquía (no son N2).
-- Limpiar `#0019FF` / `#0a0f3c` restantes.
+**Fase 5 — Cierre** ✅ HECHO
+- ~~Mover **captura de frames** al editor~~ — el editor de Creative Source **ya la tenía** implementada, así que se retiró el duplicado de Scout en vez de portarla. Los stills se capturan tras importar.
+- ~~Reubicar Saved items~~ — Results/Saved pasa a pill blanco segmentado (control de contenido, no N2). Asistente y Ranking se mantienen (decisión de producto).
+- ~~Limpiar `#0019FF`~~ — cero azules en Scout.
+
+---
+
+## 9. Estado final
+
+Fases 0–5 completas y desplegadas. Resumen de lo entregado:
+
+| Fase | Commit | Qué |
+|---|---|---|
+| 0 | `a97515b` | Bug: `from(table)` indefinido tragado por `catch` → el análisis de IA nunca se guardaba |
+| 1 | `a97515b` | Shell + 3 canales + título |
+| 2 | `2c18346` | Consolas YouTube/social |
+| 3 | `152bd52` | Toolbar, grid social, filas YouTube expandibles |
+| 4 | `d58e0aa` | Barra de import unificada + overlay; fix "All regions" como país |
+| 4b | `c40fa54` | Barra **blanca a una línea** (el README del bundle la describía oscura), alineación del grid |
+| 5 | `81ca3d7` | Captura de frames fuera; Results/Saved re-skin |
+
+### Deuda conocida
+- Los campos avanzados de YouTube no son los del handoff (CHANNEL NAME / LANGUAGE **no existen en `/api/youtube-scout`**); se mantuvieron los reales cableados. Requiere backend si se quieren.
+- El panel "import complete" conserva maquetación antigua (ya sin azules).
+- `scout_saved` y el asistente siguen con estilo previo dentro del shell.
 
 ---
 
