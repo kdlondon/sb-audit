@@ -34,6 +34,7 @@ export default function ReportConfigurator({
   const [yearTo, setYearTo] = useState("");
   const [pickedIntents, setPickedIntents] = useState([]);
   const [count, setCount] = useState(null);
+  const [countErr, setCountErr] = useState("");
 
   // Sections state is seeded FROM THE CARD — this is what makes the configurator per-report.
   const [sections, setSections] = useState(() =>
@@ -54,11 +55,14 @@ export default function ReportConfigurator({
     (async () => {
       if (!projectId) return;
       if (srcMode === "collection" && !srcCollection) { setCount(0); return; }
-      setCount(null);
+      setCount(null); setCountErr("");
       try {
         const n = await countSource(createClient(), projectId, selection);
         if (!cancelled) setCount(n);
-      } catch { if (!cancelled) setCount(null); }
+      } catch (e) {
+        // Surface it — a silent failure here reads as "0 cases" and looks like a filter bug.
+        if (!cancelled) { setCount(null); setCountErr(e?.message || "Could not resolve cases"); }
+      }
     })();
     return () => { cancelled = true; };
   }, [projectId, selection, srcMode, srcCollection]);
@@ -104,8 +108,8 @@ export default function ReportConfigurator({
         <div style={CARD}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
             <span style={LABEL}>Source</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: count === 0 ? "var(--accent-ember-deep)" : "var(--text-muted)" }}>
-              {count === null ? "resolving…" : `${count} case${count === 1 ? "" : "s"} resolved`}
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: countErr || count === 0 ? "var(--accent-ember-deep)" : "var(--text-muted)" }}>
+              {countErr ? countErr : count === null ? "resolving…" : `${count} case${count === 1 ? "" : "s"} resolved`}
             </span>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
