@@ -1813,8 +1813,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       <div className="min-h-screen" style={{background:"var(--paper)"}}>
         {/* Editor chrome — measurements from the approved handoff: 34/48 padding,
             ember-deep eyebrow at 9px/.18em, 24px display title, ink-800 Save. */}
-        <div style={{padding:"34px 48px 0"}}>
-          <div style={{display:"flex",alignItems:"center",gap:14,maxWidth:1260}}>
+        <div style={{padding:"34px 0 0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14,maxWidth:1260,margin:"0 auto",padding:"0 48px"}}>
             <div style={{minWidth:0}}>
               <div style={{fontFamily:"var(--font-mono)",fontSize:9,letterSpacing:".18em",textTransform:"uppercase",color:"var(--accent-ember-deep)",marginBottom:6}}>Creative Source · {eid?"Edit entry":"New entry"}</div>
               <div style={{display:"flex",alignItems:"baseline",gap:12,flexWrap:"wrap"}}>
@@ -1830,7 +1830,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             </div>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 404px",gap:26,alignItems:"start",maxWidth:1260,padding:"22px 48px 48px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 404px",gap:26,alignItems:"start",maxWidth:1260,margin:"0 auto",padding:"22px 48px 48px"}}>
           <div className="flex flex-col" style={{minWidth:0}}>
             <div className="bg-surface border-b border-main px-4 py-3 flex-shrink-0">
               {materialType==="none"?(<div><p className="mb-2.5 gw-flabel text-[10px] uppercase">Choose material type</p><div className="flex gap-2 flex-wrap">{[["video","Video URL"],["videoFile","Video File"],["web","Website URL"],["social","Social"],["image","Image"],["document","Document"]].map(([k,l])=>(<button key={k} onClick={()=>setMaterialType(k)} className="gw-tbtn flex-1 min-w-[100px] text-center" style={{padding:"12px 10px",borderRadius:9,border:"1px solid var(--border-hairline)",background:"var(--brand-white)",fontFamily:"var(--font-mono)",fontSize:11.5,color:"var(--ink-800)",cursor:"pointer"}}>{l}</button>))}</div></div>
