@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase";
 import { STATIC_OPTIONS, fetchOptions, COMPETITOR_COLORS } from "@/lib/options";
 import AuthGuard from "@/components/AuthGuard";
-import Nav from "@/components/Nav";
+import Sidebar from "@/components/Sidebar";
+import ReportLibrary from "@/components/reports/ReportLibrary";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -425,7 +426,8 @@ function ReportsContent(){
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
-  const view=reportParam?"archive":(tabParam||"generate");
+  // Library is the landing (Report v2): entering the module shows your work, not the catalog.
+  const view=reportParam?"archive":(tabParam||"archive");
   const[journeyBrand,setJourneyBrand]=useState("");
   const[journeyView,setJourneyView]=useState("funnel");
   const[selectedTemplate,setSelectedTemplate]=useState(null);
@@ -1486,16 +1488,29 @@ RULES:
   };
 
   return(
-    <div className="min-h-screen" style={{background:"var(--bg)"}}>
+    <div style={{minHeight:"100vh",background:"var(--paper)"}}>
 
-      {/* TOP BAR */}
-      <div className="section-bar px-5 py-3 flex justify-between items-center relative" style={{background:"transparent",boxShadow:"none"}}>
-        <span className="w-[120px]" aria-hidden="true"></span>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
-          <button onClick={()=>router.push("/reports?tab=generate",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="generate"?"kd-seg-active":"text-muted hover:text-main"}`}>Generate</button>
-          <button onClick={()=>router.push("/reports?tab=archive",{scroll:false})} className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition ${view==="archive"?"kd-seg-active":"text-muted hover:text-main"}`}>Archive ({savedReports.length})</button>
+      {/* Header + N2 (redesign shell) — sticky glass, shared chrome */}
+      <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(244,239,233,0.72)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:"1px solid var(--border-paper)"}}>
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 34px 14px"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20}}>
+            <div>
+              <h1 style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:28,letterSpacing:"-.01em",margin:0,color:"var(--ink-900)"}}>Reports</h1>
+              <p style={{fontFamily:"var(--font-body)",fontSize:13.5,color:"var(--text-secondary)",margin:"6px 0 0"}}>Your studies — generate, refine and deliver.</p>
+            </div>
+            <span style={{fontFamily:"var(--font-mono)",fontSize:10.5,letterSpacing:".04em",color:"var(--text-muted)",whiteSpace:"nowrap",paddingTop:4}}>REPORT</span>
+          </div>
+          <div style={{marginTop:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+            <div style={{display:"inline-flex",gap:2,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:24,padding:4}}>
+              {[["archive","Library"],["generate","Generate"]].map(([k,l])=>{
+                const on=view===k;
+                return <button key={k} className="gw-tab" onClick={()=>router.push(`/reports?tab=${k}`,{scroll:false})}
+                  style={{fontFamily:"var(--font-mono)",fontSize:11.5,fontWeight:on?600:500,color:on?"#fff":"var(--text-secondary)",background:on?"var(--ink-800)":"transparent",padding:"6px 15px",borderRadius:20,border:"none",cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>;
+              })}
+            </div>
+            {activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className="gw-tbtn" style={{fontFamily:"var(--font-mono)",fontSize:11,background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:8,padding:"7px 12px",cursor:"pointer",color:"var(--text-secondary)"}}>{viewerOpen?"Hide cases":"Show cases"}</button>}
+          </div>
         </div>
-        <div className="w-[120px] flex justify-end">{activeContent&&<button onClick={()=>setViewerOpen(!viewerOpen)} className={`px-3 py-1.5 text-xs rounded-full font-medium border transition ${viewerOpen?"bg-surface2 border-main text-main":"border-main text-muted hover:text-main hover:bg-surface2"}`}>{viewerOpen?"Hide entries":"Search entries"}</button>}</div>
       </div>
 
       {/* DASHBOARD VIEW — embedded */}
@@ -1535,40 +1550,22 @@ RULES:
         </div>
       )}
 
-      {/* ARCHIVE */}
+      {/* LIBRARY (Report v2) */}
       {view==="archive"&&!viewingReport&&(
-        <div className="px-5 py-5 w-full flex justify-center"><div className="w-full max-w-3xl">
-          {savedReports.length===0
-            ?<div className="text-center text-hint py-20">No saved reports yet.</div>
-            :<div className="space-y-2">{savedReports.map(r=>(
-              <div key={r.id} className="bg-surface border border-main rounded-lg p-4 flex justify-between items-center hover:border-[var(--accent)] transition cursor-pointer" onClick={()=>router.push(`/reports?report=${r.id}`,{scroll:false})}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {renamingReport===r.id?(
-                      <input autoFocus defaultValue={r.title} className="text-sm font-medium text-main bg-surface border border-[var(--accent)] rounded px-2 py-0.5 w-full max-w-[400px] focus:outline-none"
-                        onClick={ev=>ev.stopPropagation()}
-                        onBlur={async(ev)=>{const v=ev.target.value.trim();if(v&&v!==r.title){await supabase.from("saved_reports").update({title:v}).eq("id",r.id);const{data}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});setSavedReports(data||[]);}setRenamingReport(null);}}
-                        onKeyDown={ev=>{if(ev.key==="Enter")ev.target.blur();if(ev.key==="Escape")setRenamingReport(null);}}/>
-                    ):(
-                      <p className="text-sm font-medium text-main cursor-text" onDoubleClick={ev=>{ev.stopPropagation();setRenamingReport(r.id);}}>{r.title}</p>
-                    )}
-                    {r.template_type&&<span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold flex-shrink-0 ${BADGE[r.scope]||"bg-surface2 text-hint"}`}>{TEMPLATES.find(t=>t.id===r.template_type)?.label||r.template_type}</span>}
-                  </div>
-                  <div className="flex gap-2">
-                    {r.year_from&&r.year_to&&<span className="text-[10px] text-hint">{r.year_from}–{r.year_to}</span>}
-                    <span className="text-[10px] text-hint">{new Date(r.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} {new Date(r.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>
-                    <span className="text-[10px] text-hint">{r.created_by}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={async(ev)=>{ev.stopPropagation();router.push(`/reports?report=${r.id}`,{scroll:false});setTimeout(async()=>{const el=document.querySelector("[data-report-content]");if(!el)return;const html2pdf=(await import("html2pdf.js")).default;html2pdf(el,{margin:[15,15,25,15],filename:`${r.title||"report"}.pdf`,image:{type:"jpeg",quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}});},1500);}} className="text-xs text-muted hover:text-main px-2">PDF</button>
-                  <button onClick={ev=>{ev.stopPropagation();router.push(`/reports/editor?id=${r.id}`);}} className="text-xs text-accent hover:underline px-2">Edit</button>
-                  <button onClick={ev=>{ev.stopPropagation();deleteReport(r.id);}} className="text-hint hover:text-red-400 text-sm px-2">×</button>
-                </div>
-              </div>
-            ))}</div>
-          }
-        </div></div>
+        <div style={{maxWidth:1180,margin:"0 auto",padding:"24px 34px 56px"}}>
+          <ReportLibrary
+            reports={savedReports}
+            onOpenText={(r)=>router.push(`/reports?report=${r.id}`,{scroll:false})}
+            onEdit={(r)=>router.push(`/reports/editor?id=${r.id}`)}
+            onGenerate={()=>router.push("/reports?tab=generate",{scroll:false})}
+            onAction={async(id,action,value)=>{
+              const{data:{session}}=await supabase.auth.getSession();
+              await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({id,action,value})});
+              const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
+              setSavedReports(reports||[]);
+            }}
+          />
+        </div>
       )}
 
       {/* GENERATE / VIEW */}
@@ -1977,4 +1974,15 @@ RULES:
   );
 }
 
-export default function ReportsPage(){return <AuthGuard><ProjectGuard><Nav/><Suspense fallback={null}><ReportsContent/></Suspense></ProjectGuard></AuthGuard>;}
+export default function ReportsPage(){
+  return (
+    <AuthGuard><ProjectGuard>
+      <div className="gw-shell" style={{display:"flex",height:"100vh",background:"var(--paper)"}}>
+        <Sidebar/>
+        <main style={{flex:1,minWidth:0,height:"100vh",overflowY:"auto"}}>
+          <Suspense fallback={null}><ReportsContent/></Suspense>
+        </main>
+      </div>
+    </ProjectGuard></AuthGuard>
+  );
+}
