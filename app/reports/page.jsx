@@ -473,7 +473,11 @@ function ReportsContent(){
 
     const r=await generateReport({
       card,config:{sections:list},postSection,saveDoc,
-      onProgress:({done,total,current,status})=>setV2Run(prev=>prev?{...prev,done,total,statuses:{...prev.statuses,[current]:status}}:prev),
+      onProgress:({done,total,current,status,error})=>setV2Run(prev=>prev?{
+        ...prev,done,total,
+        statuses:{...prev.statuses,[current]:status},
+        errors:error?{...(prev.errors||{}),[current]:error}:(prev.errors||{}),
+      }:prev),
     });
 
     setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,finished:true,done:r.produced.length}:prev);
