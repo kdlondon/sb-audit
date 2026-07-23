@@ -194,12 +194,21 @@
 }
 .gw-finput:focus { border-color: var(--accent-ember-deep); }
 
+/* Field hint sits opposite the label — sentence case at 9px on ink-300, not a
+   second uppercase label competing with .fl. */
 .gw-fhint {
   font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-300);
+}
+
+/* Textarea variant of .inp */
+.gw-fta {
+  font-family: var(--font-body);
+  line-height: 1.55;
+  resize: vertical;
 }
 
 /* Option pill — the design's .chp. Separate pills, not a segmented track. */
