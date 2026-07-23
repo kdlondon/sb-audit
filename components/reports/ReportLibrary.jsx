@@ -117,7 +117,13 @@ export default function ReportLibrary({
           const hasVisual = !!r.has_presentation;
           const cc = commentCounts[r.id] || 0;
           return (
-            <div key={r.id} className="gw-card" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 12, overflow: "hidden" }}>
+            <div key={r.id} className="gw-card" style={{
+              background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 12,
+              // No overflow:hidden — it clipped the ⋯ popover. The accordion has no bleeding
+              // background of its own, so the rounded corners hold without it.
+              // Raise this row while its menu is open so later rows can't paint over it.
+              position: "relative", zIndex: menuFor === r.id ? 30 : undefined,
+            }}>
               <div onClick={() => { setOpenRow(open ? null : r.id); setOpenFmt("text"); }}
                 style={{ display: "flex", alignItems: "center", gap: 18, padding: "16px 18px", cursor: "pointer" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
