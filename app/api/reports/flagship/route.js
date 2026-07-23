@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
+import { flagshipVisuals } from "@/lib/report-visuals";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 6 weighted sections in 2 passes ~50s; give Vercel headroom
@@ -115,6 +116,23 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const scopedBrands = [...new Set(pieces.filter(passFilter).map((p) => p.brand))].filter((b) => b && b !== "—");
   const head = `Category: ${category}. Brands in study: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; any other brand in the project is deliberately out of scope and must not be discussed." : ""}`;
 
+  // Territory stats for the visual blocks: how covered a territory is (supply) and how it
+  // performs (pull, from the analyst/AI rating). Computed from the filtered set only.
+  const inScope = pieces.filter(passFilter);
+  const terrMap = {};
+  inScope.forEach((p) => {
+    String(p.territory || "").split(",").map((t) => t.trim()).filter(Boolean).forEach((t) => {
+      const v = (terrMap[t] ||= { name: t, count: 0, brands: new Set(), ratings: [] });
+      v.count++; v.brands.add(p.brand);
+      if (Number(p.rating)) v.ratings.push(Number(p.rating));
+    });
+  });
+  const territories = Object.values(terrMap)
+    .map((t) => ({ name: t.name, count: t.count, brands: t.brands.size, pull: t.ratings.length ? t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length : null }))
+    .sort((a, b) => b.count - a.count);
+  const visualStats = { territories, brandCount: (scopedBrands.length ? scopedBrands : brands).length, totalPieces: pieces.length, inRange: inScope.length };
+  const withVisuals = (sec) => sec ? { ...sec, visuals: flagshipVisuals(sec.key, visualStats) } : sec;
+
   const selFor = (key) => ALL_DEFS[key].pool.filter(passFilter)
     .map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, 24);
@@ -139,10 +157,10 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   try {
     // SINGLE-SECTION regeneration — generate just one section (fast iteration).
     if (regenKey) {
-      if (ALL_DEFS[regenKey]) return Response.json({ section: await genAnalytical(regenKey), meta });
+      if (ALL_DEFS[regenKey]) return Response.json({ section: withVisuals(await genAnalytical(regenKey)), meta });
       const body = (Array.isArray(priorSections) ? priorSections : []).filter((s) => s && ALL_DEFS[s.key]).map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
-      if (regenKey === "exec") return Response.json({ section: await genExec(body), meta });
-      if (regenKey === "recommendations") return Response.json({ section: await genRecs(body), meta });
+      if (regenKey === "exec") return Response.json({ section: withVisuals(await genExec(body)), meta });
+      if (regenKey === "recommendations") return Response.json({ section: withVisuals(await genRecs(body)), meta });
       return Response.json({ error: "Unknown section: " + regenKey }, { status: 400 });
     }
 
@@ -157,7 +175,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
     if (exec) byKey.exec = exec;
     if (recs) byKey.recommendations = recs;
-    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
+    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean).map(withVisuals);
     return Response.json({ sections, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
