@@ -168,6 +168,8 @@
 /* ---- Motion (Scout handoff): restrained rise-in + loader spin. No bounce/scale. ---- */
 @keyframes gwrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes gwspin { to { transform: rotate(360deg); } }
+/* Opacity blink for a block that is regenerating / a section being written. */
+@keyframes gwpulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
 /* ---- Editor form fields (view 09) — values taken from the approved handoff ---- */
 .gw-flabel {            /* = .fl */

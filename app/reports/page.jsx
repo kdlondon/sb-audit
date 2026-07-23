@@ -9,6 +9,7 @@ import Sidebar from "@/components/Sidebar";
 import ReportLibrary from "@/components/reports/ReportLibrary";
 import ReportTypePicker from "@/components/reports/ReportTypePicker";
 import ReportConfigurator from "@/components/reports/ReportConfigurator";
+import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
 import { generateReport } from "@/lib/report-generate";
 import { blocksToMarkdown } from "@/lib/report-blocks";
 import ProjectGuard from "@/components/ProjectGuard";
@@ -429,7 +430,8 @@ function ReportsContent(){
   const{framework,frameworkLoaded,hasDimension}=useFramework()||{};
   // Report v2 — Generate flow: picked report card + per-section generation progress.
   const[v2Card,setV2Card]=useState(null);
-  const[v2Progress,setV2Progress]=useState(null);
+  const[v2Run,setV2Run]=useState(null);
+  const v2RunRef=useRef({});
   const[v2Collections,setV2Collections]=useState([]);
   useEffect(()=>{ if(!projectId)return; (async()=>{
     const{data}=await supabase.from("collections").select("id,name").eq("project_id",projectId).order("created_at",{ascending:false});
@@ -438,13 +440,17 @@ function ReportsContent(){
 
   // Generate section-by-section against the card's engine, saving as it goes so a
   // mid-run failure never discards what already landed (lib/report-generate).
-  const runV2Generate=async(card,cfg)=>{
+  const runV2Generate=async(card,cfg,only)=>{
     if(!card||!projectId)return;
-    const id=String(Date.now());
+    const picked=(cfg.sections||[]).filter(s=>s.on!==false);
+    const list=(only&&only.length?picked.filter(s=>only.includes(s.key)):picked)
+      .map(s=>({key:s.key,title:(card.sections.find(x=>x.key===s.key)||{}).title||s.key}));
+    const id=v2RunRef.current.id||String(Date.now());
+    v2RunRef.current={...v2RunRef.current,id,card,cfg};
     const title=`${card.title} — ${new Date().toLocaleDateString()}`;
     const{data:{session}}=await supabase.auth.getSession();
-    let inserted=false;
-    setV2Progress({done:0,total:(cfg.sections||[]).filter(s=>s.on!==false).length,current:null});
+
+    setV2Run({sections:list,statuses:{},done:0,total:list.length,failed:[],finished:false});
 
     const postSection=async(key,{priorSections})=>{
       const res=await fetch(`/api/reports/${card.route}`,{
@@ -461,18 +467,25 @@ function ReportsContent(){
     };
     const saveDoc=async(doc)=>{
       const row={id,title,template_type:card.id,project_id:projectId,created_by:session?.user?.email||"",content:blocksToMarkdown(doc),content_blocks:doc,status:"in_process",archived:false,updated_at:new Date().toISOString()};
-      if(!inserted){ await supabase.from("saved_reports").insert(row); inserted=true; }
+      if(!v2RunRef.current.inserted){ await supabase.from("saved_reports").insert(row); v2RunRef.current.inserted=true; }
       else { await supabase.from("saved_reports").update({content:row.content,content_blocks:doc,updated_at:row.updated_at}).eq("id",id); }
     };
 
-    try{
-      await generateReport({card,config:cfg,postSection,saveDoc,onProgress:(p)=>setV2Progress(p)});
-    }catch(e){ /* per-section errors are already absorbed by the orchestrator */ }
-    setV2Progress(null); setV2Card(null);
+    const r=await generateReport({
+      card,config:{sections:list},postSection,saveDoc,
+      onProgress:({done,total,current,status})=>setV2Run(prev=>prev?{...prev,done,total,statuses:{...prev.statuses,[current]:status}}:prev),
+    });
+
+    setV2Run(prev=>prev?{...prev,failed:r.failed,finished:true,done:r.produced.length}:prev);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
-    router.push(`/reports?report=${id}`,{scroll:false});
   };
+
+  const closeV2Run=()=>{
+    const id=v2RunRef.current.id;
+    setV2Run(null); setV2Card(null); v2RunRef.current={};
+    if(id)router.push(`/reports?report=${id}`,{scroll:false});
+  };;
   const searchParams=useSearchParams();
   const tabParam=searchParams.get("tab");
   const reportParam=searchParams.get("report");
@@ -1637,9 +1650,23 @@ RULES:
               brands={[...new Set(localData.concat(globalData).map(e=>e.competitor||e.brand||e.brand_name).filter(Boolean))].sort()}
               intents={framework?.communicationIntents||[]}
               collections={v2Collections}
-              generating={!!v2Progress}
+              generating={!!v2Run}
               onBack={()=>setV2Card(null)}
               onGenerate={(cfg)=>runV2Generate(v2Card,cfg)}
+            />
+          )}
+
+          {v2Run&&(
+            <GeneratingOverlay
+              sections={v2Run.sections}
+              statuses={v2Run.statuses}
+              done={v2Run.done}
+              total={v2Run.total}
+              failed={v2Run.failed}
+              finished={v2Run.finished}
+              onOpenPartial={closeV2Run}
+              onDismiss={closeV2Run}
+              onRetry={()=>{const{card,cfg}=v2RunRef.current;runV2Generate(card,cfg,v2Run.failed);}}
             />
           )}
 
