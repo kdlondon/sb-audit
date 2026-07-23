@@ -240,6 +240,10 @@
   color: var(--accent-ember-deep);
 }
 
+/* ---- Report document: selecting a passage is the entry point to "Ask about this" ---- */
+[data-report-content] ::selection { background: var(--accent-ember-tint); color: var(--ink-900); }
+[data-report-content] ::-moz-selection { background: var(--accent-ember-tint); color: var(--ink-900); }
+
 /* ---- List row hover ---- */
 .gw-row { transition: background 0.12s ease; }
 .gw-row:hover { background: rgba(26, 26, 26, 0.03) !important; }

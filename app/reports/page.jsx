@@ -11,6 +11,7 @@ import ReportTypePicker from "@/components/reports/ReportTypePicker";
 import ReportConfigurator from "@/components/reports/ReportConfigurator";
 import { REPORT_CARDS } from "@/lib/report-cards";
 import ReportDocument from "@/components/reports/ReportDocument";
+import AskAboutThis from "@/components/reports/AskAboutThis";
 import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
 import { generateReport, sectionToBlocks } from "@/lib/report-generate";
 import { blocksToMarkdown, isV2, fromLegacy } from "@/lib/report-blocks";
@@ -1842,6 +1843,15 @@ RULES:
                       : renderContent(activeContent)}
                   </div>
                   <Signature/>
+                  {viewingReport&&(
+                    <AskAboutThis
+                      containerRef={reportRef}
+                      reportTitle={viewingReport.title}
+                      reportText={viewingReport.content||activeContent}
+                      projectId={projectId}
+                      brandId={brandId}
+                    />
+                  )}
                 </div>
 
                 {/* Comments sidebar */}
