@@ -55,7 +55,7 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
       {sections.map((sec, si) => {
         const numeral = sec.title ? String(++n).padStart(2, "0") : null;
         return (
-          <section key={si} style={{ marginBottom: 56, paddingBottom: 56, borderBottom: si === sections.length - 1 ? "none" : "1px solid var(--border-hairline)" }}>
+          <section key={si} className="gw-section" style={{ marginBottom: 56, paddingBottom: 56, borderBottom: si === sections.length - 1 ? "none" : "1px solid var(--border-hairline)" }}>
             {sec.title && (
               /* Every section opens identically — numeral, eyebrow, title, one-line lead —
                  so a seven-section read stays navigable and never flattens into one wall. */
@@ -70,7 +70,7 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
                     <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: 16, lineHeight: 1.45, color: "var(--text-secondary)", margin: "12px 0 0", maxWidth: 640 }}>{sec.lead}</p>
                   )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
+                <div data-no-print style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
                   {notice?.key === sec.key && (
                     <SectionFlag notice={notice} onUndo={onUndo} onDismiss={onDismissNotice} />
                   )}

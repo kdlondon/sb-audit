@@ -265,3 +265,9 @@
 
 /* A block must not be split across printed pages. */
 .gw-nobreak { break-inside: avoid; page-break-inside: avoid; }
+
+/* ---- Report export ----
+   A section header stranded at the foot of a page, with its prose overleaf, reads as a
+   mistake in a client deliverable. Keep the opener with what follows it. */
+.gw-section > div:first-child { break-after: avoid; page-break-after: avoid; }
+.gw-report-prose p, .gw-report-prose li { orphans: 3; widows: 3; }

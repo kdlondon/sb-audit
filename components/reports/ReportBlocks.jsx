@@ -108,8 +108,12 @@ function Bars({ data = {} }) {
       <CardHead title={data.title} hint={data.hint} />
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items.map((i, n) => (
-          <div key={n} style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 190, flex: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.label}</div>
+          <div key={n} style={{ display: "flex", alignItems: "center", gap: 16, minHeight: 26 }}>
+            {/* Territory names run long in Spanish and were being sliced mid-word — and
+                mid-glyph in the PDF, where the rasteriser clipped the overflow box. Two
+                lines, clamped, so the label survives the export. */}
+            <div style={{ width: 190, flex: "none", fontFamily: "var(--font-body)", fontSize: 12.5, lineHeight: 1.25, color: "var(--ink-900)",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>{i.label}</div>
             <div style={{ flex: 1, height: 22, background: "var(--paper)", borderRadius: 5, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${Math.max(2, ((Number(i.value) || 0) / max) * 100)}%`, background: i.hero ? "var(--accent-ember)" : "var(--ink-800)" }} />
             </div>
@@ -221,13 +225,15 @@ function Quadrant({ data = {} }) {
     return { ...p, hero, left: place(x, sx), top: 100 - place(y, sy) };
   });
 
-  // Two points on identical coordinates would print one label on top of the other; nudge
-  // the later one just enough to read.
-  for (let i = 1; i < pts.length; i++) {
-    for (let j = 0; j < i; j++) {
-      if (Math.abs(pts[i].left - pts[j].left) < 9 && Math.abs(pts[i].top - pts[j].top) < 11) {
-        pts[i].left = Math.min(92, pts[i].left + 9);
-        pts[i].top = Math.min(88, pts[i].top + 11);
+  // Labels are wide, so points only LOOK apart. Separate on the label footprint, not the
+  // dot: in the exported PDF two neighbours printed one caption across another.
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 1; i < pts.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (Math.abs(pts[i].left - pts[j].left) < 20 && Math.abs(pts[i].top - pts[j].top) < 16) {
+          pts[i].top = Math.min(86, pts[i].top + 16);
+          if (pts[i].top >= 86) pts[i].left = Math.min(88, pts[i].left + 20);
+        }
       }
     }
   }
@@ -247,14 +253,15 @@ function Quadrant({ data = {} }) {
         <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, borderLeft: "1px dashed var(--border-strong)" }} />
         <div style={{ position: "absolute", top: "50%", left: 0, right: 0, borderTop: "1px dashed var(--border-strong)" }} />
         {pts.map((p, n) => (
-          <div key={n} style={{ position: "absolute", left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%,-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: p.hero ? 8 : 6, maxWidth: 168 }}>
+          <div key={n} style={{ position: "absolute", left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%,-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: p.hero ? 8 : 6, width: 150 }}>
             {p.hero
               ? <span style={{ width: 30, height: 30, borderRadius: "50%", border: "2px dashed var(--accent-ember)", background: "#fff6f1" }} />
               : <span style={{ width: 13, height: 13, borderRadius: "50%", background: "var(--ink-800)" }} />}
             <span style={{
               fontFamily: p.hero ? "var(--font-mono)" : "var(--font-body)", fontSize: p.hero ? 11 : 11.5,
               fontWeight: p.hero ? 600 : 400, color: p.hero ? "var(--accent-ember-deep)" : "var(--ink-700)",
-              textAlign: "center", lineHeight: 1.25,
+              textAlign: "center", lineHeight: 1.25, wordBreak: "break-word",
+              display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
             }}>{p.label}{p.caption ? <span style={{ opacity: .6 }}> · {p.caption}</span> : null}</span>
           </div>
         ))}

@@ -922,6 +922,10 @@ function ReportsContent(){
     wrapper.appendChild(header);
     // Clone report content
     const content=reportRef.current.cloneNode(true);
+    // Interface chrome must never reach the deliverable. The Regenerate control was
+    // printing on every section of the exported PDF, next to the client's own section
+    // titles.
+    content.querySelectorAll("[data-no-print]").forEach((el) => el.remove());
     // Every citation becomes a real link to its case on Groundwork. This used to guess the
     // entry by fuzzy-matching the link TEXT against descriptions, which mislabelled links
     // and dropped the ones it couldn't match; the id now travels on the element itself.
