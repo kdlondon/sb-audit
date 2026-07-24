@@ -18,7 +18,10 @@ const MODULES = [
   { name: "Scout", href: "/scout", module: "scout", icon: <I sw={1.5}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></I> },
   { name: "Intelligence", href: "/intelligence", module: "reports", icon: <I d="M4 20V11M10 20V4M16 20v-6M20 20H3" /> },
   { name: "Report", href: "/reports", module: "reports", icon: <I><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></I> },
-  { name: "Showcase", href: "/showcase", module: "showcase", icon: <I><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M12 16v4M8 20h8" /></I> },
+  // Showcase is hidden from the sidebar until the visual-presentation module is defined
+  // (parked, per the platform decision). The /showcase route still works; it just isn't a
+  // nav destination for now. Restore this entry when the presentation work resumes.
+  // { name: "Showcase", href: "/showcase", module: "showcase", icon: <I><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M12 16v4M8 20h8" /></I> },
 ];
 
 export default function Sidebar({ forceCollapsed = false }) {

@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import AuthGuard from "@/components/AuthGuard";
-import Nav from "@/components/Nav";
+import Sidebar from "@/components/Sidebar";
+import SectionTabs from "@/components/SectionTabs";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useBrand } from "@/lib/brand-context";
@@ -1061,7 +1062,9 @@ function LandscapeTab({ brandId, orgId }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-6xl mx-auto">
+      {/* Direct competitors and Global references stack in ONE column, one under the
+          other, per the handoff — not side by side. */}
+      <div className="flex flex-col gap-5 max-w-3xl mx-auto">
         {/* ── LOCAL COMPETITORS ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -1146,7 +1149,7 @@ function SettingsContent() {
   const { brandId } = useBrand() || {};
   const { activeOrg } = useRole() || {};
   const orgId = activeOrg?.id;
-  const { projectId } = useProject() || {};
+  const { projectId, projectName } = useProject() || {};
   const { framework, frameworkLoaded, refreshFramework } = useFramework() || {};
 
   const [activeTab, setActiveTab] = useState("profile");
@@ -1158,24 +1161,30 @@ function SettingsContent() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      {/* Header bar */}
-      <div className="section-bar px-5 py-3 flex justify-center items-center" style={{background:"transparent",boxShadow:"none"}}>
-        <div className="flex items-center gap-0.5 bg-surface border border-main rounded-full p-1 shadow-sm">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition ${
-                  activeTab === t.key
-                    ? "kd-seg-active"
-                    : "text-muted hover:text-main"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+    <div className="gw-settings" style={{ minHeight: "100vh", background: "var(--paper)" }}>
+      {/* Within Settings the legacy `--accent` (ink) becomes ember, so every existing
+          bg-accent / text-accent / focus:border action follows the handoff — ember primary
+          and add buttons, ember focus rings — without touching the other modules, which keep
+          ink for `--accent`. */}
+      <style>{`.gw-settings { --accent: var(--accent-ember-deep); }`}</style>
+      {/* Header — PROJECT SETTINGS eyebrow, project title, SETTINGS tag — matching the
+          sticky-glass header of the other modules. */}
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(244,239,233,0.72)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderBottom: "1px solid var(--border-paper)" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 34px 14px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+            <div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--accent-ember-deep)", marginBottom: 8 }}>Project settings</div>
+              <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 28, letterSpacing: "-.01em", margin: 0, color: "var(--ink-900)" }}>{projectName || "Settings"}</h1>
+            </div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 20, padding: "6px 12px", whiteSpace: "nowrap" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 3.6a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+              Settings
+            </span>
           </div>
+          <div style={{ marginTop: 20 }}>
+            <SectionTabs tabs={tabs.map((t) => ({ id: t.key, label: t.label }))} active={activeTab} onChange={setActiveTab} />
+          </div>
+        </div>
       </div>
 
       {/* TAB 1: PROFILE */}
@@ -1201,7 +1210,9 @@ function SettingsContent() {
    ═══════════════════════════════════════════════════════════════ */
 function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshFramework }) {
   const supabase = createClient();
-  const [expandedDims, setExpandedDims] = useState(new Set());
+  // Collapsed by default with the first dimension (Identification) open on load, per the
+  // handoff. Keyed by dim.key.
+  const [expandedDims, setExpandedDims] = useState(() => new Set(["identification"]));
   const [editingDim, setEditingDim] = useState(null);
   const [newDim, setNewDim] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1311,7 +1322,9 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-main">{dim.name}</span>
                     <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{fieldCount} fields</span>
-                    <span className="text-[9px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full font-medium">System</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", background: "var(--paper)", border: "1px solid var(--border-hairline)", borderRadius: 20, padding: "3px 8px" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>System · Locked
+                    </span>
                   </div>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={`text-hint transition ${isOpen ? "rotate-180" : ""}`}><path d="M2 4l3 3 3-3"/></svg>
                 </button>
@@ -1609,8 +1622,15 @@ export default function SettingsPage() {
   return (
     <AuthGuard>
       <ProjectGuard>
-        <Nav />
-        <SettingsContent />
+        {/* Settings now lives inside the persistent sidebar shell like every other module,
+            instead of the old top black nav bar. The shell also supplies the --accent-ember
+            custom properties, so ember actions resolve here at last. */}
+        <div className="gw-shell" style={{ display: "flex", minHeight: "100vh", background: "var(--paper)" }}>
+          <Sidebar />
+          <main style={{ flex: 1, minWidth: 0, minHeight: "100vh", overflowY: "auto" }}>
+            <SettingsContent />
+          </main>
+        </div>
       </ProjectGuard>
     </AuthGuard>
   );
