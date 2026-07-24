@@ -1307,12 +1307,13 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h3 className="text-lg font-bold text-main mb-2">Analysis Framework</h3>
-      <p className="text-xs text-muted mb-6">Dimensions define the structure of your audit form and AI analysis. System dimensions are always present. Custom dimensions are specific to this brand.</p>
-
+    <div style={{ paddingTop: 4 }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "8px 34px 0" }}>
+        <p className="text-xs text-muted" style={{ maxWidth: 720 }}>Dimensions define the structure of your audit form and AI analysis. System dimensions are always present. Custom dimensions are specific to this brand.</p>
+      </div>
+      <SettingsBody anchors={[["system","System dimensions"],["custom","Your dimensions"],["context","AI analysis context"]]}>
       {/* ── SECTION 1: System dimensions (read-only) ── */}
-      <div className="mb-8">
+      <div data-sec="system" className="mb-8">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Groundwork dimensions</h4>
         <div className="space-y-2">
           {SYSTEM_DIMENSIONS.map(dim => {
@@ -1352,7 +1353,7 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
       </div>
 
       {/* ── SECTION 2: Custom dimensions (editable) ── */}
-      <div>
+      <div data-sec="custom">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Your personalised dimensions</h4>
 
         {customDims.length === 0 && !newDim && (
@@ -1439,7 +1440,7 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
       </div>
 
       {/* ── SECTION 3: AI Analysis Context (framework_text) ── */}
-      <div className="mt-8 pt-6 border-t border-main">
+      <div data-sec="context" className="mt-8 pt-6 border-t border-main">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">AI analysis context</h4>
         <p className="text-[11px] text-hint mb-3">
           This text is included in every AI analysis prompt. It provides detailed definitions, classification rules,
@@ -1472,6 +1473,7 @@ function FrameworkTab({ brandId, projectId, framework, frameworkLoaded, refreshF
           </button>
         </div>
       </div>
+      </SettingsBody>
 
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-main text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-xl animate-fadeIn" style={{ zIndex: 99999 }}>{toast}</div>}
     </div>

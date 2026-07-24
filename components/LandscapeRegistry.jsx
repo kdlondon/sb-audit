@@ -1,4 +1,5 @@
 "use client";
+import { SettingsBody } from "@/components/settings/SettingsLayout";
 // Competitive Landscape CRUD over the normalized project_brands registry
 // (docs/competitive-landscape.md, step 2). Groups: Principal (highlighted) ·
 // Direct competitors · Global references. Adjacent rows render inside Direct
@@ -354,9 +355,9 @@ export default function LandscapeRegistry({ projectId, orgId }) {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto space-y-6">
+      <SettingsBody anchors={[["principal","Principal brand"],["direct","Direct competitors"],["global","Global references"]]}>
         {/* PRINCIPAL */}
-        <div>
+        <div data-sec="principal">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="text-sm font-bold text-main">Principal brand</h3>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "var(--accent)" }}>Study subject</span>
@@ -368,9 +369,9 @@ export default function LandscapeRegistry({ projectId, orgId }) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="flex flex-col gap-6">
           {/* DIRECT */}
-          <div>
+          <div data-sec="direct">
             <div className="flex items-center gap-2 mb-3">
               <h3 className="text-sm font-bold text-main">Direct competitors</h3>
               <span className="text-[10px] px-2 py-0.5 bg-accent-soft text-accent rounded-full font-medium">{directs.length}</span>
@@ -385,7 +386,7 @@ export default function LandscapeRegistry({ projectId, orgId }) {
           </div>
 
           {/* GLOBAL */}
-          <div>
+          <div data-sec="global">
             <div className="flex items-center gap-2 mb-3">
               <h3 className="text-sm font-bold text-main">Global references</h3>
               <span className="text-[10px] px-2 py-0.5 bg-accent-soft text-accent rounded-full font-medium">{globals.length}</span>
@@ -422,7 +423,7 @@ export default function LandscapeRegistry({ projectId, orgId }) {
             )}
           </div>
         )}
-      </div>
+      </SettingsBody>
 
       {/* Confirm archive modal */}
       {confirmArchive && (
