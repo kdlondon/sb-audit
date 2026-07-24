@@ -75,17 +75,26 @@ export const isVisualBlock = (b) =>
   b && ["kpi", "bars", "split", "heatmap", "quadrant", "pullquote", "compare", "cases", "timeline", "plays"].includes(b.type);
 
 function KpiRow({ data = {} }) {
-  const items = data.items || [];
+  const items = (data.items || []).slice(0, 4);
   if (!items.length) return null;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(items.length, 4)}, minmax(0,1fr))`, gap: 12, margin: "18px 0" }}>
-      {items.map((i, n) => (
-        <div key={n} style={{ ...CARD, margin: 0, padding: "16px 18px" }}>
-          <div style={{ ...EYEBROW, marginBottom: 10 }}>{i.label}</div>
-          <div style={{ fontFamily: "var(--font-numeral)", fontSize: 34, lineHeight: 1, color: i.hero ? "var(--accent-ember)" : "var(--ink-900)" }}>{i.value}</div>
-          {i.caption && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>{i.caption}</div>}
-        </div>
-      ))}
+    <div className="gw-nobreak" style={{ ...CARD, padding: 26 }}>
+      <CardHead title={data.title} hint={data.hint} mark={!!data.title} />
+      {/* auto-fit rather than a fixed 4 columns: the grid falls to 2-up in the PDF's
+          narrower box instead of crushing the numerals. */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+        {items.map((i, n) => (
+          <div key={n} style={{
+            background: i.hero ? "var(--ink-900)" : "var(--paper)",
+            border: i.hero ? "1px solid var(--ink-900)" : "1px solid var(--border-hairline)",
+            borderRadius: 12, padding: 18,
+          }}>
+            <div style={{ ...LBL, color: i.hero ? "#8a8378" : "var(--text-muted)" }}>{i.label}</div>
+            <div style={{ fontFamily: "var(--font-numeral)", fontWeight: 700, fontSize: 44, lineHeight: 1, marginTop: 10, color: i.hero ? "var(--accent-ember)" : "var(--ink-900)" }}>{i.value}</div>
+            {i.caption && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: i.hero ? "#8a8378" : "var(--text-muted)", marginTop: 8 }}>{i.caption}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -95,21 +104,21 @@ function Bars({ data = {} }) {
   if (!items.length) return null;
   const max = data.max || Math.max(1, ...items.map((i) => Number(i.value) || 0));
   return (
-    <div style={CARD}>
+    <div className="gw-nobreak" style={{ ...CARD, padding: "26px 28px" }}>
       <CardHead title={data.title} hint={data.hint} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items.map((i, n) => (
-          <div key={n} style={{ display: "grid", gridTemplateColumns: "132px 1fr 58px", alignItems: "center", gap: 12 }}>
-            <span style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--ink-800)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.label}</span>
-            <div style={{ height: 14, borderRadius: 7, background: TRACK, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${Math.max(2, ((Number(i.value) || 0) / max) * 100)}%`, borderRadius: 7, background: i.hero ? "var(--accent-ember)" : "var(--ink-800)" }} />
+          <div key={n} style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ width: 190, flex: "none", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.label}</div>
+            <div style={{ flex: 1, height: 22, background: "var(--paper)", borderRadius: 5, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${Math.max(2, ((Number(i.value) || 0) / max) * 100)}%`, background: i.hero ? "var(--accent-ember)" : "var(--ink-800)" }} />
             </div>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>{i.display || nf(i.value)}</span>
+            <div style={{ width: 42, flex: "none", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-700)" }}>{i.display || nf(i.value)}</div>
           </div>
         ))}
       </div>
       {items.some((i) => i.caption) && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, color: "var(--text-muted)", marginTop: 12 }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, color: "var(--text-muted)", marginTop: 14 }}>
           {items.filter((i) => i.caption).map((i) => `${i.label}: ${i.caption}`).join("  ·  ")}
         </div>
       )}
@@ -121,20 +130,25 @@ function Split({ data = {} }) {
   const items = (data.items || []).filter((i) => Number(i.value) > 0);
   if (!items.length) return null;
   const total = items.reduce((s, i) => s + Number(i.value), 0) || 1;
+  const pct = (v) => Math.round((Number(v) / total) * 100);
   return (
-    <div style={CARD}>
-      <CardHead title={data.title} />
-      <div style={{ display: "flex", height: 22, borderRadius: 11, overflow: "hidden" }}>
+    <div className="gw-nobreak" style={{ ...CARD, padding: "26px 28px" }}>
+      <CardHead title={data.title} hint={data.hint} />
+      {/* The one block where multiple colours are allowed — a mix genuinely has series. */}
+      <div style={{ display: "flex", height: 34, borderRadius: 8, overflow: "hidden" }}>
         {items.map((i, n) => (
-          <div key={n} title={`${i.label} ${Math.round((i.value / total) * 100)}%`}
-            style={{ width: `${(i.value / total) * 100}%`, background: WARM[n % WARM.length] }} />
+          <div key={n} title={`${i.label} ${pct(i.value)}%`}
+            style={{ width: `${(Number(i.value) / total) * 100}%`, background: WARM[n % WARM.length], display: "flex", alignItems: "center", paddingLeft: 12, overflow: "hidden" }}>
+            {/* Below 5% the label cannot fit and would clip mid-digit. */}
+            {pct(i.value) >= 5 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#fff", whiteSpace: "nowrap" }}>{pct(i.value)}%</span>}
+          </div>
         ))}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", marginTop: 12 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", marginTop: 16 }}>
         {items.map((i, n) => (
-          <span key={n} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-secondary)" }}>
-            <span style={{ width: 9, height: 9, borderRadius: 3, background: WARM[n % WARM.length] }} />
-            {i.label} {Math.round((i.value / total) * 100)}%
+          <span key={n} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-secondary)" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: WARM[n % WARM.length] }} />
+            {i.label} {pct(i.value)}%
           </span>
         ))}
       </div>
@@ -148,113 +162,107 @@ function Heatmap({ data = {} }) {
   const flat = cells.flat().map(Number).filter(Number.isFinite);
   const max = Math.max(1, ...flat);
   return (
-    <div style={{ ...CARD, overflowX: "auto" }}>
-      <CardHead title={data.title} />
-      <table style={{ borderCollapse: "separate", borderSpacing: 3, minWidth: 420 }}>
-        <thead>
-          <tr>
-            <th />
-            {cols.map((c) => (
-              <th key={c} style={{ ...EYEBROW, marginBottom: 0, padding: "0 4px 8px", textAlign: "left", fontWeight: 500, verticalAlign: "bottom" }}>{c}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, ri) => (
-            <tr key={r}>
-              <td style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--ink-800)", paddingRight: 10, whiteSpace: "nowrap" }}>{r}</td>
-              {cols.map((c, ci) => {
-                const v = Number((cells[ri] || [])[ci]) || 0;
-                const isHero = hero && hero[0] === ri && hero[1] === ci;
-                return (
-                  <td key={c} style={{ padding: 0 }}>
-                    <div title={`${r} · ${c}: ${v}`} style={{
-                      height: 30, minWidth: 52, borderRadius: 6,
-                      background: isHero ? "var(--accent-ember)" : `rgba(26,26,26,${0.06 + (v / max) * 0.62})`,
-                    }} />
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".1em", color: "var(--text-muted)" }}>
-        WEAK
-        <span style={{ display: "flex", gap: 2 }}>
-          {[0.08, 0.22, 0.38, 0.54, 0.68].map((o) => <span key={o} style={{ width: 16, height: 8, borderRadius: 2, background: `rgba(26,26,26,${o})` }} />)}
-        </span>
-        STRONG
+    <div className="gw-nobreak" style={{ ...CARD, padding: "26px 28px", overflowX: "auto" }}>
+      <CardHead title={data.title} hint={data.hint} />
+      <div style={{ display: "grid", gridTemplateColumns: `150px repeat(${cols.length}, minmax(90px, 1fr))`, gap: 6, minWidth: 150 + cols.length * 96 }}>
+        <div />
+        {cols.map((c) => <div key={c} style={{ ...LBL, textAlign: "center" }}>{c}</div>)}
+        {rows.map((r, ri) => (
+          <Fragment key={r}>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--ink-900)", display: "flex", alignItems: "center" }}>{r}</div>
+            {cols.map((c, ci) => {
+              const raw = (cells[ri] || [])[ci];
+              const has = raw !== null && raw !== undefined && raw !== "";
+              const v = Number(raw) || 0;
+              const isHero = hero && hero[0] === ri && hero[1] === ci;
+              const strength = v / max;
+              return (
+                <div key={c} title={`${r} · ${c}: ${has ? v : "—"}`} style={{
+                  height: 38, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: !has ? "var(--paper)" : isHero ? "var(--accent-ember)" : `rgba(26,26,26,${0.06 + strength * 0.62})`,
+                  fontFamily: "var(--font-mono)", fontSize: 11,
+                  color: !has ? "var(--ink-300)" : (isHero || strength > 0.55) ? "#fff" : "var(--ink-800)",
+                }}>{has ? v : "—"}</div>
+              );
+            })}
+          </Fragment>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+        Weak
+        <span style={{ width: 120, height: 8, borderRadius: 4, background: "linear-gradient(90deg,#efe7dc,var(--ink-900))" }} />
+        Strong
       </div>
     </div>
   );
 }
 
-// White-space 2×2. Items are BUCKETED into the four quadrants and laid out as pills
-// inside each cell — free scatter piled dozens of labels on top of each other and made
-// the chart unreadable. The open + in-demand cell is the opportunity, marked ember.
+// The 2×2 field. The handoff plots it — 3 to 8 points on a 340px field, the opportunity
+// ringed in dashed ember — so the builders cap what they send. Earlier this rendered as
+// bucketed pills because the landscape section pushed sixty territories at it and free
+// scatter piled them on top of each other; the cap moved upstream, where it belongs.
 function Quadrant({ data = {} }) {
-  const raw = data.points || [];
+  const raw = (data.points || []).slice(0, 8);
   if (raw.length < 3) return null;
 
-  // Be robust to any stored data: blocks are persisted inside the document, so a report
-  // generated before the bucketing existed still arrives here. If open/wanted are missing,
-  // derive them from x/y around the medians; and cap per cell whatever the source said, so
-  // an old uncapped block can't stack forty pills down one column.
+  // Stored blocks come from any version of the generator, so derive what may be missing
+  // rather than trusting the payload.
   const med = (vals) => { const s = [...vals].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
-  const needsDerive = raw.some((p) => p.open === undefined || p.wanted === undefined);
-  const xm = med(raw.map((p) => Number(p.x) || 0));
-  const ym = med(raw.map((p) => Number(p.y) || 0));
-  const pts = raw.map((p) => needsDerive
-    ? { ...p, open: (Number(p.x) || 0) <= xm, wanted: (Number(p.y) || 0) >= ym, hero: (Number(p.x) || 0) <= xm && (Number(p.y) || 0) >= ym }
-    : p);
+  const xs = raw.map((p) => Number(p.x) || 0), ys = raw.map((p) => Number(p.y) || 0);
+  const xm = med(xs), ym = med(ys);
+  const span = (arr) => { const lo = Math.min(...arr), hi = Math.max(...arr); return { lo, range: hi - lo || 1 }; };
+  const sx = span(xs), sy = span(ys);
 
-  const PER_CELL = 4;
-  const cell = (open, wanted) => pts
-    .filter((p) => !!p.open === open && !!p.wanted === wanted)
-    .sort((a, b) => (open ? (Number(b.y) || 0) - (Number(a.y) || 0) : (Number(b.x) || 0) - (Number(a.x) || 0)))
-    .slice(0, PER_CELL);
-  const Cell = ({ open, wanted, corner }) => {
-    const items = cell(open, wanted);
-    return (
-      <div style={{ minHeight: 104, padding: 12, display: "flex", flexDirection: "column", gap: 7, alignItems: open ? "flex-start" : "flex-end", justifyContent: wanted ? "flex-start" : "flex-end" }}>
-        {corner && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--ink-300)" }}>{corner}</span>}
-        {items.map((p, n) => (
-          <span key={n} style={{
-            display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 16, maxWidth: "100%",
-            background: p.hero ? "var(--accent-ember)" : "var(--brand-white)",
-            border: `1px solid ${p.hero ? "var(--accent-ember)" : "var(--border-hairline)"}`,
-            color: p.hero ? "#fff" : "var(--text-secondary)",
-            fontFamily: "var(--font-body)", fontSize: 12, fontWeight: p.hero ? 600 : 400,
-          }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}{p.caption ? <span style={{ opacity: .65, fontWeight: 400 }}> · {p.caption}</span> : null}</span>
-            {p.hero && <span style={{ flex: "none" }}>✦</span>}
-          </span>
+  // Map into the plot with an inset so labels never touch the frame.
+  const place = (v, s) => 12 + ((v - s.lo) / s.range) * 76;
+  const pts = raw.map((p) => {
+    const x = Number(p.x) || 0, y = Number(p.y) || 0;
+    const hero = p.hero !== undefined ? p.hero : (x <= xm && y >= ym);
+    return { ...p, hero, left: place(x, sx), top: 100 - place(y, sy) };
+  });
+
+  // Two points on identical coordinates would print one label on top of the other; nudge
+  // the later one just enough to read.
+  for (let i = 1; i < pts.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (Math.abs(pts[i].left - pts[j].left) < 9 && Math.abs(pts[i].top - pts[j].top) < 11) {
+        pts[i].left = Math.min(92, pts[i].left + 9);
+        pts[i].top = Math.min(88, pts[i].top + 11);
+      }
+    }
+  }
+
+  const corner = { position: "absolute", fontFamily: "var(--font-mono)", fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)" };
+  const [xLo, xHi] = String(data.xLabel || "little worked ↔ crowded").split("↔").map((t) => t.trim());
+  const [yLo, yHi] = String(data.yLabel || "↑ pull with the audience").replace("↑", "").trim().split("↔").map((t) => t.trim());
+
+  return (
+    <div className="gw-nobreak" style={{ ...CARD, padding: "26px 28px" }}>
+      <CardHead title={data.title} analyst={data.qualitative !== false} />
+      <div style={{ position: "relative", height: 340, border: "1px solid var(--border-hairline)", borderRadius: 12, background: "var(--paper)" }}>
+        <div style={{ ...corner, top: 12, left: 14 }}>{yHi || yLo || "High"}</div>
+        <div style={{ ...corner, bottom: 12, left: 14 }}>{yLo && yHi ? yLo : "Low"}</div>
+        <div style={{ ...corner, top: 12, right: 14 }}>{xHi || "crowded →"}</div>
+        <div style={{ ...corner, bottom: 12, right: 14 }}>{`← ${xLo || "little worked"}`}</div>
+        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, borderLeft: "1px dashed var(--border-strong)" }} />
+        <div style={{ position: "absolute", top: "50%", left: 0, right: 0, borderTop: "1px dashed var(--border-strong)" }} />
+        {pts.map((p, n) => (
+          <div key={n} style={{ position: "absolute", left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%,-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: p.hero ? 8 : 6, maxWidth: 168 }}>
+            {p.hero
+              ? <span style={{ width: 30, height: 30, borderRadius: "50%", border: "2px dashed var(--accent-ember)", background: "#fff6f1" }} />
+              : <span style={{ width: 13, height: 13, borderRadius: "50%", background: "var(--ink-800)" }} />}
+            <span style={{
+              fontFamily: p.hero ? "var(--font-mono)" : "var(--font-body)", fontSize: p.hero ? 11 : 11.5,
+              fontWeight: p.hero ? 600 : 400, color: p.hero ? "var(--accent-ember-deep)" : "var(--ink-700)",
+              textAlign: "center", lineHeight: 1.25,
+            }}>{p.label}{p.caption ? <span style={{ opacity: .6 }}> · {p.caption}</span> : null}</span>
+          </div>
         ))}
       </div>
-    );
-  };
-  return (
-    <div style={CARD}>
-      <CardHead title={data.title} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid var(--border-hairline)", borderRadius: 10, overflow: "hidden", background: "var(--paper)" }}>
-        <div style={{ borderRight: "1px dashed var(--border-strong)", borderBottom: "1px dashed var(--border-strong)" }}><Cell open wanted corner="LOW SUPPLY · HIGH DEMAND" /></div>
-        <div style={{ borderBottom: "1px dashed var(--border-strong)" }}><Cell open={false} wanted corner="CROWDED · HIGH DEMAND" /></div>
-        <div style={{ borderRight: "1px dashed var(--border-strong)" }}><Cell open wanted={false} /></div>
-        <div><Cell open={false} wanted={false} /></div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 10 }}>
-        <span>{data.xLabel || "supply →"}</span>
-        <span>{data.yLabel || "↑ demand"}</span>
-      </div>
-      {/* Without this the chart is a puzzle: it never said what ember meant. */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border-hairline)" }}>
-        <span style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 14, background: "var(--accent-ember)", color: "#fff", fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600 }}>✦</span>
-        <span style={{ fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)" }}>
-          <b>The white space</b> — {data.qualitative
-            ? <>the openings named in this section: little worked by the category, but with real pull. Both axes are the analyst&rsquo;s read of the evidence, not a count.</>
-            : <>territories few brands publish that still perform well. Positions come from the captured pieces and their ratings.</>}
-        </span>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".08em", color: "var(--text-muted)", marginTop: 12, lineHeight: 1.5 }}>
+        {data.qualitative !== false
+          ? "Axes are qualitative — the analyst's read of the field, not a count. The dashed ember ring marks the open, in-demand territory."
+          : "Positions come from the captured pieces and their ratings. The dashed ember ring marks the open, in-demand territory."}
       </div>
     </div>
   );
@@ -263,10 +271,12 @@ function Quadrant({ data = {} }) {
 function PullQuote({ data = {} }) {
   if (!data.text) return null;
   return (
-    <blockquote style={{ margin: "22px 0", padding: "4px 0 4px 20px", borderLeft: "3px solid var(--accent-ember)" }}>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: 19, lineHeight: 1.45, color: "var(--ink-900)", margin: 0 }}>{data.text}</p>
-      {data.attribution && <cite style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 10, fontStyle: "normal" }}>{data.attribution}</cite>}
-    </blockquote>
+    <div className="gw-nobreak" style={{ ...CARD, padding: "34px 38px" }}>
+      <div style={{ borderLeft: "3px solid var(--accent-ember)", paddingLeft: 24 }}>
+        <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 26, lineHeight: 1.28, color: "var(--ink-900)", margin: 0 }}>&ldquo;{data.text}&rdquo;</p>
+        {data.attribution && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)", marginTop: 16 }}>{data.attribution}</div>}
+      </div>
+    </div>
   );
 }
 

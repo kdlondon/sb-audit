@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { innovationVisuals } from "@/lib/report-visuals";
-import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
+import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/lib/report-section-data";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 import { MODELS } from "@/lib/models";
@@ -115,16 +115,21 @@ export async function POST(request) {
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const dir = [(cfgMap[key]?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior innovation strategist writing the "${sd.title}" section of an Innovation Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE:\n${ctx(selFor()).slice(0, 7000)}`;
-    const { markdown, data } = extractSectionData(await claude(apiKey, prompt, 3200));
-    return { key, title: sd.title, markdown, data };
+    const { markdown: noLead, lead } = extractLead(await claude(apiKey, prompt + LEAD_RULE, 3200));
+    const { markdown, data } = extractSectionData(noLead);
+    return { key, title: sd.title, markdown, data, lead };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "exec", title: titleFor.exec, markdown: await claude(apiKey, `Write the EXECUTIVE READ of this Innovation Report for ${client} in ${category}: 3-4 sentences on who owns the innovation narrative, where it is thin, and the single biggest move. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} No methodology, no emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700) };
+    const raw = await claude(apiKey, `Write the EXECUTIVE READ of this Innovation Report for ${client} in ${category}: 3-4 sentences on who owns the innovation narrative, where it is thin, and the single biggest move. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} No methodology, no emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}` + LEAD_RULE, 700);
+    const { markdown, lead } = extractLead(raw);
+    return { key: "exec", title: titleFor.exec, markdown, lead };
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
+    const raw = await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
+    const { markdown, lead } = extractLead(raw);
+    return { key: "recommendations", title: titleFor.recommendations, markdown, lead };
   };
   // Computed from the innovation pool the prompts already use — never asked of the model.
   // Only the gaps arrive as the analysis's own data, for the same reason white space does.

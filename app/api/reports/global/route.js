@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { globalVisuals } from "@/lib/report-visuals";
-import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
+import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/lib/report-section-data";
 import { loadFramework } from "@/lib/framework-loader";
 
 export const dynamic = "force-dynamic";
@@ -129,14 +129,16 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
     const prompt = `You are a senior creative strategist writing the "${sd.title}" section of a Global Creative Inspiration report.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
-    const { markdown, data } = extractSectionData(await claude(apiKey, prompt, 2000));
-    return { key, title: sd.title, markdown, data };
+    const { markdown: noLead, lead } = extractLead(await claude(apiKey, prompt + LEAD_RULE, 2000));
+    const { markdown, data } = extractSectionData(noLead);
+    return { key, title: sd.title, markdown, data, lead };
   };
   const genPlays = async (body) => {
     const dir = dirOf("plays");
-    const raw = await claude(apiKey, `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.${dataInstruction(`[{"name":"the play, 3-6 words","move":"what to do in one line"}]`, `One object per play, same order as the prose.`)}\n\nSECTIONS:\n${body}`, 1200);
-    const { markdown, data } = extractSectionData(raw);
-    return { key: "plays", title: "Transferable plays", markdown, data };
+    const raw = await claude(apiKey, LEAD_RULE + `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.${dataInstruction(`[{"name":"the play, 3-6 words","move":"what to do in one line"}]`, `One object per play, same order as the prose.`)}\n\nSECTIONS:\n${body}`, 1200);
+    const { markdown: noLead, lead } = extractLead(raw);
+    const { markdown, data } = extractSectionData(noLead);
+    return { key: "plays", title: "Transferable plays", markdown, data, lead };
   };
   // Visual blocks come from the SAME numbers the prompts use — computed, never asked of the
   // model — except the gallery and the plays, which are the analysis's own selection and

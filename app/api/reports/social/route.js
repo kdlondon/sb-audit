@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 import { engagementRate, avgEngagementRate, fmtRate } from "@/lib/engagement";
 import { socialVisuals } from "@/lib/report-visuals";
+import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/lib/report-section-data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 7 sections in 2 passes; give Vercel headroom
@@ -174,11 +175,15 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
     const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Benchmark.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 3200) };
+    const { markdown: noLead, lead } = extractLead(await claude(apiKey, prompt + LEAD_RULE, 3200));
+    const { markdown, data } = extractSectionData(noLead);
+    return { key, title: sd.title, markdown, data, lead };
   };
   const genTakeaways = async (body) => {
     const dir = dirOf("takeaways");
-    return { key: "takeaways", title: "Takeaways", markdown: await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
+    const raw = await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
+    const { markdown, lead } = extractLead(raw);
+    return { key: "takeaways", title: "Takeaways", markdown, lead };
   };
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, posts: pool.length, pillars: pillarLandscape.length, dateRange };
 

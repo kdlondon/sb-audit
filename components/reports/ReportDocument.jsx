@@ -32,7 +32,7 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
   for (const b of doc.blocks) {
     const key = b.sectionKey || "_";
     const last = sections[sections.length - 1];
-    if (!last || last.key !== key) sections.push({ key, title: null, blocks: [] });
+    if (!last || last.key !== key) sections.push({ key, title: null, lead: null, eyebrow: null, blocks: [] });
     const cur = sections[sections.length - 1];
     // The first h2 of a section is its title — promoted out of the prose.
     if (b.type === "h2" && cur.title === null && cur.blocks.length === 0) { cur.title = b.text; continue; }
@@ -40,6 +40,7 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
     // label and the heading the engine wrote. If a second heading opens the section, it is
     // that generated one — prefer it and drop the label, rather than printing both.
     if (b.type === "h2" && cur.blocks.length === 0) { cur.title = b.text; continue; }
+    if (b.type === "lead") { cur.lead = b.data?.text || null; cur.eyebrow = b.data?.eyebrow || null; continue; }
     // A heading that merely restates the section title (any level, any case) is a
     // duplicate — engines often open with "# EXECUTIVE READ" under a section already
     // called Executive read.
@@ -54,17 +55,29 @@ export default function ReportDocument({ report, renderMarkdown, breadcrumb, onR
       {sections.map((sec, si) => {
         const numeral = sec.title ? String(++n).padStart(2, "0") : null;
         return (
-          <section key={si} style={{ marginBottom: 44 }}>
+          <section key={si} style={{ marginBottom: 56, paddingBottom: 56, borderBottom: si === sections.length - 1 ? "none" : "1px solid var(--border-hairline)" }}>
             {sec.title && (
-              <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: "var(--ink-300)", flex: "none" }}>{numeral}</span>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, letterSpacing: "-.01em", color: "var(--ink-900)", margin: 0, flex: 1 }}>{sec.title}</h2>
-                {notice?.key === sec.key && (
-                  <SectionFlag notice={notice} onUndo={onUndo} onDismiss={onDismissNotice} />
-                )}
-                {onRegenerate && sec.key !== "_" && (
-                  <RegenerateControl sectionKey={sec.key} busy={regeneratingKey === sec.key} onRegenerate={onRegenerate} />
-                )}
+              /* Every section opens identically — numeral, eyebrow, title, one-line lead —
+                 so a seven-section read stays navigable and never flattens into one wall. */
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 22, marginBottom: 24 }}>
+                <span style={{ fontFamily: "var(--font-numeral)", fontWeight: 700, fontSize: 40, lineHeight: .9, color: "var(--ink-200)", flex: "none" }}>{numeral}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {sec.eyebrow && (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--accent-ember-deep)" }}>{sec.eyebrow}</div>
+                  )}
+                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 700, letterSpacing: "-.01em", lineHeight: 1.15, color: "var(--ink-900)", margin: sec.eyebrow ? "9px 0 0" : 0 }}>{sec.title}</h2>
+                  {sec.lead && (
+                    <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: 16, lineHeight: 1.45, color: "var(--text-secondary)", margin: "12px 0 0", maxWidth: 640 }}>{sec.lead}</p>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
+                  {notice?.key === sec.key && (
+                    <SectionFlag notice={notice} onUndo={onUndo} onDismiss={onDismissNotice} />
+                  )}
+                  {onRegenerate && sec.key !== "_" && (
+                    <RegenerateControl sectionKey={sec.key} busy={regeneratingKey === sec.key} onRegenerate={onRegenerate} />
+                  )}
+                </div>
               </div>
             )}
             <div style={{ animation: regeneratingKey === sec.key ? "gwpulse .9s ease-in-out infinite" : undefined }}>

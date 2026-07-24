@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 import { flagshipVisuals } from "@/lib/report-visuals";
-import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
+import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/lib/report-section-data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 6 weighted sections in 2 passes ~50s; give Vercel headroom
@@ -146,17 +146,22 @@ supply = how covered the space already is (1 = nobody, 5 = crowded). demand = ho
     const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
     const dir = [custom, ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
-    const raw = await claude(apiKey, prompt, 4000);
-    const { markdown, data } = extractSectionData(raw);
-    return { key, title: sd.title, markdown, data };
+    const raw = await claude(apiKey, prompt + LEAD_RULE, 4000);
+    const { markdown: noLead, lead } = extractLead(raw);
+    const { markdown, data } = extractSectionData(noLead);
+    return { key, title: sd.title, markdown, data, lead };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "exec", title: titleFor.exec, markdown: await claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}`, 700) };
+    const raw = await claude(apiKey, `Write the EXECUTIVE READ (the strategic headline) of this Strategic Positioning Report for ${client} in ${category}. 3-4 sentences synthesizing the sections below: where the category is saturated, where it is open, and the single biggest strategic move. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""} Do NOT mention methodology or how you analyzed — finished client-facing prose only. No emojis. Write in ${lang}. Markdown.\n\nSECTIONS:\n${body}` + LEAD_RULE, 700);
+    const { markdown, lead } = extractLead(raw);
+    return { key: "exec", title: titleFor.exec, markdown, lead };
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
+    const raw = await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
+    const { markdown, lead } = extractLead(raw);
+    return { key: "recommendations", title: titleFor.recommendations, markdown, lead };
   };
   const inRange = pieces.filter(passFilter).length;
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, inRange, brandDna: dnaPieces.length };
