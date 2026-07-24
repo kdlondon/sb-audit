@@ -112,8 +112,8 @@ function Bars({ data = {} }) {
             {/* Territory names run long in Spanish and were being sliced mid-word — and
                 mid-glyph in the PDF, where the rasteriser clipped the overflow box. Two
                 lines, clamped, so the label survives the export. */}
-            <div style={{ width: 190, flex: "none", fontFamily: "var(--font-body)", fontSize: 12.5, lineHeight: 1.25, color: "var(--ink-900)",
-              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>{i.label}</div>
+            <div style={{ width: 190, flex: "none", fontFamily: "var(--font-body)", fontSize: 12.5, lineHeight: 1.3, color: "var(--ink-900)",
+              wordBreak: "break-word", paddingBlock: 2 }}>{i.label}</div>
             <div style={{ flex: 1, height: 22, background: "var(--paper)", borderRadius: 5, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${Math.max(2, ((Number(i.value) || 0) / max) * 100)}%`, background: i.hero ? "var(--accent-ember)" : "var(--ink-800)" }} />
             </div>
@@ -260,8 +260,7 @@ function Quadrant({ data = {} }) {
             <span style={{
               fontFamily: p.hero ? "var(--font-mono)" : "var(--font-body)", fontSize: p.hero ? 11 : 11.5,
               fontWeight: p.hero ? 600 : 400, color: p.hero ? "var(--accent-ember-deep)" : "var(--ink-700)",
-              textAlign: "center", lineHeight: 1.25, wordBreak: "break-word",
-              display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+              textAlign: "center", lineHeight: 1.3, wordBreak: "break-word",
             }}>{p.label}{p.caption ? <span style={{ opacity: .6 }}> · {p.caption}</span> : null}</span>
           </div>
         ))}
