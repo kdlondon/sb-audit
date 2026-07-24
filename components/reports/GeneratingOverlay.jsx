@@ -12,7 +12,7 @@ const Spinner = () => (
 const Check = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>;
 const Bang = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /></svg>;
 
-export default function GeneratingOverlay({ sections = [], statuses = {}, errors = {}, saveError = null, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onDismiss }) {
+export default function GeneratingOverlay({ sections = [], statuses = {}, errors = {}, saveError = null, done = 0, total = 0, failed = [], finished = false, onOpenPartial, onRetry, onRetrySave, onDismiss }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const someFailed = failed.length > 0 || !!saveError;
 
@@ -78,7 +78,15 @@ export default function GeneratingOverlay({ sections = [], statuses = {}, errors
 
         {finished && (
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22 }}>
-            {someFailed && onRetry && (
+            {/* A save failure is recoverable — the sections are written and in memory, only
+                the write failed. Retrying beats making the analyst generate them again. */}
+            {saveError && onRetrySave && (
+              <button onClick={onRetrySave} className="gw-ember-btn"
+                style={{ background: "var(--accent-ember)", color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600 }}>
+                Retry save
+              </button>
+            )}
+            {failed.length > 0 && onRetry && (
               <button onClick={onRetry} style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 8, padding: "9px 14px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-secondary)" }}>
                 Retry {failed.length} section{failed.length === 1 ? "" : "s"}
               </button>

@@ -443,6 +443,19 @@ function ReportsContent(){
 
   // Generate section-by-section against the card's engine, saving as it goes so a
   // mid-run failure never discards what already landed (lib/report-generate).
+  // A report run lasts minutes, so a token captured when it started can expire before the
+  // last section is saved — which once cost a full 7-section report. Resolve the token at
+  // call time and refresh it when it is close to expiry.
+  const authHeader=async(force)=>{
+    let{data:{session}}=await supabase.auth.getSession();
+    const expSoon=session?.expires_at?(session.expires_at*1000-Date.now()<120000):false;
+    if(force||expSoon){
+      const{data}=await supabase.auth.refreshSession();
+      if(data?.session)session=data.session;
+    }
+    return session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{};
+  };
+
   const runV2Generate=async(card,cfg,only)=>{
     if(!card||!projectId)return;
     const picked=(cfg.sections||[]).filter(s=>s.on!==false);
@@ -490,12 +503,18 @@ function ReportsContent(){
       };
       // Saved server-side: saved_reports' RLS allows INSERT but rejects UPDATE, so writing
       // from the client silently affected no rows after the first section.
-      const res=await fetch("/api/reports/save",{
-        method:"POST",
-        headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},
-        body:JSON.stringify({report:row}),
-      });
-      const out=await res.json().catch(()=>({}));
+      const post=async(force)=>{
+        const res=await fetch("/api/reports/save",{
+          method:"POST",
+          headers:{"Content-Type":"application/json",...(await authHeader(force))},
+          body:JSON.stringify({report:row}),
+        });
+        return{res,out:await res.json().catch(()=>({}))};
+      };
+      let{res,out}=await post(false);
+      // An expired token is recoverable: refresh and retry once rather than discarding
+      // sections that are already written and paid for.
+      if(res.status===401){({res,out}=await post(true));}
       if(!res.ok||out.error)throw new Error(`Could not save report: ${out.error||res.statusText}`);
     };
 
@@ -508,6 +527,9 @@ function ReportsContent(){
       }:prev),
     });
 
+    // Hold on to the finished document and its saver: if only the WRITE failed, the whole
+    // report is still in memory and one retry recovers it.
+    v2RunRef.current={...v2RunRef.current,doc:r.doc,saveDoc};
     setV2Run(prev=>prev?{...prev,failed:r.failed,errors:r.errors,saveError:r.saveError,finished:true,done:r.produced.length}:prev);
     const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
     setSavedReports(reports||[]);
@@ -517,6 +539,20 @@ function ReportsContent(){
   // Only that section's blocks are replaced; everything else is left untouched.
   const[regenKeyBusy,setRegenKeyBusy]=useState(null);
   const[regenNotice,setRegenNotice]=useState(null);   // { text, prevDoc, key }
+  const retrySave=async()=>{
+    const{doc,saveDoc}=v2RunRef.current||{};
+    if(!doc||!saveDoc)return;
+    setV2Run(prev=>prev?{...prev,saveError:null,saving:true}:prev);
+    try{
+      await saveDoc(doc);
+      setV2Run(prev=>prev?{...prev,saveError:null,saving:false}:prev);
+      const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
+      setSavedReports(reports||[]);
+    }catch(e){
+      setV2Run(prev=>prev?{...prev,saveError:e.message||"Could not save",saving:false}:prev);
+    }
+  };
+
   const regenerateSection=async(sectionKey,instruction)=>{
     const rep=viewingReport; if(!rep||regenKeyBusy)return;
     const cfg=rep.report_config||{};
@@ -562,7 +598,7 @@ function ReportsContent(){
 
       const{data:{session}}=await supabase.auth.getSession();
       const save=await fetch("/api/reports/save",{
-        method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},
+        method:"POST",headers:{"Content-Type":"application/json",...(await authHeader())},
         body:JSON.stringify({report:{id:rep.id,project_id:projectId,content:blocksToMarkdown(next),content_blocks:next}}),
       });
       const out=await save.json().catch(()=>({}));
@@ -580,7 +616,7 @@ function ReportsContent(){
     if(!n?.prevDoc||!rep)return;
     const{data:{session}}=await supabase.auth.getSession();
     const res=await fetch("/api/reports/save",{
-      method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},
+      method:"POST",headers:{"Content-Type":"application/json",...(await authHeader())},
       body:JSON.stringify({report:{id:rep.id,project_id:projectId,content:blocksToMarkdown(n.prevDoc),content_blocks:n.prevDoc}}),
     });
     const out=await res.json().catch(()=>({}));
@@ -1780,6 +1816,7 @@ RULES:
               saveError={v2Run.saveError}
               onOpenPartial={closeV2Run}
               onDismiss={closeV2Run}
+              onRetrySave={retrySave}
               onRetry={()=>{const{card,cfg}=v2RunRef.current;runV2Generate(card,cfg,v2Run.failed);}}
             />
           )}
