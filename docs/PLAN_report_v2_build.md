@@ -170,16 +170,23 @@ Backfill: reportes → `status='in_process'`, `archived=false`; showcases existe
 | **F3** | Generación por secciones · progreso real · guardado incremental · fallo a mitad | ✅ |
 | **B1–B11** | Vía backend completa (migración, cards, bloques, citas, resolvedor, APIs, orquestador, motor Innovation, bloques visuales) | ✅ |
 | **F4** | Documento: bloques ricos, tratamiento del entregable, cabecera con estados, **Regenerate con prompt + Undo**, **Ask about this** | ✅ (Comment y Edit **descartados** por decisión) |
-| **F5** | Download + **citas navegables** | ✅ (falta `.doc`) |
+| **F5** | Download (`.md` + PDF paginado real) + **citas navegables** | ✅ (`.doc` descartado) |
 | **Fx** | Ruta de caso `/case/[id]` auth-gated + Quick Look compartido | ✅ |
+| **VS** | Report Visual System: 10 bloques, marcas de procedencia, arquitectura de sección con lead, PDF paginado | ✅ salvo `timeline` |
 | **F6** | Presentación visual (migrar Showcase + re-skin) | ⏸ Aparcado |
 | **F7** | Showcase fuera del sidebar | ⏸ Aparcado (atado a F6) |
 
 ### Qué queda exactamente
 
-**1. `.doc` en Download.** El diseño lo pide; hoy hay `.md` (con citas reescritas a `/case/<id>`) y `.pdf`. Es el pendiente más pequeño.
+**1. `timeline` — el único de los diez bloques sin alimentar.** El renderer está construido y
+verificado; falta decidir **cómo se decide que el mensaje cambió**. Comparar cadenas de
+eslogan marcaría como cambio cualquier reescritura ("Volamos contigo" → "Volamos con vos") y
+todas las marcas saldrían fragmentadas. La alternativa es que la IA agrupe los eslóganes por
+promesa, lo que lo convierte en juicio: el bloque quedaría como ANALYST READ, contra lo que
+dice el handoff. Marca parametrizada; cambiarla es una palabra.
 
-**2. Layouts para secciones con estructura.** *Positioning x-ray* y *Declared vs deployed* son "declara / demuestra / brecha" por marca y salen como prosa corrida; piden tabla comparativa. Mismo patrón que ya usan los gráficos: el motor devuelve los datos estructurados junto a la prosa.
+**2. Nada más.** Comment y Edit descartados; `.doc` descartado (el `.md` se abre bien en Word
+y Docs); presentación aparcada.
 
 ### Motores por evaluar (idea, no comprometidos)
 
@@ -196,7 +203,7 @@ Dos informes propuestos el 2026-07-24, a valorar cuando cierre el trabajo de lay
 
 ### Deuda técnica
 1. **Seis peticiones recargan los mismos datos** por informe. Funciona, pero es 6× la carga y 6× la superficie de fallo — origen de buena parte de los fallos de F2–F3. Lo correcto: que la ruta acepte varias secciones por llamada.
-2. **El motor Innovation nunca se ha ejecutado.**
+2. ~~El motor Innovation nunca se ha ejecutado.~~ Ejecutado y funcionando (2026-07-24).
 3. **Los bloques se persisten**: arreglar un generador no arregla los informes ya guardados. Todo render debe aguantar datos de cualquier versión (aprendido dos veces con el cuadrante y los títulos).
 
 ## 11. Riesgos
