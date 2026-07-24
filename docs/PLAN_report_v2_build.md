@@ -181,6 +181,19 @@ Backfill: reportes → `status='in_process'`, `archived=false`; showcases existe
 
 **2. Layouts para secciones con estructura.** *Positioning x-ray* y *Declared vs deployed* son "declara / demuestra / brecha" por marca y salen como prosa corrida; piden tabla comparativa. Mismo patrón que ya usan los gráficos: el motor devuelve los datos estructurados junto a la prosa.
 
+### Motores por evaluar (idea, no comprometidos)
+
+Dos informes propuestos el 2026-07-24, a valorar cuando cierre el trabajo de layouts:
+
+1. **Target Report** — a qué tipo de usuario parece dirigirse cada marca, deducido de la
+   comunicación, no de lo que la marca declara. Cruza portrait / lifecycle / business size /
+   momentos con la marca. Se apoya en dimensiones que YA se capturan.
+2. **Category Stimulus Report** — la categoría desde el lado del interesado, no de la marca:
+   "¿qué está viendo alguien que quiere comprar billetes de avión?", "¿qué mensajes recibe
+   quien busca coche?", "¿qué estímulos se concentran al vender relojes de lujo?". Es una
+   lectura agregada de la categoría por intención de compra. Distinto de Category Landscape,
+   que mira territorios por marca; aquí el sujeto es la persona que está en el mercado.
+
 ### Deuda técnica
 1. **Seis peticiones recargan los mismos datos** por informe. Funciona, pero es 6× la carga y 6× la superficie de fallo — origen de buena parte de los fallos de F2–F3. Lo correcto: que la ruta acepte varias secciones por llamada.
 2. **El motor Innovation nunca se ha ejecutado.**
