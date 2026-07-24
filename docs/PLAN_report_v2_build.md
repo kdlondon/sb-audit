@@ -170,20 +170,16 @@ Backfill: reportes → `status='in_process'`, `archived=false`; showcases existe
 | **F3** | Generación por secciones · progreso real · guardado incremental · fallo a mitad | ✅ |
 | **B1–B11** | Vía backend completa (migración, cards, bloques, citas, resolvedor, APIs, orquestador, motor Innovation, bloques visuales) | ✅ |
 | **F4** | Documento: bloques ricos, tratamiento del entregable, cabecera con estados, **Regenerate con prompt + Undo**, **Ask about this** | ✅ (Comment y Edit **descartados** por decisión) |
-| **F5** | Download + **citas navegables** | 🟡 Parcial — ver abajo |
-| **Fx** | Ruta pública de caso `/case/[id]` | ⏳ Pendiente |
+| **F5** | Download + **citas navegables** | ✅ (falta `.doc`) |
+| **Fx** | Ruta de caso `/case/[id]` auth-gated + Quick Look compartido | ✅ |
 | **F6** | Presentación visual (migrar Showcase + re-skin) | ⏸ Aparcado |
 | **F7** | Showcase fuera del sidebar | ⏸ Aparcado (atado a F6) |
 
 ### Qué queda exactamente
 
-**1. Citas navegables (F5 + Fx) — van juntas.** Hoy una cita es `cite:ID`, que solo Groundwork entiende. En el `.md` descargado se sustituye por la URL original de la pieza (Instagram, YouTube), no por Groundwork. Falta: la ruta `/case/[id]` (auth-gated) y que el export reescriba a esa URL absoluta. `lib/report-citations.js` ya está escrito, sin cablear.
+**1. `.doc` en Download.** El diseño lo pide; hoy hay `.md` (con citas reescritas a `/case/<id>`) y `.pdf`. Es el pendiente más pequeño.
 
-**2. El visor del caso.** Al hacer clic en una cita se abre el panel lateral pero no muestra la pieza como el visor de Creative Source. Reportado y **sin arreglar**.
-
-**3. `.doc` en Download.** El diseño lo pide; hoy solo hay `.md` y `.pdf`.
-
-**4. Layouts para secciones con estructura.** *Positioning x-ray* y *Declared vs deployed* son literalmente "declara / demuestra / brecha" por marca y salen como prosa corrida; piden una tabla comparativa. Requiere que el motor devuelva esos datos estructurados — el mismo patrón que ya usan los gráficos.
+**2. Layouts para secciones con estructura.** *Positioning x-ray* y *Declared vs deployed* son "declara / demuestra / brecha" por marca y salen como prosa corrida; piden tabla comparativa. Mismo patrón que ya usan los gráficos: el motor devuelve los datos estructurados junto a la prosa.
 
 ### Deuda técnica
 1. **Seis peticiones recargan los mismos datos** por informe. Funciona, pero es 6× la carga y 6× la superficie de fallo — origen de buena parte de los fallos de F2–F3. Lo correcto: que la ruta acepte varias secciones por llamada.
