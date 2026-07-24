@@ -16,7 +16,7 @@ import AskAboutThis from "@/components/reports/AskAboutThis";
 import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
 import { generateReport, sectionToBlocks } from "@/lib/report-generate";
 import { blocksToMarkdown, isV2, fromLegacy } from "@/lib/report-blocks";
-import { citationsToUrls, caseUrl } from "@/lib/report-citations";
+import { citationsToUrls, caseUrl, normalizeCitations } from "@/lib/report-citations";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -446,7 +446,13 @@ function ReportsContent(){
         body:JSON.stringify({
           project_id:projectId, icp:cfg.lens, section:key, priorSections,
           sections:cfg.sections, source:cfg.source,
-          filters:{brands:cfg.source?.mode==="brand"?cfg.source.value:undefined,intents:cfg.intents,yearFrom:cfg.yearFrom,yearTo:cfg.yearTo},
+          // A single-brand selection is a DEEP DIVE, not a category study with one brand in
+          // it. Telling the engine so is what switches the writing to that brand.
+          ...(cfg.source?.mode==="brand"&&(cfg.source.value||[]).length===1
+            ? {scope:"brand", brand:cfg.source.value[0]} : {}),
+          // Brands are already applied by the source resolver; the rest are true filters
+          // ON TOP of the resolved set.
+          filters:{intents:cfg.intents,yearFrom:cfg.yearFrom,yearTo:cfg.yearTo},
         }),
       });
       const d=await res.json();
@@ -1587,9 +1593,12 @@ RULES:
       .replace(/^\s*\[ENTRY:[^\]]+\]\s*$/gm, "")
       .replace(/^(.*\|.*)$/gm, row => row.replace(/\[ENTRY:[^\]]+\]/g, ""));
 
+    // Saved reports carry whatever the engine wrote, including "(cite:#id)" and the bare
+    // "(#id)" that renders as an anchor back to this very page. Repair on the way in.
+    const repaired = normalizeCitations(cleaned);
     // 2. Convert citations to markdown links
     // Handle old format [ENTRY:id] → [label](__cite__id)
-    let withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
+    let withCiteLinks = repaired.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
       const entry = findEntry(id);
       let label = entry
         ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)

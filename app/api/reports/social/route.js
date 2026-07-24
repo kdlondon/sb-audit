@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { resolveSource } from "@/lib/report-source";
 import { loadFramework } from "@/lib/framework-loader";
 import { engagementRate, avgEngagementRate, fmtRate } from "@/lib/engagement";
 import { socialVisuals } from "@/lib/report-visuals";
@@ -33,7 +34,7 @@ const ICP_LENS = {
 };
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "", findings } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, source: sourceSel, customInstructions = "", findings } = await request.json();
   const findingsBlock = (Array.isArray(findings) && findings.length)
     ? `\n\nANALYST FINDINGS — the analyst's saved conclusions. Treat as PRIORITY signals: weave them into the relevant sections and honor them in the takeaways.\n${findings.map((f) => `- ${f.title || f.summary || "Finding"}${f.stat ? ` (${f.stat})` : ""}${f.summary && f.title ? `: ${f.summary}` : ""}`).join("\n")}`
     : "";
@@ -43,13 +44,19 @@ export async function POST(request) {
   if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
-  const { data: rows, error: rowsErr } = await admin.from("creative_source")
-    .select("id,competitor,brand,brand_name,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,main_slogan,synopsis,description,custom_dimensions")
-    .eq("project_id", project_id);
-  // A failed query must not masquerade as an empty project: that reads as a permanent
-  // "no entries" and is never retried, when in fact it is usually transient.
-  if (rowsErr) return Response.json({ error: `Could not load entries: ${rowsErr.message}` }, { status: 503 });
-  if (!rows || rows.length === 0) return Response.json({ error: "No entries found for this project" }, { status: 404 });
+  // The Configure step's source selection — local / global / both, a set of brands, or a
+  // collection — is resolved HERE. It used to be ignored: the route read every entry in the
+  // project, so a report configured as "local audit only" silently included global
+  // benchmarks. The configurator counted the selection correctly all along, which made the
+  // mismatch invisible until the report came out wrong.
+  let rows = [];
+  try {
+    const resolved = await resolveSource(admin, project_id, sourceSel || { mode: "audit", value: "both" });
+    rows = resolved.entries;
+  } catch (e) {
+    return Response.json({ error: `Could not load entries: ${e.message}` }, { status: 503 });
+  }
+  if (!rows.length) return Response.json({ error: "No entries match this configuration" }, { status: 404 });
 
   let framework = null; try { framework = await loadFramework(project_id); } catch {}
   const lang = framework?.language || "English";
@@ -89,6 +96,10 @@ export async function POST(request) {
   const fl = filtersIn || {};
   const passFilter = (p) => {
     if (Array.isArray(fl.brands) && fl.brands.length && !fl.brands.includes(p.brand)) return false;
+    // Communication intents are offered in the Configure step but were only ever applied by
+    // the flagship; here the choice was silently discarded.
+    if (Array.isArray(fl.intents) && fl.intents.length &&
+        !(p.intent || "").split(",").map((x) => x.trim()).some((x) => fl.intents.includes(x))) return false;
     if (Array.isArray(fl.pillars) && fl.pillars.length && !fl.pillars.includes(p.pillar)) return false;
     if (Array.isArray(fl.platforms) && fl.platforms.length && !fl.platforms.includes(p.platform)) return false;
     if (fl.yearFrom && p.year && Number(p.year) < Number(fl.yearFrom)) return false;
@@ -137,7 +148,7 @@ export async function POST(request) {
 
   const rules = `This is a finished, client-facing deliverable. Do NOT mention engagement formulas, weights, "eng", evidence counts, "brand_dna", or your methodology. Write the polished section only.
 - When you ENUMERATE (territories, angles, brands, formats), use a Markdown bullet or numbered list — never a long comma-separated sentence.
-- BACK CLAIMS WITH EXAMPLES: when you reference a specific post, link it inline as [a short descriptive name](cite:ID) using the #ID shown for that post. Cite real posts liberally. Do NOT cite declared-positioning lines (those have no #ID).
+- BACK CLAIMS WITH EXAMPLES: when you reference a specific post, link it inline as [a short descriptive name](cite:ID) using the id shown for that post. Use the ID ONLY — never carry the "#" into the link, and never write a bare "(#id)": that is a page anchor, not a citation. Cite real posts liberally. Do NOT cite declared-positioning lines (those have no #ID).
 - Use ONLY the STATS and EVIDENCE provided; never invent numbers, brands or posts.
 No emojis. Write in ${lang}. Markdown with a short ## header.`;
 

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { innovationVisuals } from "@/lib/report-visuals";
 import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/lib/report-section-data";
+import { resolveSource } from "@/lib/report-source";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 import { MODELS } from "@/lib/models";
@@ -38,7 +39,7 @@ const isInnovationSignal = (p) =>
   /innovation|disrupt/i.test(p.communication_intent || "") || INNOV_RE.test(p.text || "") || INNOV_RE.test(p.slogan || "");
 
 export async function POST(request) {
-  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, customInstructions = "", findings } = await request.json();
+  const { project_id, scope = "category", brand = "", icp = "brand", sections: cfgIn, section: regenKey, priorSections, filters: filtersIn, source: sourceSel, customInstructions = "", findings } = await request.json();
   const findingsBlock = (Array.isArray(findings) && findings.length)
     ? `\n\nANALYST FINDINGS — treat as PRIORITY signals: weave them into the relevant sections and honor them in recommendations.\n${findings.map((f) => `- ${f.title || f.summary || "Finding"}${f.stat ? ` (${f.stat})` : ""}${f.summary && f.title ? `: ${f.summary}` : ""}`).join("\n")}`
     : "";
@@ -48,13 +49,19 @@ export async function POST(request) {
   if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
-  const { data: rows, error: rowsErr } = await admin.from("creative_source")
-    .select("id,competitor,brand,brand_name,communication_intent,channel,year,rating,primary_territory,brand_archetype,tone_of_voice,main_slogan,synopsis,description,custom_dimensions")
-    .eq("project_id", project_id);
-  // A failed query must not masquerade as an empty project: that reads as a permanent
-  // "no entries" and is never retried, when in fact it is usually transient.
-  if (rowsErr) return Response.json({ error: `Could not load entries: ${rowsErr.message}` }, { status: 503 });
-  if (!rows || rows.length === 0) return Response.json({ error: "No entries found for this project" }, { status: 404 });
+  // The Configure step's source selection — local / global / both, a set of brands, or a
+  // collection — is resolved HERE. It used to be ignored: the route read every entry in the
+  // project, so a report configured as "local audit only" silently included global
+  // benchmarks. The configurator counted the selection correctly all along, which made the
+  // mismatch invisible until the report came out wrong.
+  let rows = [];
+  try {
+    const resolved = await resolveSource(admin, project_id, sourceSel || { mode: "audit", value: "both" });
+    rows = resolved.entries;
+  } catch (e) {
+    return Response.json({ error: `Could not load entries: ${e.message}` }, { status: 503 });
+  }
+  if (!rows.length) return Response.json({ error: "No entries match this configuration" }, { status: 404 });
 
   let framework = null; try { framework = await loadFramework(project_id); } catch {}
   const lang = framework?.language || "English";
@@ -81,6 +88,10 @@ export async function POST(request) {
   const fl = filtersIn || {};
   const passFilter = (p) => {
     if (Array.isArray(fl.brands) && fl.brands.length && !fl.brands.includes(p.brand)) return false;
+    // Communication intents are offered in the Configure step but were only ever applied by
+    // the flagship; here the choice was silently discarded.
+    if (Array.isArray(fl.intents) && fl.intents.length &&
+        !(p.communication_intent || "").split(",").map((x) => x.trim()).some((x) => fl.intents.includes(x))) return false;
     if (fl.yearFrom && p.year && Number(p.year) < Number(fl.yearFrom)) return false;
     if (fl.yearTo && p.year && Number(p.year) > Number(fl.yearTo)) return false;
     return true;
@@ -94,7 +105,7 @@ export async function POST(request) {
   const head = `Category: ${category}. Brands: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. ${focusNote}${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; others are out of scope." : ""}`;
   const rules = `CRITICAL DISTINCTION — this report is about the MESSAGE, not the craft. You are studying how brands COMMUNICATE innovations and disruptive PROPOSITIONS: a new service, platform, ecosystem, business model or capability the brand is putting into the world (e.g. a brand launching a geolocated community app for small businesses). You are NOT judging whether the content is creatively novel or well-executed — that is a different report. A beautifully-made ad with no innovation message does NOT belong here; a plain post announcing a genuinely new proposition DOES.
 - Enumerate with Markdown bullet/numbered lists, never long comma sentences.
-- Back claims with examples: link a captured piece inline as [short name](cite:ID) using its #ID. Cite liberally.
+- Back claims with examples: link a captured piece inline as [short name](cite:ID) using its id. Use the ID ONLY — never carry the "#" into the link, and never write a bare "(#id)": that is a page anchor, not a citation. Cite liberally.
 - This is a finished client-facing deliverable — do NOT mention methodology, weights or evidence counts. No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const ALL_DEFS = {

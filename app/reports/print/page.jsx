@@ -19,7 +19,7 @@ import AuthGuard from "@/components/AuthGuard";
 import ReportBlock, { isVisualBlock } from "@/components/reports/ReportBlocks";
 import { isV2, fromLegacy } from "@/lib/report-blocks";
 import { REPORT_CARDS } from "@/lib/report-cards";
-import { caseUrl } from "@/lib/report-citations";
+import { caseUrl, normalizeCitations } from "@/lib/report-citations";
 
 const supabase = createClient();
 
@@ -212,7 +212,7 @@ function SectionBody({ blocks }) {
 }
 
 function Prose({ md }) {
-  const withLinks = String(md || "")
+  const withLinks = normalizeCitations(String(md || ""))
     .replace(/\[ENTRY:([^\]]+)\]/g, (_m, id) => `[case](${caseUrl(id.trim())})`)
     .replace(/\]\((?:cite:|__cite__)([^)]+)\)/g, (_m, id) => `](${caseUrl(id.trim())})`);
   return (

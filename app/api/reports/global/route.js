@@ -105,7 +105,7 @@ export async function POST(request) {
 
   const rules = `This is a finished, client-facing inspiration deliverable. Do NOT mention ratings as a formula, weights, evidence counts, or your methodology — write the polished section only.
 - When you ENUMERATE (cases, patterns, plays), use Markdown bullets or numbered lists.
-- For EVERY case you discuss, link it inline as [a short evocative name](cite:ID) using the #ID shown. The reader clicks to see the creative. Cite real cases only — never invent.
+- For EVERY case you discuss, link it inline as [a short evocative name](cite:ID) using the id shown. Use the ID ONLY — never carry the "#" into the link, and never write a bare "(#id)": that is a page anchor, not a citation. The reader clicks to see the creative. Cite real cases only — never invent.
 - Lead with what is DISTINCTIVE and TRANSFERABLE, not a plot summary.
 - Use ONLY the cases provided; never invent brands, cases or numbers.
 No emojis. Write in ${lang}. Markdown with a short ## header.`;
@@ -115,8 +115,8 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
       task: `Set up the selection: what this global set covers, and the LOGIC of the curation — what makes a case worth including (distinctiveness, craft, strategic clarity, resonance). 2 short paragraphs. Name a few of the standout brands/cases to come.` },
     cases: { title: "The cases", build: () => `STANDOUT CASES:\n${ctx(byQuality(casePool).slice(0, 18))}`,
       task: `The heart of the report — a curated gallery. For each standout case (aim for 8–12, the strongest first): (a) what it is in one line, (b) WHY IT WORKS — the creative/strategic move that makes it land, (c) the TRANSFERABLE IDEA for ${client}. Use a clear sub-bullet structure per case and cite each case.` + dataInstruction(
-        `[{"id":"the #ID of the case","what":"one line","why":"why it works","idea":"the transferable idea"}]`,
-        `One object per case you discussed, in the same order. "id" MUST be an #ID from the evidence — never invented.`) },
+        `[{"id":"the id of the case, digits only, no #","what":"one line","why":"why it works","idea":"the transferable idea"}]`,
+        `One object per case you discussed, in the same order. "id" MUST be an id from the evidence, without the "#" — never invented.`) },
     patterns: { title: "Patterns", build: () => `ACROSS THE SET:\n- Territories: ${territoryTally.join(" · ")}\n- Execution styles: ${executionTally.join(" · ")}\n- Archetypes: ${archetypeTally.join(" · ")}\n\nEVIDENCE (top cases):\n${ctx(byQuality(casePool).slice(0, 16))}`,
       task: `Step back: what RECURS across the best cases? Name the patterns — shared territories, execution devices, archetypes, structural moves — and what they signal about where the category's creative frontier is. Bullets, each grounded in cited cases.` },
   };
