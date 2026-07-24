@@ -247,3 +247,21 @@
 /* ---- List row hover ---- */
 .gw-row { transition: background 0.12s ease; }
 .gw-row:hover { background: rgba(26, 26, 26, 0.03) !important; }
+
+/* ---- Report blocks: data provenance (Report Visual System handoff §3) ----
+   Every block declares where its numbers come from. A client deliverable must never
+   present a judgement as a measurement, and before this each block solved it its own way
+   (white space used a footnote; the rest said nothing). Values transcribed from the
+   handoff's .mMeas / .mAnly. */
+.gw-meas, .gw-anly {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: .14em;
+  border-radius: 20px; padding: 4px 10px; text-transform: uppercase; white-space: nowrap;
+}
+.gw-meas { color: var(--ink-800); background: var(--paper); border: 1px solid var(--border-hairline); }
+.gw-anly { color: var(--accent-ember-deep); background: #fff6f1; border: 1px dashed var(--accent-ember); }
+.gw-meas .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-900); }
+.gw-anly .dot { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent-ember); }
+
+/* A block must not be split across printed pages. */
+.gw-nobreak { break-inside: avoid; page-break-inside: avoid; }
