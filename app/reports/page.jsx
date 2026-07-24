@@ -510,7 +510,8 @@ function ReportsContent(){
   // Regenerate ONE section of a saved report, with the analyst's instruction as direction.
   // Only that section's blocks are replaced; everything else is left untouched.
   const[regenKeyBusy,setRegenKeyBusy]=useState(null);
-  const[regenNotice,setRegenNotice]=useState(null);   // { text, prevDoc, key }
+  const[regenNotice,setRegenNotice]=useState(null);
+  const[libraryError,setLibraryError]=useState(null);   // { text, prevDoc, key }
   const retrySave=async()=>{
     const{doc,saveDoc}=v2RunRef.current||{};
     if(!doc||!saveDoc)return;
@@ -1739,13 +1740,22 @@ RULES:
         <div style={{maxWidth:1180,margin:"0 auto",padding:"24px 34px 56px"}}>
           <ReportLibrary
             reports={savedReports}
+            error={libraryError}
             onOpenText={(r)=>router.push(`/reports?report=${r.id}`,{scroll:false})}
-            onEdit={(r)=>router.push(`/reports/editor?id=${r.id}`)}
             onGenerate={()=>router.push("/reports?tab=generate",{scroll:false})}
             onAction={async(id,action,value)=>{
-              const{data:{session}}=await supabase.auth.getSession();
-              await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({id,action,value})});
-              const{data:reports}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
+              // Errors were dropped on the floor here, so a failed rename looked exactly
+              // like a successful one: the list simply reloaded with the old title.
+              const run=async(force)=>{
+                const res=await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",...(await authHeader(force))},body:JSON.stringify({id,action,value})});
+                return{res,out:await res.json().catch(()=>({}))};
+              };
+              let{res,out}=await run(false);
+              if(res.status===401){({res,out}=await run(true));}
+              if(!res.ok||out.error){setLibraryError(`Could not ${action}: ${out.error||res.statusText}`);return;}
+              setLibraryError(null);
+              const{data:reports,error}=await supabase.from("saved_reports").select("*").eq(filterField,filterValue).order("created_at",{ascending:false});
+              if(error){setLibraryError(`Saved, but the list could not reload: ${error.message}`);return;}
               setSavedReports(reports||[]);
             }}
           />
@@ -1814,8 +1824,8 @@ RULES:
                       {[["in_process","In process"],["in_review","In review"],["delivered","Delivered"]].map(([k,l])=>{
                         const on=(viewingReport.status||"in_process")===k;
                         return <button key={k} onClick={async()=>{
-                          const{data:{session}}=await supabase.auth.getSession();
-                          await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({id:viewingReport.id,action:"status",value:k})});
+                          const res=await fetch("/api/reports/manage",{method:"POST",headers:{"Content-Type":"application/json",...(await authHeader())},body:JSON.stringify({id:viewingReport.id,action:"status",value:k})});
+                          if(!res.ok){setRegenNotice({key:null,text:"Could not change the status"});return;}
                           setViewingReport(r=>r?{...r,status:k}:r);
                           setSavedReports(rs=>rs.map(r=>r.id===viewingReport.id?{...r,status:k}:r));
                         }} style={{padding:"7px 14px",borderRadius:9,border:"none",cursor:"pointer",background:on?"var(--ink-800)":"transparent",color:on?"var(--brand-cream)":"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:on?600:500}}>{l}</button>;
@@ -1841,7 +1851,7 @@ RULES:
                     )}
                   </div>
                   <button onClick={()=>viewingReport&&router.push(`/showcase?report=${viewingReport.id}`)}
-                    style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:8,background:"var(--ink-800)",color:"var(--brand-cream)",border:"none",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontFamily:"var(--font-display)",fontSize:13.5,fontWeight:700}}>
+                    className="gw-ember-btn" style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:8,background:"var(--accent-ember-deep)",color:"#fff",border:"none",borderRadius:8,padding:"11px 18px",cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:500,fontSize:13}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Generate Visual Presentation
                   </button>
                 </div>

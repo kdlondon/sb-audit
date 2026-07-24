@@ -77,6 +77,10 @@ export default function ReportLibrary({
 
   return (
     <div ref={wrapRef}>
+      {error && (
+        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "var(--accent-ember-tint)", color: "#7a3a24", fontFamily: "var(--font-body)", fontSize: 12.5 }}>{error}</div>
+      )}
+
       {/* Filter + sort */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ display: "inline-flex", gap: 2, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 10, padding: 3 }}>
@@ -156,7 +160,6 @@ export default function ReportLibrary({
                     <div onClick={(e) => e.stopPropagation()}
                       style={{ position: "absolute", right: 0, top: "100%", marginTop: 6, zIndex: 40, minWidth: 172, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 12, boxShadow: "var(--shadow-card-hover)", padding: 5 }}>
                       {[
-                        ["Edit", () => { setMenuFor(null); onEdit?.(r); }],
                         ["Rename", () => { setMenuFor(null); setRenaming(r); setRenameVal(r.title || ""); }],
                         [r.archived ? "Restore" : "Archive", () => act(r.id, r.archived ? "restore" : "archive")],
                       ].map(([l, fn]) => (

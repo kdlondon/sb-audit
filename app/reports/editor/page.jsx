@@ -148,6 +148,12 @@ function EditorContent2() {
     (async () => {
       const { data } = await supabase.from("saved_reports").select("*").eq("id", reportId).single();
       if (data) {
+        // A v2 report is stored as BLOCKS. This editor only understands markdown: it loads
+        // the flattened copy, so charts arrive as bullet lists, and on save it writes back
+        // `content` while `content_blocks` — what the report actually renders — stays as it
+        // was. The two copies would then disagree: edits invisible on screen but present in
+        // the .md export. Refuse rather than quietly create that divergence.
+        if (data.content_blocks && typeof data.content_blocks === "object") { setBlocked(true); setReport(data); return; }
         setReport(data);
         setMarkdownContent(data.content || "");
         markdownRef.current = data.content || "";
@@ -164,6 +170,7 @@ function EditorContent2() {
   }, [reportId, projectId, editor]);
 
   const [saveError, setSaveError] = useState(null);
+  const [blocked, setBlocked] = useState(false);
   const editorRef = useRef(editor);
   editorRef.current = editor;
   const modeRef = useRef(mode);
@@ -244,6 +251,25 @@ function EditorContent2() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-hint">Loading editor...</p></div>;
   if (!report) return <div className="min-h-screen flex items-center justify-center"><p className="text-hint">Report not found</p></div>;
+
+  // v2 reports are refused above — say why, and send the analyst where the work happens.
+  if (blocked) return (
+    <div className="gw-shell" style={{ minHeight: "100vh", background: "var(--paper)", display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
+      <div style={{ maxWidth: 460, textAlign: "center" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".18em", color: "var(--accent-ember-deep)", marginBottom: 12 }}>REPORT</div>
+        <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 22, margin: "0 0 12px", color: "var(--ink-900)" }}>This report can&rsquo;t be edited here</h1>
+        <p style={{ fontFamily: "var(--font-body)", fontSize: 13.5, lineHeight: 1.6, color: "var(--text-secondary)", margin: "0 0 20px" }}>
+          It is built from blocks — charts, comparisons, cases — and this editor only handles plain text,
+          so editing here would flatten them. Refine it from the report itself: regenerate a section with
+          your instructions, or download it and finish in Docs.
+        </p>
+        <button onClick={() => router.push(`/reports?report=${reportId}`)} className="gw-ember-btn"
+          style={{ background: "var(--accent-ember-deep)", color: "#fff", border: "none", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: 13 }}>
+          Open the report
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
