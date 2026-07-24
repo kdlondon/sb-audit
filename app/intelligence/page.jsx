@@ -6,6 +6,7 @@ import { listFindings, saveFinding, deleteFinding } from "@/lib/findings";
 import { engagementRate, avgEngagementRate, rateCoverage, fmtRate } from "@/lib/engagement";
 import AuthGuard from "@/components/AuthGuard";
 import Sidebar from "@/components/Sidebar";
+import ReportBlock from "@/components/reports/ReportBlocks";
 import SectionTabs from "@/components/SectionTabs";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
@@ -313,7 +314,11 @@ function IntelligenceContent() {
     (async () => {
       setLoading(true);
       const supabase = createClient();
-      const { data } = await supabase.from("creative_source").select("*").eq("project_id", projectId).eq("type", "Social post");
+      // Intelligence reads the whole library. It used to filter to type = "Social post",
+      // which hid every fully-analysed project that isn't a social benchmark — a 172-piece
+      // audit of video and web showed "no social content" because none carried that exact
+      // string. Widgets now declare what they need and step aside when it isn't there.
+      const { data } = await supabase.from("creative_source").select("*").eq("project_id", projectId);
       setEntries(data || []);
       setLoading(false);
     })();
@@ -336,6 +341,15 @@ function IntelligenceContent() {
         image_url: e.image_url || "", url: e.url || "", caption: m.caption || e.synopsis || "",
         posted_at: m.posted_at || "",
         analyzed: !!cd._ai_analyzed_at,
+        // Framework fields — present on every project, social or not. These feed the
+        // default widgets, which is why they no longer depend on the _social block.
+        type: e.type || "", chan: e.channel || "", year: e.year || "",
+        territory: e.primary_territory || "", intent: e.communication_intent || "",
+        archetype: e.brand_archetype || "", tone: e.tone_of_voice || "",
+        execution: e.execution_style || "", funnel: e.funnel || "",
+        rating: Number(e.rating) || 0,
+        hasSocial: !!(s.platform || s.format || s.content_pillar),
+        hasMetrics: !!(num(m.likes) || num(m.comments) || num(m.views) || num(m.followers)),
       };
     });
     const brands = [...new Set(rows.map((r) => r.brand))];
@@ -377,7 +391,48 @@ function IntelligenceContent() {
     }).filter((g) => g.count >= 3).sort((a, b) => b.count - a.count);
     const maxPillarCount = Math.max(1, ...pillarGroups.map((g) => g.count));
 
-    return { rows, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
+    // ── Default tier ───────────────────────────────────────────────────────
+    // Multi-select fields are stored comma-separated, so a piece can sit in several
+    // buckets; single-value fields take the whole string.
+    const tallyMulti = (key, multi) => {
+      const m = {};
+      rows.forEach((r) => {
+        const raw = String(r[key] || "").trim();
+        if (!raw) return;
+        (multi ? raw.split(",") : [raw]).map((x) => x.trim()).filter(Boolean)
+          .forEach((v) => (m[v] = (m[v] || 0) + 1));
+      });
+      return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    };
+    // A ranking only says something when the values actually CLUSTER. Scotiabank has 159
+    // distinct territories across 172 pieces — free text, near-unique per entry — so a
+    // "top territories" chart there would be a list of ones and twos dressed up as a
+    // finding. Widgets whose field hasn't converged stay hidden rather than mislead.
+    const concentrated = (list) => {
+      if (!list.length || !rows.length) return false;
+      return list[0].value >= 3 && list.length <= rows.length * 0.6;
+    };
+    const base = {
+      byType: tallyMulti("type"), byChannel: tallyMulti("chan", true),
+      byYear: tallyMulti("year").sort((a, b) => String(a.name).localeCompare(String(b.name))),
+      byTerritory: tallyMulti("territory"), byIntent: tallyMulti("intent", true),
+      byArchetype: tallyMulti("archetype", true), byTone: tallyMulti("tone", true),
+      rated: rows.filter((r) => r.rating > 0),
+      socialCount: rows.filter((r) => r.hasSocial).length,
+      metricCount: rows.filter((r) => r.hasMetrics).length,
+    };
+    base.concentrated = concentrated;
+    base.avgRating = base.rated.length ? base.rated.reduce((t, r) => t + r.rating, 0) / base.rated.length : null;
+    // Brand x territory — who owns what, the one crossing every project can answer.
+    const topTerr = base.byTerritory.slice(0, 5).map((t) => t.name);
+    base.brandTerritory = {
+      cols: topTerr,
+      rows: brands.slice(0, 8),
+      cells: brands.slice(0, 8).map((b) => topTerr.map((t) =>
+        rows.filter((r) => r.brand === b && String(r.territory || "").split(",").map((x) => x.trim()).includes(t)).length)),
+    };
+
+    return { rows, base, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries, dashBrands]);
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["brands", "Brands"]];
@@ -410,7 +465,7 @@ function IntelligenceContent() {
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
         ) : d.total === 0 && tab !== "brands" ? (
-          <p className="text-sm text-hint">No social content in this project yet. Import from Scout or Creative Source.</p>
+          <p className="text-sm text-hint">Nothing captured in this project yet. Add entries in Creative Source, or import from Scout.</p>
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="col-span-full flex items-center gap-1.5 flex-wrap mb-1">
@@ -437,10 +492,74 @@ function IntelligenceContent() {
               ) : null; })()}
             </div>
 
+            {/* ── DEFAULT TIER — works on any project, from the framework fields every
+                   piece carries. This is what a non-social audit sees. ── */}
+            <div className="col-span-full" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <ReportBlock block={{ id: "b-kpi", type: "kpi", data: { items: [
+                { label: "Pieces", value: String(d.total) },
+                { label: "Brands", value: String(d.brands.length) },
+                ...(d.base.concentrated(d.base.byTerritory) ? [{ label: "Territories", value: String(d.base.byTerritory.length) }] : []),
+                ...(d.base.avgRating != null ? [{ label: "Avg rating", value: d.base.avgRating.toFixed(1), hero: true }] : []),
+              ] } }} />
+
+              {d.base.byTerritory.length >= 3 && d.base.concentrated(d.base.byTerritory) && (
+                <ReportBlock block={{ id: "b-terr", type: "bars", data: {
+                  title: "Territories", hint: "pieces",
+                  items: d.base.byTerritory.slice(0, 8).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
+                } }} />
+              )}
+
+              {d.base.byIntent.length >= 3 && d.base.concentrated(d.base.byIntent) && (
+                <ReportBlock block={{ id: "b-intent", type: "bars", data: {
+                  title: "Communication intent", hint: "pieces",
+                  items: d.base.byIntent.slice(0, 8).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
+                } }} />
+              )}
+
+              {d.base.brandTerritory.rows.length >= 2 && d.base.brandTerritory.cols.length >= 2 && d.base.concentrated(d.base.byTerritory) && (
+                <ReportBlock block={{ id: "b-heat", type: "heatmap", data: {
+                  title: "Who owns what", hint: "brand × territory", ...d.base.brandTerritory,
+                } }} />
+              )}
+
+              {d.base.byType.length >= 2 && (
+                <ReportBlock block={{ id: "b-type", type: "split", data: {
+                  title: "Content type", items: d.base.byType.slice(0, 5).map((t) => ({ label: t.name, value: t.value })),
+                } }} />
+              )}
+
+              {d.base.byChannel.length >= 2 && (
+                <ReportBlock block={{ id: "b-chan", type: "split", data: {
+                  title: "Channel", items: d.base.byChannel.slice(0, 5).map((t) => ({ label: t.name, value: t.value })),
+                } }} />
+              )}
+
+              {d.base.byArchetype.length >= 2 && d.base.concentrated(d.base.byArchetype) && (
+                <ReportBlock block={{ id: "b-arch", type: "bars", data: {
+                  title: "Brand archetype", hint: "pieces",
+                  items: d.base.byArchetype.slice(0, 6).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
+                } }} />
+              )}
+            </div>
+
+            {/* ── SOCIAL TIER — only when the project actually holds social signals.
+                   Saying WHICH data is missing is the difference between a dead end and
+                   something the analyst can act on. ── */}
+            {d.base.socialCount === 0 ? (
+              <div className="col-span-full" style={{ background: "var(--brand-white)", border: "1px dashed var(--border-strong)", borderRadius: 12, padding: "18px 20px" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)" }}>Social widgets</div>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.55, color: "var(--text-secondary)", margin: "8px 0 0" }}>
+                  Pillars, formats, platform and engagement need social signals — none of the {d.total} pieces here carry them.
+                  Everything above reads the framework instead, so this project is fully covered without them.
+                </p>
+              </div>
+            ) : null}
+
             <Card title="Content by brand" hint="volume">
               <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.posts }))} />
             </Card>
 
+            {d.base.socialCount > 0 && (<>
             <Card title="Engagement rate by brand" hint="interactions ÷ followers">
               {d.byBrand.some((b) => b.avgRate != null)
                 ? <PillBars data={d.byBrand.filter((b) => b.avgRate != null).map((b) => ({ name: b.name, value: b.avgRate * 100 }))} spark="min" fmt={(v) => `${v.toFixed(v < 10 ? 1 : 0)}%`} />
@@ -492,6 +611,8 @@ function IntelligenceContent() {
                 </>
               ) : <NeedsAnalysis pct={d.analyzedPct} />}
             </Card>
+            </>)}
+
             <Card title="Brand × communication intent" hint="click a cell to drill in" full>
               {(() => {
                 const de = dashBrands.length ? entries.filter((e) => dashBrands.includes(e.competitor || e.brand || e.brand_name || "—")) : entries;

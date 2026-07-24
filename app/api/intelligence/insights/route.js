@@ -19,7 +19,7 @@ export async function POST(request) {
   if (!apiKey || !sUrl || !sKey) return Response.json({ error: "Server not configured" }, { status: 500 });
 
   const admin = createClient(sUrl, sKey, { auth: { persistSession: false } });
-  const { data: rows } = await admin.from("creative_source").select("competitor,brand,brand_name,communication_intent,tone_of_voice,execution_style,primary_territory,custom_dimensions").eq("project_id", project_id).eq("type", "Social post");
+  const { data: rows } = await admin.from("creative_source").select("competitor,brand,brand_name,communication_intent,tone_of_voice,execution_style,primary_territory,custom_dimensions").eq("project_id", project_id);   // whole library: the insight engine reads framework fields, which every project has
   if (!rows || rows.length === 0) return Response.json({ error: "No social posts found" }, { status: 404 });
 
   let framework = null; try { framework = await loadFramework(project_id); } catch {}
