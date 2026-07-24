@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase";
 import AuthGuard from "@/components/AuthGuard";
 import Sidebar from "@/components/Sidebar";
 import SectionTabs from "@/components/SectionTabs";
+import { SettingsBody } from "@/components/settings/SettingsLayout";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useBrand } from "@/lib/brand-context";
@@ -315,9 +316,10 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-8">
+    <SettingsBody anchors={[["brand","Brand identity"],["market","Market & category"],["audience","Audience & positioning"],["objectives","Study objectives"],["analysis","Analysis settings"]]}>
+      <div className="flex flex-col gap-4">
       {/* ── Brand identity ── */}
-      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+      <div data-sec="brand" className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Brand identity</h4>
 
         <div>
@@ -340,7 +342,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       </div>
 
       {/* ── Market & category ── */}
-      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+      <div data-sec="market" className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Market & category</h4>
 
         <div className="grid grid-cols-2 gap-4">
@@ -377,7 +379,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       </div>
 
       {/* ── Audience & positioning ── */}
-      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+      <div data-sec="audience" className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Audience & positioning</h4>
 
         <div>
@@ -429,7 +431,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       {/* ── Study objectives ── */}
       {/* These drive which reports Groundwork suggests in Report > Generate. Same list as
           onboarding, so a project set up either way behaves identically. */}
-      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+      <div data-sec="objectives" className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Study objectives</h4>
         <p className="text-xs text-muted -mt-1">What this study is for. Each objective suggests a report in <b>Report › Generate</b>.</p>
         <div className="flex flex-wrap gap-2" style={{ justifyContent: "flex-start" }}>
@@ -457,7 +459,7 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
       {/* ── Analysis settings ── */}
       {/* Communication intents were removed from this tab — they are part of the FRAMEWORK
           and are managed in the Framework tab (still saved untouched on profile save). */}
-      <div className="bg-surface rounded-xl border border-main p-6 space-y-4">
+      <div data-sec="analysis" className="bg-surface rounded-xl border border-main p-6 space-y-4">
         <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Analysis settings</h4>
 
         <div>
@@ -478,8 +480,9 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
         </button>
       </div>
 
+      </div>
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-main text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-xl animate-fadeIn" style={{ zIndex: 99999 }}>{toast}</div>}
-    </div>
+    </SettingsBody>
   );
 }
 
