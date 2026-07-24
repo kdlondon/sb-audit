@@ -11,6 +11,7 @@ import ReportTypePicker from "@/components/reports/ReportTypePicker";
 import ReportConfigurator from "@/components/reports/ReportConfigurator";
 import { REPORT_CARDS } from "@/lib/report-cards";
 import ReportDocument from "@/components/reports/ReportDocument";
+import QuickLook from "@/components/creative-source/QuickLook";
 import AskAboutThis from "@/components/reports/AskAboutThis";
 import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
 import { generateReport, sectionToBlocks } from "@/lib/report-generate";
@@ -395,101 +396,6 @@ function CampaignMap({ entries, onEntryClick, activeView: extActiveView, setActi
   );
 }
 
-// The cited case, shown in Creative Source's language rather than the old blue-on-grey
-// panel — one piece should look the same wherever the analyst meets it. Compact here;
-// /case/<id> shows the full framework.
-function EntryViewer({entry,onClose,loading,reportId}){
-  if(!entry)return null;
-  const e=entry;
-  const L=({label,value})=>{
-    const v=value==null?"":String(value).trim();
-    if(!v||v.startsWith("Not ")||v.startsWith("None"))return null;
-    return(<div style={{marginBottom:10}}>
-      <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)",marginBottom:4}}>{label}</div>
-      <div style={{fontFamily:"var(--font-body)",fontSize:12.5,lineHeight:1.5,color:"var(--ink-900)"}}>{v}</div>
-    </div>);
-  };
-  const Note=({label,value})=>{
-    const v=value==null?"":String(value).trim();
-    if(!v)return null;
-    return(<div style={{marginBottom:10}}>
-      <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)",marginBottom:5}}>{label}</div>
-      <div style={{fontFamily:"var(--font-body)",fontSize:12,lineHeight:1.55,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"10px 12px"}}>{v}</div>
-    </div>);
-  };
-  const brand=e.competitor||e.brand||e.brand_name||"";
-  const yt=ytId(e.url);
-  const thumb=yt?`https://img.youtube.com/vi/${yt}/hqdefault.jpg`:e.image_url;
-  const rating=Number(e.rating)||0;
-  const caseHref=`/case/${encodeURIComponent(String(e.id||""))}${reportId?`?report=${encodeURIComponent(reportId)}`:""}`;
-
-  return(<div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--brand-white)"}}>
-    <div style={{flex:"none",padding:"12px 14px",borderBottom:"1px solid var(--border-hairline)",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
-      <div style={{minWidth:0}}>
-        <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".18em",color:"var(--accent-ember-deep)",marginBottom:5}}>CREATIVE SOURCE · CASE</div>
-        <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,lineHeight:1.25,color:"var(--ink-900)"}}>{e.description||brand||"Case"}</div>
-      </div>
-      <button onClick={onClose} style={{flex:"none",background:"none",border:"none",cursor:"pointer",fontSize:17,lineHeight:1,color:"var(--text-muted)",padding:0}}>×</button>
-    </div>
-
-    <div style={{flex:1,overflowY:"auto"}}>
-      {loading&&<div style={{padding:"18px 14px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">Loading case…</div>}
-
-      {/* A citation whose piece cannot be found is stated plainly — a blank panel reads as
-          a broken app when it is actually missing data. */}
-      {!loading&&e._missing&&(
-        <div style={{padding:"18px 14px"}}>
-          <p style={{fontFamily:"var(--font-body)",fontSize:12.5,lineHeight:1.55,color:"var(--text-secondary)",margin:0}}>
-            This case couldn&rsquo;t be found. It may have been deleted, or it belongs to another project.
-          </p>
-          <div style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-muted)",marginTop:10}}>ID {String(e.id||"—")}</div>
-        </div>
-      )}
-
-      {!loading&&!e._missing&&<>
-        {yt
-          ?<div style={{padding:"12px 14px 0"}}><iframe width="100%" height="180" src={`https://www.youtube.com/embed/${yt}`} frameBorder="0" allowFullScreen style={{borderRadius:12,border:"1px solid var(--border-hairline)"}}/></div>
-          :thumb?<div style={{padding:"12px 14px 0"}}><img src={thumb} alt="" style={{width:"100%",borderRadius:12,border:"1px solid var(--border-hairline)",display:"block"}}/></div>:null}
-
-        <div style={{padding:"14px"}}>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
-            {brand&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,fontWeight:600,color:"var(--ink-900)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{brand}</span>}
-            {e.year&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{e.year}</span>}
-            {e.country&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{e.country}</span>}
-            {rating>0&&<span style={{fontSize:12,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(rating)}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-rating)}</span></span>}
-          </div>
-
-          {e.main_slogan&&(
-            <div style={{background:"var(--ink-800)",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-              <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",color:"#8a8a8a",marginBottom:6}}>MAIN SLOGAN</div>
-              <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:15,lineHeight:1.2,color:"var(--brand-cream)"}}>&ldquo;{e.main_slogan}&rdquo;</div>
-            </div>
-          )}
-
-          <L label="Intent" value={e.communication_intent}/>
-          <L label="Territory" value={e.primary_territory}/>
-          <L label="Journey phase" value={e.journey_phase}/>
-          <L label="Archetype" value={e.brand_archetype}/>
-          <L label="Tone of voice" value={e.tone_of_voice}/>
-          <L label="Execution" value={e.execution_style}/>
-          <Note label="Synopsis" value={e.synopsis}/>
-          <Note label="Insight" value={e.insight}/>
-          <Note label="Creative idea" value={e.idea}/>
-          <Note label="Emotional benefit" value={e.emotional_benefit}/>
-          <Note label="Analyst notes" value={e.analyst_comment}/>
-        </div>
-      </>}
-    </div>
-
-    {!loading&&!e._missing&&(
-      <div style={{flex:"none",borderTop:"1px solid var(--border-hairline)",padding:10,display:"flex",gap:8}}>
-        <a href={caseHref} style={{flex:1,textAlign:"center",background:"var(--ink-800)",color:"var(--brand-cream)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,textDecoration:"none"}}>Full case →</a>
-        <a href={`/audit?edit=${e.id}`} className="gw-tbtn" style={{flex:"none",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-800)",textDecoration:"none"}}>Edit</a>
-        {e.url&&<a href={e.url} target="_blank" rel="noopener noreferrer" className="gw-tbtn" style={{flex:"none",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-800)",textDecoration:"none"}}>Source ↗</a>}
-      </div>
-    )}
-  </div>);
-}
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 function ReportsContent(){
@@ -1041,7 +947,6 @@ function ReportsContent(){
 
   const handleCiteClick=async(entry)=>{
     setViewerEntry(entry);
-    setViewerOpen(true);
     // A cited piece can sit outside what this page loaded (another scope, or captured after
     // the page opened). Fetch it rather than showing an empty panel.
     if(entry&&!entry.description&&!entry.competitor&&!entry.brand&&entry.id){
@@ -2110,26 +2015,35 @@ RULES:
         </button>
       )}
 
-      {/* ENTRY VIEWER PANEL */}
+      {/* A cited case opens in Creative Source's own QUICK LOOK modal — the same preview
+          the analyst gets from the grid, because it is the same case. The side panel below
+          is now only the entry SEARCH. */}
+      {viewerEntry&&(
+        <QuickLook
+          entry={viewerEntry}
+          loading={viewerLoading}
+          missing={!!viewerEntry._missing}
+          onClose={()=>setViewerEntry(null)}
+          onEdit={(e)=>router.push(`/audit?edit=${e.id}`)}
+          onFull={(e)=>router.push(`/case/${encodeURIComponent(String(e.id))}${viewingReport?.id?`?report=${encodeURIComponent(viewingReport.id)}`:""}`)}
+        />
+      )}
+
+      {/* ENTRY SEARCH PANEL */}
       {viewerOpen&&(
-        <div className="fixed right-0 w-[390px] bg-surface border-l border-main z-40 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h, 41px)",height:"calc(100vh - var(--nav-h, 41px))"}}>
-          {!viewerEntry&&(<div className="p-3 border-b border-main flex-shrink-0">
+        <div className="fixed right-0 w-[390px] bg-surface border-l border-main z-40 flex flex-col" style={{top:0,bottom:0,boxShadow:"-4px 0 24px rgba(0,0,0,.06)"}}>
+          <div className="p-3 border-b border-main flex-shrink-0">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-semibold text-main">{viewerEntry?"Entry detail":"Search entries"}</span>
-              <span onClick={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}} className="cursor-pointer text-hint hover:text-main text-sm">×</span>
+              <span className="text-xs font-semibold text-main">Search entries</span>
+              <span onClick={()=>{setViewerOpen(false);setSearchQuery("");}} className="cursor-pointer text-lg text-hint hover:text-main">×</span>
             </div>
-            {!viewerEntry&&<input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setViewerEntry(null);}} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>}
-          </div>)}
-          {viewerEntry
-            ?<div className="flex-1 overflow-hidden"><EntryViewer entry={viewerEntry} loading={viewerLoading} reportId={viewingReport?.id} onClose={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}}/></div>
-            :(
-              <div className="flex-1 overflow-auto">
+            <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>
+          </div>
+          <div className="flex-1 overflow-auto">
                 {searchQuery.length<=1?<div className="p-4 text-center text-hint text-sm">Type to search {allData.length} entries</div>
                 :searchResults.length===0?<div className="p-4 text-center text-hint text-sm">No entries found</div>
-                :<div className="p-2">{searchResults.map(e=>(<button key={e.id} onClick={()=>setViewerEntry(e)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft transition mb-1"><div className="flex gap-1.5 items-center mb-0.5">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div><p className="text-xs font-medium text-main truncate">{e.description||"—"}</p></button>))}</div>}
-              </div>
-            )
-          }
+                :<div className="p-2">{searchResults.map(e=>(<button key={e.id} onClick={()=>{setViewerEntry(e);setViewerOpen(false);setSearchQuery("");}} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft transition mb-1"><div className="flex gap-1.5 items-center mb-0.5">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-[10px] font-semibold text-main bg-surface2 px-1 rounded">{e.brand}</span>}</div><p className="text-xs font-medium text-main truncate">{e.description||"—"}</p></button>))}</div>}
+          </div>
         </div>
       )}
     </div>
