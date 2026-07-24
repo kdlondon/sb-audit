@@ -10,7 +10,14 @@ export default function AuthGuard({ children }) {
     (async () => {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      if (!session) {
+        // Keep where the user was heading — a case link shared in a deliverable must land
+        // on that case after login, not on the project picker.
+        const here = window.location.pathname + window.location.search;
+        const next = here && here !== "/" ? `?next=${encodeURIComponent(here)}` : "";
+        router.replace(`/login${next}`);
+        return;
+      }
       setOk(true);
     })();
   }, [router]);

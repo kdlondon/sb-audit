@@ -144,6 +144,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  // Honour ?next= after login so a link into a specific page (e.g. a report citation
+  // pointing at /case/<id>) survives the detour. Relative paths only — never an
+  // absolute URL, which would make this an open redirect.
+  const nextPath = () => {
+    if (typeof window === "undefined") return "/projects";
+    const raw = new URLSearchParams(window.location.search).get("next") || "";
+    return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/projects";
+  };
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -208,7 +216,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/projects");
+    router.replace(nextPath());
   };
 
   const sendEmailOtp = async (userEmail) => {
@@ -236,7 +244,7 @@ export default function LoginPage() {
     const data = await res.json();
 
     if (data.success) {
-      router.replace("/projects");
+      router.replace(nextPath());
     } else {
       setError("Invalid code. Please try again.");
       setEmailOtpCode("");

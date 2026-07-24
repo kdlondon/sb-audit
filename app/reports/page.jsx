@@ -15,6 +15,7 @@ import AskAboutThis from "@/components/reports/AskAboutThis";
 import GeneratingOverlay from "@/components/reports/GeneratingOverlay";
 import { generateReport, sectionToBlocks } from "@/lib/report-generate";
 import { blocksToMarkdown, isV2, fromLegacy } from "@/lib/report-blocks";
+import { citationsToUrls, caseUrl } from "@/lib/report-citations";
 import ProjectGuard from "@/components/ProjectGuard";
 import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
@@ -394,34 +395,99 @@ function CampaignMap({ entries, onEntryClick, activeView: extActiveView, setActi
   );
 }
 
-function EntryViewer({entry,onClose}){
-  if(!entry)return null;const e=entry;
-  return(<div className="h-full flex flex-col">
-    {/* Fixed header */}
-    <div className="p-3 border-b border-main flex justify-between items-center flex-shrink-0">
-      <b className="text-sm text-main truncate">{e.description||e.competitor||e.brand}</b>
-      <span onClick={onClose} className="cursor-pointer text-lg text-hint hover:text-main ml-2">×</span>
-    </div>
-    {/* Scrollable content */}
-    <div className="flex-1 overflow-auto">
-      {ytId(e.url)&&<div className="px-3 pt-2"><iframe width="100%" height="180" src={`https://www.youtube.com/embed/${ytId(e.url)}`} frameBorder="0" allowFullScreen className="rounded-md"/></div>}
-      {e.image_url&&!ytId(e.url)&&<div className="px-3 pt-2"><img src={e.image_url} className="w-full rounded-md"/></div>}
-      <div className="p-3">
-        <div className="flex gap-1 flex-wrap mb-2">{e.competitor&&<Tag v={e.competitor}/>}{e.brand&&<span className="text-xs font-semibold text-main bg-surface2 px-1.5 py-0.5 rounded">{e.brand}</span>}{e.year&&<span className="bg-surface2 px-1.5 py-0.5 rounded text-[11px] text-main">{e.year}</span>}</div>
-        {[["Intent",e.communication_intent],["Portrait",e.portrait],["Phase",e.journey_phase],["Door",e.entry_door],["Archetype",e.brand_archetype],["Tone",e.tone_of_voice],["Territory",e.primary_territory],["Execution",e.execution_style],["Slogan",e.main_slogan],["Rating",e.rating?"★".repeat(Number(e.rating)):null]].filter(([,v])=>v&&v!==""&&!v.startsWith("Not ")&&!v.startsWith("None")).map(([l,v])=>(<div key={l} className="text-xs mb-0.5"><span className="text-muted">{l}:</span> <span className="text-main font-medium">{v}</span></div>))}
+// The cited case, shown in Creative Source's language rather than the old blue-on-grey
+// panel — one piece should look the same wherever the analyst meets it. Compact here;
+// /case/<id> shows the full framework.
+function EntryViewer({entry,onClose,loading,reportId}){
+  if(!entry)return null;
+  const e=entry;
+  const L=({label,value})=>{
+    const v=value==null?"":String(value).trim();
+    if(!v||v.startsWith("Not ")||v.startsWith("None"))return null;
+    return(<div style={{marginBottom:10}}>
+      <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)",marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"var(--font-body)",fontSize:12.5,lineHeight:1.5,color:"var(--ink-900)"}}>{v}</div>
+    </div>);
+  };
+  const Note=({label,value})=>{
+    const v=value==null?"":String(value).trim();
+    if(!v)return null;
+    return(<div style={{marginBottom:10}}>
+      <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",textTransform:"uppercase",color:"var(--text-muted)",marginBottom:5}}>{label}</div>
+      <div style={{fontFamily:"var(--font-body)",fontSize:12,lineHeight:1.55,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:10,padding:"10px 12px"}}>{v}</div>
+    </div>);
+  };
+  const brand=e.competitor||e.brand||e.brand_name||"";
+  const yt=ytId(e.url);
+  const thumb=yt?`https://img.youtube.com/vi/${yt}/hqdefault.jpg`:e.image_url;
+  const rating=Number(e.rating)||0;
+  const caseHref=`/case/${encodeURIComponent(String(e.id||""))}${reportId?`?report=${encodeURIComponent(reportId)}`:""}`;
+
+  return(<div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--brand-white)"}}>
+    <div style={{flex:"none",padding:"12px 14px",borderBottom:"1px solid var(--border-hairline)",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+      <div style={{minWidth:0}}>
+        <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".18em",color:"var(--accent-ember-deep)",marginBottom:5}}>CREATIVE SOURCE · CASE</div>
+        <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,lineHeight:1.25,color:"var(--ink-900)"}}>{e.description||brand||"Case"}</div>
       </div>
-      {e.synopsis&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Synopsis</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.synopsis}</div></div>}
-      {e.insight&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Insight</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.insight}</div></div>}
-      {e.idea&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Creative Idea</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.idea}</div></div>}
-      {e.emotional_benefit&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Emotional Benefit</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.emotional_benefit}</div></div>}
-      {e.analyst_comment&&<div className="px-3 pb-2"><div className="text-[10px] font-semibold text-hint uppercase mb-1">Analyst notes</div><div className="text-xs leading-relaxed bg-surface2 p-2 rounded text-main">{e.analyst_comment}</div></div>}
+      <button onClick={onClose} style={{flex:"none",background:"none",border:"none",cursor:"pointer",fontSize:17,lineHeight:1,color:"var(--text-muted)",padding:0}}>×</button>
     </div>
-    {/* Fixed footer with actions */}
-    <div className="p-3 border-t border-main flex-shrink-0 flex gap-2">
-      <a href={`/audit?edit=${e.id}`} className="flex-1 text-center px-3 py-2 text-xs text-white rounded-lg font-semibold hover:opacity-90 transition" style={{background:"#0019FF"}}>Edit entry</a>
-      <a href={`/audit?entry=${e.id}`} className="flex-1 text-center px-3 py-2 text-xs border border-main rounded-lg text-muted hover:text-main transition">View in Audit</a>
-      {e.url&&<a href={e.url} target="_blank" rel="noopener noreferrer" className="px-3 py-2 text-xs border border-main rounded-lg text-muted hover:text-main transition">Open ↗</a>}
+
+    <div style={{flex:1,overflowY:"auto"}}>
+      {loading&&<div style={{padding:"18px 14px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--accent-ember-deep)"}} className="animate-pulse">Loading case…</div>}
+
+      {/* A citation whose piece cannot be found is stated plainly — a blank panel reads as
+          a broken app when it is actually missing data. */}
+      {!loading&&e._missing&&(
+        <div style={{padding:"18px 14px"}}>
+          <p style={{fontFamily:"var(--font-body)",fontSize:12.5,lineHeight:1.55,color:"var(--text-secondary)",margin:0}}>
+            This case couldn&rsquo;t be found. It may have been deleted, or it belongs to another project.
+          </p>
+          <div style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-muted)",marginTop:10}}>ID {String(e.id||"—")}</div>
+        </div>
+      )}
+
+      {!loading&&!e._missing&&<>
+        {yt
+          ?<div style={{padding:"12px 14px 0"}}><iframe width="100%" height="180" src={`https://www.youtube.com/embed/${yt}`} frameBorder="0" allowFullScreen style={{borderRadius:12,border:"1px solid var(--border-hairline)"}}/></div>
+          :thumb?<div style={{padding:"12px 14px 0"}}><img src={thumb} alt="" style={{width:"100%",borderRadius:12,border:"1px solid var(--border-hairline)",display:"block"}}/></div>:null}
+
+        <div style={{padding:"14px"}}>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
+            {brand&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,fontWeight:600,color:"var(--ink-900)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{brand}</span>}
+            {e.year&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{e.year}</span>}
+            {e.country&&<span style={{fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-secondary)",background:"var(--paper)",border:"1px solid var(--border-hairline)",borderRadius:14,padding:"4px 10px"}}>{e.country}</span>}
+            {rating>0&&<span style={{fontSize:12,letterSpacing:1}}><span style={{color:"var(--accent-ember)"}}>{"★".repeat(rating)}</span><span style={{color:"var(--ink-300)"}}>{"★".repeat(5-rating)}</span></span>}
+          </div>
+
+          {e.main_slogan&&(
+            <div style={{background:"var(--ink-800)",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:8,letterSpacing:".14em",color:"#8a8a8a",marginBottom:6}}>MAIN SLOGAN</div>
+              <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:15,lineHeight:1.2,color:"var(--brand-cream)"}}>&ldquo;{e.main_slogan}&rdquo;</div>
+            </div>
+          )}
+
+          <L label="Intent" value={e.communication_intent}/>
+          <L label="Territory" value={e.primary_territory}/>
+          <L label="Journey phase" value={e.journey_phase}/>
+          <L label="Archetype" value={e.brand_archetype}/>
+          <L label="Tone of voice" value={e.tone_of_voice}/>
+          <L label="Execution" value={e.execution_style}/>
+          <Note label="Synopsis" value={e.synopsis}/>
+          <Note label="Insight" value={e.insight}/>
+          <Note label="Creative idea" value={e.idea}/>
+          <Note label="Emotional benefit" value={e.emotional_benefit}/>
+          <Note label="Analyst notes" value={e.analyst_comment}/>
+        </div>
+      </>}
     </div>
+
+    {!loading&&!e._missing&&(
+      <div style={{flex:"none",borderTop:"1px solid var(--border-hairline)",padding:10,display:"flex",gap:8}}>
+        <a href={caseHref} style={{flex:1,textAlign:"center",background:"var(--ink-800)",color:"var(--brand-cream)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,textDecoration:"none"}}>Full case →</a>
+        <a href={`/audit?edit=${e.id}`} className="gw-tbtn" style={{flex:"none",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-800)",textDecoration:"none"}}>Edit</a>
+        {e.url&&<a href={e.url} target="_blank" rel="noopener noreferrer" className="gw-tbtn" style={{flex:"none",background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:9,padding:"9px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-800)",textDecoration:"none"}}>Source ↗</a>}
+      </div>
+    )}
   </div>);
 }
 
@@ -658,6 +724,7 @@ function ReportsContent(){
   const[copied,setCopied]=useState(false);
   const[viewerOpen,setViewerOpen]=useState(false);
   const[viewerEntry,setViewerEntry]=useState(null);
+  const[viewerLoading,setViewerLoading]=useState(false);
   const[searchQuery,setSearchQuery]=useState("");
   const[savedReports,setSavedReports]=useState([]);
   const[viewingReport,setViewingReport]=useState(null);
@@ -927,14 +994,7 @@ function ReportsContent(){
   };
   const toggleSec=(id)=>setSections(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const copyReport=()=>{navigator.clipboard.writeText(report||viewingReport?.content||"");setCopied(true);setTimeout(()=>setCopied(false),2000);};
-  const resolveCiteLinks=(md)=>{
-    return md.replace(/\[([^\]]+)\]\(cite:([^)]+)\)/g,(match,label,id)=>{
-      const entry=allData.find(e=>e.id===id);
-      if(entry?.url)return`[${label}](${entry.url})`;
-      return label;
-    });
-  };
-  const downloadMD=()=>{const title=viewingReport?.title||reportTitleRef.current||"report";const filename=title.replace(/[^a-zA-Z0-9\s\-_]/g,"").replace(/\s+/g,"_")+".md";const header=`# ${title}\n\n${[viewingReport?.competitors,viewingReport?.year_from&&viewingReport?.year_to?viewingReport.year_from+"–"+viewingReport.year_to:"",new Date(viewingReport?.created_at||Date.now()).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})].filter(Boolean).join(" · ")}\n\n---\n\n`;const rawContent=report||viewingReport?.content||"";const content=header+resolveCiteLinks(rawContent);const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);};
+  const downloadMD=()=>{const title=viewingReport?.title||reportTitleRef.current||"report";const filename=title.replace(/[^a-zA-Z0-9\s\-_]/g,"").replace(/\s+/g,"_")+".md";const header=`# ${title}\n\n${[viewingReport?.competitors,viewingReport?.year_from&&viewingReport?.year_to?viewingReport.year_from+"–"+viewingReport.year_to:"",new Date(viewingReport?.created_at||Date.now()).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})].filter(Boolean).join(" · ")}\n\n---\n\n`;const rawContent=report||viewingReport?.content||"";const content=header+citationsToUrls(rawContent);const blob=new Blob([content],{type:"text/markdown"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);};
   const downloadPDF=async()=>{
     if(!reportRef.current)return;
     const title=viewingReport?.title||reportTitleRef.current||"report";
@@ -955,23 +1015,16 @@ function ReportsContent(){
     wrapper.appendChild(header);
     // Clone report content
     const content=reportRef.current.cloneNode(true);
-    // Convert cite spans to real links (or styled text if no URL)
-    content.querySelectorAll("span[style*='dotted']").forEach(el=>{
-      // Try to find the entry ID from the onclick or nearby data
-      const text=el.textContent||"";
-      const entry=allData.find(e=>(e.description||"").slice(0,50).includes(text.slice(0,30))||(e.competitor||e.brand||"")===text);
-      if(entry?.url){
-        const link=document.createElement("a");
-        link.href=entry.url;
-        link.textContent=text;
-        link.style.cssText="color:#0019FF;text-decoration:underline;";
-        el.replaceWith(link);
-      }else{
-        const span=document.createElement("span");
-        span.textContent=text;
-        span.style.cssText="color:#0019FF;font-weight:500;";
-        el.replaceWith(span);
-      }
+    // Every citation becomes a real link to its case on Groundwork. This used to guess the
+    // entry by fuzzy-matching the link TEXT against descriptions, which mislabelled links
+    // and dropped the ones it couldn't match; the id now travels on the element itself.
+    content.querySelectorAll("[data-cite-id]").forEach(el=>{
+      const id=el.getAttribute("data-cite-id");
+      const link=document.createElement("a");
+      link.href=caseUrl(id);
+      link.textContent=el.textContent||"";
+      link.style.cssText="color:#DF5C29;text-decoration:underline;";
+      el.replaceWith(link);
     });
     wrapper.appendChild(content);
     document.body.appendChild(wrapper);
@@ -980,9 +1033,24 @@ function ReportsContent(){
     document.body.removeChild(wrapper);
   };
 
-  const handleCiteClick=(entry)=>{
+  // Match on the text form: the id comes out of an href as a string while e.id may be a
+  // number, so strict equality silently found nothing and the panel opened blank. Also
+  // tolerate a stray "#" the model sometimes copies from the evidence list.
+  const citeId=(v)=>String(v??"").trim().replace(/^#/,"");
+  const findEntry=(id)=>allData.find(e=>citeId(e.id)===citeId(id));
+
+  const handleCiteClick=async(entry)=>{
     setViewerEntry(entry);
     setViewerOpen(true);
+    // A cited piece can sit outside what this page loaded (another scope, or captured after
+    // the page opened). Fetch it rather than showing an empty panel.
+    if(entry&&!entry.description&&!entry.competitor&&!entry.brand&&entry.id){
+      setViewerLoading(true);
+      const{data}=await supabase.from("creative_source").select("*").eq("id",citeId(entry.id)).maybeSingle();
+      setViewerLoading(false);
+      if(data)setViewerEntry(data);
+      else setViewerEntry({...entry,_missing:true});
+    }
   };
 
   const saveReport=async(openEditor=false)=>{
@@ -1650,7 +1718,7 @@ RULES:
     // 2. Convert citations to markdown links
     // Handle old format [ENTRY:id] → [label](__cite__id)
     let withCiteLinks = cleaned.replace(/\[ENTRY:([^\]]+)\]/g, (match, id) => {
-      const entry = allData.find(e => e.id === id);
+      const entry = findEntry(id);
       let label = entry
         ? (entry.description || entry.competitor || entry.brand || "source").slice(0, 50)
         : "source";
@@ -1662,7 +1730,6 @@ RULES:
     withCiteLinks = withCiteLinks.replace(/\]\(cite:([^)]+)\)/g, "](__cite__$1)");
     // Handle Sources section: [ID:xxx] - description → clickable link
     withCiteLinks = withCiteLinks.replace(/\[ID:([^\]]+)\]\s*[-–—]\s*(.+)/g, (match, id, desc) => {
-      const entry = allData.find(e => e.id === id);
       return `[${desc.trim()}](__cite__${id})`;
     });
 
@@ -1683,11 +1750,12 @@ RULES:
           a: ({href, children}) => {
             if (href?.startsWith("__cite__")) {
               const id = href.replace("__cite__", "");
-              const entry = allData.find(e => e.id === id);
+              const entry = findEntry(id);
               return (
                 <span
-                  onClick={() => handleCiteClick(entry || {id, description: String(children)})}
-                  style={{color:"var(--accent)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
+                  data-cite-id={citeId(id)}
+                  onClick={() => handleCiteClick(entry || {id})}
+                  style={{color:"var(--accent-ember-deep)",textDecoration:"underline",textDecorationStyle:"dotted",cursor:"pointer",textUnderlineOffset:"3px"}}
                 >{children}</span>
               );
             }
@@ -2045,15 +2113,15 @@ RULES:
       {/* ENTRY VIEWER PANEL */}
       {viewerOpen&&(
         <div className="fixed right-0 w-[390px] bg-surface border-l border-main z-40 flex flex-col" style={{boxShadow:"-2px 0 12px rgba(0,0,0,0.05)",top:"var(--nav-h, 41px)",height:"calc(100vh - var(--nav-h, 41px))"}}>
-          <div className="p-3 border-b border-main flex-shrink-0">
+          {!viewerEntry&&(<div className="p-3 border-b border-main flex-shrink-0">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs font-semibold text-main">{viewerEntry?"Entry detail":"Search entries"}</span>
               <span onClick={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}} className="cursor-pointer text-hint hover:text-main text-sm">×</span>
             </div>
             {!viewerEntry&&<input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setViewerEntry(null);}} placeholder="Search brand, description, slogan..." className="w-full px-3 py-2 bg-surface2 border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]"/>}
-          </div>
+          </div>)}
           {viewerEntry
-            ?<div className="flex-1 overflow-hidden"><EntryViewer entry={viewerEntry} onClose={()=>setViewerEntry(null)}/></div>
+            ?<div className="flex-1 overflow-hidden"><EntryViewer entry={viewerEntry} loading={viewerLoading} reportId={viewingReport?.id} onClose={()=>{setViewerOpen(false);setViewerEntry(null);setSearchQuery("");}}/></div>
             :(
               <div className="flex-1 overflow-auto">
                 {searchQuery.length<=1?<div className="p-4 text-center text-hint text-sm">Type to search {allData.length} entries</div>
