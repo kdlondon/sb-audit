@@ -39,9 +39,9 @@ export default function ReportLibrary({
   onOpenText,
   onOpenVisual,
   onGenerateVisual,
-  onEdit,
   onAction,          // (id, action, value) → server
   onGenerate,        // → Generate view
+  error = null,      // message from a failed action — shown, never swallowed
 }) {
   const [filter, setFilter] = useState("active");
   const [sort, setSort] = useState("recent");
