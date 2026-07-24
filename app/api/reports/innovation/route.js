@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { innovationVisuals } from "@/lib/report-visuals";
+import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 import { MODELS } from "@/lib/models";
@@ -98,7 +100,9 @@ export async function POST(request) {
   const ALL_DEFS = {
     innovation_map: { title: "Innovation map", task: `Map WHICH innovations and disruptive propositions brands are communicating, and in what territories. Group by type of proposition (new service / platform / ecosystem / business model / capability). 2-3 paragraphs + a bullet list of the propositions seen and who is making them.` },
     who_moves: { title: "Who's moving", task: `Assess WHICH brands are claiming the innovation space and how CREDIBLY — is the innovation message backed by a real proposition or is it just innovation-flavoured language? Contrast the leaders vs the followers.` },
-    innovation_gaps: { title: "Gaps & open ground", task: `Identify innovation angles and propositions that NOBODY in the category is communicating yet — open ground for ${client} to claim an innovation narrative. Name 3-5 concrete opportunities.` },
+    innovation_gaps: { title: "Gaps & open ground", task: `Identify innovation angles and propositions that NOBODY in the category is communicating yet — open ground for ${client} to claim an innovation narrative. Name 3-5 concrete opportunities.` + dataInstruction(
+      `[{"name":"short label, max 5 words","supply":1-5,"demand":1-5,"closest":"nearest brand, or null"}]`,
+      `supply = how claimed the angle already is (1 = nobody, 5 = crowded). demand = its strategic value (1 = marginal, 5 = high). Judge both from the evidence. ONLY the gaps you discussed, in the same order.`) },
   };
   const titleFor = { exec: "Executive read", recommendations: "Recommendations" };
   const DEFAULT_ORDER = ["exec", "innovation_map", "who_moves", "innovation_gaps", "recommendations"];
@@ -111,7 +115,8 @@ export async function POST(request) {
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const dir = [(cfgMap[key]?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior innovation strategist writing the "${sd.title}" section of an Innovation Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE:\n${ctx(selFor()).slice(0, 7000)}`;
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 3200) };
+    const { markdown, data } = extractSectionData(await claude(apiKey, prompt, 3200));
+    return { key, title: sd.title, markdown, data };
   };
   const genExec = async (body) => {
     const dir = [(cfgMap.exec?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
@@ -121,14 +126,30 @@ export async function POST(request) {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
     return { key: "recommendations", title: titleFor.recommendations, markdown: await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 2200) };
   };
+  // Computed from the innovation pool the prompts already use — never asked of the model.
+  // Only the gaps arrive as the analysis's own data, for the same reason white space does.
+  const terrTally = {};
+  pool.forEach((p) => (p.territory || "").split(",").map((t) => t.trim()).filter(Boolean).forEach((t) => {
+    if (!terrTally[t]) terrTally[t] = { name: t, count: 0, brands: new Set() };
+    terrTally[t].count++; terrTally[t].brands.add(p.brand);
+  }));
+  const brandTally = {};
+  pool.forEach((p) => { if (p.brand && p.brand !== "—") brandTally[p.brand] = (brandTally[p.brand] || 0) + 1; });
+  const visualStats = {
+    pieceCount: pool.length, brandCount: brands.length,
+    territories: Object.values(terrTally).map((t) => ({ name: t.name, count: t.count, brands: t.brands.size })).sort((a, b) => b.count - a.count),
+    perBrand: Object.entries(brandTally).map(([brand, count]) => ({ brand, count })).sort((a, b) => b.count - a.count),
+  };
+  const withVisuals = (sec) => sec ? { ...sec, visuals: innovationVisuals(sec.key, { ...visualStats, gaps: sec.data, plays: sec.data }) } : sec;
+
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, innovationSignals: innov.length };
 
   try {
     if (regenKey) {
-      if (ALL_DEFS[regenKey]) return Response.json({ section: await genAnalytical(regenKey), meta });
+      if (ALL_DEFS[regenKey]) return Response.json({ section: withVisuals(await genAnalytical(regenKey)), meta });
       const body = (Array.isArray(priorSections) ? priorSections : []).filter((s) => s && ALL_DEFS[s.key]).map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
-      if (regenKey === "exec") return Response.json({ section: await genExec(body), meta });
-      if (regenKey === "recommendations") return Response.json({ section: await genRecs(body), meta });
+      if (regenKey === "exec") return Response.json({ section: withVisuals(await genExec(body)), meta });
+      if (regenKey === "recommendations") return Response.json({ section: withVisuals(await genRecs(body)), meta });
       return Response.json({ error: "Unknown section: " + regenKey }, { status: 400 });
     }
     const analyticalKeys = cfg.map((s) => s.key).filter((k) => ALL_DEFS[k]);
@@ -141,7 +162,7 @@ export async function POST(request) {
     const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
     if (exec) byKey.exec = exec;
     if (recs) byKey.recommendations = recs;
-    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
+    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean).map(withVisuals);
     return Response.json({ sections, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

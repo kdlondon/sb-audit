@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { globalVisuals } from "@/lib/report-visuals";
+import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
 import { loadFramework } from "@/lib/framework-loader";
 
 export const dynamic = "force-dynamic";
@@ -109,7 +111,9 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     rationale: { title: "Curation rationale", build: () => `THE GLOBAL SET:\n- ${pool.length} cases across ${brands.length} brands (${brands.join(", ")})\n- Years: ${yearRange}\n- Top territories: ${territoryTally.join(" · ")}\n- Execution styles: ${executionTally.join(" · ")}\n\nTOP CASES (by craft/distinctiveness):\n${ctx(byQuality(casePool).slice(0, 12))}`,
       task: `Set up the selection: what this global set covers, and the LOGIC of the curation — what makes a case worth including (distinctiveness, craft, strategic clarity, resonance). 2 short paragraphs. Name a few of the standout brands/cases to come.` },
     cases: { title: "The cases", build: () => `STANDOUT CASES:\n${ctx(byQuality(casePool).slice(0, 18))}`,
-      task: `The heart of the report — a curated gallery. For each standout case (aim for 8–12, the strongest first): (a) what it is in one line, (b) WHY IT WORKS — the creative/strategic move that makes it land, (c) the TRANSFERABLE IDEA for ${client}. Use a clear sub-bullet structure per case and cite each case.` },
+      task: `The heart of the report — a curated gallery. For each standout case (aim for 8–12, the strongest first): (a) what it is in one line, (b) WHY IT WORKS — the creative/strategic move that makes it land, (c) the TRANSFERABLE IDEA for ${client}. Use a clear sub-bullet structure per case and cite each case.` + dataInstruction(
+        `[{"id":"the #ID of the case","what":"one line","why":"why it works","idea":"the transferable idea"}]`,
+        `One object per case you discussed, in the same order. "id" MUST be an #ID from the evidence — never invented.`) },
     patterns: { title: "Patterns", build: () => `ACROSS THE SET:\n- Territories: ${territoryTally.join(" · ")}\n- Execution styles: ${executionTally.join(" · ")}\n- Archetypes: ${archetypeTally.join(" · ")}\n\nEVIDENCE (top cases):\n${ctx(byQuality(casePool).slice(0, 16))}`,
       task: `Step back: what RECURS across the best cases? Name the patterns — shared territories, execution devices, archetypes, structural moves — and what they signal about where the category's creative frontier is. Bullets, each grounded in cited cases.` },
   };
@@ -125,20 +129,32 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
     const prompt = `You are a senior creative strategist writing the "${sd.title}" section of a Global Creative Inspiration report.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
-    return { key, title: sd.title, markdown: await claude(apiKey, prompt, 2000) };
+    const { markdown, data } = extractSectionData(await claude(apiKey, prompt, 2000));
+    return { key, title: sd.title, markdown, data };
   };
   const genPlays = async (body) => {
     const dir = dirOf("plays");
-    return { key: "plays", title: "Transferable plays", markdown: await claude(apiKey, `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}`, 1200) };
+    const raw = await claude(apiKey, `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.${dataInstruction(`[{"name":"the play, 3-6 words","move":"what to do in one line"}]`, `One object per play, same order as the prose.`)}\n\nSECTIONS:\n${body}`, 1200);
+    const { markdown, data } = extractSectionData(raw);
+    return { key: "plays", title: "Transferable plays", markdown, data };
   };
+  // Visual blocks come from the SAME numbers the prompts use — computed, never asked of the
+  // model — except the gallery and the plays, which are the analysis's own selection and
+  // arrive as structured data alongside the prose.
+  const visualStats = {
+    caseCount: pool.length, brandCount: brands.length, yearRange, ratedCount: rated.length,
+    territories: tally(casePool, "territory").slice(0, 10).map(([name, count]) => ({ name, count })),
+  };
+  const withVisuals = (sec) => sec ? { ...sec, visuals: globalVisuals(sec.key, { ...visualStats, cases: sec.data, plays: sec.data }) } : sec;
+
   const meta = { icp, brands: brands.length, cases: pool.length, rated: rated.length, yearRange, subject: subject || null };
 
   try {
     if (regenKey) {
-      if (SECTIONS[regenKey]) return Response.json({ section: await genSection(regenKey), meta });
+      if (SECTIONS[regenKey]) return Response.json({ section: withVisuals(await genSection(regenKey)), meta });
       if (regenKey === "plays") {
         const body = (Array.isArray(priorSections) ? priorSections : []).filter((s) => s && SECTIONS[s.key]).map((s) => `### ${s.title}\n${s.markdown}`).join("\n\n").slice(0, 9000);
-        return Response.json({ section: await genPlays(body), meta });
+        return Response.json({ section: withVisuals(await genPlays(body)), meta });
       }
       return Response.json({ error: "Unknown section: " + regenKey }, { status: 400 });
     }
@@ -152,7 +168,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     }
     const byKey = Object.fromEntries(analytical.map((a) => [a.key, a]));
     if (plays) byKey.plays = plays;
-    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean);
+    const sections = cfg.map((s) => byKey[s.key]).filter(Boolean).map(withVisuals);
     return Response.json({ sections, meta });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

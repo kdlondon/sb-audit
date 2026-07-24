@@ -51,7 +51,7 @@ export default function ReportBlock({ block }) {
 }
 
 export const isVisualBlock = (b) =>
-  b && ["kpi", "bars", "split", "heatmap", "quadrant", "pullquote"].includes(b.type);
+  b && ["kpi", "bars", "split", "heatmap", "quadrant", "pullquote", "cases", "plays"].includes(b.type);
 
 function KpiRow({ data = {} }) {
   const items = data.items || [];

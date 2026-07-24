@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { loadFramework } from "@/lib/framework-loader";
 import { pieceWeight } from "@/lib/weights";
 import { flagshipVisuals } from "@/lib/report-visuals";
+import { extractSectionData, dataInstruction } from "@/lib/report-section-data";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 6 weighted sections in 2 passes ~50s; give Vercel headroom
@@ -141,22 +142,12 @@ supply = how covered the space already is (1 = nobody, 5 = crowded). demand = ho
     .map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, 24);
 
-  // A section may append a fenced json block with structured data for its chart. Pull it
-  // out, keep it aside, and strip it from the prose the analyst reads.
-  const extractData = (md) => {
-    const m = /```json\s*([\s\S]*?)```/i.exec(md || "");
-    if (!m) return { markdown: md, data: null };
-    let data = null;
-    try { data = JSON.parse(m[1].trim()); } catch { data = null; }
-    return { markdown: (md.slice(0, m.index) + md.slice(m.index + m[0].length)).trim(), data };
-  };
-
   const genAnalytical = async (key) => {
     const sd = ALL_DEFS[key]; const custom = (cfgMap[key]?.prompt || "").trim();
     const dir = [custom, ci].filter(Boolean).join(" · ");
     const prompt = `You are a senior brand strategist writing the "${sd.title}" section of a Strategic Positioning Report.\n${head}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\nEVIDENCE (re-weighted for this section):\n${ctx(selFor(key)).slice(0, 7000)}`;
     const raw = await claude(apiKey, prompt, 4000);
-    const { markdown, data } = extractData(raw);
+    const { markdown, data } = extractSectionData(raw);
     return { key, title: sd.title, markdown, data };
   };
   const genExec = async (body) => {
