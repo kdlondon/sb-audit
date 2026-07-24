@@ -90,7 +90,9 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const ALL_DEFS = {
     landscape: { title: "Category landscape", pool: allPieces, task: `Map how the category communicates: the territories occupied and who owns what. 2-3 tight paragraphs + a short bullet list of territory ownership.` },
-    positioning: { title: "Positioning x-ray", pool: subjPool(allPieces), task: `Contrast EXPRESSED (what the brand says — Brand DNA / web, the brand_dna evidence) vs VALIDATED (what its content actually does) ${scope === "brand" ? `for ${subject}` : "for each main brand"}. Surface the gap between the two — that gap is the key insight.` },
+    positioning: { title: "Positioning x-ray", pool: subjPool(allPieces), task: `Contrast EXPRESSED (what the brand says — Brand DNA / web, the brand_dna evidence) vs VALIDATED (what its content actually does) ${scope === "brand" ? `for ${subject}` : "for each main brand"}. Surface the gap between the two — that gap is the key insight.` + dataInstruction(
+      `[{"brand":"brand name","declares":"one short sentence","demonstrates":"one short sentence","gap":"one short sentence — the conclusion"}]`,
+      `One object per brand you discussed, in the same order, 3-7 brands. Keep every cell to ONE short sentence — this is a comparison table, not prose. If a side is genuinely unknown, use an empty string.`) },
     hero: { title: "Hero & message consistency", pool: subjPool(allPieces), task: `Assess whether the hero/brand message is stable over time and coherent across channels (only hero-level signals are included here). Flag drift or inconsistency vs the declared positioning.` },
     whitespace: { title: "White space & opportunity", pool: allPieces, task: `Identify territories and angles nobody clearly owns, then name 3-5 concrete opportunity territories for ${client}.
 
@@ -136,7 +138,7 @@ supply = how covered the space already is (1 = nobody, 5 = crowded). demand = ho
     .map((t) => ({ name: t.name, count: t.count, brands: t.brands.size, pull: t.ratings.length ? t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length : null }))
     .sort((a, b) => b.count - a.count);
   const visualStats = { territories, brandCount: (scopedBrands.length ? scopedBrands : brands).length, totalPieces: pieces.length, inRange: inScope.length };
-  const withVisuals = (sec) => sec ? { ...sec, visuals: flagshipVisuals(sec.key, { ...visualStats, gaps: sec.data }) } : sec;
+  const withVisuals = (sec) => sec ? { ...sec, visuals: flagshipVisuals(sec.key, { ...visualStats, gaps: sec.data, compare: sec.data, plays: sec.data }) } : sec;
 
   const selFor = (key) => ALL_DEFS[key].pool.filter(passFilter)
     .map((p) => ({ p, w: pieceWeight(p, { section: key, mode, refYear }) }))
@@ -159,9 +161,10 @@ supply = how covered the space already is (1 = nobody, 5 = crowded). demand = ho
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    const raw = await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
-    const { markdown, lead } = extractLead(raw);
-    return { key: "recommendations", title: titleFor.recommendations, markdown, lead };
+    const raw = await claude(apiKey, `Write STRATEGIC RECOMMENDATIONS for ${client}: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE + dataInstruction(`[{"name":"the action, 3-6 words","move":"what to do, one sentence","impact":"High|Medium|Low","effort":"High|Medium|Low"}]`, `One object per action, in the same order as the prose. Only include impact/effort when you can genuinely judge them; omit both fields otherwise rather than guessing.`), 2200);
+    const { markdown: noLead, lead } = extractLead(raw);
+    const { markdown, data } = extractSectionData(noLead);
+    return { key: "recommendations", title: titleFor.recommendations, markdown, lead, data };
   };
   const inRange = pieces.filter(passFilter).length;
   const meta = { scope, subject: scope === "brand" ? subject : null, icp, brands: brands.length, pieces: pieces.length, inRange, brandDna: dnaPieces.length };

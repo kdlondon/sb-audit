@@ -155,7 +155,9 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
         const deployed = ctx(subjOf(topByEng(pool, 40)).slice(0, 24));
         return `DECLARED positioning (web / brand profile):\n${declared}\n\nDEPLOYED on social (sample):\n${deployed}`;
       },
-      task: `Compare DECLARED positioning (the brand's web / brand profile — claim, positioning, voice) against what it actually DEPLOYS on social. Surface consistency and gaps — social-scoped only (not a full multichannel audit). Name the gap where it exists. ${scope === "brand" ? `Focus on ${subject}.` : "Cover each main brand briefly."}` },
+      task: `Compare DECLARED positioning (the brand's web / brand profile — claim, positioning, voice) against what it actually DEPLOYS on social. Surface consistency and gaps — social-scoped only (not a full multichannel audit). Name the gap where it exists. ${scope === "brand" ? `Focus on ${subject}.` : "Cover each main brand briefly."}` + dataInstruction(
+        `[{"brand":"brand name","declares":"one short sentence","demonstrates":"one short sentence","gap":"one short sentence — the conclusion"}]`,
+        `One object per brand you discussed, in the same order, 3-7 brands. Keep every cell to ONE short sentence — this is a comparison table, not prose. If a side is genuinely unknown, use an empty string.`) },
     working: { title: "What's working", build: () => `ENGAGEMENT by pillar:\n${pillarLandscape.map((p) => `- ${p.pillar}: avg eng ${p.avgEng} (${p.posts} posts)`).join("\n")}\n\nTOP POSTS by engagement:\n${ctx(topByEng(pool, 20))}`,
       task: `Analyse WHAT'S WORKING: which pillars, formats and specific posts earn the most engagement, and the patterns behind them (hook, format, timing, subject). Cite the standout posts. Do not present raw metrics as strategy — explain the WHY.` },
     cadence: { title: "Cadence, format & platform", build: () => `POSTING per brand (cadence/format/platform):\n${perBrand.map((b) => `- ${b.brand}: ${b.posts} posts · busiest ${b.topDay} · formats [${b.fmt.join(", ")}] · platforms [${b.plt.join(", ")}]`).join("\n")}\n\nCATEGORY FORMAT MIX: ${formatMix.join(" · ")}\nCATEGORY PLATFORM MIX: ${platformMix.join(" · ")}\nACTIVE WINDOW: ${dateRange}`,
@@ -190,7 +192,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   // Visual blocks are computed from the SAME precomputed stats the prompts use — never
   // asked of the model — so a client-facing chart can't carry an invented number.
   const visualStats = { perBrand, pillarLandscape, formatMix, platformMix, totalPosts: pool.length, brandCount: brands.length, windowLabel: dateRange };
-  const withVisuals = (sec) => sec ? { ...sec, visuals: socialVisuals(sec.key, visualStats) } : sec;
+  const withVisuals = (sec) => sec ? { ...sec, visuals: socialVisuals(sec.key, { ...visualStats, compare: sec.data }) } : sec;
 
   try {
     // SINGLE-SECTION regeneration

@@ -127,9 +127,10 @@ export async function POST(request) {
   };
   const genRecs = async (body) => {
     const dir = [(cfgMap.recommendations?.prompt || "").trim(), ci].filter(Boolean).join(" · ");
-    const raw = await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
-    const { markdown, lead } = extractLead(raw);
-    return { key: "recommendations", title: titleFor.recommendations, markdown, lead };
+    const raw = await claude(apiKey, `Write RECOMMENDATIONS for ${client} on the innovation narrative: 4-6 prioritized, concrete, one-sentence actions grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} No methodology, no emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE + dataInstruction(`[{"name":"the action, 3-6 words","move":"what to do, one sentence","impact":"High|Medium|Low","effort":"High|Medium|Low"}]`, `One object per action, in the same order as the prose. Only include impact/effort when you can genuinely judge them; omit both fields otherwise rather than guessing.`), 2200);
+    const { markdown: noLead, lead } = extractLead(raw);
+    const { markdown, data } = extractSectionData(noLead);
+    return { key: "recommendations", title: titleFor.recommendations, markdown, lead, data };
   };
   // Computed from the innovation pool the prompts already use — never asked of the model.
   // Only the gaps arrive as the analysis's own data, for the same reason white space does.

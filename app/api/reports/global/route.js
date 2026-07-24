@@ -63,6 +63,9 @@ export async function POST(request) {
       channel: s.platform || e.channel || "", year: e.year,
       slogan: clean(e.main_slogan), comment: clean(e.analyst_comment).slice(0, 200),
       text: clean(e.synopsis || e.description).slice(0, 200),
+      // Card fields — the engine names the case by id; the rest is joined here rather than
+      // asked of the model, which would only invent it.
+      country: e.country || "", url: e.url || "", image_url: e.image_url || "",
     };
   });
 
@@ -135,7 +138,7 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
   };
   const genPlays = async (body) => {
     const dir = dirOf("plays");
-    const raw = await claude(apiKey, LEAD_RULE + `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.${dataInstruction(`[{"name":"the play, 3-6 words","move":"what to do in one line"}]`, `One object per play, same order as the prose.`)}\n\nSECTIONS:\n${body}`, 1200);
+    const raw = await claude(apiKey, LEAD_RULE + `Write TRANSFERABLE PLAYS for ${client} in ${category}: 4-6 concrete, named creative plays it could run, each grounded in the cases below (reference the inspiration). ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.${dataInstruction(`[{"name":"the action, 3-6 words","move":"what to do, one sentence","impact":"High|Medium|Low","effort":"High|Medium|Low"}]`, `One object per action, in the same order as the prose. Only include impact/effort when you can genuinely judge them; omit both fields otherwise rather than guessing.`)}\n\nSECTIONS:\n${body}`, 1200);
     const { markdown: noLead, lead } = extractLead(raw);
     const { markdown, data } = extractSectionData(noLead);
     return { key: "plays", title: "Transferable plays", markdown, data, lead };
@@ -147,7 +150,25 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
     caseCount: pool.length, brandCount: brands.length, yearRange, ratedCount: rated.length,
     territories: tally(casePool, "territory").slice(0, 10).map(([name, count]) => ({ name, count })),
   };
-  const withVisuals = (sec) => sec ? { ...sec, visuals: globalVisuals(sec.key, { ...visualStats, cases: sec.data, plays: sec.data }) } : sec;
+  // The engine returns which cases it discussed and why; everything factual on the card —
+  // brand, country, year, rating, thumbnail — is joined from the piece itself.
+  const ytOf = (u) => { const m = String(u || "").match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/); return m ? m[1] : null; };
+  const byId = Object.fromEntries(pieces.map((p) => [String(p.id), p]));
+  const enrichCases = (list) => (Array.isArray(list) ? list : []).map((c) => {
+    const p = byId[String(c.id || "").trim().replace(/^#/, "")];
+    if (!p) return null;   // an id we cannot resolve would render an empty card
+    const yt = ytOf(p.url);
+    return {
+      id: p.id, brand: p.brand, rating: p.rating,
+      meta: [p.country, p.year].filter(Boolean).join(" · "),
+      thumb: yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : (p.image_url || ""),
+      what: String(c.what || p.text || "").trim(),
+      why: String(c.why || "").trim(),
+      idea: String(c.idea || "").trim(),
+    };
+  }).filter(Boolean);
+
+  const withVisuals = (sec) => sec ? { ...sec, visuals: globalVisuals(sec.key, { ...visualStats, cases: sec.key === "cases" ? enrichCases(sec.data) : null, plays: sec.data }) } : sec;
 
   const meta = { icp, brands: brands.length, cases: pool.length, rated: rated.length, yearRange, subject: subject || null };
 
