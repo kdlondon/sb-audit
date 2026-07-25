@@ -1021,7 +1021,11 @@ Write all output in English.`,
       const data=await res.json();
       if(data.error){setToast({message:"AI error: "+data.error});setAiStoryLoading(false);return;}
       const text=(data.content||[])[0]?.text||"";
-      const parsed=JSON.parse(text);
+      // Models sometimes wrap JSON in ```json fences or add a stray sentence despite the
+      // instruction not to. Pull the object out rather than throwing the whole thing away.
+      const jsonSlice=(()=>{const f=text.match(/```(?:json)?\s*([\s\S]*?)```/i);if(f)return f[1].trim();const a=text.indexOf("{"),z=text.lastIndexOf("}");return a>=0&&z>a?text.slice(a,z+1):text;})();
+      let parsed;
+      try{parsed=JSON.parse(jsonSlice);}catch{throw new Error("The AI reply wasn't valid JSON — try again.");}
       if(!parsed.entries||!Array.isArray(parsed.entries)){throw new Error("Invalid response structure");}
       setAiStorySuggestion(parsed);
     }catch(err){
