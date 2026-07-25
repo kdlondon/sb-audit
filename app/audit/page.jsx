@@ -630,9 +630,11 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   // ── COLLECTIONS ──────────────────────────────────────────────────────────────
   const loadCollections=useCallback(async()=>{
-    if(!brandId)return;
+    // Collections are project-scoped like everything else. They used to query by brand_id,
+    // which 400'd whenever a project's brand_id was a "proj_..." fallback (not a uuid).
+    if(!projectId)return;
     setCollectionsLoading(true);
-    const{data:cols}=await supabase.from("collections").select("*").eq("brand_id",brandId).order("created_at",{ascending:false});
+    const{data:cols}=await supabase.from("collections").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     if(cols){
       for(const c of cols){
         const{count}=await supabase.from("collection_entries").select("*",{count:"exact",head:true}).eq("collection_id",c.id);
@@ -641,7 +643,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       setCollections(cols);
     }
     setCollectionsLoading(false);
-  },[brandId]);
+  },[projectId]);
 
   useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
   // Load all entries (both scopes) for map view
@@ -663,7 +665,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
 
   // Handle direct collection URL (?collection=<id> or ?view=collections)
   useEffect(()=>{
-    if(!initialCollectionId||!brandId)return;
+    if(!initialCollectionId||!projectId)return;
     setViewMode("collections");
     if(initialCollectionId==="list"){
       loadCollections();
@@ -675,7 +677,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         clearInitialCollectionId?.();
       })();
     }
-  },[initialCollectionId,brandId]);
+  },[initialCollectionId,projectId]);
 
   const createCollection=async(colData)=>{
     const{data:created,error}=await supabase.from("collections").insert({
@@ -683,6 +685,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       description:colData.description||null,
       objective:colData.objective||null,
       is_private:colData.is_private||false,
+      project_id:projectId||null,
       brand_id:safeBrandId,
       organization_id:orgId||null,
       created_by:userEmail||"",
