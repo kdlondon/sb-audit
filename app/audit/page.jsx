@@ -2723,8 +2723,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {collections.map(c=>(
                     <div key={c.id} onClick={()=>openCollection(c)} className="bg-surface border border-main rounded-lg p-4 cursor-pointer hover:border-[var(--accent)] transition relative group">
+                      {c.origin==="ai"&&(
+                        <span title="Born from a Groundwork suggestion" className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-[var(--ink-800,#1a1a1a)] flex items-center justify-center z-10">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ember)" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>
+                        </span>
+                      )}
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-sm font-bold text-main truncate pr-6">{c.name}</h4>
+                        <h4 className={`text-sm font-bold text-main truncate ${c.origin==="ai"?"pr-12":"pr-6"}`}>{c.name}</h4>
                         <div className="relative">
                           <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(collectionMenuOpen===c.id?null:c.id);}} className="text-hint hover:text-main text-lg leading-none opacity-0 group-hover:opacity-100 transition">...</button>
                           {collectionMenuOpen===c.id&&(
@@ -2752,10 +2757,33 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         {/* Collection Detail View */}
         {viewMode==="collections"&&activeCollection&&(
           <div className="px-8 py-6 max-w-[1100px] mx-auto min-h-screen">
+            {/* Proposal banner — a suggestion is unconfirmed territory until approved */}
+            {activeCollection.state==="suggested"&&(
+              <div className="mb-5 rounded-xl border border-dashed border-[var(--accent-ember-tint)] bg-[#fdf6f2] px-5 py-4 flex items-center gap-4 flex-wrap">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--ink-800,#1a1a1a)] flex items-center justify-center">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ember)" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>
+                </span>
+                <div className="flex-1 min-w-[220px]">
+                  <div className="text-[9px] tracking-[0.16em] text-[var(--accent-ember-deep)] uppercase mb-0.5" style={{fontFamily:"var(--font-mono,monospace)"}}>Proposed by Groundwork · {activeCollection.kind==="cross_brand"?"Cross-brand":"Brand pattern"}</div>
+                  <p className="text-xs text-muted">Review the evidence and the pieces below, then approve to add it to your collections — or dismiss it.</p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={()=>approveSuggestion(activeCollection)} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[var(--accent-ember-deep)] rounded-lg hover:brightness-95 transition">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M20 6 9 17l-5-5"/></svg>Approve
+                  </button>
+                  <button onClick={()=>dismissSuggestion(activeCollection)} className="px-4 py-2 text-xs text-muted border border-[var(--border)] rounded-lg hover:text-red-500 hover:border-red-300 transition">Dismiss</button>
+                </div>
+              </div>
+            )}
             {/* Header row */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-3">
                 <h3 className="text-2xl font-bold text-main">{activeCollection.name}</h3>
+                {activeCollection.origin==="ai"&&activeCollection.state!=="suggested"&&(
+                  <span title="Born from a Groundwork suggestion" className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.06em] text-[var(--accent-ember-deep)] bg-[var(--accent-ember-tint)] px-2 py-0.5 rounded-full uppercase" style={{fontFamily:"var(--font-mono,monospace)"}}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>AI suggested
+                  </span>
+                )}
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{collectionEntries.length} {collectionEntries.length===1?"entry":"entries"}</span>
                 <span className="text-xs border border-[var(--border)] text-muted px-2 py-0.5 rounded-full">{activeCollection.is_private?"private":"shared"}</span>
               </div>
