@@ -324,6 +324,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [collections,setCollections]=useState([]);
   const [suggestions,setSuggestions]=useState([]); // Smart Collections proposed by the scan (state='suggested')
   const [scanning,setScanning]=useState(false);
+  const [scanInfo,setScanInfo]=useState(null); // persistent outcome of the last scan {kind:'none'|'error', text}
   const [collectionsLoading,setCollectionsLoading]=useState(false);
   const [activeCollection,setActiveCollection]=useState(null); // viewing a specific collection
   const [collectionEntries,setCollectionEntries]=useState([]);
@@ -659,24 +660,33 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const scanForCollections=async()=>{
     if(!projectId||scanning)return;
     setScanning(true);
+    setScanInfo(null);
     try{
       const res=await fetch("/api/collections/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         project_id:projectId,brand_id:safeBrandId,organization_id:orgId||null,created_by:userEmail||"",
       })});
-      const data=await res.json();
-      if(data.error){setToast({message:"Scan error: "+data.error});setScanning(false);return;}
+      // The response may not be JSON — a platform timeout (504) or crash returns HTML/text.
+      let data;const raw=await res.text();
+      try{data=JSON.parse(raw);}catch{
+        const hint=res.status===504?"the scan took too long and the server cut it off":`server returned ${res.status}`;
+        console.error("scan non-JSON response",res.status,raw.slice(0,300));
+        setScanInfo({kind:"error",text:`Scan couldn't finish — ${hint}.`});
+        setToast({message:"Scan couldn't finish — see the note above the list"});
+        setScanning(false);return;
+      }
+      if(data.error){setScanInfo({kind:"error",text:`Scan error: ${data.error}`});setToast({message:"Scan error — see the note above the list"});setScanning(false);return;}
       await loadCollections();
       const n=(data.suggestions||[]).length;
-      if(n){setToast({message:`${n} suggestion${n>1?"s":""} found`});}
-      else if(data.reason==="not_enough_pieces"){setToast({message:"Need at least 4 pieces to scan"});}
+      console.log("scan diagnostics",data);
+      if(n){setScanInfo(null);setToast({message:`${n} suggestion${n>1?"s":""} found`});}
+      else if(data.reason==="not_enough_pieces"){setScanInfo({kind:"none",text:"Need at least 4 captured pieces before Groundwork can find a pattern."});}
       else{
-        // Surface why nothing landed — model proposed none, or all were dropped (and why).
-        const parts=[`scanned ${data.scanned??0}`,`proposed ${data.proposed??0}`];
-        if(data.dropped)parts.push(`${data.dropped} dropped${data.drops?` (${Object.entries(data.drops).filter(([,v])=>v).map(([k,v])=>`${k}:${v}`).join(", ")})`:""}`);
-        setToast({message:`No suggestions — ${parts.join(" · ")}`});
-        console.log("scan diagnostics",data);
+        // Persist why nothing landed — model proposed none, or all were dropped (and why).
+        const bits=[`${data.scanned??0} pieces scanned`,`${data.proposed??0} pattern${data.proposed===1?"":"s"} proposed by the model`];
+        if(data.dropped)bits.push(`${data.dropped} dropped${data.drops?` (${Object.entries(data.drops).filter(([,v])=>v).map(([k,v])=>`${k.replace(/_/g," ")}: ${v}`).join(", ")})`:""}`);
+        setScanInfo({kind:"none",text:`No suggestions this time — ${bits.join(" · ")}.`});
       }
-    }catch(err){console.error("scan error",err);setToast({message:"Scan failed. Try again."});}
+    }catch(err){console.error("scan error",err);setScanInfo({kind:"error",text:`Scan failed — ${err.message||"network error"}. Try again.`});setToast({message:"Scan failed — see the note above the list"});}
     setScanning(false);
   };
 
@@ -2664,6 +2674,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     <button onClick={()=>{setShowNewCollection(false);setNewCol({name:"",description:"",objective:"",is_private:false});}} className="px-3 py-1.5 text-xs border border-main rounded-lg text-muted">Cancel</button>
                   </div>
                 </div>
+              </div>
+            )}
+            {/* Persistent outcome of the last scan — so a result is never missed (toasts vanish) */}
+            {scanInfo&&!scanning&&(
+              <div className={`mb-4 rounded-lg px-4 py-3 text-sm flex items-start gap-2 ${scanInfo.kind==="error"?"bg-red-50 border border-red-200 text-red-700":"bg-[#f6f4f0] border border-[var(--border)] text-muted"}`}>
+                <span className="flex-1">{scanInfo.text}</span>
+                <button onClick={()=>setScanInfo(null)} className="text-hint hover:text-main flex-shrink-0" title="Dismiss">×</button>
               </div>
             )}
             {/* Suggested Collections by Groundwork — the "proposal" zone (unapproved AI territory) */}
