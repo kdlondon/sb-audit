@@ -2574,6 +2574,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           {/* right — bulk actions when selecting, else the filter/sort/view/export tools */}
           <div className="min-w-[90px] flex justify-end items-center gap-1.5 relative z-[41]">
           {toolMenu&&<div className="fixed inset-0 z-40" onClick={()=>setToolMenu("")} />}
+          {viewMode==="collections"&&!activeCollection&&<>
+            <button onClick={scanForCollections} disabled={scanning} title="Let Groundwork scan the Creative Source for patterns worth a collection"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)] bg-[#fdf6f2] hover:bg-[#fbeee6] disabled:opacity-60 transition font-medium whitespace-nowrap">
+              {scanning?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Scanning…</>:<><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>Scan for collections</>}
+            </button>
+            <button onClick={()=>setShowNewCollection(true)} className="px-3 py-1.5 text-xs bg-[var(--ink-800,#1a1a1a)] text-white rounded-lg font-semibold whitespace-nowrap">+ New collection</button>
+          </>}
           {selected.size===0&&viewMode==="entries"&&<>
             {(() => { const active=Object.values(fl).some(Boolean); return (
             <div className="relative">
@@ -2680,20 +2687,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         </div>
         {/* Collections View */}
         {viewMode==="collections"&&!activeCollection&&(
-          <div className="px-8 py-6 max-w-[1360px] mx-auto">
-            <div className="flex justify-between items-start mb-5">
-              <div>
-                <h3 className="text-2xl font-bold text-main" style={{fontFamily:"var(--font-display,inherit)"}}>Collections</h3>
-                <p className="text-[13px] text-muted mt-1">Curated sets of pieces — yours, plus patterns Groundwork spots for you.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={scanForCollections} disabled={scanning} title="Let Groundwork scan the Creative Source for patterns worth a collection"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)] bg-[#fdf6f2] hover:bg-[#fbeee6] disabled:opacity-60 transition font-medium">
-                  {scanning?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Scanning…</>:<><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>Scan for collections</>}
-                </button>
-                <button onClick={()=>setShowNewCollection(true)} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">+ New Collection</button>
-              </div>
-            </div>
+          <div style={{maxWidth:1180,margin:"0 auto",padding:"22px 34px 44px"}}>
             {showNewCollection&&(
               <div className="bg-surface border border-main rounded-lg p-4 mb-4">
                 <div className="space-y-3">
