@@ -79,6 +79,27 @@ function Toast({message,link,onClose}){
   </div>);
 }
 
+// A collection card's 2×2 mosaic of member pieces. Real thumbnails where we have
+// them, warm ink/ember tiles where we don't — so a card always reads as a set.
+function Mosaic({thumbs=[],half=52}){
+  const tones=["var(--ink-700,#3a3a3a)","var(--accent-ember,#DF5C29)","var(--ink-300,#d8d2c8)","var(--ink-500,#8a8a8a)"];
+  return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gridTemplateRows:`${half}px ${half}px`,gap:2,background:"#efe9e1"}}>
+    {[0,1,2,3].map(i=>{const t=thumbs[i];return t
+      ?<img key={i} src={t} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.currentTarget.style.display="none";}}/>
+      :<div key={i} style={{background:tones[i%4]}}/>;})}
+  </div>);
+}
+
+// The overlapping brand initials on a suggestion card's footer.
+function BrandAvatars({brands=[]}){
+  const tones=["var(--ink-200,#e2ddd4)","#d8d2c8","#cfc7bc","#c4bbaf","#b9afa2"];
+  const shown=brands.slice(0,4);
+  return(<div className="flex items-center">
+    {shown.map((b,i)=>(<span key={i} title={b} style={{background:tones[i%tones.length],marginLeft:i?-6:0,border:"1.5px solid #fff"}} className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-semibold text-[var(--text2,#666)] flex-none">{String(b).charAt(0).toUpperCase()}</span>))}
+    {brands.length>4&&<span className="ml-2 text-[9.5px] text-hint">+{brands.length-4} more</span>}
+  </div>);
+}
+
 
 // ── COUNTRIES LIST ────────────────────────────────────────────────────────────
 const COUNTRIES = [
@@ -641,9 +662,19 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
     setCollectionsLoading(true);
     const{data:cols}=await supabase.from("collections").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
     if(cols){
+      const ythumb=(u)=>{const m=u?.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([^&\s]+)/);return m?`https://img.youtube.com/vi/${m[1]}/mqdefault.jpg`:null;};
       for(const c of cols){
-        const{count}=await supabase.from("collection_entries").select("*",{count:"exact",head:true}).eq("collection_id",c.id);
-        c.entryCount=count||0;
+        // Pull the member links in order, then the first few pieces for the mosaic + brands.
+        const{data:links}=await supabase.from("collection_entries").select("entry_id").eq("collection_id",c.id).order("sort_order",{ascending:true});
+        c.entryCount=links?.length||0;
+        const ids=(links||[]).map(l=>l.entry_id).filter(Boolean);
+        if(ids.length){
+          const{data:pcs}=await supabase.from("creative_source").select("id,url,image_url,competitor,brand_name,brand").in("id",ids.slice(0,20));
+          const byId=new Map((pcs||[]).map(p=>[p.id,p]));
+          const ordered=ids.map(id=>byId.get(id)).filter(Boolean);
+          c.thumbs=ordered.map(p=>p.image_url||ythumb(p.url)||"").filter(Boolean).slice(0,4);
+          c.brands=[...new Set(ordered.map(p=>p.competitor||p.brand_name||p.brand||"").filter(Boolean))];
+        }else{c.thumbs=[];c.brands=[];}
       }
       // Suggestions (state='suggested') are Groundwork's proposals — kept out of the
       // official list and shown in their own block. Everything else is a real collection.
@@ -2649,9 +2680,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         </div>
         {/* Collections View */}
         {viewMode==="collections"&&!activeCollection&&(
-          <div className="px-5 py-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-semibold text-main">Collections</h3>
+          <div className="px-8 py-6 max-w-[1360px] mx-auto">
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-2xl font-bold text-main" style={{fontFamily:"var(--font-display,inherit)"}}>Collections</h3>
+                <p className="text-[13px] text-muted mt-1">Curated sets of pieces — yours, plus patterns Groundwork spots for you.</p>
+              </div>
               <div className="flex items-center gap-2">
                 <button onClick={scanForCollections} disabled={scanning} title="Let Groundwork scan the Creative Source for patterns worth a collection"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)] bg-[#fdf6f2] hover:bg-[#fbeee6] disabled:opacity-60 transition font-medium">
@@ -2698,19 +2732,23 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     Reading the Creative Source for patterns…
                   </div>
                 ):(
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid gap-4" style={{gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))"}}>
                     {suggestions.map(c=>(
-                      <div key={c.id} onClick={()=>openCollection(c)} className="bg-white border border-[var(--accent-ember-tint)] rounded-lg p-4 cursor-pointer hover:shadow-[0_6px_22px_rgba(0,0,0,0.07)] transition relative">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className="text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5 rounded font-semibold bg-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)]" style={{fontFamily:"var(--font-mono,monospace)"}}>{c.kind==="cross_brand"?"Cross-brand":"Brand pattern"}</span>
-                          <span className="text-[10px] text-hint ml-auto">{c.entryCount} {c.entryCount===1?"piece":"pieces"}</span>
-                        </div>
-                        <h4 className="text-sm font-bold text-main leading-snug mb-1">{c.name}</h4>
-                        {c.description&&<p className="text-xs text-muted line-clamp-2 mb-3">{c.description}</p>}
-                        <div className="flex gap-2 mt-2" onClick={e=>e.stopPropagation()}>
-                          <button onClick={()=>approveSuggestion(c)} className="flex-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-[var(--accent-ember-deep)] rounded-lg hover:brightness-95 transition">Approve</button>
-                          <button onClick={()=>openCollection(c)} className="px-2.5 py-1.5 text-xs text-muted border border-[var(--border)] rounded-lg hover:text-main transition">View</button>
-                          <button onClick={()=>dismissSuggestion(c)} className="px-2.5 py-1.5 text-xs text-muted border border-[var(--border)] rounded-lg hover:text-red-500 hover:border-red-300 transition">Dismiss</button>
+                      <div key={c.id} onClick={()=>openCollection(c)} className="scard bg-white border border-[var(--accent-ember-tint)] rounded-2xl overflow-hidden cursor-pointer transition hover:shadow-[0_8px_26px_rgba(223,92,41,0.14)] hover:-translate-y-0.5">
+                        <Mosaic thumbs={c.thumbs}/>
+                        <div className="p-[15px]">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-[8px] font-semibold tracking-[0.08em] uppercase px-2 py-[3px] rounded-full bg-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)]" style={{fontFamily:"var(--font-mono,monospace)"}}>{c.kind==="cross_brand"?"Cross-brand":"Brand pattern"}</span>
+                            <span className="ml-auto text-[9.5px] text-hint">{c.entryCount} {c.entryCount===1?"piece":"pieces"}</span>
+                          </div>
+                          <h4 className="text-[15px] font-bold text-main leading-[1.25] mt-2.5">{c.name}</h4>
+                          {c.description&&<p className="text-[11.5px] text-muted leading-[1.5] mt-1.5 line-clamp-2">{c.description}</p>}
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]">
+                            {c.brands?.length>0&&(c.kind==="cross_brand"
+                              ?<BrandAvatars brands={c.brands}/>
+                              :<><BrandAvatars brands={c.brands.slice(0,1)}/><span className="text-[10.5px] font-semibold text-main">{c.brands[0]}</span></>)}
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ember-deep)" strokeWidth="1.7" className="ml-auto"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2719,37 +2757,60 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               </div>
             )}
             {collectionsLoading?(<div className="text-sm text-hint text-center py-8">Loading collections...</div>):(
-              collections.length===0&&suggestions.length===0?(<div className="text-sm text-hint text-center py-8">No collections yet. Create one to organize your entries.</div>):(
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <>
+                {/* section divider */}
+                <div className="flex items-center gap-2.5 mt-1 mb-4">
+                  <span className="text-[9px] tracking-[0.16em] text-hint uppercase" style={{fontFamily:"var(--font-mono,monospace)"}}>Your collections · {collections.length}</span>
+                  <span className="flex-1 h-px bg-[var(--border)]"/>
+                </div>
+                <div className="grid gap-4" style={{gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))"}}>
                   {collections.map(c=>(
-                    <div key={c.id} onClick={()=>openCollection(c)} className="bg-surface border border-main rounded-lg p-4 cursor-pointer hover:border-[var(--accent)] transition relative group">
-                      {c.origin==="ai"&&(
-                        <span title="Born from a Groundwork suggestion" className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-[var(--ink-800,#1a1a1a)] flex items-center justify-center z-10">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ember)" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>
-                        </span>
-                      )}
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className={`text-sm font-bold text-main truncate ${c.origin==="ai"?"pr-12":"pr-6"}`}>{c.name}</h4>
-                        <div className="relative">
-                          <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(collectionMenuOpen===c.id?null:c.id);}} className="text-hint hover:text-main text-lg leading-none opacity-0 group-hover:opacity-100 transition">...</button>
+                    <div key={c.id} onClick={()=>openCollection(c)} className="ocard bg-white border border-[var(--border)] rounded-2xl overflow-hidden cursor-pointer transition hover:shadow-[0_8px_26px_rgba(0,0,0,0.09)] hover:-translate-y-0.5 relative group">
+                      <div className="relative">
+                        <Mosaic thumbs={c.thumbs}/>
+                        {c.origin==="ai"&&(
+                          <span title="Born from a Groundwork suggestion" className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[rgba(26,26,26,0.72)] flex items-center justify-center">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ember)" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>
+                          </span>
+                        )}
+                        <div className="absolute top-2 left-2">
+                          <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(collectionMenuOpen===c.id?null:c.id);}} className="w-6 h-6 rounded-full bg-[rgba(255,255,255,0.85)] text-[#555] hover:text-main text-sm leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition">···</button>
                           {collectionMenuOpen===c.id&&(
-                            <div className="absolute right-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[120px] overflow-hidden">
+                            <div className="absolute left-0 top-full mt-1 bg-surface border border-main rounded-lg shadow-xl z-50 w-[120px] overflow-hidden">
                               <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(null);setEditingCollection(c);}} className="w-full text-left px-3 py-2 text-xs text-main hover:bg-accent-soft">Edit</button>
                               <button onClick={e=>{e.stopPropagation();setCollectionMenuOpen(null);deleteCollection(c.id);}} className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50">Delete</button>
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-1.5 mb-2 flex-wrap">
-                        <span className="text-[10px] bg-accent-soft text-accent px-1.5 py-0.5 rounded font-medium">{c.entryCount} {c.entryCount===1?"entry":"entries"}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${c.is_private?"bg-yellow-50 text-yellow-700 border border-yellow-200":"bg-green-50 text-green-700 border border-green-200"}`}>{c.is_private?"Private":"Shared"}</span>
+                      <div className="p-[15px]">
+                        <div className="flex items-center gap-2">
+                          {c.origin==="ai"
+                            ?<span className="inline-flex items-center gap-1 text-[8px] font-semibold tracking-[0.08em] uppercase px-2 py-[3px] rounded-full bg-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)]" style={{fontFamily:"var(--font-mono,monospace)"}}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>AI curated</span>
+                            :<span className="inline-flex items-center gap-1 text-[8px] font-semibold tracking-[0.08em] uppercase px-2 py-[3px] rounded-full bg-[var(--ink-150,#ececec)] text-[var(--text2,#666)]" style={{fontFamily:"var(--font-mono,monospace)"}}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>By you</span>}
+                          <span className="ml-auto text-[9.5px] text-hint">{c.entryCount} {c.entryCount===1?"piece":"pieces"}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-main leading-[1.3] mt-2.5">{c.name}</h4>
+                        {c.description&&<p className="text-[11.5px] text-muted leading-[1.5] mt-1.5 line-clamp-2">{c.description}</p>}
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                          <span className="text-[9.5px] text-hint">Updated {fmtDate(c.updated_at||c.created_at)}</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted,#999)" strokeWidth="1.7"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </div>
                       </div>
-                      {c.description&&<p className="text-xs text-muted mb-2 line-clamp-2">{c.description}</p>}
-                      <div className="text-[10px] text-hint">{c.created_by&&<span>By {c.created_by}</span>}{c.created_at&&<span> · {fmtDate(c.created_at)}</span>}</div>
                     </div>
                   ))}
+                  {/* New collection — dashed invite card */}
+                  <div onClick={()=>setShowNewCollection(true)} className="ocard bg-white border border-dashed border-[var(--border-strong,#cbc5bb)] rounded-2xl overflow-hidden cursor-pointer transition hover:shadow-[0_8px_26px_rgba(0,0,0,0.09)] flex flex-col">
+                    <div className="flex-1 min-h-[106px] flex items-center justify-center text-hint">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M12 5v14M5 12h14"/></svg>
+                    </div>
+                    <div className="p-[15px] border-t border-[var(--border)]">
+                      <h4 className="text-sm font-bold text-main">New collection</h4>
+                      <p className="text-[11.5px] text-muted leading-[1.5] mt-1.5">Group pieces by hand, or ask the AI for the evidence.</p>
+                    </div>
+                  </div>
                 </div>
-              )
+              </>
             )}
           </div>
         )}
