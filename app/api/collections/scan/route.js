@@ -175,6 +175,7 @@ export async function POST(request) {
   const proposed = (parsed?.clusters || []).length;
   const created = [];
   const drops = { below_min: 0, bad_key: 0, dup_signature: 0, insert_fail: 0 };
+  let insertError = null; // first DB error, surfaced so a write failure isn't opaque
   for (const c of (parsed?.clusters || [])) {
     // Accept refs (new) or entry_ids (in case the model echoes ids) and map to real ids.
     const raw = c.refs || c.entry_ids || [];
@@ -201,18 +202,18 @@ export async function POST(request) {
       signature,
       rationale: { why: String(c.why || "").trim(), learnings: Array.isArray(c.learnings) ? c.learnings.map(l => String(l || "").trim()).filter(Boolean) : [] },
     }).select("id").single();
-    if (cErr || !col) { console.error("suggestion insert failed:", cErr); drops.insert_fail++; continue; }
+    if (cErr || !col) { console.error("suggestion insert failed:", cErr); if (!insertError && cErr) insertError = `collections: ${cErr.message}`; drops.insert_fail++; continue; }
 
     const rows = members.map((id, i) => ({ collection_id: col.id, entry_id: id, sort_order: i, added_by: "groundwork" }));
     const { error: eErr } = await supabase.from("collection_entries").insert(rows);
     if (eErr) { // roll back the orphan suggestion rather than leave an empty one
       await supabase.from("collections").delete().eq("id", col.id);
-      console.error("suggestion entries insert failed:", eErr); drops.insert_fail++; continue;
+      console.error("suggestion entries insert failed:", eErr); if (!insertError) insertError = `collection_entries: ${eErr.message}`; drops.insert_fail++; continue;
     }
     created.push({ id: col.id, title: c.title, kind, count: members.length });
   }
 
   const dropped = Object.values(drops).reduce((a, b) => a + b, 0);
-  console.log(`scan: project=${project_id} scanned=${pieces.length} proposed=${proposed} created=${created.length} drops=${JSON.stringify(drops)}`);
-  return Response.json({ suggestions: created, scanned: pieces.length, proposed, dropped, drops, model: CLUSTER_MODEL });
+  console.log(`scan: project=${project_id} scanned=${pieces.length} proposed=${proposed} created=${created.length} drops=${JSON.stringify(drops)} insertError=${insertError || "-"}`);
+  return Response.json({ suggestions: created, scanned: pieces.length, proposed, dropped, drops, insert_error: insertError, model: CLUSTER_MODEL });
 }

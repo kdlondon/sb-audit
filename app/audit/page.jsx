@@ -684,7 +684,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         // Persist why nothing landed — model proposed none, or all were dropped (and why).
         const bits=[`${data.scanned??0} pieces scanned`,`${data.proposed??0} pattern${data.proposed===1?"":"s"} proposed by the model`];
         if(data.dropped)bits.push(`${data.dropped} dropped${data.drops?` (${Object.entries(data.drops).filter(([,v])=>v).map(([k,v])=>`${k.replace(/_/g," ")}: ${v}`).join(", ")})`:""}`);
-        setScanInfo({kind:"none",text:`No suggestions this time — ${bits.join(" · ")}.`});
+        const isWriteFail=data.drops?.insert_fail>0;
+        setScanInfo({kind:isWriteFail?"error":"none",text:`No suggestions this time — ${bits.join(" · ")}.${data.insert_error?` DB error → ${data.insert_error}`:""}`});
       }
     }catch(err){console.error("scan error",err);setScanInfo({kind:"error",text:`Scan failed — ${err.message||"network error"}. Try again.`});setToast({message:"Scan failed — see the note above the list"});}
     setScanning(false);
