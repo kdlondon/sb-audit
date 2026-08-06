@@ -11,6 +11,7 @@ import Sidebar from "@/components/Sidebar";
 import SectionTabs from "@/components/SectionTabs";
 import FullView from "@/components/creative-source/FullView";
 import QuickLook from "@/components/creative-source/QuickLook";
+import Evidence from "@/components/collections/Evidence";
 import ProjectGuard from "@/components/ProjectGuard";
 import SocialFeedPicker from "@/components/SocialFeedPicker";
 import { useProject } from "@/lib/project-context";
@@ -343,6 +344,7 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   },[presIndex,presentationMode]);
   const [aiStoryLoading,setAiStoryLoading]=useState(false);
   const [aiStorySuggestion,setAiStorySuggestion]=useState(null);
+  const [rationaleBusy,setRationaleBusy]=useState(false);
   const [showReportModal,setShowReportModal]=useState(false);
   const [closingNotes,setClosingNotes]=useState([]);
   const [exportMenuOpen,setExportMenuOpen]=useState(false);
@@ -1051,6 +1053,60 @@ Write all output in English.`,
     await openCollection(activeCollection);
     setAiStorySuggestion(null);
     setToast({message:"Storytelling applied — entries reordered with titles and notes"});
+  };
+
+  // ── EVIDENCE (rationale) ────────────────────────────────────────────────────
+  // The "why this is a collection" + key learnings. Shared with AI suggestions.
+  const saveRationale=async(rationale)=>{
+    if(!activeCollection)return;
+    const clean=(rationale&&(rationale.why||(rationale.learnings||[]).length))?rationale:null;
+    setActiveCollection(prev=>prev?{...prev,rationale:clean}:prev);
+    const {error}=await supabase.from("collections").update({rationale:clean}).eq("id",activeCollection.id);
+    if(error){setToast({message:"Error saving evidence"});console.error("saveRationale",error);}
+  };
+
+  // Ask the model to read the cluster and write why it holds together + the learnings.
+  const requestRationale=async()=>{
+    if(!activeCollection||collectionEntries.length===0||rationaleBusy)return;
+    setRationaleBusy(true);
+    try{
+      const entrySummaries=collectionEntries.map((e,i)=>({
+        brand:e.competitor||e.brand_name||"",description:e.description||"",category:e.category||"",
+        type:e.type||"",year:e.year||"",communication_intent:e.communication_intent||"",
+        portrait:e.portrait||"",journey_phase:e.journey_phase||"",brand_archetype:e.brand_archetype||"",
+        main_slogan:e.main_slogan||"",moments:e.moments||"",funnel:e.funnel||"",
+      }));
+      const collectionContext=`Collection: "${activeCollection.name}"${activeCollection.description?`\nDescription: ${activeCollection.description}`:""}${activeCollection.objective?`\nObjective: ${activeCollection.objective}`:""}`;
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        skip_framework:true,
+        system:`You are a senior competitive-intelligence strategist. You are given a set of marketing/advertising pieces an analyst has grouped into one collection. Your job is the "evidence": explain, tightly, WHY these pieces belong together as a pattern, and extract the key strategic learnings.
+
+${collectionContext}
+
+RULES:
+- The "why" is one paragraph (3-5 sentences). Name the connective tissue — the shared territory, recurring IP/concept, or repeated message — and what makes it a pattern rather than a coincidence. Concrete, grounded in the pieces. No preamble, no "This collection shows…".
+- "learnings" are 2-4 crisp, standalone bullets an analyst could paste into a report. Each is one sentence, an insight (a shift, a gap, a benchmark, an opportunity), not a description of a piece.
+- Write in English regardless of the source language.
+
+Return ONLY valid JSON, no markdown, no code fences:
+{"why":"paragraph","learnings":["...","..."]}`,
+        messages:[{role:"user",content:`Here are the ${entrySummaries.length} pieces in this collection:\n\n${JSON.stringify(entrySummaries,null,2)}`}],
+        max_tokens:1200,
+      })});
+      const data=await res.json();
+      if(data.error){setToast({message:"AI error: "+data.error});setRationaleBusy(false);return;}
+      const text=(data.content||[])[0]?.text||"";
+      const jsonSlice=(()=>{const f=text.match(/```(?:json)?\s*([\s\S]*?)```/i);if(f)return f[1].trim();const a=text.indexOf("{"),z=text.lastIndexOf("}");return a>=0&&z>a?text.slice(a,z+1):text;})();
+      let parsed;
+      try{parsed=JSON.parse(jsonSlice);}catch{throw new Error("The AI reply wasn't valid JSON — try again.");}
+      const rationale={why:String(parsed.why||"").trim(),learnings:Array.isArray(parsed.learnings)?parsed.learnings.map(l=>String(l||"").trim()).filter(Boolean):[]};
+      if(!rationale.why&&!rationale.learnings.length)throw new Error("Empty response");
+      await saveRationale(rationale);
+    }catch(err){
+      console.error("requestRationale error:",err);
+      setToast({message:"Failed to generate evidence. Try again."});
+    }
+    setRationaleBusy(false);
   };
 
   // ── GENERATE REPORT FROM COLLECTION ────────────────────────────────────────
@@ -2648,6 +2704,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/audit?collection=${activeCollection.id}`);setToast({message:"Link copied"});}} className="text-xs text-muted hover:text-main transition">Copy link</button>
             </div>
             <hr className="border-[var(--border)] mb-5"/>
+            {/* Evidence — why this is a collection + key learnings (shared with suggestions) */}
+            <Evidence rationale={activeCollection.rationale} busy={rationaleBusy} onSave={saveRationale} onAskAI={requestRationale} />
             {/* AI Storytelling Suggestion Panel */}
             {aiStorySuggestion&&(
               <div className="mb-6 border-2 border-[var(--accent-ember-tint)] bg-[#fff6f1]  dark:border-[var(--accent-ember-tint)] rounded-xl p-5 animate-fadeIn">
