@@ -132,27 +132,43 @@ export async function POST(request) {
   });
 
   // 4. The clustering pass.
-  let parsed;
+  let data;
   try {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: CLUSTER_MODEL,
-        max_tokens: 4000,
+        max_tokens: 8000, // enough headroom that the JSON isn't truncated mid-object
         system: SYSTEM,
         messages: [{ role: "user", content: `Here are the ${corpus.length} pieces in this project's Creative Source. Find the strong patterns (>=4 pieces each).\n\n${JSON.stringify(corpus)}` }],
       }),
     });
-    const data = await resp.json();
+    data = await resp.json();
     if (!resp.ok) {
       const msg = data?.error?.message || data?.error || `API error (${resp.status})`;
       return Response.json({ error: typeof msg === "string" ? msg : JSON.stringify(msg) }, { status: resp.status });
     }
-    parsed = extractJson(data.content?.[0]?.text || "");
   } catch (err) {
-    console.error("scan clustering error:", err);
-    return Response.json({ error: "The scan couldn't be completed. Try again." }, { status: 502 });
+    console.error("scan fetch error:", err);
+    return Response.json({ error: `Couldn't reach the model — ${err.message || "network error"}.` }, { status: 502 });
+  }
+
+  // Parse separately so a bad reply reports its real cause (truncation, empty, etc.).
+  const text = data.content?.[0]?.text || "";
+  const stop = data.stop_reason;
+  let parsed;
+  try {
+    parsed = extractJson(text);
+  } catch (err) {
+    const truncated = stop === "max_tokens";
+    console.error("scan parse error:", err.message, "stop=", stop, "len=", text.length, "head=", text.slice(0, 200));
+    return Response.json({
+      error: truncated
+        ? "The model's reply was cut off (too long). Try again — if it repeats, the corpus may need trimming."
+        : `The model didn't return usable JSON (${err.message}).`,
+      stop_reason: stop, text_len: text.length, text_head: text.slice(0, 300),
+    }, { status: 502 });
   }
 
   // 5. Validate + write survivors as suggestions.
