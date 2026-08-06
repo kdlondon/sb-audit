@@ -53,11 +53,12 @@ FOR EACH PATTERN
 - summary: one line (<=140 chars) describing the pattern and its time range if clear.
 - why: one paragraph (3-5 sentences) — the connective tissue and what makes it a pattern, not a coincidence. Concrete, grounded in the pieces. No preamble.
 - learnings: 2-4 crisp standalone insight bullets (a shift, a gap, a benchmark, an opportunity) — one sentence each.
-- entry_ids: the ids of the member pieces (>=4), exactly as given in the input.
+- refs: the integer "ref" numbers of the member pieces (>=4), copied exactly from the input.
 
+Each input piece has a numeric "ref". Refer to pieces ONLY by that number.
 Write ALL output in English regardless of the source language.
 Return ONLY valid JSON, no markdown, no code fences:
-{"clusters":[{"title":"","kind":"cross_brand","pattern_key":"","summary":"","why":"","learnings":["",""],"entry_ids":["",""]}]}
+{"clusters":[{"title":"","kind":"cross_brand","pattern_key":"","summary":"","why":"","learnings":["",""],"refs":[1,2,3,4]}]}
 If there is no strong pattern, return {"clusters":[]}.`;
 
 export async function POST(request) {
@@ -89,10 +90,15 @@ export async function POST(request) {
   ]);
   const skip = new Set([...(existing || []).map(r => r.signature), ...(dismissed || []).map(r => r.signature)].filter(Boolean));
 
-  // 3. Compact each piece for the model (drop empty fields to save tokens).
-  const corpus = pieces.map(p => {
+  // 3. Compact each piece for the model. It references pieces by a short integer `ref`
+  //    (1..N), NOT the raw UUID — models reproduce a 36-char UUID unreliably, which would
+  //    silently drop every cluster at validation. We map refs back to real ids afterwards.
+  const refToId = new Map();
+  const corpus = pieces.map((p, i) => {
+    const ref = i + 1;
+    refToId.set(ref, p.id);
     const o = {
-      id: p.id,
+      ref,
       brand: p.competitor || p.brand_name || p.brand || "—",
       title: p.description || "",
       territory: p.primary_territory || "",
@@ -150,17 +156,19 @@ export async function POST(request) {
   }
 
   // 5. Validate + write survivors as suggestions.
-  const validIds = new Set(pieces.map(p => p.id));
+  const proposed = (parsed?.clusters || []).length;
   const created = [];
-  let dropped = 0;
+  const drops = { below_min: 0, bad_key: 0, dup_signature: 0, insert_fail: 0 };
   for (const c of (parsed?.clusters || [])) {
-    const members = [...new Set((c.entry_ids || []).filter(id => validIds.has(id)))];
-    if (members.length < 4) { dropped++; continue; }
+    // Accept refs (new) or entry_ids (in case the model echoes ids) and map to real ids.
+    const raw = c.refs || c.entry_ids || [];
+    const members = [...new Set(raw.map(r => refToId.get(Number(r))).filter(Boolean))];
+    if (members.length < 4) { drops.below_min++; continue; }
     const kind = c.kind === "cross_brand" ? "cross_brand" : "brand_pattern";
     const key = slug(c.pattern_key || c.title);
-    if (!key) { dropped++; continue; }
+    if (!key) { drops.bad_key++; continue; }
     const signature = `${kind}:${key}`;
-    if (skip.has(signature)) { dropped++; continue; }
+    if (skip.has(signature)) { drops.dup_signature++; continue; }
     skip.add(signature); // don't create the same pattern twice within one scan
 
     const { data: col, error: cErr } = await supabase.from("collections").insert({
@@ -177,16 +185,18 @@ export async function POST(request) {
       signature,
       rationale: { why: String(c.why || "").trim(), learnings: Array.isArray(c.learnings) ? c.learnings.map(l => String(l || "").trim()).filter(Boolean) : [] },
     }).select("id").single();
-    if (cErr || !col) { console.error("suggestion insert failed:", cErr); dropped++; continue; }
+    if (cErr || !col) { console.error("suggestion insert failed:", cErr); drops.insert_fail++; continue; }
 
     const rows = members.map((id, i) => ({ collection_id: col.id, entry_id: id, sort_order: i, added_by: "groundwork" }));
     const { error: eErr } = await supabase.from("collection_entries").insert(rows);
     if (eErr) { // roll back the orphan suggestion rather than leave an empty one
       await supabase.from("collections").delete().eq("id", col.id);
-      console.error("suggestion entries insert failed:", eErr); dropped++; continue;
+      console.error("suggestion entries insert failed:", eErr); drops.insert_fail++; continue;
     }
     created.push({ id: col.id, title: c.title, kind, count: members.length });
   }
 
-  return Response.json({ suggestions: created, scanned: pieces.length, dropped, model: CLUSTER_MODEL });
+  const dropped = Object.values(drops).reduce((a, b) => a + b, 0);
+  console.log(`scan: project=${project_id} scanned=${pieces.length} proposed=${proposed} created=${created.length} drops=${JSON.stringify(drops)}`);
+  return Response.json({ suggestions: created, scanned: pieces.length, proposed, dropped, drops, model: CLUSTER_MODEL });
 }

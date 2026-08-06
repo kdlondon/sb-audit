@@ -667,7 +667,15 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
       if(data.error){setToast({message:"Scan error: "+data.error});setScanning(false);return;}
       await loadCollections();
       const n=(data.suggestions||[]).length;
-      setToast({message:n?`${n} suggestion${n>1?"s":""} found`:(data.reason==="not_enough_pieces"?"Need at least 4 pieces to scan":"No new patterns found")});
+      if(n){setToast({message:`${n} suggestion${n>1?"s":""} found`});}
+      else if(data.reason==="not_enough_pieces"){setToast({message:"Need at least 4 pieces to scan"});}
+      else{
+        // Surface why nothing landed — model proposed none, or all were dropped (and why).
+        const parts=[`scanned ${data.scanned??0}`,`proposed ${data.proposed??0}`];
+        if(data.dropped)parts.push(`${data.dropped} dropped${data.drops?` (${Object.entries(data.drops).filter(([,v])=>v).map(([k,v])=>`${k}:${v}`).join(", ")})`:""}`);
+        setToast({message:`No suggestions — ${parts.join(" · ")}`});
+        console.log("scan diagnostics",data);
+      }
     }catch(err){console.error("scan error",err);setToast({message:"Scan failed. Try again."});}
     setScanning(false);
   };
