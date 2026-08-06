@@ -1079,7 +1079,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no code fences. Use this exact s
 }
 
 The entries array must contain ALL entries in the suggested order (first = opening, last = closing). Every entry from the input must appear exactly once.
-Write all output in English.`,
+Write ALL output (narrative, slide titles, analyst notes) in ${framework?.language||"English"}, regardless of the source language of the pieces.`,
         messages:[{role:"user",content:`Here are the ${entrySummaries.length} entries to organize:\n\n${JSON.stringify(entrySummaries,null,2)}`}],
         max_tokens:3000,
       })});
