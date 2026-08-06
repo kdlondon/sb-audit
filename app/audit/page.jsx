@@ -322,6 +322,8 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
   const [toast,setToast]=useState(null);
   const [viewMode,setViewMode]=useState(initialViewMode||"entries");
   const [collections,setCollections]=useState([]);
+  const [suggestions,setSuggestions]=useState([]); // Smart Collections proposed by the scan (state='suggested')
+  const [scanning,setScanning]=useState(false);
   const [collectionsLoading,setCollectionsLoading]=useState(false);
   const [activeCollection,setActiveCollection]=useState(null); // viewing a specific collection
   const [collectionEntries,setCollectionEntries]=useState([]);
@@ -642,12 +644,54 @@ function AuditContent({scope,onScopeChange,onAddWithScope,pendingForm,clearPendi
         const{count}=await supabase.from("collection_entries").select("*",{count:"exact",head:true}).eq("collection_id",c.id);
         c.entryCount=count||0;
       }
-      setCollections(cols);
+      // Suggestions (state='suggested') are Groundwork's proposals — kept out of the
+      // official list and shown in their own block. Everything else is a real collection.
+      setSuggestions(cols.filter(c=>c.state==="suggested"));
+      setCollections(cols.filter(c=>c.state!=="suggested"));
     }
     setCollectionsLoading(false);
   },[projectId]);
 
   useEffect(()=>{if(viewMode==="collections")loadCollections();},[viewMode,loadCollections]);
+
+  // ── SMART COLLECTIONS: scan / approve / dismiss ─────────────────────────────
+  // Manual, analyst-pushed scan. One costed AI pass — never auto-run on upload.
+  const scanForCollections=async()=>{
+    if(!projectId||scanning)return;
+    setScanning(true);
+    try{
+      const res=await fetch("/api/collections/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        project_id:projectId,brand_id:safeBrandId,organization_id:orgId||null,created_by:userEmail||"",
+      })});
+      const data=await res.json();
+      if(data.error){setToast({message:"Scan error: "+data.error});setScanning(false);return;}
+      await loadCollections();
+      const n=(data.suggestions||[]).length;
+      setToast({message:n?`${n} suggestion${n>1?"s":""} found`:(data.reason==="not_enough_pieces"?"Need at least 4 pieces to scan":"No new patterns found")});
+    }catch(err){console.error("scan error",err);setToast({message:"Scan failed. Try again."});}
+    setScanning(false);
+  };
+
+  // Approve → becomes a real collection (state='active'); origin stays 'ai' for the seal.
+  const approveSuggestion=async(col)=>{
+    const{error}=await supabase.from("collections").update({state:"active"}).eq("id",col.id);
+    if(error){setToast({message:"Error approving suggestion"});return;}
+    if(activeCollection?.id===col.id)setActiveCollection(prev=>prev?{...prev,state:"active"}:prev);
+    setToast({message:"Approved — added to collections"});
+    await loadCollections();
+  };
+
+  // Dismiss → remember the signature (permanent, no restore) then delete the suggested row.
+  const dismissSuggestion=async(col)=>{
+    if(col.signature){
+      await supabase.from("collection_dismissals").upsert({project_id:projectId,signature:col.signature,dismissed_by:userEmail||""},{onConflict:"project_id,signature"});
+    }
+    await supabase.from("collection_entries").delete().eq("collection_id",col.id);
+    await supabase.from("collections").delete().eq("id",col.id);
+    if(activeCollection?.id===col.id){setActiveCollection(null);router.push("/audit?view=collections",{scroll:false});}
+    setToast({message:"Dismissed — won't be suggested again"});
+    await loadCollections();
+  };
   // Load all entries (both scopes) for map view
   useEffect(()=>{
     if(viewMode!=="map"||!projectId)return;
@@ -2589,7 +2633,13 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           <div className="px-5 py-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-main">Collections</h3>
-              <button onClick={()=>setShowNewCollection(true)} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">+ New Collection</button>
+              <div className="flex items-center gap-2">
+                <button onClick={scanForCollections} disabled={scanning} title="Let Groundwork scan the Creative Source for patterns worth a collection"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)] bg-[#fdf6f2] hover:bg-[#fbeee6] disabled:opacity-60 transition font-medium">
+                  {scanning?<><svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>Scanning…</>:<><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg>Scan for collections</>}
+                </button>
+                <button onClick={()=>setShowNewCollection(true)} className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-semibold">+ New Collection</button>
+              </div>
             </div>
             {showNewCollection&&(
               <div className="bg-surface border border-main rounded-lg p-4 mb-4">
@@ -2608,8 +2658,42 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               </div>
             )}
+            {/* Suggested Collections by Groundwork — the "proposal" zone (unapproved AI territory) */}
+            {(scanning||suggestions.length>0)&&(
+              <div className="mb-6 rounded-xl border border-dashed border-[var(--accent-ember-tint)] bg-[#fdf6f2] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[var(--accent-ember-deep)]"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3 1.6 5L19 9.5l-5 1.6L12 16l-1.6-4.9L5 9.5 10.4 8z"/></svg></span>
+                  <span className="text-[9px] tracking-[0.16em] text-[var(--accent-ember-deep)] uppercase" style={{fontFamily:"var(--font-mono,monospace)"}}>Suggested Collections by Groundwork</span>
+                  {suggestions.length>0&&<span className="text-[10px] text-hint">· {suggestions.length} proposal{suggestions.length>1?"s":""} — approve or dismiss</span>}
+                </div>
+                {scanning&&suggestions.length===0?(
+                  <div className="text-sm text-[var(--accent-ember-deep)] py-6 text-center flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
+                    Reading the Creative Source for patterns…
+                  </div>
+                ):(
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {suggestions.map(c=>(
+                      <div key={c.id} onClick={()=>openCollection(c)} className="bg-white border border-[var(--accent-ember-tint)] rounded-lg p-4 cursor-pointer hover:shadow-[0_6px_22px_rgba(0,0,0,0.07)] transition relative">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5 rounded font-semibold bg-[var(--accent-ember-tint)] text-[var(--accent-ember-deep)]" style={{fontFamily:"var(--font-mono,monospace)"}}>{c.kind==="cross_brand"?"Cross-brand":"Brand pattern"}</span>
+                          <span className="text-[10px] text-hint ml-auto">{c.entryCount} {c.entryCount===1?"piece":"pieces"}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-main leading-snug mb-1">{c.name}</h4>
+                        {c.description&&<p className="text-xs text-muted line-clamp-2 mb-3">{c.description}</p>}
+                        <div className="flex gap-2 mt-2" onClick={e=>e.stopPropagation()}>
+                          <button onClick={()=>approveSuggestion(c)} className="flex-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-[var(--accent-ember-deep)] rounded-lg hover:brightness-95 transition">Approve</button>
+                          <button onClick={()=>openCollection(c)} className="px-2.5 py-1.5 text-xs text-muted border border-[var(--border)] rounded-lg hover:text-main transition">View</button>
+                          <button onClick={()=>dismissSuggestion(c)} className="px-2.5 py-1.5 text-xs text-muted border border-[var(--border)] rounded-lg hover:text-red-500 hover:border-red-300 transition">Dismiss</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {collectionsLoading?(<div className="text-sm text-hint text-center py-8">Loading collections...</div>):(
-              collections.length===0?(<div className="text-sm text-hint text-center py-8">No collections yet. Create one to organize your entries.</div>):(
+              collections.length===0&&suggestions.length===0?(<div className="text-sm text-hint text-center py-8">No collections yet. Create one to organize your entries.</div>):(
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {collections.map(c=>(
                     <div key={c.id} onClick={()=>openCollection(c)} className="bg-surface border border-main rounded-lg p-4 cursor-pointer hover:border-[var(--accent)] transition relative group">
