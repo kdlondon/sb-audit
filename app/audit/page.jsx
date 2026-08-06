@@ -2596,12 +2596,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="flex gap-1.5 items-center" style={{visibility:"hidden",height:0,overflow:"hidden"}}>
                 {/* AI Storytelling */}
                 {collectionEntries.length>=2&&(aiStoryLoading?
-                  <div className="h-[34px] px-3 rounded-full bg-purple-100 flex items-center gap-1.5">
-                    <svg className="w-4 h-4 animate-spin text-purple-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
-                    <span className="text-[11px] font-medium text-purple-600">Analyzing...</span>
+                  <div className="h-[34px] px-3 rounded-full bg-[#fff6f1] flex items-center gap-1.5">
+                    <svg className="w-4 h-4 animate-spin text-[var(--accent-ember-deep)]" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
+                    <span className="text-[11px] font-medium text-[var(--accent-ember-deep)]">Analyzing...</span>
                   </div>
                 :
-                  <button onClick={requestAiStorytelling} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-gradient-to-r hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <button onClick={requestAiStorytelling} className="group h-[34px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 bg-[#e8e8e8] hover:bg-[var(--accent-ember-deep)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 text-[#888] group-hover:text-white transition-colors duration-300"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor"/></svg>
                     <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Storytelling</span>
                   </button>
@@ -2650,7 +2650,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
             <hr className="border-[var(--border)] mb-5"/>
             {/* AI Storytelling Suggestion Panel */}
             {aiStorySuggestion&&(
-              <div className="mb-6 border-2 border-purple-200 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-800 rounded-xl p-5 animate-fadeIn">
+              <div className="mb-6 border-2 border-[var(--accent-ember-tint)] bg-[#fff6f1]  dark:border-[var(--accent-ember-tint)] rounded-xl p-5 animate-fadeIn">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">✦</span>
@@ -2658,7 +2658,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>
                   <div className="flex gap-2">
                     <button onClick={()=>setAiStorySuggestion(null)} className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-full text-muted hover:text-main transition">Dismiss</button>
-                    <button onClick={applyAiStorytelling} className="px-4 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full font-semibold hover:from-purple-700 hover:to-indigo-700 transition">Apply — Reorder & Fill</button>
+                    <button onClick={applyAiStorytelling} className="px-4 py-1.5 text-sm bg-[var(--accent-ember-deep)] text-white rounded-full font-semibold hover:brightness-95 transition">Apply — Reorder & Fill</button>
                   </div>
                 </div>
                 <p className="text-sm text-muted mb-4 italic">{aiStorySuggestion.narrative}</p>
@@ -2666,8 +2666,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {aiStorySuggestion.entries.map((s,i)=>{
                     const entry=collectionEntries.find(e=>e.id===s.id);
                     return(
-                      <div key={s.id} className="flex items-center gap-3 bg-white dark:bg-surface rounded-lg p-3 border border-purple-100 dark:border-purple-900">
-                        <span className="text-xs font-bold text-purple-600 w-6 text-center flex-shrink-0">{i+1}</span>
+                      <div key={s.id} className="flex items-center gap-3 bg-white dark:bg-surface rounded-lg p-3 border border-[var(--accent-ember-tint)] ">
+                        <span className="text-xs font-bold text-[var(--accent-ember-deep)] w-6 text-center flex-shrink-0">{i+1}</span>
                         <div className="w-12 h-8 bg-surface2 rounded overflow-hidden flex-shrink-0">
                           {entry?.image_url?<img src={entry.image_url} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-[8px]">—</div>}
                         </div>
@@ -2676,7 +2676,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                           <p className="text-xs text-muted truncate">{entry?.competitor||entry?.brand_name||""}</p>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-purple-700 dark:text-purple-400">{s.slide_title}</p>
+                          <p className="text-sm font-semibold text-[var(--accent-ember-deep)] dark:text-[var(--accent-ember-deep)]">{s.slide_title}</p>
                           <p className="text-xs text-muted">{s.analyst_note}</p>
                         </div>
                       </div>
@@ -2691,7 +2691,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="flex justify-center py-3 px-8 mb-2">
                 <MiniEditor key={`intro-${activeCollection?.id}`} value={activeCollection?.intro_note||""} placeholder="Introduction note (shows as first slide after title)..." minimal
                   onBlur={html=>{const v=_cleanHtml(html);supabase.from("collections").update({intro_note:v}).eq("id",activeCollection.id).then(({error})=>{if(error)setToast({message:"Error saving intro note"});});setActiveCollection(prev=>({...prev,intro_note:v}));}}
-                  className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                  className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-[var(--accent-ember-tint)] transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
               </div>
             )}
             {collectionEntries.length===0?(<div className="text-sm text-hint text-center py-12">No entries in this collection yet. Select entries from the Local/Global view and use "Add to Collection".</div>):(
@@ -2711,15 +2711,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
                     {/* Insertion indicator line — above */}
                     {showLineAbove&&<div className="absolute left-4 right-4 top-[8px] flex items-center gap-2 pointer-events-none" style={{transition:"opacity 0.2s ease"}}>
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
-                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="flex-1 h-[3px] rounded-full bg-[var(--accent-ember)] shadow-[0_0_10px_rgba(255,74,26,0.35)]"/>
+                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
                     </div>}
                     {/* Insertion indicator line — below last */}
                     {showLineBelow&&<div className="absolute left-4 right-4 bottom-[8px] flex items-center gap-2 pointer-events-none">
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
-                      <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-purple-500 to-purple-300 shadow-[0_0_10px_rgba(147,51,234,0.3)]"/>
-                      <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="flex-1 h-[3px] rounded-full bg-[var(--accent-ember)] shadow-[0_0_10px_rgba(255,74,26,0.35)]"/>
+                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
                     </div>}
                     {/* The card */}
                     <div style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
@@ -2758,7 +2758,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                         placeholder="Transition note between slides..."
                         minimal
                         onBlur={html=>updateEntryCustom(e.id,"interstitial_note",html)}
-                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-[var(--accent-ember-tint)] transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
                     </div>
                   )}
                   </div>);
@@ -2774,7 +2774,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     <div key={`cn-${i}`} className="flex items-center gap-2">
                       <MiniEditor key={`closing-${i}-${activeCollection?.id}`} value={n||""} placeholder={`Closing slide ${i+1}...`} minimal
                         onBlur={html=>{const u=[...closingNotes];u[i]=html;saveClosingNotes(u);}}
-                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-purple-300 transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
+                        className="w-[500px] px-3 py-2 border border-[#e0e0e0] rounded-lg bg-white focus-within:border-[var(--accent-ember-tint)] transition" editorClassName="text-sm text-[var(--text2)] min-h-[32px]" />
                       <button onClick={()=>{const u=[...closingNotes];u.splice(i,1);saveClosingNotes(u);}} className="text-[#ccc] hover:text-red-400 text-lg transition">×</button>
                     </div>
                   ))}
@@ -2789,11 +2789,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
               <div className="flex items-center gap-1 bg-white border border-[#e0e0e0] rounded-full px-3 py-2 shadow-xl shadow-black/10">
                 {/* AI Storytelling */}
                 {collectionEntries.length>=2&&(aiStoryLoading?
-                  <div className="h-[38px] px-3 rounded-full bg-purple-100 flex items-center gap-1.5">
-                    <svg className="w-4 h-4 animate-spin text-purple-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
+                  <div className="h-[38px] px-3 rounded-full bg-[#fff6f1] flex items-center gap-1.5">
+                    <svg className="w-4 h-4 animate-spin text-[var(--accent-ember-deep)]" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round"/></svg>
                   </div>
                 :
-                  <button onClick={requestAiStorytelling} title="AI Storytelling" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-gradient-to-r hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                  <button onClick={requestAiStorytelling} title="AI Storytelling" className="group h-[38px] px-2.5 rounded-full flex items-center gap-0 hover:gap-1.5 hover:px-3.5 hover:bg-[var(--accent-ember-deep)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 text-[#999] group-hover:text-white transition-colors duration-300"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor"/></svg>
                     <span className="text-[11px] font-semibold overflow-hidden max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] whitespace-nowrap text-white">Storytelling</span>
                   </button>
@@ -3321,10 +3321,10 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 <div className="flex gap-1.5 justify-center">
                   {slideMap.map((s,si)=>{
                     if(s.type==="intro"||s.type==="outro")return null;
-                    if(s.type==="interstitial")return(<button key={`inter-${si}`} onClick={()=>setPresIndex(si)} className={`w-8 h-8 rounded-full flex-shrink-0 border-2 transition flex items-center justify-center ${si===presIndex?"border-purple-500 opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}><span className="text-white/40 text-[9px] italic" style={{fontFamily:"Georgia,serif"}}>&ldquo;&rdquo;</span></button>);
+                    if(s.type==="interstitial")return(<button key={`inter-${si}`} onClick={()=>setPresIndex(si)} className={`w-8 h-8 rounded-full flex-shrink-0 border-2 transition flex items-center justify-center ${si===presIndex?"border-[#FF4A1A] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}><span className="text-white/40 text-[9px] italic" style={{fontFamily:"Georgia,serif"}}>&ldquo;&rdquo;</span></button>);
                     const ce=collectionEntries[s.entryIdx];
                     const t=ce?ytId(ce.url)?`https://img.youtube.com/vi/${ytId(ce.url)}/default.jpg`:ce.image_url:null;
-                    return(<button key={`entry-${si}`} onClick={()=>setPresIndex(si)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${si===presIndex?"border-[#0019FF] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}>
+                    return(<button key={`entry-${si}`} onClick={()=>setPresIndex(si)} className={`w-12 h-8 rounded overflow-hidden flex-shrink-0 border-2 transition ${si===presIndex?"border-[#FF4A1A] opacity-100":"border-transparent opacity-30 hover:opacity-60"}`}>
                       {t?<img src={t} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full bg-white/10 flex items-center justify-center text-white/20 text-[8px]">{s.entryIdx+1}</div>}
                     </button>);
                   })}
