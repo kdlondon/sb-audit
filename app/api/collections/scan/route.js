@@ -16,6 +16,7 @@
 // pattern slug the model emits): any signature already present as a collection (any
 // state) or in collection_dismissals is skipped, so nothing re-proposes itself.
 import { createClient } from "@supabase/supabase-js";
+import { loadFramework } from "@/lib/framework-loader";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // a clustering pass over the whole corpus is a long call
@@ -56,7 +57,6 @@ FOR EACH PATTERN
 - refs: the integer "ref" numbers of the member pieces (>=4), copied exactly from the input.
 
 Each input piece has a numeric "ref". Refer to pieces ONLY by that number.
-Write ALL output in English regardless of the source language.
 Return ONLY valid JSON, no markdown, no code fences:
 {"clusters":[{"title":"","kind":"cross_brand","pattern_key":"","summary":"","why":"","learnings":["",""],"refs":[1,2,3,4]}]}
 If there is no strong pattern, return {"clusters":[]}.`;
@@ -82,8 +82,19 @@ export async function POST(request) {
   if (pErr) return Response.json({ error: pErr.message }, { status: 500 });
   if (!pieces || pieces.length < 4) return Response.json({ suggestions: [], scanned: pieces?.length || 0, reason: "not_enough_pieces" });
 
-  // 2. Signatures to skip: any collection already carrying one (suggested OR approved
-  //    OR the original manual ones, which have none) + everything ever dismissed.
+  // 2. A scan reflects the CURRENT corpus, so clear prior un-acted suggestions and
+  //    regenerate them fresh. Approved collections (state='active') and dismissals are
+  //    left untouched — nothing the analyst acted on is lost, and re-scanning is how you
+  //    refresh proposals (e.g. after the project's language changed).
+  const { data: prior } = await supabase.from("collections").select("id").eq("project_id", project_id).eq("state", "suggested");
+  if (prior?.length) {
+    const ids = prior.map(r => r.id);
+    await supabase.from("collection_entries").delete().in("collection_id", ids);
+    await supabase.from("collections").delete().in("id", ids);
+  }
+
+  // 3. Signatures to skip: approved collections carrying one + everything ever dismissed.
+  //    (Pending suggestions were just cleared above, so they can't block a refresh.)
   const [{ data: existing }, { data: dismissed }] = await Promise.all([
     supabase.from("collections").select("signature").eq("project_id", project_id).not("signature", "is", null),
     supabase.from("collection_dismissals").select("signature").eq("project_id", project_id),
@@ -131,7 +142,12 @@ export async function POST(request) {
     return o;
   });
 
-  // 4. The clustering pass.
+  // 4. The clustering pass — in the project's configured language (defaults to English).
+  let language = "English";
+  try { const fw = await loadFramework(project_id, supabase); if (fw?.language) language = fw.language; }
+  catch (err) { console.error("scan: framework load failed, defaulting to English", err?.message); }
+  const systemWithLang = `${SYSTEM}\n\nWrite ALL output (title, summary, why, learnings) in ${language}, regardless of the source language of the pieces.`;
+
   let data;
   try {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -140,7 +156,7 @@ export async function POST(request) {
       body: JSON.stringify({
         model: CLUSTER_MODEL,
         max_tokens: 8000, // enough headroom that the JSON isn't truncated mid-object
-        system: SYSTEM,
+        system: systemWithLang,
         messages: [{ role: "user", content: `Here are the ${corpus.length} pieces in this project's Creative Source. Find the strong patterns (>=4 pieces each).\n\n${JSON.stringify(corpus)}` }],
       }),
     });

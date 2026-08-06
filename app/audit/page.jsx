@@ -1149,7 +1149,7 @@ ${collectionContext}
 RULES:
 - The "why" is one paragraph (3-5 sentences). Name the connective tissue — the shared territory, recurring IP/concept, or repeated message — and what makes it a pattern rather than a coincidence. Concrete, grounded in the pieces. No preamble, no "This collection shows…".
 - "learnings" are 2-4 crisp, standalone bullets an analyst could paste into a report. Each is one sentence, an insight (a shift, a gap, a benchmark, an opportunity), not a description of a piece.
-- Write in English regardless of the source language.
+- Write ALL output in ${framework?.language||"English"}, regardless of the source language of the pieces.
 
 Return ONLY valid JSON, no markdown, no code fences:
 {"why":"paragraph","learnings":["...","..."]}`,
