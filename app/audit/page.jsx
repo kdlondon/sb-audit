@@ -2685,7 +2685,11 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                 </div>
               </div>
             )}
-            <p className="text-sm text-main mb-6">Drag entries to reorder. Click title/note fields to add presentation annotations.</p>
+            {/* Storyboard toolbar — mono eyebrow + drag hint (handoff view 02) */}
+            <div className="flex items-center gap-3 flex-wrap pb-3.5 mb-4 border-b border-[var(--border)]">
+              <span className="text-[9px] tracking-[0.16em] text-hint uppercase" style={{fontFamily:"var(--font-mono,monospace)"}}>STORYBOARD · {collectionEntries.length} {collectionEntries.length===1?"ENTRY":"ENTRIES"}</span>
+              <span className="ml-auto text-[11.5px] text-muted" style={{fontFamily:"var(--font-body,inherit)"}}>Drag to reorder · each entry becomes a slide with its title and note</span>
+            </div>
             {/* Intro interstitial — before first case, becomes slide after intro */}
             {collectionEntries.length>0&&(
               <div className="flex justify-center py-3 px-8 mb-2">
@@ -2711,15 +2715,15 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     style={{transition:"padding 0.3s cubic-bezier(0.2,1,0.3,1)",paddingTop:showLineAbove?"24px":"4px",paddingBottom:(showLineBelow||pushUp)?"24px":"4px"}}>
                     {/* Insertion indicator line — above */}
                     {showLineAbove&&<div className="absolute left-4 right-4 top-[8px] flex items-center gap-2 pointer-events-none" style={{transition:"opacity 0.2s ease"}}>
-                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-ember)] shadow-[0_0_8px_rgba(255,74,26,0.45)] flex-shrink-0"/>
                       <div className="flex-1 h-[3px] rounded-full bg-[var(--accent-ember)] shadow-[0_0_10px_rgba(255,74,26,0.35)]"/>
-                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-ember)] shadow-[0_0_8px_rgba(255,74,26,0.45)] flex-shrink-0"/>
                     </div>}
                     {/* Insertion indicator line — below last */}
                     {showLineBelow&&<div className="absolute left-4 right-4 bottom-[8px] flex items-center gap-2 pointer-events-none">
-                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-ember)] shadow-[0_0_8px_rgba(255,74,26,0.45)] flex-shrink-0"/>
                       <div className="flex-1 h-[3px] rounded-full bg-[var(--accent-ember)] shadow-[0_0_10px_rgba(255,74,26,0.35)]"/>
-                      <div className="w-3 h-3 rounded-full bg-[#fff6f1]0 shadow-[0_0_8px_rgba(147,51,234,0.5)] flex-shrink-0"/>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-ember)] shadow-[0_0_8px_rgba(255,74,26,0.45)] flex-shrink-0"/>
                     </div>}
                     {/* The card */}
                     <div style={{transition:"transform 0.3s cubic-bezier(0.2,1,0.3,1), opacity 0.25s ease",opacity:isDragSource?0.3:1,transform:isDragSource?"scale(0.97)":"scale(1)"}}
@@ -2727,6 +2731,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     {/* Drag handle — only this element is draggable */}
                     <div draggable onDragStart={ev=>handleReorderDragStart(ev,idx)} onDragEnd={handleReorderDragEnd}
                       className="text-[#ccc] text-xl select-none flex-shrink-0 cursor-grab active:cursor-grabbing group-hover:text-[#999] transition">☰</div>
+                    {/* Index */}
+                    <span className="flex-shrink-0 w-5 text-center text-[10px] text-hint tabular-nums" style={{fontFamily:"var(--font-mono,monospace)"}}>{String(idx+1).padStart(2,"0")}</span>
                     {/* Thumbnail */}
                     <div className="w-[180px] h-[120px] bg-surface2 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer" onClick={()=>setSb(e)}>
                       {thumb?<img src={thumb} className="w-full h-full object-cover" alt=""/>:<div className="w-full h-full flex items-center justify-center text-hint text-xs">No image</div>}
@@ -2734,8 +2740,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                     {/* Entry info */}
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={()=>setSb(e)}>
                       <div className="flex gap-2 items-center mb-1.5">
-                        {(e.competitor||e.brand_name)&&<span className="text-xs font-medium bg-[#333] text-white px-2 py-0.5 rounded">{e.competitor||e.brand_name}</span>}
-                        {e.rating&&<span className="text-sm">{"★".repeat(Number(e.rating))}</span>}
+                        {(e.competitor||e.brand_name)&&<span className="text-xs font-medium bg-[var(--ink-800,#1a1a1a)] text-white px-2 py-0.5 rounded">{e.competitor||e.brand_name}</span>}
+                        {e.rating&&<span className="text-sm tracking-wider text-[var(--accent-ember)]">{"★".repeat(Number(e.rating))}<span className="text-[#ddd]">{"★".repeat(Math.max(0,5-Number(e.rating)))}</span></span>}
                       </div>
                       <p className="text-base font-bold text-main mb-1">{e.description||"—"}{e.year?` (${e.year})`:""}</p>
                       <p className="text-sm text-muted">{[e.category,e.type,e.brand_archetype||e.communication_intent].filter(Boolean).join(" • ")}</p>
