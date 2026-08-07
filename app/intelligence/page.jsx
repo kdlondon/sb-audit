@@ -13,6 +13,7 @@ import { useProject } from "@/lib/project-context";
 import { useFramework } from "@/lib/framework-context";
 import { deliverableLabels } from "@/lib/deliverable-labels";
 import CampaignMap from "@/components/CampaignMap";
+import CollectionsWorkspace from "@/components/collections/CollectionsWorkspace";
 
 const DEFAULT_BRAND_URL = { iberia: "https://www.iberia.com/", "air europa": "https://www.aireuropa.com/", "aerolineas argentinas": "https://www.aerolineas.com.ar", latam: "https://www.latamairlines.com/es/es", laser: "https://www.laserairlines.com" };
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from "recharts";
@@ -151,6 +152,7 @@ function PartToWhole({ data }) {
 function IntelligenceContent() {
   const { projectId, projectName } = useProject();
   const { framework } = useFramework() || {};
+  const { userEmail } = require("@/lib/role-context").useRole() || {};
   const dl = deliverableLabels(framework?.language || "English"); // deliverable labels in the project language
   const [dna, setDna] = useState({});          // brand -> [versions desc]
   const [dnaUrl, setDnaUrl] = useState({});     // brand -> url input
@@ -435,7 +437,7 @@ function IntelligenceContent() {
     return { rows, base, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
   }, [entries, dashBrands]);
 
-  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["brands", "Brands"]];
+  const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["brands", "Brands"], ["collections", "Collections"]];
   const INTEL_TABS = TABS.map(([id, label]) => ({ id, label }));
   const intelTitle = (TABS.find((t) => t[0] === tab) || [])[1] || "Intelligence";
   const intelSub = {
@@ -464,8 +466,10 @@ function IntelligenceContent() {
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 34px 56px" }}>
         {loading ? (
           <p className="text-sm text-hint">Loading intelligence…</p>
-        ) : d.total === 0 && tab !== "brands" ? (
+        ) : d.total === 0 && tab !== "brands" && tab !== "collections" ? (
           <p className="text-sm text-hint">Nothing captured in this project yet. Add entries in Creative Source, or import from Scout.</p>
+        ) : tab === "collections" ? (
+          <CollectionsWorkspace projectId={projectId} userEmail={userEmail} framework={framework} />
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="col-span-full flex items-center gap-1.5 flex-wrap mb-1">
