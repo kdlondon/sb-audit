@@ -101,6 +101,29 @@ export async function POST(request) {
   ]);
   const skip = new Set([...(existing || []).map(r => r.signature), ...(dismissed || []).map(r => r.signature)].filter(Boolean));
 
+  // 3b. Existing collections (approved + manual) — to avoid re-proposing near-duplicates.
+  //     Signature dedup only catches EXACT slug matches; the model coins a slightly
+  //     different pattern_key each run for the same territory, so the same idea slips
+  //     back in under a new name. So we also (a) tell the model what's already covered,
+  //     and (b) drop any cluster whose PIECES substantially overlap an existing collection
+  //     — content, not title, which is robust to renames.
+  const { data: existingCols } = await supabase.from("collections")
+    .select("id,name,rationale").eq("project_id", project_id).neq("state", "suggested");
+  const existingMembers = []; // [{ name, why, ids:Set<entry_id> }]
+  if (existingCols?.length) {
+    const { data: allLinks } = await supabase.from("collection_entries")
+      .select("collection_id,entry_id").in("collection_id", existingCols.map(c => c.id));
+    const byCol = new Map();
+    for (const l of (allLinks || [])) {
+      if (!byCol.has(l.collection_id)) byCol.set(l.collection_id, new Set());
+      byCol.get(l.collection_id).add(l.entry_id);
+    }
+    for (const c of existingCols) existingMembers.push({ name: c.name || "", why: (c.rationale && c.rationale.why) || "", ids: byCol.get(c.id) || new Set() });
+  }
+  // A proposed cluster is a near-duplicate when this share of its pieces already sit in
+  // one existing collection.
+  const OVERLAP_DUPE = 0.6;
+
   // 3. Compact each piece for the model. It references pieces by a short integer `ref`
   //    (1..N), NOT the raw UUID — models reproduce a 36-char UUID unreliably, which would
   //    silently drop every cluster at validation. We map refs back to real ids afterwards.
@@ -146,6 +169,11 @@ export async function POST(request) {
   let language = "English";
   try { const fw = await loadFramework(project_id, supabase); if (fw?.language) language = fw.language; }
   catch (err) { console.error("scan: framework load failed, defaulting to English", err?.message); }
+  // Tell the model what's already been made into a collection, so it doesn't re-propose
+  // the same territory under a new name. Titles + a short why are enough to recognise overlap.
+  const coveredBlock = existingMembers.length
+    ? `\n\nALREADY COVERED — the analyst already has these collections. Do NOT propose these patterns again or close variants of them (same territory / IP / message). Only surface genuinely NEW patterns:\n${existingMembers.map((c, i) => `- ${c.name}${c.why ? ` — ${c.why.slice(0, 160)}` : ""}`).join("\n")}`
+    : "";
   const systemWithLang = `${SYSTEM}\n\nWrite ALL output (title, summary, why, learnings) in ${language}, regardless of the source language of the pieces.`;
 
   let data;
@@ -157,7 +185,7 @@ export async function POST(request) {
         model: CLUSTER_MODEL,
         max_tokens: 8000, // enough headroom that the JSON isn't truncated mid-object
         system: systemWithLang,
-        messages: [{ role: "user", content: `Here are the ${corpus.length} pieces in this project's Creative Source. Find the strong patterns (>=4 pieces each).\n\n${JSON.stringify(corpus)}` }],
+        messages: [{ role: "user", content: `Here are the ${corpus.length} pieces in this project's Creative Source. Find the strong patterns (>=4 pieces each).${coveredBlock}\n\n${JSON.stringify(corpus)}` }],
       }),
     });
     data = await resp.json();
@@ -190,7 +218,7 @@ export async function POST(request) {
   // 5. Validate + write survivors as suggestions.
   const proposed = (parsed?.clusters || []).length;
   const created = [];
-  const drops = { below_min: 0, bad_key: 0, dup_signature: 0, insert_fail: 0 };
+  const drops = { below_min: 0, bad_key: 0, dup_signature: 0, overlap_dupe: 0, insert_fail: 0 };
   let insertError = null; // first DB error, surfaced so a write failure isn't opaque
   for (const c of (parsed?.clusters || [])) {
     // Accept refs (new) or entry_ids (in case the model echoes ids) and map to real ids.
@@ -202,6 +230,16 @@ export async function POST(request) {
     if (!key) { drops.bad_key++; continue; }
     const signature = `${kind}:${key}`;
     if (skip.has(signature)) { drops.dup_signature++; continue; }
+
+    // Content-overlap guard: if most of this cluster's pieces already live in one existing
+    // collection, it's the same pattern re-dressed — skip it (catches the renamed-repeat).
+    const dupe = existingMembers.some(ex => {
+      if (!ex.ids.size) return false;
+      const shared = members.reduce((n, id) => n + (ex.ids.has(id) ? 1 : 0), 0);
+      return shared / members.length >= OVERLAP_DUPE;
+    });
+    if (dupe) { drops.overlap_dupe++; continue; }
+
     skip.add(signature); // don't create the same pattern twice within one scan
 
     const { data: col, error: cErr } = await supabase.from("collections").insert({
