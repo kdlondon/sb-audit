@@ -212,9 +212,9 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
         setTargetAudience(fw.brand_audience || "");
         setValueProposition(fw.brand_positioning || "");
         setKeyDifferentiator(fw.brand_differentiator || "");
-        setR2b("");
+        setR2b(fw.r2b || "");
         setBrandTone(fw.brand_tone || "");
-        setBrandArchetype("");
+        setBrandArchetype(fw.brand_archetype || "");
         setCommunicationIntents(fw.communication_intents || ["Brand Hero", "Brand Tactical", "Client Testimonials", "Product", "Innovation"]);
         setLanguage(fw.language || "English");
       }
@@ -287,6 +287,8 @@ function ProfileTab({ brandId, orgId, refreshFramework }) {
         brand_positioning: valueProposition.trim(),
         brand_differentiator: keyDifferentiator.trim(),
         brand_tone: brandTone.trim(),
+        brand_archetype: brandArchetype,
+        r2b: r2b.trim(),
         communication_intents: communicationIntents,
         objectives,
         language,

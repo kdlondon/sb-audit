@@ -127,7 +127,7 @@ function SocialInner() {
   const ensureSaved = async () => {
     const supabase = createClient();
     const subject = report.meta?.scope === "brand" ? report.meta?.subject : "Category";
-    const title = `Social Content Benchmark — ${projectName} · ${subject}`;
+    const title = `Social Content Read — ${projectName} · ${subject}`;
     const content = (report.sections || []).map((s) => s.markdown).join("\n\n");
     if (savedId) {
       const { error } = await supabase.from("saved_reports").update({ content, title }).eq("id", savedId);
@@ -175,7 +175,7 @@ function SocialInner() {
       <div className="no-print"><Nav /></div>
       <div className="max-w-[860px] mx-auto px-6 pb-24" style={{ paddingTop: "calc(var(--sec-h) + 20px)" }}>
         <div className="no-print">
-          <h1 className="text-2xl font-bold text-main">Social Content Benchmark</h1>
+          <h1 className="text-2xl font-bold text-main">Social Content Read</h1>
           <p className="text-sm text-muted mt-1">How competitors use social and what works — weighted by engagement. Configure once, then refine, regenerate or edit any section.</p>
 
           <div className="flex flex-wrap items-center gap-3 mt-5 mb-7">
@@ -283,7 +283,7 @@ function SocialInner() {
 
         {report && (
           <div id="social-report" className="bg-surface border border-main rounded-2xl px-8 py-10">
-            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Content Benchmark · {projectName} · {report.meta?.scope === "brand" ? report.meta?.subject : "Category"} · {report.meta?.icp} lens</div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Content Read · {projectName} · {report.meta?.scope === "brand" ? report.meta?.subject : "Category"} · {report.meta?.icp} lens</div>
             {(report.sections || []).map((s) => (
               <div key={s.key} className="mt-7 group">
                 <div className="no-print flex items-center justify-end gap-1.5 mb-1 opacity-0 group-hover:opacity-100 transition">

@@ -715,75 +715,6 @@ function IntelligenceContent() {
               </div>
             )}
           </div>
-        ) : tab === "explore" ? (
-          d.pillarGroups.length === 0 ? <NeedsAnalysis pct={d.analyzedPct} /> : (() => {
-            const exRows = exBrand ? d.rows.filter((r) => r.brand === exBrand) : d.rows;
-            const pmap = {}; exRows.forEach((r) => { if (!r.pillar) return; const p = (pmap[r.pillar] ||= { posts: [] }); p.posts.push(r); });
-            const tree = Object.entries(pmap).map(([name, v]) => ({ name, size: v.posts.length, avgRate: avgEngagementRate(v.posts) })).filter((g) => g.size >= 2).sort((a, b) => b.size - a.size);
-            const subPosts = subData?.posts ? (exSub ? subData.posts.filter((p) => p.subpillar === exSub) : subData.posts) : [];
-            const csvDownload = () => {
-              const head = ["pillar", "subpillar", "brand", "likes", "comments", "url"];
-              const subBy = {}; (subData?.posts || []).forEach((p) => (subBy[p.url] = p.subpillar));
-              const lines = exRows.filter((r) => r.pillar).map((r) => [r.pillar, subBy[r.url] || "", r.brand, r.likes, r.comments, r.url]);
-              const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-              const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `content-map-${projectName || "project"}.csv`; a.click();
-            };
-            return (
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <div className="flex gap-1.5 flex-wrap items-center">
-                    <span className="text-[10px] font-mono uppercase tracking-wide text-hint mr-1">Competitor</span>
-                    <button onClick={() => { setExBrand(""); if (exPillar) drillPillar(exPillar, ""); }} className={`px-3 py-1 rounded-full text-[11px] border ${!exBrand ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>All</button>
-                    {d.brands.map((b) => <button key={b} onClick={() => { setExBrand(b); if (exPillar) drillPillar(exPillar, b); }} className={`px-3 py-1 rounded-full text-[11px] border ${exBrand === b ? "bg-accent text-white border-accent" : "bg-surface border-main text-muted"}`}>{b}</button>)}
-                  </div>
-                  <button onClick={csvDownload} className="px-3 py-1.5 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ CSV</button>
-                </div>
-
-                {!exPillar ? (
-                  <>
-                    <p className="text-xs text-muted mb-3">Map of <b>conversation territories</b> (width = volume). Click a territory to see its <b>subpillars</b>.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tree.map((g, i) => (
-                        <button key={g.name} onClick={() => drillPillar(g.name, exBrand)}
-                          className="rounded-xl p-3 text-left transition hover:brightness-95 flex flex-col justify-between"
-                          style={{ flex: `${g.size} 1 ${Math.max(150, g.size * 9)}px`, minHeight: 118, background: PASTEL[i % PASTEL.length] }}>
-                          <div className="text-[13px] font-bold leading-snug" style={{ color: "var(--ink-800)" }}>{g.name}</div>
-                          <div className="text-[11px] font-mono mt-2" style={{ color: "var(--text-muted)" }}>{g.size} pieces of content · {g.avgRate != null ? `${fmtRate(g.avgRate)} eng.` : "—"}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <button onClick={() => { setExPillar(null); setSubData(null); }} className="text-xs text-accent mb-3">← Back to map</button>
-                    <h3 className="text-base font-bold text-main">{exPillar}{exBrand ? ` · ${exBrand}` : ""}</h3>
-                    {subLoading && <p className="text-sm text-accent animate-pulse mt-2">The AI is grouping into subpillars… (~10s)</p>}
-                    {subData?.error && <p className="text-xs text-red-500 mt-2">{subData.error}</p>}
-                    {subData?.subpillars && (
-                      <>
-                        <div className="flex gap-1.5 flex-wrap my-3">
-                          <button onClick={() => setExSub("")} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${!exSub ? "bg-main text-white" : "bg-surface2 text-muted"}`}>All · {subData.posts.length}</button>
-                          {subData.subpillars.map((s, i) => <button key={s.name} onClick={() => setExSub(s.name)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: exSub === s.name ? PASTEL[i % PASTEL.length] : PASTEL[i % PASTEL.length] + "55", color: "var(--ink-800)" }}>{s.name} · {s.count}</button>)}
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                          {subPosts.map((p, i) => (
-                            <a key={i} href={p.url || "#"} target="_blank" rel="noopener" className="block bg-surface border border-main rounded-lg overflow-hidden hover:border-[var(--accent)] transition">
-                              <div className="aspect-square bg-surface2 overflow-hidden">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-hint text-xs">no image</div>}</div>
-                              <div className="p-1.5">
-                                <div className="text-[9px] font-mono uppercase tracking-wide text-hint truncate">{p.subpillar}</div>
-                                <div className="text-[10px] font-semibold text-main truncate">{p.brand}</div>
-                                <div className="text-[9px] text-hint">❤ {p.likes.toLocaleString()} · 💬 {p.comments.toLocaleString()}</div>
-                              </div>
-                            </a>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()
         ) : tab === "brands" ? (
           (() => {
             // Brand list from the Competitive Landscape registry (fetched fresh from DB),
@@ -932,65 +863,7 @@ function IntelligenceContent() {
               </div>
             );
           })()
-        ) : (
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-              <div>
-                <h3 className="text-base font-bold text-main">Generate — report</h3>
-                <p className="text-xs text-muted">Combine your {picks.length} Analyst Picks + the map + the data into a client-ready document.</p>
-              </div>
-              <div className="flex gap-2">
-                {report && <button onClick={() => window.print()} className="px-3 py-2 border border-main rounded-lg text-xs text-main hover:bg-surface2">↓ Download PDF</button>}
-                <button onClick={genReport} disabled={repLoading} className="px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "var(--accent-ember)" }}>{repLoading ? "Composing…" : report ? "Regenerate" : "Generate report"}</button>
-              </div>
-            </div>
-            {repErr && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">{repErr}</div>}
-            {repLoading && <p className="text-sm text-accent animate-pulse">Composing the report… (~15s)</p>}
-            {!report && !repLoading && <div className="border border-dashed border-main rounded-xl p-12 text-center"><p className="text-sm text-muted max-w-[430px] mx-auto">Mark your best insights in <b>Analyst Picks</b> and hit <b>Generate report</b>. The AI composes the executive summary and recommendations around your picks.</p></div>}
-            {report && (
-              <div id="intel-report" className="bg-surface border border-main rounded-xl px-8 py-10 max-w-[820px] mx-auto">
-                <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-hint">Social Media Benchmark · {projectName}</div>
-                <h1 className="text-3xl font-bold text-main mt-2 leading-tight">{report.title}</h1>
-                <div className="text-[10px] text-hint mt-2 font-mono">{d.brands.length} {dl.brands} · {d.total} {dl.analyzedContent}</div>
-
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-2">{dl.execSummary}</h2>
-                <p className="text-[15px] text-main leading-relaxed">{report.executive_summary}</p>
-
-                <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.territoryMap}</h2>
-                <div className="flex flex-wrap gap-1.5">
-                  {d.pillarGroups.map((g, i) => (
-                    <div key={g.pillar} className="rounded-lg p-2.5 flex flex-col justify-between" style={{ flex: `${g.count} 1 ${Math.max(120, g.count * 7)}px`, minHeight: 78, background: PASTEL[i % PASTEL.length] }}>
-                      <div className="text-[11px] font-bold leading-snug" style={{ color: "var(--ink-800)" }}>{g.pillar}</div>
-                      <div className="text-[9px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>{g.count} · {g.avgRate != null ? fmtRate(g.avgRate) : "—"}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {picks.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.keyInsights}</h2>
-                  <div className="space-y-4">
-                    {picks.map((p, i) => (
-                      <div key={i} className="border-l-2 border-[var(--accent-ember)] pl-4">
-                        <div className="flex items-baseline gap-2"><span className="text-[9px] font-mono uppercase tracking-wide text-hint">{dl.types[p.type] || TYPE_LABEL[p.type] || p.type}</span>{p.stat && <span className="text-lg font-bold" style={{ color: "var(--accent-ember-deep)" }}>{p.stat}</span>}</div>
-                        <h4 className="text-[15px] font-bold text-main leading-snug">{p.headline}</h4>
-                        <p className="text-xs text-muted leading-relaxed mt-0.5">{p.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>)}
-
-                {Array.isArray(report.recommendations) && report.recommendations.length > 0 && (<>
-                  <h2 className="text-[11px] font-mono uppercase tracking-widest text-hint mt-9 mb-3">{dl.recommendations}</h2>
-                  <ol className="space-y-2">
-                    {report.recommendations.map((r, i) => (
-                      <li key={i} className="flex gap-3 text-sm text-main"><span className="font-bold text-[var(--accent-ember-deep)]">{String(i + 1).padStart(2, "0")}</span><span className="leading-relaxed">{r}</span></li>
-                    ))}
-                  </ol>
-                </>)}
-              </div>
-            )}
-          </div>
-        )}
+        ) : null}
       </div>
 
       {picksOpen && (

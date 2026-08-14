@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function POST(request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   const { user_id } = await request.json();
 
   if (!user_id) {

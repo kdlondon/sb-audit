@@ -1,8 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/lib/api-auth";
 
 // Fully remove a user: auth account + all membership/access rows.
 // Without deleting the auth account, the user can still log in (the bug this fixes).
 export async function POST(request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   const { user_id } = await request.json();
   if (!user_id) return Response.json({ error: "user_id is required" }, { status: 400 });
 

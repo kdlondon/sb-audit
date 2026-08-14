@@ -8,7 +8,7 @@ import { extractSectionData, extractLead, dataInstruction, LEAD_RULE } from "@/l
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 7 sections in 2 passes; give Vercel headroom
 
-// Social Content Benchmark (Core 2). Answers "how are competitors using social & what works?".
+// Social Content Read (Core 2). Answers "how are competitors using social & what works?".
 // Performance family: engagement is the primary driver (does NOT down-weight tactical). Sections
 // are fed precomputed STATS (pillar landscape, engagement, cadence) + a cited evidence sample.
 const cdOf = (e) => { try { return typeof e.custom_dimensions === "string" ? JSON.parse(e.custom_dimensions) : (e.custom_dimensions || {}); } catch { return {}; } };
@@ -90,7 +90,7 @@ export async function POST(request) {
   // Brand DNA (declared / "expressed" source)
   const { data: dnaRows } = await admin.from("brand_dna").select("brand,profile,created_at").eq("project_id", project_id).order("created_at", { ascending: false });
   const dnaByBrand = {}; (dnaRows || []).forEach((r) => { if (!dnaByBrand[r.brand]) dnaByBrand[r.brand] = r.profile; });
-  const dnaText = (b) => { const p = dnaByBrand[b]; if (!p) return ""; return clean(`Claim: ${p?.claim?.hero || p?.claim || ""} · Positioning: ${p?.positioning || ""} · Voice: ${(p?.voice?.tone || p?.tone_of_voice || "")} · Archetype: ${p?.archetype || ""}`).slice(0, 240); };
+  const dnaText = (b) => { const p = dnaByBrand[b]; if (!p) return ""; return clean(`Claim: ${p?.claim?.hero || p?.claim || ""} · Positioning: ${p?.positioning || ""} · Voice: ${(p?.tone || p?.voice?.tone || p?.tone_of_voice || "")} · Archetype: ${p?.archetype || ""}`).slice(0, 240); };
 
   // GLOBAL filters
   const fl = filtersIn || {};
@@ -187,14 +187,14 @@ No emojis. Write in ${lang}. Markdown with a short ## header.`;
 
   const genSection = async (key) => {
     const sd = SECTIONS[key]; const dir = dirOf(key);
-    const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Benchmark.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
+    const prompt = `You are a senior social strategist writing the "${sd.title}" section of a Social Content Read.\n${statHeader}\n\nTASK: ${sd.task}${dir ? `\nADDITIONAL ANALYST DIRECTION — weave this in: ${dir}` : ""}\n${rules}${findingsBlock}\n\n${sd.build()}`.slice(0, 12000);
     const { markdown: noLead, lead } = extractLead(await claude(apiKey, prompt + LEAD_RULE, 3200));
     const { markdown, data } = extractSectionData(noLead);
     return { key, title: sd.title, markdown, data, lead };
   };
   const genTakeaways = async (body) => {
     const dir = dirOf("takeaways");
-    const raw = await claude(apiKey, `Write the TAKEAWAYS of this Social Content Benchmark for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
+    const raw = await claude(apiKey, `Write the TAKEAWAYS of this Social Content Read for ${client} in ${category}: 4-6 prioritized, concrete social recommendations grounded in the sections below. ${lensInstr}${dir ? ` Analyst direction: ${dir}.` : ""}${findingsBlock} Do NOT mention methodology. No emojis. Write in ${lang}. Markdown numbered list.\n\nSECTIONS:\n${body}` + LEAD_RULE, 2200);
     const { markdown, lead } = extractLead(raw);
     return { key: "takeaways", title: "Takeaways", markdown, lead };
   };
