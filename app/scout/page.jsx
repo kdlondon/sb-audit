@@ -27,6 +27,7 @@ import { useFramework } from "@/lib/framework-context";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import SocialFeedPicker from "@/components/SocialFeedPicker";
+import MetaAdsPicker from "@/components/MetaAdsPicker";
 import AuthGuard from "@/components/AuthGuard";
 import ProjectGuard from "@/components/ProjectGuard";
 
@@ -155,6 +156,7 @@ const CHANNELS = [
   { id: "youtube", label: "YouTube", glyph: <G><rect x="2" y="5" width="20" height="14" rx="4" /><path d="M10 9.5l5 2.5-5 2.5z" /></G> },
   { id: "instagram", label: "Instagram", glyph: <G><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r=".9" fill="currentColor" stroke="none" /></G> },
   { id: "tiktok", label: "TikTok", glyph: <G><path d="M15 4v9.5a4 4 0 11-3.2-3.92" /><path d="M15 4a5 5 0 004.5 4" /></G> },
+  { id: "meta_ads", label: "Meta Ads", glyph: <G><path d="M4 15c1.5-6 3.5-8 5-8 2 0 3 3 3 5s1 5 3 5c1.5 0 3.5-2 5-8" /></G> },
 ];
 
 export default function ScoutPage() {
@@ -162,8 +164,8 @@ export default function ScoutPage() {
   const { framework } = useFramework() || {};
   // Redesign: three channels at the same level (YouTube · Instagram · TikTok).
   // `source` stays derived so the existing YouTube/social branches keep working.
-  const [channel, setChannel] = useState("youtube"); // youtube | instagram | tiktok
-  const source = channel === "youtube" ? "youtube" : "social";
+  const [channel, setChannel] = useState("youtube"); // youtube | instagram | tiktok | meta_ads
+  const source = channel === "youtube" ? "youtube" : channel === "meta_ads" ? "meta" : "social";
   // brand_id is a UUID column; in the project-centric flow brandId is the project-id
   // string ("proj_..."), which is NOT a valid uuid. Null it out so saves don't fail.
   const safeBrandId = brandId && !String(brandId).startsWith("proj_") ? brandId : null;
@@ -825,8 +827,21 @@ Rules:
             </div>
           )}
 
+          {/* ─── META ADS (paid) — own picker, own import ─── */}
+          {source==="meta" && (
+            <div style={{ marginBottom: 24, background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
+              <MetaAdsPicker
+                projectId={projectId}
+                scope={scope}
+                brandId={null}
+                defaultCountry={framework?.primaryMarket || ""}
+                onImported={(n)=>setToast(`✓ ${n} anuncio${n===1?"":"s"} de Meta importado${n===1?"":"s"}`)}
+              />
+            </div>
+          )}
+
           {/* ─── CONSOLE — YouTube (OPTION → ACTION). Scope/brand/country live in the import bar. ─── */}
-          <div className={source === "social" ? "hidden" : ""} style={{ marginBottom: 24 }}>
+          <div className={source !== "youtube" ? "hidden" : ""} style={{ marginBottom: 24 }}>
             <div style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
               <label style={SC_LABEL}>Search query</label>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
