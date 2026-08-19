@@ -3,9 +3,11 @@
 // worth auditing. Ads enter tagged source_type='paid' / source_platform='meta_ads' with the
 // observed `_ads` block — a distinct kind of evidence, not a social post.
 //
-// Self-contained: runs the actor once per search (via /api/ads/meta), holds the normalized
-// ads, and imports the selected ones (deduped server-side by native library id).
-import { useState } from "react";
+// A brand-name search can return ads from several advertisers (Meta's page-name search is
+// fuzzy), so the results are grouped BY ADVERTISER with filter chips — the analyst picks the
+// right one and only that advertiser's ads are shown/imported. Pasting an exact Ad Library
+// page URL (view_all_page_id=…) returns a single advertiser and skips the ambiguity.
+import { useState, useMemo } from "react";
 import { useRole } from "@/lib/role-context";
 
 const clean = (s) => String(s || "").trim();
@@ -17,23 +19,47 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState((defaultCountry || "").toUpperCase());
   const [ads, setAds] = useState([]);
+  const [activeAdv, setActiveAdv] = useState("");
   const [sel, setSel] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
 
-  // Accept a pasted Ad Library URL, or build a keyword search from brand + country.
+  // Accept a pasted Ad Library URL, or build a page-name search from brand + country.
+  // page search (search_type=page) targets advertiser pages, NOT any ad mentioning the word.
   const buildUrl = () => {
     const q = clean(query);
     if (/^https?:\/\//i.test(q)) return q;
     const c = (country || "ES").toUpperCase();
-    return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=keyword_unordered&country=${c}&q=${encodeURIComponent(q)}`;
+    return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`;
+  };
+
+  // Distinct advertisers in the result set, by ad count (desc).
+  const advertisers = useMemo(() => {
+    const m = new Map();
+    for (const a of ads) { const n = a.advertiser_name || "—"; m.set(n, (m.get(n) || 0) + 1); }
+    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }, [ads]);
+
+  const visible = useMemo(() => ads.filter((a) => (a.advertiser_name || "—") === activeAdv), [ads, activeAdv]);
+
+  const pickAdvertiser = (list, q) => {
+    if (!list.length) return "";
+    const ql = clean(q).toLowerCase();
+    // Prefer the advertiser whose name matches the query; else the most frequent.
+    const match = list.find((x) => x.name.toLowerCase().includes(ql)) || list[0];
+    return match.name;
+  };
+
+  const selectAdvertiser = (name) => {
+    setActiveAdv(name);
+    setSel(new Set(ads.filter((a) => (a.advertiser_name || "—") === name).map((a) => a.library_id)));
   };
 
   const search = async () => {
     if (!clean(query) || loading) return;
-    setLoading(true); setErr(""); setNote(""); setAds([]); setSel(new Set());
+    setLoading(true); setErr(""); setNote(""); setAds([]); setActiveAdv(""); setSel(new Set());
     try {
       const res = await fetch("/api/ads/meta", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -43,8 +69,15 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       if (data.error) { setErr(data.error); setLoading(false); return; }
       const list = data.ads || [];
       setAds(list);
-      setSel(new Set(list.map((a) => a.library_id))); // preselect all
-      if (!list.length) setNote("No se encontraron anuncios. Prueba otra marca, país, o pega la URL de Ad Library de la página.");
+      if (list.length) {
+        const advs = (() => { const m = new Map(); for (const a of list) { const n = a.advertiser_name || "—"; m.set(n, (m.get(n) || 0) + 1); } return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count); })();
+        const first = pickAdvertiser(advs, query);
+        setActiveAdv(first);
+        setSel(new Set(list.filter((a) => (a.advertiser_name || "—") === first).map((a) => a.library_id)));
+        if (advs.length > 1) setNote(`Se encontraron ${advs.length} anunciantes. Elige el correcto en los chips de arriba.`);
+      } else {
+        setNote("No se encontraron anuncios. Prueba otra marca, país, o pega la URL de Ad Library de la página (con view_all_page_id).");
+      }
     } catch (e) { setErr(`No se pudo buscar — ${e.message || "error de red"}.`); }
     setLoading(false);
   };
@@ -52,7 +85,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const importSel = async () => {
-    const chosen = ads.filter((a) => sel.has(a.library_id));
+    const chosen = visible.filter((a) => sel.has(a.library_id));
     if (!chosen.length || importing) return;
     setImporting(true); setErr(""); setNote("");
     try {
@@ -66,14 +99,14 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       });
       const data = await res.json();
       if (data.error) { setErr(data.error); setImporting(false); return; }
-      const msg = `${data.imported} importado${data.imported === 1 ? "" : "s"}${data.skipped ? ` · ${data.skipped} omitido${data.skipped === 1 ? "" : "s"} (duplicado)` : ""}`;
-      setNote(msg);
+      setNote(`${data.imported} importado${data.imported === 1 ? "" : "s"}${data.skipped ? ` · ${data.skipped} omitido${data.skipped === 1 ? "" : "s"} (duplicado)` : ""}`);
       onImported?.(data.imported);
-      // Drop imported from selection so re-import doesn't double-count.
       if (data.imported) setSel(new Set());
     } catch (e) { setErr(`No se pudo importar — ${e.message || "error de red"}.`); }
     setImporting(false);
   };
+
+  const selVisible = visible.filter((a) => sel.has(a.library_id)).length;
 
   return (
     <div>
@@ -89,26 +122,42 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
           {loading ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round" /></svg>Buscando…</> : "Buscar anuncios"}
         </button>
       </div>
-      <p className="text-[11px] text-hint mt-1.5">Publicidad pagada · corre el Ad Library de Meta (≈$0.17 por búsqueda). Entra etiquetada como <b>paid</b>.</p>
+      <p className="text-[11px] text-hint mt-1.5">Publicidad pagada · corre el Ad Library de Meta (≈$0.17 por búsqueda). Para resultados exactos, pega la URL de Ad Library de la página (con <code>view_all_page_id</code>).</p>
 
       {err && <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
       {note && <div className="mt-3 text-xs text-[var(--accent-ember-deep)] bg-[#fdf6f2] border border-[var(--accent-ember-tint)] rounded-lg px-3 py-2">{note}</div>}
 
-      {/* Results */}
-      {ads.length > 0 && (
+      {/* Advertiser filter chips */}
+      {advertisers.length > 0 && (
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <span className="text-[9px] font-mono uppercase tracking-[0.14em] text-hint">Anunciante:</span>
+          {advertisers.map((adv) => {
+            const on = adv.name === activeAdv;
+            return (
+              <button key={adv.name} onClick={() => selectAdvertiser(adv.name)}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition ${on ? "bg-[var(--ink-800,#1a1a1a)] text-white border-[var(--ink-800,#1a1a1a)]" : "text-muted border-[var(--border)] hover:text-main"}`}>
+                {adv.name} <span className="opacity-60">· {adv.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Results (only the active advertiser) */}
+      {visible.length > 0 && (
         <>
-          <div className="flex items-center gap-3 mt-5 mb-3 flex-wrap">
-            <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{ads.length} anuncios · {sel.size} seleccionados</span>
-            <button onClick={() => setSel(sel.size === ads.length ? new Set() : new Set(ads.map((a) => a.library_id)))} className="text-[11px] text-muted hover:text-main underline">
-              {sel.size === ads.length ? "Ninguno" : "Todos"}
+          <div className="flex items-center gap-3 mt-4 mb-3 flex-wrap">
+            <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{visible.length} anuncios de {activeAdv} · {selVisible} seleccionados</span>
+            <button onClick={() => setSel(selVisible === visible.length ? new Set() : new Set(visible.map((a) => a.library_id)))} className="text-[11px] text-muted hover:text-main underline">
+              {selVisible === visible.length ? "Ninguno" : "Todos"}
             </button>
-            <button onClick={importSel} disabled={importing || !sel.size}
+            <button onClick={importSel} disabled={importing || !selVisible}
               className="ml-auto inline-flex items-center gap-2 bg-[var(--ink-800,#1a1a1a)] text-white rounded-lg px-4 py-2 text-xs font-semibold disabled:opacity-50 whitespace-nowrap">
-              {importing ? "Importando…" : `Importar ${sel.size} como entries`}
+              {importing ? "Importando…" : `Importar ${selVisible} como entries`}
             </button>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
-            {ads.map((a) => {
+            {visible.map((a) => {
               const on = sel.has(a.library_id);
               return (
                 <div key={a.library_id} onClick={() => toggle(a.library_id)}
