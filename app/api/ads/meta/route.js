@@ -40,7 +40,9 @@ function normalizeAd(rec, fallbackCountry) {
 
   const startMs = toMs(rec.startDate);
   const endMs = toMs(rec.endDate);
-  const is_active = !!rec.isActive;
+  // The actor's `isActive` field is unreliable (returns false even for ads Meta shows as
+  // Active), so derive it: an ad is active if it has no end date or the end is in the future.
+  const is_active = !!rec.isActive || !endMs || endMs >= Date.now();
   const days_running = startMs ? Math.max(1, Math.round(((is_active ? Date.now() : (endMs || Date.now())) - startMs) / 86400000)) : null;
   const platforms = Array.isArray(rec.publisherPlatform) ? rec.publisherPlatform : [];
   const library_id = rec.adArchiveID || rec.adArchiveId || "";

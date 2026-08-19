@@ -40,7 +40,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const [importing, setImporting] = useState(false);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
+  const [statusMode, setStatusMode] = useState("active"); // active | all | inactive
   const [sortBy, setSortBy] = useState("date"); // date | duration
 
   // Build the actor's input URL. Exact paths (a page): a pasted URL (Facebook page or Ad
@@ -48,12 +48,12 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   // this actor does a keyword-ish search, so it returns ads that mention the word rather than
   // the brand's page. The advertiser chips below let the analyst pick, but the reliable input
   // is the page URL / Page ID.
-  const buildUrl = () => {
+  const buildUrl = (st = statusMode) => {
     const q = clean(query);
     const c = isoCountry(country) || "ES";
-    if (/^https?:\/\//i.test(q)) return q;                       // page URL or Ad Library URL
-    if (/^\d{6,}$/.test(q)) return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&view_all_page_id=${q}&country=${c}`; // Page ID
-    return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`; // best-effort name
+    if (/^https?:\/\//i.test(q)) return q;                       // page URL or Ad Library URL (carries its own status)
+    if (/^\d{6,}$/.test(q)) return `https://www.facebook.com/ads/library/?active_status=${st}&ad_type=all&media_type=all&search_type=page&view_all_page_id=${q}&country=${c}`; // Page ID
+    return `https://www.facebook.com/ads/library/?active_status=${st}&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`; // best-effort name
   };
 
   // Distinct advertisers in the result set, by ad count (desc).
@@ -67,12 +67,11 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
 
   // What the grid actually renders: the active advertiser's ads, optionally active-only, sorted.
   const shown = useMemo(() => {
-    let list = onlyActive ? visible.filter((a) => a.is_active) : visible;
-    list = [...list].sort(sortBy === "duration"
+    let list = [...visible].sort(sortBy === "duration"
       ? (a, b) => (b.days_running || 0) - (a.days_running || 0)
       : (a, b) => String(b.start_date || "").slice(0, 10).localeCompare(String(a.start_date || "").slice(0, 10)));
     return list;
-  }, [visible, onlyActive, sortBy]);
+  }, [visible, sortBy]);
 
   const pickAdvertiser = (list, q) => {
     if (!list.length) return "";
@@ -87,13 +86,13 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
     setSel(new Set(ads.filter((a) => (a.advertiser_name || "—") === name).map((a) => a.library_id)));
   };
 
-  const search = async () => {
+  const search = async (st = statusMode) => {
     if (!clean(query) || loading) return;
     setLoading(true); setErr(""); setNote(""); setAds([]); setActiveAdv(""); setSel(new Set());
     try {
       const res = await fetch("/api/ads/meta", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", url: buildUrl(), limit: 30, country: isoCountry(country) }),
+        body: JSON.stringify({ action: "search", url: buildUrl(st), limit: 30, country: isoCountry(country) }),
       });
       const data = await res.json();
       if (data.error) { setErr(data.error); setLoading(false); return; }
@@ -149,7 +148,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
           className="flex-1 min-w-[240px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
         <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="País (ES)"
           className="w-[110px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" title="País: código ISO de 2 letras (ES, MX, PE…) o nombre (Spain)" />
-        <button onClick={search} disabled={loading} className="gw-ember-btn inline-flex items-center gap-2 bg-[var(--accent-ember)] text-white rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60 whitespace-nowrap">
+        <button onClick={() => search()} disabled={loading} className="gw-ember-btn inline-flex items-center gap-2 bg-[var(--accent-ember)] text-white rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60 whitespace-nowrap">
           {loading ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round" /></svg>Buscando…</> : "Buscar anuncios"}
         </button>
       </div>
@@ -179,9 +178,12 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
         <>
           <div className="flex items-center gap-3 mt-4 mb-3 flex-wrap">
             <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{shown.length} anuncios de {activeAdv} · {selVisible} seleccionados</span>
-            <label className="inline-flex items-center gap-1.5 text-[10px] text-muted cursor-pointer">
-              <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} className="accent-[var(--accent-ember)]" />Solo activos
-            </label>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-hint">Estado:</span>
+              {[["active", "Activos"], ["all", "Todos"], ["inactive", "Inactivos"]].map(([v, l]) => (
+                <button key={v} onClick={() => { setStatusMode(v); search(v); }} disabled={loading} className={`text-[10px] px-2 py-0.5 rounded-full border transition disabled:opacity-50 ${statusMode === v ? "bg-[var(--ink-800,#1a1a1a)] text-white border-[var(--ink-800,#1a1a1a)]" : "text-muted border-[var(--border)] hover:text-main"}`}>{l}</button>
+              ))}
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-hint">Orden:</span>
               {[["date", "Fecha"], ["duration", "Tiempo activo"]].map(([v, l]) => (
