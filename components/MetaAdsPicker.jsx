@@ -40,6 +40,8 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const [importing, setImporting] = useState(false);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
+  const [onlyActive, setOnlyActive] = useState(false);
+  const [sortBy, setSortBy] = useState("date"); // date | duration
 
   // Build the actor's input URL. Exact paths (a page): a pasted URL (Facebook page or Ad
   // Library), or a numeric Page ID → view_all_page_id. A plain brand NAME is only best-effort:
@@ -62,6 +64,15 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   }, [ads]);
 
   const visible = useMemo(() => ads.filter((a) => (a.advertiser_name || "—") === activeAdv), [ads, activeAdv]);
+
+  // What the grid actually renders: the active advertiser's ads, optionally active-only, sorted.
+  const shown = useMemo(() => {
+    let list = onlyActive ? visible.filter((a) => a.is_active) : visible;
+    list = [...list].sort(sortBy === "duration"
+      ? (a, b) => (b.days_running || 0) - (a.days_running || 0)
+      : (a, b) => String(b.start_date || "").slice(0, 10).localeCompare(String(a.start_date || "").slice(0, 10)));
+    return list;
+  }, [visible, onlyActive, sortBy]);
 
   const pickAdvertiser = (list, q) => {
     if (!list.length) return "";
@@ -105,7 +116,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const importSel = async () => {
-    const chosen = visible.filter((a) => sel.has(a.library_id));
+    const chosen = shown.filter((a) => sel.has(a.library_id));
     if (!chosen.length || importing) return;
     setImporting(true); setErr(""); setNote("");
     try {
@@ -126,7 +137,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
     setImporting(false);
   };
 
-  const selVisible = visible.filter((a) => sel.has(a.library_id)).length;
+  const selVisible = shown.filter((a) => sel.has(a.library_id)).length;
 
   return (
     <div>
@@ -167,15 +178,24 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       {visible.length > 0 && (
         <>
           <div className="flex items-center gap-3 mt-4 mb-3 flex-wrap">
-            <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{visible.length} anuncios de {activeAdv} · {selVisible} seleccionados</span>
+            <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{shown.length} anuncios de {activeAdv} · {selVisible} seleccionados</span>
+            <label className="inline-flex items-center gap-1.5 text-[10px] text-muted cursor-pointer">
+              <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} className="accent-[var(--accent-ember)]" />Solo activos
+            </label>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-hint">Orden:</span>
+              {[["date", "Fecha"], ["duration", "Tiempo activo"]].map(([v, l]) => (
+                <button key={v} onClick={() => setSortBy(v)} className={`text-[10px] px-2 py-0.5 rounded-full border transition ${sortBy === v ? "bg-[var(--ink-800,#1a1a1a)] text-white border-[var(--ink-800,#1a1a1a)]" : "text-muted border-[var(--border)] hover:text-main"}`}>{l}</button>
+              ))}
+            </span>
             <span className="inline-flex items-center gap-1.5 ml-1">
               <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-hint">Destino:</span>
               {[["local", "Local audit"], ["global", "Global benchmarks"]].map(([v, l]) => (
                 <button key={v} onClick={() => setDestScope(v)} className={`text-[10px] px-2 py-0.5 rounded-full border transition ${destScope === v ? "bg-[var(--ink-800,#1a1a1a)] text-white border-[var(--ink-800,#1a1a1a)]" : "text-muted border-[var(--border)] hover:text-main"}`}>{l}</button>
               ))}
             </span>
-            <button onClick={() => setSel(selVisible === visible.length ? new Set() : new Set(visible.map((a) => a.library_id)))} className="text-[11px] text-muted hover:text-main underline">
-              {selVisible === visible.length ? "Ninguno" : "Todos"}
+            <button onClick={() => setSel(selVisible === shown.length ? new Set() : new Set(shown.map((a) => a.library_id)))} className="text-[11px] text-muted hover:text-main underline">
+              {selVisible === shown.length ? "Ninguno" : "Todos"}
             </button>
             <button onClick={importSel} disabled={importing || !selVisible}
               className="ml-auto inline-flex items-center gap-2 bg-[var(--ink-800,#1a1a1a)] text-white rounded-lg px-4 py-2 text-xs font-semibold disabled:opacity-50 whitespace-nowrap">
@@ -183,7 +203,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
             </button>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
-            {visible.map((a) => {
+            {shown.map((a) => {
               const on = sel.has(a.library_id);
               return (
                 <div key={a.library_id} onClick={() => toggle(a.library_id)}
