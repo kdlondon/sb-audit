@@ -13,11 +13,26 @@ import { useRole } from "@/lib/role-context";
 const clean = (s) => String(s || "").trim();
 const fmtDate = (d) => (d ? String(d).slice(0, 10) : "—");
 
+// The Ad Library needs a 2-letter ISO country code (ES), not a name (Spain). Frameworks
+// store either, so normalize: pass-through a 2-letter code, else map a common name.
+const COUNTRY_ISO = {
+  spain: "ES", "españa": "ES", mexico: "MX", "méxico": "MX", peru: "PE", "perú": "PE",
+  colombia: "CO", argentina: "AR", chile: "CL", ecuador: "EC", "united states": "US", usa: "US",
+  "estados unidos": "US", "united kingdom": "GB", uk: "GB", france: "FR", francia: "FR",
+  germany: "DE", alemania: "DE", italy: "IT", italia: "IT", portugal: "PT", brazil: "BR", brasil: "BR",
+  netherlands: "NL", belgium: "BE", ireland: "IE", canada: "CA", "canadá": "CA",
+};
+const isoCountry = (v) => { const s = clean(v); if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase(); return COUNTRY_ISO[s.toLowerCase()] || ""; };
+
+// Serving-platform abbreviations shown on the card → full names.
+const PLAT_NAME = { FACEBOOK: "Facebook", INSTAGRAM: "Instagram", MESSENGER: "Messenger", AUDIENCE_NETWORK: "Audience Network", THREADS: "Threads" };
+
 export default function MetaAdsPicker({ projectId, scope = "global", brandId = null, defaultCountry = "", onImported }) {
   const { userEmail, activeOrg } = useRole() || {};
 
   const [query, setQuery] = useState("");
-  const [country, setCountry] = useState((defaultCountry || "").toUpperCase());
+  const [country, setCountry] = useState(isoCountry(defaultCountry));
+  const [destScope, setDestScope] = useState(scope === "local" ? "local" : "global");
   const [ads, setAds] = useState([]);
   const [activeAdv, setActiveAdv] = useState("");
   const [sel, setSel] = useState(new Set());
@@ -33,7 +48,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   // is the page URL / Page ID.
   const buildUrl = () => {
     const q = clean(query);
-    const c = (country || "ES").toUpperCase();
+    const c = isoCountry(country) || "ES";
     if (/^https?:\/\//i.test(q)) return q;                       // page URL or Ad Library URL
     if (/^\d{6,}$/.test(q)) return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&view_all_page_id=${q}&country=${c}`; // Page ID
     return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`; // best-effort name
@@ -67,7 +82,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
     try {
       const res = await fetch("/api/ads/meta", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", url: buildUrl(), limit: 30, country: (country || "").toUpperCase() }),
+        body: JSON.stringify({ action: "search", url: buildUrl(), limit: 30, country: isoCountry(country) }),
       });
       const data = await res.json();
       if (data.error) { setErr(data.error); setLoading(false); return; }
@@ -96,9 +111,9 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       const res = await fetch("/api/ads/meta", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "import", project_id: projectId, scope, brand_id: brandId,
+          action: "import", project_id: projectId, scope: destScope, brand_id: brandId,
           organization_id: activeOrg?.id || null, created_by: userEmail || "",
-          country: (country || "").toUpperCase(), ads: chosen,
+          country: isoCountry(country), ads: chosen,
         }),
       });
       const data = await res.json();
@@ -120,8 +135,8 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
         <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") search(); }}
           placeholder="Pega la URL / Page ID de la página, o el nombre de la marca…"
           className="flex-1 min-w-[240px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
-        <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} placeholder="País (ES)"
-          className="w-[92px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main uppercase focus:outline-none focus:border-[var(--accent)]" title="Código de país de 2 letras (ES, MX, PE…)" />
+        <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="País (ES)"
+          className="w-[110px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" title="País: código ISO de 2 letras (ES, MX, PE…) o nombre (Spain)" />
         <button onClick={search} disabled={loading} className="gw-ember-btn inline-flex items-center gap-2 bg-[var(--accent-ember)] text-white rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60 whitespace-nowrap">
           {loading ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round" /></svg>Buscando…</> : "Buscar anuncios"}
         </button>
@@ -152,6 +167,12 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
         <>
           <div className="flex items-center gap-3 mt-4 mb-3 flex-wrap">
             <span className="text-[9px] tracking-[0.16em] text-hint uppercase font-mono">{visible.length} anuncios de {activeAdv} · {selVisible} seleccionados</span>
+            <span className="inline-flex items-center gap-1.5 ml-1">
+              <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-hint">Destino:</span>
+              {[["local", "Local audit"], ["global", "Global benchmarks"]].map(([v, l]) => (
+                <button key={v} onClick={() => setDestScope(v)} className={`text-[10px] px-2 py-0.5 rounded-full border transition ${destScope === v ? "bg-[var(--ink-800,#1a1a1a)] text-white border-[var(--ink-800,#1a1a1a)]" : "text-muted border-[var(--border)] hover:text-main"}`}>{l}</button>
+              ))}
+            </span>
             <button onClick={() => setSel(selVisible === visible.length ? new Set() : new Set(visible.map((a) => a.library_id)))} className="text-[11px] text-muted hover:text-main underline">
               {selVisible === visible.length ? "Ninguno" : "Todos"}
             </button>
@@ -181,7 +202,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
                     </div>
                     <p className="text-[11px] text-muted leading-snug line-clamp-2 min-h-[28px]">{a.ad_text || a.title || "—"}</p>
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      {(a.serving_platforms || []).slice(0, 3).map((p) => <span key={p} className="text-[8px] font-mono uppercase text-hint bg-surface2 rounded px-1 py-0.5">{p.slice(0, 2)}</span>)}
+                      {(a.serving_platforms || []).slice(0, 4).map((p) => <span key={p} title={PLAT_NAME[p] || p} className="text-[8px] font-mono uppercase text-hint bg-surface2 rounded px-1 py-0.5">{p.slice(0, 2)}</span>)}
                       <span className="ml-auto text-[8.5px] text-hint">{fmtDate(a.start_date)}</span>
                     </div>
                   </div>
