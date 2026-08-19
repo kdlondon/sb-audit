@@ -86,7 +86,8 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       });
       const data = await res.json();
       if (data.error) { setErr(data.error); setLoading(false); return; }
-      const list = data.ads || [];
+      // Newest first — Meta's Ad Library orders by launch date; match it (YYYY-MM-DD sorts chronologically).
+      const list = (data.ads || []).slice().sort((a, b) => String(b.start_date || "").slice(0, 10).localeCompare(String(a.start_date || "").slice(0, 10)));
       setAds(list);
       if (list.length) {
         const advs = (() => { const m = new Map(); for (const a of list) { const n = a.advertiser_name || "—"; m.set(n, (m.get(n) || 0) + 1); } return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count); })();
@@ -193,7 +194,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
                       {on && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6 9 17l-5-5" /></svg>}
                     </span>
                     <span className="absolute top-2 right-2 text-[8px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded bg-[rgba(26,26,26,0.72)] text-white">{a.creative_format || "AD"}</span>
-                    {a.is_active && <span className="absolute bottom-2 left-2 text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-green-600 text-white">Activo</span>}
+                    <span className={`absolute bottom-2 left-2 text-[8px] font-mono uppercase px-1.5 py-0.5 rounded text-white ${a.is_active ? "bg-green-600" : "bg-[#8a8a8a]"}`}>{a.is_active ? "Activo" : "Inactivo"}</span>
                   </div>
                   <div className="p-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -203,7 +204,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
                     <p className="text-[11px] text-muted leading-snug line-clamp-2 min-h-[28px]">{a.ad_text || a.title || "—"}</p>
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
                       {(a.serving_platforms || []).slice(0, 4).map((p) => <span key={p} title={PLAT_NAME[p] || p} className="text-[8px] font-mono uppercase text-hint bg-surface2 rounded px-1 py-0.5">{p.slice(0, 2)}</span>)}
-                      <span className="ml-auto text-[8.5px] text-hint">{fmtDate(a.start_date)}</span>
+                      <span className="ml-auto text-[8.5px] text-hint whitespace-nowrap" title={`${fmtDate(a.start_date)} → ${a.is_active ? "activo" : fmtDate(a.end_date)}`}>{fmtDate(a.start_date)} → {a.is_active ? "hoy" : fmtDate(a.end_date)}</span>
                     </div>
                   </div>
                 </div>
