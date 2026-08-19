@@ -26,13 +26,17 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
 
-  // Accept a pasted Ad Library URL, or build a page-name search from brand + country.
-  // page search (search_type=page) targets advertiser pages, NOT any ad mentioning the word.
+  // Build the actor's input URL. Exact paths (a page): a pasted URL (Facebook page or Ad
+  // Library), or a numeric Page ID → view_all_page_id. A plain brand NAME is only best-effort:
+  // this actor does a keyword-ish search, so it returns ads that mention the word rather than
+  // the brand's page. The advertiser chips below let the analyst pick, but the reliable input
+  // is the page URL / Page ID.
   const buildUrl = () => {
     const q = clean(query);
-    if (/^https?:\/\//i.test(q)) return q;
     const c = (country || "ES").toUpperCase();
-    return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`;
+    if (/^https?:\/\//i.test(q)) return q;                       // page URL or Ad Library URL
+    if (/^\d{6,}$/.test(q)) return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&view_all_page_id=${q}&country=${c}`; // Page ID
+    return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&media_type=all&search_type=page&q=${encodeURIComponent(q)}&country=${c}`; // best-effort name
   };
 
   // Distinct advertisers in the result set, by ad count (desc).
@@ -114,7 +118,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
       <label className="text-[10px] font-mono uppercase tracking-[0.14em] text-hint block mb-1.5">Marca o URL de Ad Library</label>
       <div className="flex gap-2.5 items-center flex-wrap">
         <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") search(); }}
-          placeholder="Una marca (ej. Iberia) o pega la URL de su Ad Library…"
+          placeholder="Pega la URL / Page ID de la página, o el nombre de la marca…"
           className="flex-1 min-w-[240px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main focus:outline-none focus:border-[var(--accent)]" />
         <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} placeholder="País (ES)"
           className="w-[92px] px-3 py-2.5 bg-surface border border-main rounded-lg text-sm text-main uppercase focus:outline-none focus:border-[var(--accent)]" title="Código de país de 2 letras (ES, MX, PE…)" />
@@ -122,7 +126,7 @@ export default function MetaAdsPicker({ projectId, scope = "global", brandId = n
           {loading ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70" strokeLinecap="round" /></svg>Buscando…</> : "Buscar anuncios"}
         </button>
       </div>
-      <p className="text-[11px] text-hint mt-1.5">Publicidad pagada · corre el Ad Library de Meta (≈$0.17 por búsqueda). Para resultados exactos, pega la URL de Ad Library de la página (con <code>view_all_page_id</code>).</p>
+      <p className="text-[11px] text-hint mt-1.5">Publicidad pagada · corre el Ad Library de Meta (≈$0.17 por búsqueda). <b>Para la marca exacta</b>, pega la URL de su página (<code>facebook.com/marca</code>) o de su Ad Library (<code>view_all_page_id=…</code>), o su Page ID. El nombre suelto es aproximado (el scraper busca por palabra).</p>
 
       {err && <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
       {note && <div className="mt-3 text-xs text-[var(--accent-ember-deep)] bg-[#fdf6f2] border border-[var(--accent-ember-tint)] rounded-lg px-3 py-2">{note}</div>}
