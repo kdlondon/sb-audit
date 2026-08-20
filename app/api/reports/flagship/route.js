@@ -61,12 +61,13 @@ export async function POST(request) {
   const category = framework?.industry || "the category";
   const refYear = new Date().getFullYear();
 
-  const pieces = rows.map((e) => { const cd = cdOf(e), s = cd._social || {}; return {
+  const pieces = rows.map((e) => { const cd = cdOf(e), s = cd._social || {}, pd = cd._paid || {}; return {
     id: e.id, brand: e.competitor || e.brand || e.brand_name || "—",
     channel: e.channel || "", format: s.format || "",
     communication_intent: e.communication_intent || "", rating: e.rating, year: e.year,
     territory: e.primary_territory || "", archetype: e.brand_archetype || "", tone: e.tone_of_voice || "",
     slogan: clean(e.main_slogan), text: clean(e.description || e.synopsis).slice(0, 160),
+    source_type: e.source_type || "", funnel_role: pd.funnel_role || "", offer_type: pd.offer_type || "",
   }; });
 
   const brands = [...new Set(pieces.map((p) => p.brand))].filter((b) => b && b !== "—");
@@ -85,7 +86,8 @@ export async function POST(request) {
   const topFor = (section, pool, n = 24) => pool
     .map((p) => ({ p, w: pieceWeight(p, { section, mode: "brand_signal", refYear }) }))
     .filter((x) => x.w > 0).sort((a, b) => b.w - a.w).slice(0, n);
-  const ctx = (sel) => sel.map(({ p, w }) => `- ${p.id ? `[#${p.id}] ` : ""}[${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
+  const paidTag = (p) => p.source_type === "paid" ? ` · PAID${p.funnel_role ? "/" + p.funnel_role : ""}${p.offer_type ? "/" + p.offer_type : ""}` : "";
+  const ctx = (sel) => sel.map(({ p, w }) => `- ${p.id ? `[#${p.id}] ` : ""}[${p.brand}] (${p.communication_intent || "?"} · ${p.source || p.channel || "?"}${p.territory ? " · " + p.territory : ""}${paidTag(p)}) w${w}: ${p.text || p.slogan || ""}`).join("\n");
 
   const subjPool = (pool) => scope === "brand" ? pool.filter((p) => p.brand === subject) : pool;
   // head is built lazily below, once the filters exist — naming every project brand here
@@ -124,11 +126,19 @@ supply = how covered the space already is (1 = nobody, 5 = crowded). demand = ho
     if (Array.isArray(fl.intents) && fl.intents.length && p.source !== "brand_dna" && !(p.communication_intent || "").split(",").map((s) => s.trim()).some((it) => fl.intents.includes(it))) return false;
     if (fl.yearFrom && p.year && Number(p.year) < Number(fl.yearFrom)) return false;
     if (fl.yearTo && p.year && Number(p.year) > Number(fl.yearTo)) return false;
+    // Source-type lens (Orden 140726 · Fase D): isolate paid push or organic presence.
+    if (fl.sourceType === "paid" && p.source_type !== "paid") return false;
+    if (fl.sourceType === "organic" && p.source_type === "paid") return false;
     return true;
   };
   // Brands actually in scope after filtering — this is what the prompt must name.
   const scopedBrands = [...new Set(pieces.filter(passFilter).map((p) => p.brand))].filter((b) => b && b !== "—");
-  const head = `Category: ${category}. Brands in study: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; any other brand in the project is deliberately out of scope and must not be discussed." : ""}`;
+  // Paid/organic split of the in-scope evidence, so the model can contrast what brands PAY to
+  // push against what they merely publish. Only surfaced when the report mixes both.
+  const paidN = pieces.filter(passFilter).filter((p) => p.source_type === "paid").length;
+  const orgN = pieces.filter(passFilter).length - paidN;
+  const splitNote = (fl.sourceType || !paidN || !orgN) ? "" : ` Evidence spans ${paidN} PAID pieces (marked ·PAID with funnel/offer) and ${orgN} organic/owned pieces — treat paid as deliberate investment and contrast it with organic presence where relevant.`;
+  const head = `Category: ${category}. Brands in study: ${(scopedBrands.length ? scopedBrands : brands).join(", ")}. Scope: ${scope === "brand" ? `single brand — ${subject}` : "whole category"}.${scopedBrands.length && scopedBrands.length < brands.length ? " Analyse ONLY these brands; any other brand in the project is deliberately out of scope and must not be discussed." : ""}${fl.sourceType === "paid" ? " This report covers PAID ADVERTISING ONLY." : fl.sourceType === "organic" ? " This report covers ORGANIC/OWNED content only (paid ads excluded)." : ""}${splitNote}`;
 
   // Territory stats for the visual blocks: how covered a territory is (supply) and how it
   // performs (pull, from the analyst/AI rating). Computed from the filtered set only.

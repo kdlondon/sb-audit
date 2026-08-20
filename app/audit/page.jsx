@@ -2540,6 +2540,62 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   </div>)}
                 </div>);
               })()}
+              {(cur.source_type==="paid"||cur.type==="Paid ad")&&(()=>{
+                const ads=cur.custom_dimensions?._ads||{};
+                const paid=cur.custom_dimensions?._paid||{};
+                const setPaid=(k,v)=>setCur(prev=>({...prev,custom_dimensions:{...(prev.custom_dimensions||{}),_paid:{...((prev.custom_dimensions||{})._paid||{}),[k]:v}}}));
+                const open=sec===98;
+                const lbl="block text-[9px] uppercase mb-1.5 gw-flabel";
+                const inp="w-full gw-finput";
+                const FUNNEL_OPTS=[["awareness","Awareness"],["consideration","Consideration"],["conversion","Conversion"]];
+                const OFFER_OPTS=[["promo","Promo"],["price","Price"],["product","Product"],["benefit","Benefit"],["brand","Brand"],["no_offer","No offer"]];
+                const URGENCY_OPTS=[["deadline","Deadline"],["scarcity","Scarcity"],["exclusivity","Exclusivity"],["none","None"]];
+                const paidKeys=["funnel_role","offer_type","declared_promise","urgency_devices","implied_audience"];
+                const paidFilled=paidKeys.filter(k=>paid[k]!==undefined&&paid[k]!==null&&String(paid[k]).trim()!=="").length;
+                const d=(s)=>String(s||"").slice(0,10);
+                const facts=[
+                  ads.days_running!=null&&["Days running",`${ads.days_running}`],
+                  Number(ads.variant_count)>1&&["Creative variants",`${ads.variant_count}`],
+                  (ads.start_date||ads.end_date)&&["Ran",`${d(ads.start_date)||"?"} → ${ads.is_active?"today":(d(ads.end_date)||"?")}`],
+                  Array.isArray(ads.serving_platforms)&&ads.serving_platforms.length&&["Serving on",ads.serving_platforms.join(", ")],
+                  ads.creative_format&&["Format",ads.creative_format],
+                  ads.cta_text&&["CTA",ads.cta_text],
+                ].filter(Boolean);
+                const paidIdx=allDimensions.filter(dm=>dm.fields?.length>0).length+1;
+                return(<div style={{background:"var(--brand-white)",border:"1px solid var(--border-hairline)",borderRadius:14,overflow:"hidden"}}>
+                  <div onClick={()=>setSec(open?-1:98)} title={`${paidFilled} of ${paidKeys.length} inferred fields`} className="gw-sec">
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--ink-900)"}}>{paidIdx} · Paid signals</span>
+                    <span style={{marginLeft:8,fontSize:9,fontFamily:"var(--font-mono)",letterSpacing:".04em",padding:"1px 6px",borderRadius:999,background:ads.is_active?"#e7f5ec":"#f1efe9",color:ads.is_active?"#1a7f45":"var(--text-muted)"}}>{ads.is_active?"ACTIVE":"INACTIVE"}</span>
+                    <span style={{marginLeft:"auto",fontSize:16,lineHeight:1,color:"var(--text-muted)"}}>{open?"−":"+"}</span>
+                  </div>
+                  {open&&(<div style={{padding:"2px 16px 18px",display:"flex",flexDirection:"column",gap:16,borderTop:"1px solid var(--paper-edge)"}}>
+                    {/* Observed — hard facts from the Ad Library, read-only */}
+                    <div>
+                      <div className="text-[9px] uppercase gw-flabel mb-2" style={{color:"var(--text-muted)"}}>Observed · from Meta Ad Library</div>
+                      {facts.length?(<div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        {facts.map(([k,v])=>(<div key={k} className="text-[11px]" style={{color:"var(--text-secondary)"}}><span className="gw-fhint">{k}:</span> <span style={{color:"var(--ink-900)"}}>{v}</span></div>))}
+                      </div>):<div className="text-[10px] gw-fhint">No observed data captured.</div>}
+                      {ads.permalink&&<a href={ads.permalink} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[10px] text-accent underline">View in Ad Library ↗</a>}
+                    </div>
+                    {/* Inferred — the AI's read of the commercial strategy, editable */}
+                    <div style={{borderTop:"1px dashed var(--paper-edge)",paddingTop:12,display:"flex",flexDirection:"column",gap:12}}>
+                      <div className="text-[9px] uppercase gw-flabel" style={{color:"var(--accent-ember)"}}>Inferred · AI read of the strategy</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><label className={lbl}>Funnel role</label>
+                          <select value={paid.funnel_role||""} onChange={e=>setPaid("funnel_role",e.target.value)} className={inp}><option value="">—</option>{FUNNEL_OPTS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+                        <div><label className={lbl}>Offer type</label>
+                          <select value={paid.offer_type||""} onChange={e=>setPaid("offer_type",e.target.value)} className={inp}><option value="">—</option>{OFFER_OPTS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+                      </div>
+                      <div><label className={lbl}>Urgency devices</label>
+                        <select value={paid.urgency_devices||""} onChange={e=>setPaid("urgency_devices",e.target.value)} className={inp}><option value="">—</option>{URGENCY_OPTS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+                      <div><label className={lbl}>Declared promise</label>
+                        <input value={paid.declared_promise||""} onChange={e=>setPaid("declared_promise",e.target.value)} placeholder="The claim the brand is paying to spread…" className={inp} /></div>
+                      <div><label className={lbl}>Implied audience</label>
+                        <input value={paid.implied_audience||""} onChange={e=>setPaid("implied_audience",e.target.value)} placeholder="Who the piece speaks to…" className={inp} /></div>
+                    </div>
+                  </div>)}
+                </div>);
+              })()}
             </div>
             <div style={{marginTop:10}}><button onClick={save} style={{width:"100%",fontFamily:"var(--font-body)",fontSize:12,fontWeight:500,color:"var(--brand-white)",background:"var(--ink-800)",border:"none",borderRadius:10,padding:12,cursor:"pointer"}}>{eid?"Save changes":"Save entry"}</button></div>
           </div>
@@ -2564,11 +2620,19 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   const hasSocial=data.some(e=>e.type==="Social post"||e.custom_dimensions?._social?.content_pillar);
   const pillarOpts=[...new Set(data.map(e=>e.custom_dimensions?._social?.content_pillar).filter(Boolean))].sort();
   const socialFilters=hasSocial&&pillarOpts.length?[["content_pillar","Content pillar",pillarOpts]]:[];
+  // Origin filters (Orden 140726 · Fase D) — appear once paid/multi-source content lands, so
+  // an analyst can isolate "solo pagado" or a single platform. Values are first-class columns.
+  const SRC_TYPE_LABEL={paid:"Paid",organic:"Organic",owned:"Owned",earned:"Earned"};
+  const SRC_PLAT_LABEL={meta_ads:"Meta Ads",google_ads:"Google Ads",youtube:"YouTube",instagram:"Instagram",tiktok:"TikTok",linkedin:"LinkedIn",web:"Web",manual:"Manual"};
+  const hasPaid=data.some(e=>e.source_type&&e.source_type!=="organic");
+  const sourceTypeOpts=[...new Set(data.map(e=>e.source_type).filter(Boolean))].sort().map(v=>[v,SRC_TYPE_LABEL[v]||v]);
+  const sourcePlatformOpts=[...new Set(data.map(e=>e.source_platform).filter(Boolean))].sort().map(v=>[v,SRC_PLAT_LABEL[v]||v]);
+  const sourceFilters=hasPaid?[...(sourceTypeOpts.length?[["source_type","Source type",sourceTypeOpts]]:[]),...(sourcePlatformOpts.length>1?[["source_platform","Source",sourcePlatformOpts]]:[])]:[];
   // Competitor filter options: framework brands (localCompetitors already leads with the
   // PRINCIPAL brand) ∪ legacy dropdown_options ∪ brands seen in content — so the study
   // subject is always filterable, not just the competitors.
   const competitorOpts=[...new Set([...localCompetitors.map(b=>b.name),...(OPTIONS.competitor||[]),...data.map(e=>e.competitor||e.brand_name||e.brand)].filter(v=>v&&v!=="Other"))];
-  const filterKeys=scope==="local"?[["competitor","Competitor",competitorOpts],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters];
+  const filterKeys=scope==="local"?[["competitor","Competitor",competitorOpts],["communication_intent","Intent",OPTIONS.communicationIntent],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters,...sourceFilters]:[["communication_intent","Intent",OPTIONS.communicationIntent],["category_proximity","Proximity",OPTIONS.categoryProximity],["execution_style","Execution",EXEC_OPTS],["platform","Platform",PLATFORM_OPTS],...socialFilters,...sourceFilters];
 
   const ListIcon=()=><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>;
   const COL_LABELS={year:"Year",type:"Type",intent:"Intent",platform:"Platform",rating:"Rating",created:"Created"};
@@ -2617,7 +2681,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
                   {filterKeys.map(([k,l,opts])=>(
                     <div key={k}>
                       <label className="text-[10px] text-hint uppercase font-semibold tracking-wide">{l}</label>
-                      <select value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="w-full mt-1 px-2.5 py-2 border border-main rounded-xl text-xs bg-surface text-main"><option value="">All</option>{(opts||OPTIONS[k]||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
+                      <select value={fl[k]||""} onChange={e=>setFl({...fl,[k]:e.target.value})} className="w-full mt-1 px-2.5 py-2 border border-main rounded-xl text-xs bg-surface text-main"><option value="">All</option>{(opts||OPTIONS[k]||[]).map(o=>{const val=Array.isArray(o)?o[0]:o;const lab=Array.isArray(o)?o[1]:o;return <option key={val} value={val}>{lab}</option>;})}</select>
                     </div>
                   ))}
                   {active&&<button onClick={()=>setFl({})} className="text-accent text-xs font-medium pt-1">Clear all filters</button>}

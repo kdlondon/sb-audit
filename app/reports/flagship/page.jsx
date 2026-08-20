@@ -52,7 +52,7 @@ function FlagshipInner() {
   const [opening, setOpening] = useState(false);
   const [showCfg, setShowCfg] = useState(false);
   // GLOBAL config (one lens for the whole report) + section structure
-  const [filters, setFilters] = useState({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal" });
+  const [filters, setFilters] = useState({ brands: [], intents: [], yearFrom: "", yearTo: "", mode: "brand_signal", sourceType: "" });
   const [cfg, setCfg] = useState(SECTION_LIST.map((s) => ({ ...s, on: true, prompt: "" })));
   const [customInstructions, setCustomInstructions] = useState("");
   const [selFindings, setSelFindings] = useState([]);
@@ -70,8 +70,8 @@ function FlagshipInner() {
         // Principal brand first — "One brand" scope must offer the study subject too.
         const fwNames = [...new Set([framework?.principalBrand?.name || framework?.brandName, ...(framework?.localCompetitors || []).map((c) => c?.name), ...(framework?.globalBenchmarks || []).map((g) => g?.name)].filter(Boolean))];
         const supabase = createClient();
-        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,communication_intent,year").eq("project_id", projectId);
-        const rws = (data || []).map((r) => ({ brand: r.competitor || r.brand || r.brand_name || "—", intents: (r.communication_intent || "").split(",").map((x) => x.trim()).filter(Boolean), year: r.year }));
+        const { data } = await supabase.from("creative_source").select("competitor,brand,brand_name,communication_intent,year,source_type").eq("project_id", projectId);
+        const rws = (data || []).map((r) => ({ brand: r.competitor || r.brand || r.brand_name || "—", intents: (r.communication_intent || "").split(",").map((x) => x.trim()).filter(Boolean), year: r.year, source_type: r.source_type || "" }));
         setRows(rws);
         let list = fwNames;
         if (!list.length) list = [...new Set(rws.map((r) => r.brand))].filter((b) => b && b !== "—");
@@ -89,8 +89,11 @@ function FlagshipInner() {
     if (filters.intents.length && !r.intents.some((it) => filters.intents.includes(it))) return false;
     if (filters.yearFrom && r.year && Number(r.year) < Number(filters.yearFrom)) return false;
     if (filters.yearTo && r.year && Number(r.year) > Number(filters.yearTo)) return false;
+    if (filters.sourceType === "paid" && r.source_type !== "paid") return false;
+    if (filters.sourceType === "organic" && r.source_type === "paid") return false;
     return true;
   }).length, [rows, filters]);
+  const hasPaid = useMemo(() => rows.some((r) => r.source_type === "paid"), [rows]);
 
   const bodyFor = (extra) => ({
     project_id: projectId, scope, brand: scope === "brand" ? brand : "", icp,
@@ -173,7 +176,7 @@ function FlagshipInner() {
   };
 
   const offCount = cfg.filter((s) => !s.on).length;
-  const filtersActive = filters.brands.length || filters.intents.length || filters.yearFrom || filters.yearTo || filters.mode !== "brand_signal";
+  const filtersActive = filters.brands.length || filters.intents.length || filters.yearFrom || filters.yearTo || filters.mode !== "brand_signal" || filters.sourceType;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -233,6 +236,13 @@ function FlagshipInner() {
                     <Toggle value={filters.mode} set={(v) => setFilterField("mode", v)} options={MODES} />
                     <p className="text-[10px] text-hint mt-1.5">What drives emphasis: brand signal · engagement · rating</p>
                   </div>
+                  {hasPaid && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-main mb-2">Source</h3>
+                    <Toggle value={filters.sourceType} set={(v) => setFilterField("sourceType", v)} options={[["", "All"], ["paid", "Paid"], ["organic", "Organic"]]} />
+                    <p className="text-[10px] text-hint mt-1.5">Isolate paid advertising or organic/owned content</p>
+                  </div>
+                  )}
                   <div className="ml-auto mb-1 text-xs text-hint">{inRange} of {rows.length} entries in range</div>
                 </div>
               </div>
