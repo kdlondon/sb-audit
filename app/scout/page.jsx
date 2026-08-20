@@ -272,6 +272,23 @@ export default function ScoutPage() {
   // Import bar owns scope/brand/country for BOTH branches. Empty brand = derive it
   // from the source (YouTube channel / social profile owner), the previous behaviour.
   const [importBrand, setImportBrand] = useState("");
+  // Brand registry (project_brands) — carries the IG/TikTok/YouTube handles captured in
+  // onboarding, so Scout can offer them as a dropdown instead of retyping every time.
+  const [brandReg, setBrandReg] = useState([]);
+  useEffect(() => {
+    if (!projectId) { setBrandReg([]); return; }
+    (async () => {
+      const { data } = await supabase.from("project_brands").select("name,role,social,sort_order").eq("project_id", projectId).eq("archived", false).order("sort_order");
+      setBrandReg(data || []);
+    })();
+  }, [projectId]);
+  // The YouTube search query for a brand: prefer the @handle / channel from its stored URL, else the name.
+  const ytQuery = (b) => {
+    const u = (b?.social || {}).youtube || "";
+    const m = u.match(/@([^/?#]+)/); if (m) { try { return decodeURIComponent(m[1]); } catch { return m[1]; } }
+    const m2 = u.match(/youtube\.com\/(?:c\/|channel\/|user\/)([^/?#]+)/i); if (m2) { try { return decodeURIComponent(m2[1]); } catch { return m2[1]; } }
+    return b?.name || "";
+  };
   // The social branch reports its selection up so one bar drives both branches.
   const [socialSel, setSocialSel] = useState({ count: 0, importing: false, progress: { done: 0, total: 0 }, run: null });
   const handleSocialSelection = useCallback((s) => setSocialSel(s), []);
@@ -812,6 +829,7 @@ Rules:
               <SocialFeedPicker
                 key={channel}
                 platforms={[channel]}
+                brands={brandReg.filter(b => ((b.social || {})[channel] || "").trim()).map(b => ({ name: b.name, handle: (b.social || {})[channel] }))}
                 externalBar
                 barScope={scope}
                 barBrand={importBrand}
@@ -845,6 +863,15 @@ Rules:
             <div style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
               <label style={SC_LABEL}>Search query</label>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                {brandReg.length > 0 && (
+                  <select value={(brandReg.find(b => ytQuery(b) === brand) || {}).name || ""}
+                    onChange={e => { const b = brandReg.find(x => x.name === e.target.value); setBrand(b ? ytQuery(b) : ""); }}
+                    title="Marcas del proyecto (usa su canal de YouTube guardado)"
+                    style={{ flex: "none", maxWidth: 180, background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "11px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-900)", outline: "none", cursor: "pointer" }}>
+                    <option value="">Nueva / escribir…</option>
+                    {brandReg.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                  </select>
+                )}
                 <input ref={searchInputRef} value={brand} onChange={e => setBrand(e.target.value)}
                   placeholder="A brand, a market, or a topic…"
                   onKeyDown={e => { if (e.key === "Enter") handleSearch(); }}

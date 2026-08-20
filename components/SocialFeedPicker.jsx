@@ -37,6 +37,7 @@ function timeAgo(ts) {
 // framework-aware defaults.
 export default function SocialFeedPicker({
   platforms = ["instagram", "tiktok"],
+  brands = [], // [{name, handle}] for this platform — from the project's saved handles
   projectId,
   scope = "local",
   defaultCountry = "",
@@ -69,6 +70,8 @@ export default function SocialFeedPicker({
       ];
   const [platform, setPlatform] = useState(platforms[0]);
   const [handle, setHandle] = useState("");
+  // A saved value may be a handle or a full profile URL — reduce it to the bare handle.
+  const toHandle = (v) => { let s = String(v || "").trim(); const m = s.match(/(?:instagram\.com|tiktok\.com)\/@?([^/?#]+)/i); if (m) s = m[1]; return s.replace(/^@/, ""); };
   const [limit, setLimit] = useState(12);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -233,6 +236,18 @@ export default function SocialFeedPicker({
 
       {/* Handle input (redesign console: OPTION → ACTION) */}
       <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+        {brands.length > 0 && (
+          <div style={{ flex: "none" }}>
+            <label style={SFP_LABEL}>Marca</label>
+            <select value={brands.find((b) => toHandle(b.handle) === handle)?.name || ""}
+              onChange={(e) => { const b = brands.find((x) => x.name === e.target.value); setHandle(b ? toHandle(b.handle) : ""); }}
+              title="Marcas del proyecto (usa el handle guardado)"
+              style={{ background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "11px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-900)", outline: "none", cursor: "pointer", maxWidth: 170 }}>
+              <option value="">Nueva…</option>
+              {brands.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
+            </select>
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 220 }}>
           <label style={SFP_LABEL}>{PLATFORM_META[platform]?.label || platform} handle</label>
           <div style={{ display: "flex", alignItems: "center", background: "var(--paper)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "0 13px" }}>
