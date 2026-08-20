@@ -234,10 +234,14 @@ function IntelligenceContent() {
     const t = setInterval(() => { loadDna(); loadRegistry(); }, 10000);
     return () => clearInterval(t);
   }, [tab, projectId]);
-  const [insights, setInsights] = useState(null);
+  // Insights are kept PER LENS (white_space, differential, …) so switching lens no longer
+  // discards what you already generated. `insByLens` maps dimension key → insight array;
+  // the currently-shown `insights` is derived from the active `dimension` below.
+  const [insByLens, setInsByLens] = useState({});
   const [insLoading, setInsLoading] = useState(false);
   const [insErr, setInsErr] = useState("");
   const [dimension, setDimension] = useState("");
+  const insights = insByLens[dimension] || null;
   const [picks, setPicks] = useState([]);
   const [picksOpen, setPicksOpen] = useState(false);
   const [report, setReport] = useState(null);
@@ -273,7 +277,10 @@ function IntelligenceContent() {
   // Restore last generation for this project; load analyst findings from the DB-backed shelf.
   useEffect(() => {
     if (!projectId) return;
-    try { const s = localStorage.getItem(`gw-insights-${projectId}`); if (s) setInsights(JSON.parse(s)); } catch {}
+    try {
+      const s = localStorage.getItem(`gw-insights-${projectId}`);
+      if (s) { const parsed = JSON.parse(s); setInsByLens(Array.isArray(parsed) ? { "": parsed } : (parsed || {})); }
+    } catch {}
     try { const r = localStorage.getItem(`gw-report-${projectId}`); if (r) setReport(JSON.parse(r)); } catch {}
     (async () => {
       const fs = await listFindings(projectId);
@@ -289,7 +296,14 @@ function IntelligenceContent() {
       const res = await fetch("/api/intelligence/insights", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, dimension }) });
       const dt = await res.json();
       if (dt.error) setInsErr(dt.error);
-      else { setInsights(dt.insights || []); try { localStorage.setItem(`gw-insights-${projectId}`, JSON.stringify(dt.insights || [])); } catch {} }
+      else {
+        // Store under the active lens, preserving every other lens already generated.
+        setInsByLens((prev) => {
+          const next = { ...prev, [dimension]: dt.insights || [] };
+          try { localStorage.setItem(`gw-insights-${projectId}`, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      }
     } catch (e) { setInsErr(e.message); }
     setInsLoading(false);
   };
@@ -675,9 +689,12 @@ function IntelligenceContent() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: "var(--brand-white)", border: "1px solid var(--border-hairline)", borderRadius: 14, padding: "10px 12px", marginBottom: 22 }}>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] font-mono uppercase tracking-widest mr-1.5" style={{ color: "var(--text-muted)" }}>Lenses</span>
-                {DIM_CHIPS.map(([k, l]) => (
-                  <button key={k} onClick={() => setDimension(k)} className="px-3 py-1.5 rounded-full text-[11px] font-medium border transition" style={dimension === k ? { background: "var(--ink-800)", borderColor: "var(--ink-800)", color: "var(--brand-cream)" } : { background: "var(--brand-white)", borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>{l}</button>
-                ))}
+                {DIM_CHIPS.map(([k, l]) => {
+                  const has = (insByLens[k] || []).length > 0;
+                  return (
+                  <button key={k} onClick={() => setDimension(k)} className="px-3 py-1.5 rounded-full text-[11px] font-medium border transition inline-flex items-center gap-1.5" style={dimension === k ? { background: "var(--ink-800)", borderColor: "var(--ink-800)", color: "var(--brand-cream)" } : { background: "var(--brand-white)", borderColor: "var(--border-hairline)", color: "var(--text-muted)" }} title={has ? "Insights generated for this lens" : ""}>{l}{has && <span style={{ width: 5, height: 5, borderRadius: "50%", background: dimension === k ? "var(--brand-cream)" : "var(--accent-ember)" }} />}</button>
+                  );
+                })}
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPicksOpen(true)} className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" style={{ border: "1px solid var(--border-hairline)", color: "var(--ink-800)" }}><Bookmark on /> Analyst Picks ({picks.length})</button>
