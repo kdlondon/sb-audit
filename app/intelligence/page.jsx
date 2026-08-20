@@ -80,14 +80,15 @@ const kfmt = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" 
 const splitVal = (v) => { const m = String(v).match(/^([\d.,]+)(.*)$/); return m ? [m[1], m[2]] : [String(v), ""]; };
 const KPI_NUM = { fontSize: 32, lineHeight: 0.9, letterSpacing: "-0.02em", color: "var(--kd-black)", fontFamily: "var(--kd-mono)", fontWeight: 500 };
 const KPI_SUFFIX = { fontSize: 17, color: "rgba(22,20,19,0.5)" };
-function PillBars({ data, spark = null, fmt = kfmt }) {
+function PillBars({ data, spark = null, fmt = kfmt, onBarClick = null }) {
   const rows = [...data].filter((r) => r && r.name).sort((a, b) => b.value - a.value);
   const max = Math.max(1, ...rows.map((r) => r.value));
   const sparkIdx = spark === "max" ? 0 : spark === "min" ? rows.length - 1 : -1;
+  const clickable = !!onBarClick;
   return (
     <div className="flex flex-col gap-3 py-1">
       {rows.map((r, i) => (
-        <div key={r.name} className="grid items-center gap-3" style={{ gridTemplateColumns: "96px 1fr 48px" }}>
+        <div key={r.name} onClick={clickable ? () => onBarClick(r.name) : undefined} className="grid items-center gap-3" style={{ gridTemplateColumns: "96px 1fr 48px", cursor: clickable ? "pointer" : "default" }} title={clickable ? `Ver las ${fmt(r.value)} piezas de ${r.name}` : undefined}>
           <span className="text-[12px] font-medium text-right truncate" style={{ color: "var(--kd-black)" }}>{r.name}</span>
           <div className="rounded-full overflow-hidden" style={{ height: 18, background: "var(--data-track)" }}>
             <div className="rounded-full" style={{ height: 18, width: `${Math.max(3, (r.value / max) * 100)}%`, background: i === sparkIdx ? "var(--kd-data-spark)" : i === 0 ? "var(--accent-deep)" : i === 1 ? "var(--q1)" : "var(--q2)", transition: "width 0.6s var(--kd-easing)" }} />
@@ -103,9 +104,11 @@ function PillBars({ data, spark = null, fmt = kfmt }) {
 // 2 parts -> rounded-cap ring + mono numeral; 3-6 -> one stacked capsule + direct legend.
 const CAPSULE_TINTS = ["var(--accent-tint)", "var(--accent-step)", "var(--p-stone)", "var(--p-sand)", "var(--p-ember)", "var(--q3)"];
 const pctOf = (v, total) => Math.round((v / (total || 1)) * 100);
-function PartToWhole({ data }) {
+function PartToWhole({ data, onSliceClick = null }) {
   const rows = [...data].filter((r) => r && r.name && r.value > 0).sort((a, b) => b.value - a.value);
   const total = rows.reduce((s, r) => s + r.value, 0);
+  const clickable = !!onSliceClick;
+  const clickProps = (name) => clickable ? { onClick: () => onSliceClick(name), style: { cursor: "pointer" }, title: `Ver piezas · ${name}` } : {};
   if (!rows.length) return <div className="h-[180px] flex items-center justify-center text-xs text-hint">No data</div>;
   if (rows.length <= 2) {
     const lead = rows[0];
@@ -122,7 +125,7 @@ function PartToWhole({ data }) {
         </svg>
         <div className="flex flex-col gap-2.5">
           {rows.map((r, i) => (
-            <div key={r.name} className="rounded-xl px-4 py-2.5 min-w-[100px]" style={{ background: i === 0 ? "var(--accent-tint)" : "var(--p-stone)" }}>
+            <div key={r.name} {...clickProps(r.name)} className="rounded-xl px-4 py-2.5 min-w-[100px]" style={{ background: i === 0 ? "var(--accent-tint)" : "var(--p-stone)", ...(clickable ? { cursor: "pointer" } : {}) }}>
               <div style={{ fontFamily: "var(--kd-mono)", fontSize: 20, lineHeight: 1, color: "var(--kd-black)" }}>{pctOf(r.value, total)}%</div>
               <div className="text-[11px] mt-1" style={{ color: "rgba(22,20,19,.6)" }}>{r.name}</div>
             </div>
@@ -134,11 +137,11 @@ function PartToWhole({ data }) {
   return (
     <div className="py-3">
       <div className="flex rounded-full overflow-hidden" style={{ height: 28 }}>
-        {rows.map((r, i) => <div key={r.name} style={{ width: `${(r.value / total) * 100}%`, background: CAPSULE_TINTS[Math.min(i, CAPSULE_TINTS.length - 1)], transition: "width 0.6s var(--kd-easing)" }} />)}
+        {rows.map((r, i) => <div key={r.name} {...clickProps(r.name)} style={{ width: `${(r.value / total) * 100}%`, background: CAPSULE_TINTS[Math.min(i, CAPSULE_TINTS.length - 1)], transition: "width 0.6s var(--kd-easing)", ...(clickable ? { cursor: "pointer" } : {}) }} />)}
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
         {rows.map((r, i) => (
-          <div key={r.name} className="flex items-center gap-2">
+          <div key={r.name} {...clickProps(r.name)} className="flex items-center gap-2" style={clickable ? { cursor: "pointer" } : undefined}>
             <span className="rounded-sm flex-none" style={{ width: 11, height: 11, background: CAPSULE_TINTS[Math.min(i, CAPSULE_TINTS.length - 1)] }} />
             <span className="text-[12px]" style={{ color: "rgba(22,20,19,.76)" }}>{r.name}</span>
             <span style={{ fontFamily: "var(--kd-mono)", fontSize: 11, color: "var(--kd-black)" }}>{pctOf(r.value, total)}%</span>
@@ -221,7 +224,13 @@ function IntelligenceContent() {
   const [journeyBrand, setJourneyBrand] = useState("");   // Journey/campaign map widget
   const [journeyView, setJourneyView] = useState("funnel");
   const [dashBrands, setDashBrands] = useState([]);       // dashboard competitor filter (empty = all)
-  const [dashDrill, setDashDrill] = useState(null);       // heatmap drill-down panel { label, entries }
+  const [dashFiltersOpen, setDashFiltersOpen] = useState(false); // filter panel expanded
+  const [dashYearFrom, setDashYearFrom] = useState("");   // period — from year (inclusive)
+  const [dashYearTo, setDashYearTo] = useState("");       // period — to year (inclusive)
+  const [dashSource, setDashSource] = useState("");       // "" | "paid" | "organic" (Fase D origin)
+  const [dashAnalyzed, setDashAnalyzed] = useState(false);// only AI-analyzed pieces
+  const [dashDrill, setDashDrill] = useState(null);       // bar/heatmap drill-down lightbox { label, entries }
+  const [dashDetail, setDashDetail] = useState(null);     // a single piece opened inside the lightbox
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("dashboard");
   // Deep-link: /intelligence?tab=brands (e.g. from onboarding's done screen)
@@ -340,9 +349,32 @@ function IntelligenceContent() {
     })();
   }, [projectId]);
 
-  const allBrands = useMemo(() => [...new Set(entries.map((e) => e.competitor || e.brand || e.brand_name || "—"))].filter((b) => b && b !== "—"), [entries]);
+  const brandEntry = (e) => e.competitor || e.brand || e.brand_name || "—";
+  const allBrands = useMemo(() => [...new Set(entries.map(brandEntry))].filter((b) => b && b !== "—"), [entries]);
+  // Brands split by scope so the filter panel can separate the LOCAL audit from the GLOBAL
+  // benchmark — a 49-brand fintech benchmark is unreadable as one flat chip wall.
+  const brandsByScope = useMemo(() => {
+    const local = new Set(), global = new Set();
+    entries.forEach((e) => { const b = brandEntry(e); if (!b || b === "—") return; (e.scope === "global" ? global : local).add(b); });
+    return { local: [...local].sort(), global: [...global].sort() };
+  }, [entries]);
+  const yearOpts = useMemo(() => [...new Set(entries.map((e) => e.year).filter(Boolean).map(String))].sort(), [entries]);
+  const hasPaidDash = useMemo(() => entries.some((e) => e.source_type === "paid"), [entries]);
+  // One filtered corpus drives BOTH the charts and the click-through lightbox, so a bar and
+  // its piece list can never disagree. Brands + period (year) + origin + analyzed state.
+  const filteredEntries = useMemo(() => entries.filter((e) => {
+    if (dashBrands.length && !dashBrands.includes(brandEntry(e))) return false;
+    const yr = Number(e.year) || null;
+    if (dashYearFrom && yr && yr < Number(dashYearFrom)) return false;
+    if (dashYearTo && yr && yr > Number(dashYearTo)) return false;
+    if (dashSource === "paid" && e.source_type !== "paid") return false;
+    if (dashSource === "organic" && e.source_type === "paid") return false;
+    if (dashAnalyzed && !cdOf(e)._ai_analyzed_at) return false;
+    return true;
+  }), [entries, dashBrands, dashYearFrom, dashYearTo, dashSource, dashAnalyzed]);
+  const dashFilterCount = (dashBrands.length ? 1 : 0) + (dashYearFrom || dashYearTo ? 1 : 0) + (dashSource ? 1 : 0) + (dashAnalyzed ? 1 : 0);
   const d = useMemo(() => {
-    const src = dashBrands.length ? entries.filter((e) => dashBrands.includes(e.competitor || e.brand || e.brand_name || "—")) : entries;
+    const src = filteredEntries;
     const rows = src.map((e) => {
       const cd = cdOf(e);
       const s = cd._social || {}, m = cd._meta || {};
@@ -449,7 +481,19 @@ function IntelligenceContent() {
     };
 
     return { rows, base, brands, brandColor, byBrand, byFormat: count("format"), byPlatform: count("platform"), dowCount, pillars, pillarsShown, pillarByBrand, pillarGroups, maxPillarCount, analyzedPct, total: rows.length };
-  }, [entries, dashBrands]);
+  }, [filteredEntries]);
+
+  // Click a bar/segment → open the lightbox with the exact pieces that compose it, drawn from
+  // the same filtered corpus the charts use. `predicate` runs over the ORIGINAL entry rows so
+  // the detail view has every field (id, image, synopsis…).
+  const openDrill = (label, predicate) => {
+    const list = filteredEntries.filter(predicate);
+    if (list.length) { setDashDetail(null); setDashDrill({ label, entries: list }); }
+  };
+  // Field helpers mirroring the chart projections, so a click matches what the bar counted.
+  const drillBrand = (b) => openDrill(b, (e) => brandEntry(e) === b);
+  const drillField = (label, key, val) => openDrill(label, (e) => { const cd = cdOf(e); const s = cd._social || {}, m = cd._meta || {}; const map = { format: s.format || "—", platform: s.platform || m.platform || "—" }; return (map[key] ?? "—") === val; });
+  const drillMulti = (label, key, val) => openDrill(label, (e) => String(e[key] || "").split(",").map((x) => x.trim()).includes(val));
 
   const TABS = [["dashboard", "Dashboard"], ["insights", "Insights"], ["brands", "Brands"], ["collections", "Collections"]];
   const INTEL_TABS = TABS.map(([id, label]) => ({ id, label }));
@@ -486,50 +530,78 @@ function IntelligenceContent() {
           <CollectionsWorkspace projectId={projectId} userEmail={userEmail} framework={framework} />
         ) : tab === "dashboard" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="col-span-full flex items-center gap-1.5 flex-wrap mb-1">
-              <span className="text-[10px] uppercase font-semibold mr-1" style={{ color: "var(--accent-deep)", fontFamily: "var(--kd-mono)" }}>Competitors</span>
-              {allBrands.map((b) => { const on = dashBrands.includes(b); return (
-                <button key={b} onClick={() => setDashBrands((prev) => on ? prev.filter((x) => x !== b) : [...prev, b])} className="px-3 py-1 rounded-full text-[11px] border transition" style={on ? { background: "var(--kd-black)", borderColor: "var(--kd-black)", color: "var(--kd-cream)" } : { borderColor: "var(--border)", color: "var(--text2)" }}>{b}</button>
-              ); })}
-              {dashBrands.length > 0 && <button onClick={() => setDashBrands([])} className="text-[11px] ml-1" style={{ color: "var(--accent-deep)" }}>Clear</button>}
-            </div>
-            <div className="col-span-full flex gap-3 flex-wrap">
-              {[["Content", d.total, "pieces analyzed"], ["Brands", d.brands.length, "in this benchmark"], ["AI-analyzed", `${d.analyzedPct}%`, "of the corpus"]].map(([l, v, sub], i) => (
-                <div key={l} className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)" }}>
-                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.5, fontFamily: "var(--kd-mono)", letterSpacing: ".04em" }}>{l}</div>
-                  <div style={KPI_NUM}>{(() => { const [n, suf] = splitVal(v); return <>{n}{suf && <small style={KPI_SUFFIX}>{suf}</small>}</>; })()}</div>
-                  <div className="text-[10px] mt-1.5" style={{ color: "var(--text-muted)", fontFamily: "var(--kd-mono)" }}>{sub}</div>
+            <div className="col-span-full mb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setDashFiltersOpen((v) => !v)} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition" style={{ background: "var(--brand-white)", borderColor: (dashFilterCount || dashFiltersOpen) ? "var(--accent-ember)" : "var(--border-hairline)", color: (dashFilterCount || dashFiltersOpen) ? "var(--accent-ember)" : "var(--text-secondary)" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6h11M4 12h7M4 18h4M17 6l3 3-3 3M17 18l3-3" /></svg>
+                  Filtros{dashFilterCount ? <span style={{ minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999, background: "var(--accent-ember)", color: "#fff", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{dashFilterCount}</span> : null}
+                </button>
+                {dashFilterCount > 0 && <button onClick={() => { setDashBrands([]); setDashYearFrom(""); setDashYearTo(""); setDashSource(""); setDashAnalyzed(false); }} className="text-[11px]" style={{ color: "var(--accent-deep)" }}>Limpiar todo</button>}
+                <span className="text-[11px] ml-auto" style={{ color: "var(--text-muted)", fontFamily: "var(--kd-mono)" }}>{d.total} de {entries.length} piezas</span>
+              </div>
+              {dashFiltersOpen && (() => {
+                const chip = (b) => { const on = dashBrands.includes(b); return (
+                  <button key={b} onClick={() => setDashBrands((prev) => on ? prev.filter((x) => x !== b) : [...prev, b])} className="px-3 py-1 rounded-full text-[11px] border transition" style={on ? { background: "var(--kd-black)", borderColor: "var(--kd-black)", color: "var(--kd-cream)" } : { borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--brand-white)" }}>{b}</button>
+                ); };
+                const LBL = { fontSize: 10, textTransform: "uppercase", fontWeight: 600, color: "var(--accent-deep)", fontFamily: "var(--kd-mono)", letterSpacing: ".04em", marginBottom: 8 };
+                const sel = "px-2.5 py-1.5 rounded-lg text-xs border";
+                return (
+                <div className="mt-3 rounded-2xl p-4 flex flex-col gap-4" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)" }}>
+                  {brandsByScope.local.length > 0 && (
+                    <div><div style={LBL}>Audit local · {brandsByScope.local.length}</div><div className="flex items-center gap-1.5 flex-wrap">{brandsByScope.local.map(chip)}</div></div>
+                  )}
+                  {brandsByScope.global.length > 0 && (
+                    <div><div style={LBL}>Benchmark global · {brandsByScope.global.length}</div><div className="flex items-center gap-1.5 flex-wrap">{brandsByScope.global.map(chip)}</div></div>
+                  )}
+                  <div className="flex flex-wrap items-end gap-5 pt-3" style={{ borderTop: "1px solid var(--border-hairline)" }}>
+                    <div>
+                      <div style={LBL}>Período</div>
+                      <div className="flex items-center gap-1.5">
+                        <select value={dashYearFrom} onChange={(e) => setDashYearFrom(e.target.value)} className={sel} style={{ borderColor: "var(--border-hairline)", background: "var(--surface)", color: "var(--text-main)" }}><option value="">desde</option>{yearOpts.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+                        <span className="text-hint text-xs">→</span>
+                        <select value={dashYearTo} onChange={(e) => setDashYearTo(e.target.value)} className={sel} style={{ borderColor: "var(--border-hairline)", background: "var(--surface)", color: "var(--text-main)" }}><option value="">hasta</option>{yearOpts.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+                      </div>
+                    </div>
+                    {hasPaidDash && (
+                      <div>
+                        <div style={LBL}>Origen</div>
+                        <div className="inline-flex items-center gap-0.5 rounded-full p-1" style={{ background: "var(--surface2)", border: "1px solid var(--border-hairline)" }}>
+                          {[["", "Todo"], ["paid", "Pagado"], ["organic", "Orgánico"]].map(([v, l]) => (
+                            <button key={v} onClick={() => setDashSource(v)} className="px-3 py-1 rounded-full text-[11px] font-medium transition" style={dashSource === v ? { background: "var(--kd-black)", color: "var(--kd-cream)" } : { color: "var(--text-muted)" }}>{l}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                      <input type="checkbox" checked={dashAnalyzed} onChange={(e) => setDashAnalyzed(e.target.checked)} />
+                      Solo analizados por IA
+                    </label>
+                  </div>
                 </div>
-              ))}
-              {(() => { const rated = [...d.byBrand].filter((b) => b.avgRate != null).sort((a, b) => b.avgRate - a.avgRate); const lead = rated[0]; return lead ? (
-                <div className="rounded-xl px-4 py-3.5 flex-1 min-w-[140px]" style={{ background: "var(--brand-white)", border: "1px solid var(--border-hairline)" }}>
-                  <div className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--kd-black)", opacity: 0.5, fontFamily: "var(--kd-mono)", letterSpacing: ".04em" }}>Engagement leader</div>
-                  <div style={{ ...KPI_NUM, color: "var(--accent-ember)" }}>{(() => { const [n, suf] = splitVal(fmtRate(lead.avgRate)); return <>{n}{suf && <small style={{ ...KPI_SUFFIX, color: "var(--accent-ember)", opacity: 0.7 }}>{suf}</small>}</>; })()}</div>
-                  <div className="text-[10px] mt-1.5" style={{ color: "var(--text-muted)", fontFamily: "var(--kd-mono)" }}>{lead.name} · 1st of {rated.length}</div>
-                </div>
-              ) : null; })()}
+                );
+              })()}
             </div>
-
             {/* ── DEFAULT TIER — works on any project, from the framework fields every
-                   piece carries. This is what a non-social audit sees. ── */}
+                   piece carries. This is what a non-social audit sees. Single KPI row:
+                   Pieces · Brands · Avg rating (hero) · Engagement leader. ── */}
             <div className="col-span-full" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <ReportBlock block={{ id: "b-kpi", type: "kpi", data: { items: [
                 { label: "Pieces", value: String(d.total) },
                 { label: "Brands", value: String(d.brands.length) },
-                ...(d.base.concentrated(d.base.byTerritory) ? [{ label: "Territories", value: String(d.base.byTerritory.length) }] : []),
                 ...(d.base.avgRating != null ? [{ label: "Avg rating", value: d.base.avgRating.toFixed(1), hero: true }] : []),
+                ...(() => { const rated = [...d.byBrand].filter((b) => b.avgRate != null).sort((a, b) => b.avgRate - a.avgRate); const lead = rated[0]; return lead ? [{ label: "Engagement leader", value: fmtRate(lead.avgRate), caption: `${lead.name} · 1st of ${rated.length}` }] : []; })(),
               ] } }} />
 
               {d.base.byTerritory.length >= 3 && d.base.concentrated(d.base.byTerritory) && (
-                <ReportBlock block={{ id: "b-terr", type: "bars", data: {
-                  title: "Territories", hint: "pieces",
+                <ReportBlock block={{ id: "b-terr", type: "bars", onItemClick: (it) => drillMulti(`Territorio · ${it.label}`, "primary_territory", it.label), data: {
+                  title: "Territories", hint: "pieces · click para ver",
                   items: d.base.byTerritory.slice(0, 8).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
                 } }} />
               )}
 
               {d.base.byIntent.length >= 3 && d.base.concentrated(d.base.byIntent) && (
-                <ReportBlock block={{ id: "b-intent", type: "bars", data: {
-                  title: "Communication intent", hint: "pieces",
+                <ReportBlock block={{ id: "b-intent", type: "bars", onItemClick: (it) => drillMulti(`Intención · ${it.label}`, "communication_intent", it.label), data: {
+                  title: "Communication intent", hint: "pieces · click para ver",
                   items: d.base.byIntent.slice(0, 8).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
                 } }} />
               )}
@@ -553,8 +625,8 @@ function IntelligenceContent() {
               )}
 
               {d.base.byArchetype.length >= 2 && d.base.concentrated(d.base.byArchetype) && (
-                <ReportBlock block={{ id: "b-arch", type: "bars", data: {
-                  title: "Brand archetype", hint: "pieces",
+                <ReportBlock block={{ id: "b-arch", type: "bars", onItemClick: (it) => drillMulti(`Arquetipo · ${it.label}`, "brand_archetype", it.label), data: {
+                  title: "Brand archetype", hint: "pieces · click para ver",
                   items: d.base.byArchetype.slice(0, 6).map((t, i) => ({ label: t.name, value: t.value, hero: i === 0 })),
                 } }} />
               )}
@@ -573,8 +645,8 @@ function IntelligenceContent() {
               </div>
             ) : null}
 
-            <Card title="Content by brand" hint="volume">
-              <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.posts }))} />
+            <Card title="Content by brand" hint="volume · click para ver piezas">
+              <PillBars data={d.byBrand.map((b) => ({ name: b.name, value: b.posts }))} onBarClick={(name) => drillBrand(name)} />
             </Card>
 
             {d.base.socialCount > 0 && (<>
@@ -585,18 +657,18 @@ function IntelligenceContent() {
             </Card>
 
             <Card title="Format" hint="content type">
-              <PartToWhole data={d.byFormat} />
+              <PartToWhole data={d.byFormat} onSliceClick={(name) => drillField(`Format · ${name}`, "format", name)} />
             </Card>
 
             <Card title="Platform">
-              <PartToWhole data={d.byPlatform} />
+              <PartToWhole data={d.byPlatform} onSliceClick={(name) => drillField(`Platform · ${name}`, "platform", name)} />
             </Card>
 
             <Card title="Cadence — day of posting" hint="when they post">
               {(() => { const mx = Math.max(1, ...d.dowCount.map((x) => x.value)); return (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 170, paddingTop: 6 }}>
-                  {d.dowCount.map((row) => { const peak = row.value === mx; return (
-                    <div key={row.name} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                  {d.dowCount.map((row, di) => { const peak = row.value === mx; return (
+                    <div key={row.name} onClick={() => row.value && openDrill(`${row.name} · día de publicación`, (e) => { const pa = cdOf(e)._meta?.posted_at; if (!pa) return false; const g = new Date(pa).getDay(); return !isNaN(g) && g === di; })} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", cursor: row.value ? "pointer" : "default" }} title={row.value ? `Ver ${row.value} piezas` : undefined}>
                       <div style={{ width: "100%", maxWidth: 42, height: `${(row.value / mx) * 100}%`, borderRadius: "8px 8px 0 0", background: peak ? "var(--d-ember)" : "var(--q2)", transition: "height 0.6s var(--kd-easing)" }} />
                       <div style={{ fontFamily: "var(--kd-mono)", fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: peak ? "var(--d-ember)" : "rgba(22,20,19,.5)", marginTop: 10 }}>{row.name}</div>
                     </div>
@@ -633,7 +705,7 @@ function IntelligenceContent() {
 
             <Card title="Brand × communication intent" hint="click a cell to drill in" full>
               {(() => {
-                const de = dashBrands.length ? entries.filter((e) => dashBrands.includes(e.competitor || e.brand || e.brand_name || "—")) : entries;
+                const de = filteredEntries;
                 const intents = [...new Set(de.flatMap((e) => (e.communication_intent || "").split(",").map((s) => s.trim()).filter(Boolean)))].slice(0, 6);
                 const hbrands = [...new Set(de.map((e) => e.competitor || e.brand || e.brand_name || "—"))].filter((b) => b && b !== "—");
                 if (!intents.length || !hbrands.length) return <NeedsAnalysis pct={d.analyzedPct} />;
@@ -659,21 +731,52 @@ function IntelligenceContent() {
               })()}
             </Card>
             {dashDrill && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setDashDrill(null)}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { setDashDrill(null); setDashDetail(null); }}>
                 <div className="absolute inset-0 bg-black/40" />
-                <div className="relative bg-surface border border-main rounded-2xl shadow-2xl w-full max-w-[560px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-                  <div className="p-4 border-b border-main flex items-center justify-between sticky top-0 bg-surface z-10">
-                    <span className="text-sm font-bold text-main">{dashDrill.label} · {dashDrill.entries.length}</span>
-                    <button onClick={() => setDashDrill(null)} className="text-hint hover:text-main text-xl leading-none">×</button>
+                <div className="relative bg-surface border border-main rounded-2xl shadow-2xl w-full max-w-[680px] max-h-[84vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-4 py-3 border-b border-main flex items-center gap-3 sticky top-0 bg-surface z-10">
+                    {dashDetail && (
+                      <button onClick={() => setDashDetail(null)} className="inline-flex items-center gap-1 text-xs font-medium text-hint hover:text-main">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>Volver
+                      </button>
+                    )}
+                    <span className="text-sm font-bold text-main truncate">{dashDetail ? (dashDetail.description || dashDetail.competitor || dashDetail.brand || dashDetail.brand_name || "Pieza") : `${dashDrill.label} · ${dashDrill.entries.length}`}</span>
+                    <button onClick={() => { setDashDrill(null); setDashDetail(null); }} className="ml-auto text-hint hover:text-main text-xl leading-none">×</button>
                   </div>
-                  <div className="p-3 grid grid-cols-2 gap-2">
-                    {dashDrill.entries.slice(0, 40).map((e) => (
-                      <div key={e.id} className="border border-main rounded-lg overflow-hidden">
-                        {e.image_url && <img src={e.image_url} alt="" className="w-full h-24 object-cover" />}
-                        <div className="p-2"><p className="text-[11px] text-main line-clamp-2">{e.description || e.synopsis || "—"}</p><span className="text-[9px] text-hint">{e.year || ""}</span></div>
+                  {dashDetail ? (() => {
+                    const e = dashDetail; const cd = cdOf(e); const paid = cd._paid || {}; const ads = cd._ads || {};
+                    const brand = e.competitor || e.brand || e.brand_name || "—";
+                    const meta = [["Marca", brand], ["Año", e.year], ["Tipo", e.type], ["Canal", e.channel], ["Intención", e.communication_intent], ["Territorio", e.primary_territory], ["Arquetipo", e.brand_archetype], ["Rating", e.rating ? `${e.rating}/5` : ""]].filter(([, v]) => v);
+                    const paidRows = e.source_type === "paid" ? [["Rol en funnel", paid.funnel_role], ["Oferta", paid.offer_type], ["Urgencia", paid.urgency_devices], ["Promesa", paid.declared_promise], ["Público", paid.implied_audience], ["Días activo", ads.days_running], ["Variantes", ads.variant_count]].filter(([, v]) => v) : [];
+                    return (
+                      <div className="p-4">
+                        {e.image_url && <img src={e.image_url} alt="" className="w-full max-h-[320px] object-contain rounded-lg mb-4" style={{ background: "var(--surface2)" }} />}
+                        {e.synopsis && <p className="text-[13px] text-main leading-relaxed mb-4">{e.synopsis}</p>}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                          {meta.map(([k, v]) => <div key={k} className="text-[11px]"><span className="text-hint">{k}: </span><span className="text-main">{v}</span></div>)}
+                        </div>
+                        {paidRows.length > 0 && (
+                          <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface2)", border: "1px solid var(--border-hairline)" }}>
+                            <div className="text-[9px] uppercase font-semibold mb-2" style={{ color: "var(--accent-ember)", fontFamily: "var(--kd-mono)", letterSpacing: ".04em" }}>Paid signals</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">{paidRows.map(([k, v]) => <div key={k} className="text-[11px]"><span className="text-hint">{k}: </span><span className="text-main">{v}</span></div>)}</div>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3">
+                          <a href={`/audit?edit=${e.id}`} className="text-xs font-medium underline" style={{ color: "var(--accent-deep)" }}>Abrir en Creative Source ↗</a>
+                          {e.url && <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-xs text-hint underline">Ver original ↗</a>}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })() : (
+                    <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {dashDrill.entries.slice(0, 60).map((e) => (
+                        <button key={e.id} onClick={() => setDashDetail(e)} className="text-left border border-main rounded-lg overflow-hidden hover:border-[var(--accent-ember)] transition">
+                          {e.image_url && <img src={e.image_url} alt="" className="w-full h-24 object-cover" />}
+                          <div className="p-2"><p className="text-[11px] text-main line-clamp-2">{e.description || e.synopsis || "—"}</p><span className="text-[9px] text-hint">{e.competitor || e.brand || e.brand_name || ""}{e.year ? ` · ${e.year}` : ""}</span></div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

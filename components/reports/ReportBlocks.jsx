@@ -58,7 +58,7 @@ export default function ReportBlock({ block }) {
   if (!block) return null;
   switch (block.type) {
     case "kpi": return <KpiRow data={block.data} />;
-    case "bars": return <Bars data={block.data} />;
+    case "bars": return <Bars data={block.data} onItemClick={block.onItemClick} />;
     case "split": return <Split data={block.data} />;
     case "heatmap": return <Heatmap data={block.data} />;
     case "quadrant": return <Quadrant data={block.data} />;
@@ -99,16 +99,17 @@ function KpiRow({ data = {} }) {
   );
 }
 
-function Bars({ data = {} }) {
+function Bars({ data = {}, onItemClick = null }) {
   const items = data.items || [];
   if (!items.length) return null;
   const max = data.max || Math.max(1, ...items.map((i) => Number(i.value) || 0));
+  const clickable = !!onItemClick;
   return (
     <div className="gw-nobreak" style={{ ...CARD, padding: "26px 28px" }}>
       <CardHead title={data.title} hint={data.hint} />
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items.map((i, n) => (
-          <div key={n} style={{ display: "flex", alignItems: "center", gap: 16, minHeight: 26 }}>
+          <div key={n} onClick={clickable ? () => onItemClick(i) : undefined} style={{ display: "flex", alignItems: "center", gap: 16, minHeight: 26, cursor: clickable ? "pointer" : "default" }} title={clickable ? `Ver piezas · ${i.label}` : undefined}>
             {/* Territory names run long in Spanish and were being sliced mid-word — and
                 mid-glyph in the PDF, where the rasteriser clipped the overflow box. Two
                 lines, clamped, so the label survives the export. */}
