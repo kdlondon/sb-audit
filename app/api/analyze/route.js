@@ -75,6 +75,19 @@ function socialFieldsBlock(pillars) {
   "visual_codes": "Recurring visual style/codes — palette, framing, recurring graphic elements or format treatment (1 short phrase)"`;
 }
 
+// Paid-ad extra fields (added only when analyzing a piece with spend behind it). These are
+// the INFERRED half of 06 · Paid Signals — the AI's read, kept separate from the observed
+// facts (dates, variants, platforms) that come from Apify. Closed fields use lowercase
+// canonical keys so they aggregate; the two text fields are written in the output language.
+function paidFieldsBlock() {
+  return `,
+  "funnel_role": "MUST be EXACTLY one lowercase canonical key (do NOT translate): awareness | consideration | conversion — where the brand is putting the money.",
+  "offer_type": "MUST be EXACTLY one lowercase canonical key (do NOT translate): promo | price | product | benefit | brand | no_offer — what it competes on.",
+  "declared_promise": "The short claim the brand is paying to spread — one phrase, in the output language.",
+  "urgency_devices": "MUST be EXACTLY one lowercase canonical key (do NOT translate): deadline | scarcity | exclusivity | none — commercial pressure applied.",
+  "implied_audience": "Who the piece speaks to, inferred from the content — one short phrase, in the output language."`;
+}
+
 // Multi-dimensional rating rubric BY PIECE TYPE (mirrors lib/rating-rubric.js). The model
 // self-selects the piece type, scores its dimensions 1-5, and sets `rating` = the average.
 function ratingRubricBlock() {
@@ -88,7 +101,7 @@ Set "rating" = the rounded AVERAGE of those dimension scores. Return the full br
 }
 
 // Build a dynamic classification prompt from framework
-function buildDynamicPrompt(framework, context, { social = false, pillars = [] } = {}) {
+function buildDynamicPrompt(framework, context, { social = false, pillars = [], paid = false } = {}) {
   const frameworkContext = buildPromptContext(framework);
   const fields = buildClassificationFields(framework);
   const lang = framework.language || "English";
@@ -102,7 +115,7 @@ function buildDynamicPrompt(framework, context, { social = false, pillars = [] }
   return `${frameworkContext}
 
 You are classifying a competitive communication piece for the ${brandName} competitive audit in the ${industry} category.
-${social ? "\nThis is a SOCIAL MEDIA POST. Base your analysis primarily on the post CAPTION/COPY provided in the context plus the image. Identify the brand's recurring content pattern, not just this single post.\n" : ""}
+${social ? "\nThis is a SOCIAL MEDIA POST. Base your analysis primarily on the post CAPTION/COPY provided in the context plus the image. Identify the brand's recurring content pattern, not just this single post.\n" : ""}${paid ? "\nThis is a PAID AD (advertising with spend behind it). The observed facts in the context — how many days it has run, how many creative variants, the serving platforms — are proxies for investment: a brand sustaining an ad for months or rotating many variants is making a deliberate bet. Read the piece with that in mind.\n" : ""}
 LANGUAGE RULE — CRITICAL: The material you are analyzing may be in any language. Write ALL your output fields in ${lang}. Translate any copy, slogans, insights, synopses, and pain points into ${lang} as needed. Do not output in any other language.
 
 ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
@@ -110,7 +123,7 @@ ${context ? `CONTEXT PROVIDED BY ANALYST:\n${context}\n` : ""}
 Analyze this piece and return ONLY a raw JSON object (no markdown, no backticks) with these fields. For dropdown fields, pick EXACTLY one of the provided options.
 
 {
-${fieldEntries}${social ? socialFieldsBlock(pillars) : ""},
+${fieldEntries}${social ? socialFieldsBlock(pillars) : ""}${paid ? paidFieldsBlock() : ""},
   "rating_breakdown": {"type":"hero | social | positioning | product","dimensions":[{"key":"dimension_key","label":"Readable label","score":"1-5","why":"one-line reason"}],"overall":"1-5 — also copy into rating"}
 }
 ${ratingRubricBlock()}
@@ -122,7 +135,7 @@ export async function POST(request) {
   // const denied = await requireAuth(request); // TODO: fix auth with Supabase SSR
   // if (denied) return denied;
 
-  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id, brand_id, social = false, pillars = [] } = await request.json();
+  const { imageUrl, imageBase64, extraImageUrls = [], extraImageBase64 = [], context, documentBase64, documentMediaType, project_id, brand_id, social = false, pillars = [], paid = false } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "API key not configured" }, { status: 500 });
 
@@ -140,7 +153,7 @@ export async function POST(request) {
         const debugFields = buildClassificationFields(framework);
         console.log("[Analyze] Classification fields count:", Object.keys(debugFields || {}).length);
         console.log("[Analyze] Has custom dims:", (framework.dimensions || framework.customDimensions || []).length);
-        prompt = buildDynamicPrompt(framework, context, { social, pillars });
+        prompt = buildDynamicPrompt(framework, context, { social, pillars, paid });
         console.log("[Analyze] Dynamic prompt built, length:", prompt.length);
       } else {
         console.log("[Analyze] No framework found — will use legacy prompt");

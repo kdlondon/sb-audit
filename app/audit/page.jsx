@@ -31,6 +31,23 @@ function Tag({v}){return <span style={{background:COMPETITOR_COLORS[v]||"#888",c
 // the editor renders one consistent numbering instead of "1 · 1. Identification".
 const stripNum=(s)=>String(s||"").replace(/^\s*\d+\s*[.·)\-–]\s*/,"");
 
+// Paid-ad classifier (Orden 140726 · Fase C). These AI keys describe the commercial
+// strategy behind a paid ad and are stored in custom_dimensions._paid (inferred), kept
+// apart from _ads (observed facts from Apify). Split out of the audit columns like _social.
+const PAID_KEYS=["funnel_role","offer_type","declared_promise","urgency_devices","implied_audience"];
+// Turn the observed `_ads` facts into a short context line so the model reasons about
+// spend proxies (how long it ran, how many variants, where it served) instead of guessing.
+function paidObservedContext(ads){
+  if(!ads||typeof ads!=="object")return "";
+  const p=[];
+  if(ads.days_running)p.push(`${ads.days_running} days running`);
+  if(Number(ads.variant_count)>1)p.push(`${ads.variant_count} creative variants`);
+  if(Array.isArray(ads.serving_platforms)&&ads.serving_platforms.length)p.push(`serving on ${ads.serving_platforms.join(", ")}`);
+  p.push(ads.is_active?"currently active":"no longer active");
+  if(ads.cta_text)p.push(`CTA "${ads.cta_text}"`);
+  return p.length?`Observed paid-ad facts (spend proxies): ${p.join("; ")}.`:"";
+}
+
 function ImageViewer({src,onCrop}){
   const [scale,setScale]=useState(1);
   const [pos,setPos]=useState({x:0,y:0});
@@ -1702,6 +1719,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     if(!imgUrl&&!transcript){setToast({message:"Add an image or transcript first"});return;}
     setAnalyzing(true);
     const isSocial=materialType==="social"||cur.type==="Social post";
+    const isPaid=cur.source_type==="paid"||cur.type==="Paid ad";
     try{
       let context=[];
       if(cur.competitor)context.push(`Brand: ${cur.competitor}`);
@@ -1710,6 +1728,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
       if(captionTxt)context.push(`Caption/copy: ${String(captionTxt).slice(0,1500)}`);
       if(transcript)context.push(`Transcript/copy: ${transcript.slice(0,1500)}`);
       if(notes)context.push(`Analyst observations: ${notes}`);
+      if(isPaid){const pc=paidObservedContext(cur.custom_dimensions?._ads);if(pc)context.push(pc);}
 
       // Compress primary image to base64
       let imageBase64=null;
@@ -1738,7 +1757,8 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           project_id:projectId,
           brand_id:safeBrandId,
           social:isSocial,
-          pillars:isSocial?(OPTIONS.content_pillar||[]):[]
+          pillars:isSocial?(OPTIONS.content_pillar||[]):[],
+          paid:isPaid
         })
       });
       if(!res.ok){
@@ -1759,10 +1779,12 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
         setCur(prev=>{
           const u={...prev};
           const socialUpd={};
+          const paidUpd={};
           let ratingBd=null;
           Object.entries(result.analysis).forEach(([k,v])=>{
             if(!(v && v !== "undefined" && v !== "null"))return;
             if(k==="rating_breakdown"){ratingBd=v;return;}
+            if(PAID_KEYS.includes(k)){if(isPaid)paidUpd[k]=v;return;}
             if(SOCIAL_KEYS.includes(k)) socialUpd[k]=v; else u[k]=v;
           });
           if(socialUpd.content_pillar) socialUpd.content_pillar=canonP(socialUpd.content_pillar);
@@ -1773,6 +1795,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
           u.custom_dimensions={
             ...(u.custom_dimensions||{}),
             ...(Object.keys(socialUpd).length?{_social:{...((u.custom_dimensions||{})._social||{}),...socialUpd}}:{}),
+            ...(Object.keys(paidUpd).length?{_paid:{...((u.custom_dimensions||{})._paid||{}),...paidUpd}}:{}),
             ...(ratingBd?{_rating:ratingBd}:{}),
             _ai_analyzed_at:new Date().toISOString(),
           };
@@ -1811,6 +1834,7 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
   // Analyze a single entry headlessly (for bulk). Returns the DB update object or null.
   const analyzeEntryToUpdate=async(entry)=>{
     const isSocial=entry.type==="Social post";
+    const isPaid=entry.source_type==="paid"||entry.type==="Paid ad";
     const meta=entry.custom_dimensions?._meta||{};
     const context=[];
     if(entry.competitor)context.push(`Brand: ${entry.competitor}`);
@@ -1819,19 +1843,20 @@ Be analytical and conclusive, not merely descriptive. Find patterns, contrasts, 
     if(captionTxt)context.push(`Caption/copy: ${String(captionTxt).slice(0,1500)}`);
     if(entry.transcript)context.push(`Transcript/copy: ${String(entry.transcript).slice(0,1500)}`);
     if(entry.analyst_comment)context.push(`Analyst observations: ${entry.analyst_comment}`);
+    if(isPaid){const pc=paidObservedContext(entry.custom_dimensions?._ads);if(pc)context.push(pc);}
     let imageBase64=null;
     if(entry.image_url){try{imageBase64=await resizeImageToBase64(entry.image_url,800,0.75);}catch{}}
-    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imageBase64?null:entry.image_url,imageBase64,context:context.join("\n"),project_id:projectId,brand_id:safeBrandId,social:isSocial,pillars:isSocial?(OPTIONS.content_pillar||[]):[]})});
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageUrl:imageBase64?null:entry.image_url,imageBase64,context:context.join("\n"),project_id:projectId,brand_id:safeBrandId,social:isSocial,pillars:isSocial?(OPTIONS.content_pillar||[]):[],paid:isPaid})});
     if(!res.ok)return null;
     const result=await res.json();
     if(!result.success||!result.analysis)return null;
     const a=result.analysis;
     const SOCIAL_KEYS=["content_pillar","post_objective","visual_codes"];
-    const u={};const socialUpd={};
-    Object.entries(a).forEach(([k,v])=>{if(!(v&&v!=="undefined"&&v!=="null"))return;if(SOCIAL_KEYS.includes(k))socialUpd[k]=v;else u[k]=v;});
+    const u={};const socialUpd={};const paidUpd={};
+    Object.entries(a).forEach(([k,v])=>{if(!(v&&v!=="undefined"&&v!=="null"))return;if(PAID_KEYS.includes(k)){if(isPaid)paidUpd[k]=v;return;}if(SOCIAL_KEYS.includes(k))socialUpd[k]=v;else u[k]=v;});
     if(socialUpd.content_pillar){const np=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").replace(/s$/,"");const m=(OPTIONS.content_pillar||[]).find(o=>np(o)===np(socialUpd.content_pillar));if(m)socialUpd.content_pillar=m;}
     if(socialUpd.post_objective)socialUpd.post_objective=canonObjective(socialUpd.post_objective);
-    const cd={...(entry.custom_dimensions||{}),...(Object.keys(socialUpd).length?{_social:{...((entry.custom_dimensions||{})._social||{}),...socialUpd}}:{}),_ai_analyzed_at:new Date().toISOString()};
+    const cd={...(entry.custom_dimensions||{}),...(Object.keys(socialUpd).length?{_social:{...((entry.custom_dimensions||{})._social||{}),...socialUpd}}:{}),...(Object.keys(paidUpd).length?{_paid:{...((entry.custom_dimensions||{})._paid||{}),...paidUpd}}:{}),_ai_analyzed_at:new Date().toISOString()};
     if(isSocial){
       u.channel=u.channel&&/social/i.test(u.channel)?u.channel:"Social media";
       const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"");
